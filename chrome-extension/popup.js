@@ -188,6 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const standardFields = document.getElementById("standard-fields");
   const agentFields = document.getElementById("agent-fields");
   const openclawGatewayUrlInput = document.getElementById("openclaw-gateway-url");
+  const onboardingNote = document.getElementById("ai-onboarding");
 
   // Chat mode toggle
   function setChatModeUI(mode) {
@@ -236,6 +237,26 @@ document.addEventListener("DOMContentLoaded", () => {
     ],
   };
 
+  function isSpanishLocale() {
+    const locale = (navigator.language || "").toLowerCase();
+    return locale.startsWith("es");
+  }
+
+  function updateOnboardingNote(hasApiKey) {
+    if (!onboardingNote) return;
+
+    if (!hasApiKey) {
+      onboardingNote.textContent = isSpanishLocale()
+        ? "Shimeji quiere estar vivo. Para eso necesita que pongas tu API key de OpenRouter u OpenAI."
+        : "Shimeji wants to be alive. To do that, it needs your OpenRouter or OpenAI API key.";
+      return;
+    }
+
+    onboardingNote.textContent = isSpanishLocale()
+      ? "Con la API key lista, tus personalidades quieren estar vivas y hacer cosas online y onchain. Configura tu OpenClaw y activa \"AI Agent\" en este popup."
+      : "With your API key set, your personalities want to be alive and do things online and onchain. Configure your OpenClaw and enable \"AI Agent\" in this popup.";
+  }
+
   function populateModelDropdown(provider, selectedModel) {
     aiModelSelect.innerHTML = "";
     const models = MODEL_OPTIONS[provider] || [];
@@ -271,6 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.aiApiKey) {
         aiApiKeyInput.value = data.aiApiKey;
       }
+      updateOnboardingNote(!!data.aiApiKey);
 
       if (data.openclawGatewayUrl) {
         openclawGatewayUrlInput.value = data.openclawGatewayUrl;
@@ -301,7 +323,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // API key - save on blur or Enter
   function saveApiKey() {
-    chrome.storage.local.set({ aiApiKey: aiApiKeyInput.value.trim() });
+    const apiKey = aiApiKeyInput.value.trim();
+    chrome.storage.local.set({ aiApiKey: apiKey });
+    updateOnboardingNote(!!apiKey);
   }
   aiApiKeyInput.addEventListener("blur", saveApiKey);
   aiApiKeyInput.addEventListener("keydown", (e) => {

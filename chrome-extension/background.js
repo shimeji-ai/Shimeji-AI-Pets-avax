@@ -244,6 +244,17 @@ Style rules (apply to ALL personalities):
 - NEVER say you are an LLM, AI model, or language model.
 - NEVER over-explain unless explicitly asked.`;
 
+function getUiLanguage() {
+  const locale = (chrome.i18n?.getUILanguage?.() || '').toLowerCase();
+  return locale.startsWith('es') ? 'es' : 'en';
+}
+
+function getLanguageRule() {
+  return getUiLanguage() === 'es'
+    ? 'Always respond in Spanish.'
+    : 'Always respond in English.';
+}
+
 const PERSONALITIES = {
   cryptid: {
     label: 'Cryptid',
@@ -371,12 +382,13 @@ async function getAiSettings() {
     chrome.storage.local.get(['aiProvider', 'aiModel', 'aiApiKey', 'aiPersonality', 'chatMode', 'openclawGatewayUrl'], (data) => {
       const personalityKey = data.aiPersonality || 'cryptid';
       const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
+      const languageRule = getLanguageRule();
       resolve({
         chatMode: data.chatMode || 'standard',
         provider: data.aiProvider || 'openrouter',
         model: data.aiModel || 'google/gemini-2.0-flash-001',
         apiKey: data.aiApiKey || '',
-        systemPrompt: personality.prompt + '\n' + STYLE_RULES,
+        systemPrompt: personality.prompt + '\n' + STYLE_RULES + '\n' + languageRule,
         openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789'
       });
     });
@@ -427,18 +439,34 @@ async function callAiApi(provider, model, apiKey, messages) {
   if (response.status === 401) {
     throw new Error('Invalid API key. Please check your key in the extension popup.');
   }
-  if (response.status === 429) {
-    throw new Error('Rate limited — too many requests. Wait a moment and try again.');
-  }
   if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`API error (${response.status}): ${text.slice(0, 100) || 'Unknown error'}`);
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (response.status === 402) {
+      throw new Error('NO_CREDITS');
+    }
+
+    if (response.status === 429) {
+      const errorCode = payload?.error?.code || payload?.error?.type;
+      if (errorCode === 'insufficient_quota') {
+        throw new Error('NO_CREDITS');
+      }
+      throw new Error('Rate limited — too many requests. Wait a moment and try again.');
+    }
+
+    const text = payload ? JSON.stringify(payload).slice(0, 160) : await response.text().catch(() => '');
+    throw new Error(`API error (${response.status}): ${text || 'Unknown error'}`);
   }
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error('No response from AI. Try again.');
+    throw new Error('NO_RESPONSE');
   }
   return content;
 }
@@ -505,13 +533,19 @@ async function handleAiChat(conversationMessages) {
     }
     return { content };
   } catch (err) {
-    return { error: err.message };
+    const errorMessage = err.message || 'Unknown error';
+    let errorType = 'generic';
+    if (errorMessage === 'NO_CREDITS') errorType = 'no_credits';
+    if (errorMessage === 'NO_RESPONSE') errorType = 'no_response';
+    return { error: errorMessage, errorType };
   }
 }
 
 async function handleAiProactiveMessage(pageTitle, pageUrl) {
   const settings = await getAiSettings();
-  const proactivePrompt = `${settings.systemPrompt}\n\nYou're thinking out loud while the user browses. The user is currently on: "${pageTitle}" (${pageUrl}). Say something spontaneous — an observation, a quiet reflection, a dry comment, or something that fits your personality about what they're doing. 1-2 sentences. Don't ask what they need. Just be present.`;
+  const proactivePrompt = getUiLanguage() === 'es'
+    ? `${settings.systemPrompt}\n\nEstas pensando en voz alta mientras el usuario navega. El usuario esta en: "${pageTitle}" (${pageUrl}). Di algo espontaneo: una observacion, una reflexion suave o un comentario seco que encaje con tu personalidad. 1-2 oraciones. No preguntes que necesita. Solo esta presente.`
+    : `${settings.systemPrompt}\n\nYou're thinking out loud while the user browses. The user is currently on: "${pageTitle}" (${pageUrl}). Say something spontaneous — an observation, a quiet reflection, a dry comment, or something that fits your personality about what they're doing. 1-2 sentences. Don't ask what they need. Just be present.`;
 
   const messages = [
     { role: 'system', content: proactivePrompt },

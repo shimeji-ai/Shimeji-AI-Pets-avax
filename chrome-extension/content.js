@@ -159,6 +159,71 @@
     let proactiveEnabled = false;
     let proactiveTimer = null;
 
+    function isSpanishLocale() {
+        const locale = (navigator.language || '').toLowerCase();
+        return locale.startsWith('es');
+    }
+
+    function getNoApiKeyMessage() {
+        return isSpanishLocale()
+            ? 'Shimeji quiere estar vivo. Para eso necesita que pongas tu API key de OpenRouter u OpenAI.'
+            : 'Shimeji wants to be alive. To do that, it needs your OpenRouter or OpenAI API key.';
+    }
+
+    function getNoCreditsMessage() {
+        return isSpanishLocale()
+            ? 'No puedo hablar sin creditos. Necesito que cargues creditos en tu cuenta para seguir vivo.'
+            : 'I cannot speak without credits. Please add credits to your account so I can stay alive.';
+    }
+
+    function getNoResponseMessage() {
+        return isSpanishLocale()
+            ? 'No pude recibir respuesta. Puede ser falta de creditos o conexion. Si puedes, revisa tu saldo.'
+            : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
+    }
+
+    function ensureNoApiKeyOnboardingMessage() {
+        if (!chatMessagesEl) return;
+
+        const existing = document.getElementById('shimeji-no-api-key-msg');
+        if (existing) existing.remove();
+
+        const msgEl = document.createElement('div');
+        msgEl.id = 'shimeji-no-api-key-msg';
+        msgEl.className = 'shimeji-chat-msg ai';
+
+        const isEs = isSpanishLocale();
+        const prefix = isEs
+            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Consiguela en '
+            : 'Shimeji wants to be alive. To do that, it needs your API key. Get it from ';
+        const middle = isEs ? ' o ' : ' or ';
+        const suffix = isEs
+            ? '. Luego haz clic en el icono de la extension y configuralo ahi pegando tu API key.'
+            : '. Then click the extension icon and configure it there by pasting your API key.';
+
+        msgEl.appendChild(document.createTextNode(prefix));
+
+        const openRouterLink = document.createElement('a');
+        openRouterLink.href = 'https://openrouter.ai/settings/keys';
+        openRouterLink.target = '_blank';
+        openRouterLink.rel = 'noopener noreferrer';
+        openRouterLink.textContent = 'OpenRouter';
+        msgEl.appendChild(openRouterLink);
+
+        msgEl.appendChild(document.createTextNode(middle));
+
+        const openAiLink = document.createElement('a');
+        openAiLink.href = 'https://platform.openai.com/api-keys';
+        openAiLink.target = '_blank';
+        openAiLink.rel = 'noopener noreferrer';
+        openAiLink.textContent = 'OpenAI';
+        msgEl.appendChild(openAiLink);
+
+        msgEl.appendChild(document.createTextNode(suffix));
+
+        chatMessagesEl.prepend(msgEl);
+    }
+
     // --- Font Injection ---
     function injectFontIfNeeded() {
         if (document.getElementById('shimeji-nunito-font')) return;
@@ -580,6 +645,14 @@
         // Load persisted conversation, render, scroll to bottom and focus
         loadConversation(() => {
             renderConversationHistory();
+            chrome.storage.local.get(['aiApiKey'], (data) => {
+                if (!data.aiApiKey) {
+                    ensureNoApiKeyOnboardingMessage();
+                } else {
+                    const existing = document.getElementById('shimeji-no-api-key-msg');
+                    if (existing) existing.remove();
+                }
+            });
             setTimeout(() => {
                 if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
                 if (chatInputEl) chatInputEl.focus();
@@ -766,7 +839,13 @@
                     return;
                 }
                 if (response && response.error) {
-                    appendErrorMessage(response.error);
+                    if (response.errorType === 'no_credits') {
+                        appendMessage('ai', getNoCreditsMessage());
+                    } else if (response.errorType === 'no_response') {
+                        appendMessage('ai', getNoResponseMessage());
+                    } else {
+                        appendErrorMessage(response.error);
+                    }
                     return;
                 }
                 if (response && response.content) {
