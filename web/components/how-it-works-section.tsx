@@ -17,14 +17,14 @@ const steps = [
     step: "02",
     title: "Chat with Your Shimeji",
     description:
-      "Click on your companion to open the chat. Pick a personality and add your own API key to start talking.",
+      "Click your companion to open chat. Choose a personality and add your API key to start talking.",
   },
   {
     icon: Bot,
     step: "03",
     title: "Enable the AI Agent",
     description:
-      "Switch to AI Agent mode and connect an OpenClaw gateway to give your shimeji access to online and onchain tools.",
+      "Switch to AI Agent mode and connect OpenClaw so your shimeji can act online and onchain.",
   },
   {
     icon: Sparkles,
@@ -83,9 +83,9 @@ export function HowItWorksSection() {
                     ? step.step === "01"
                       ? "Descarga la extensión de Chrome y tu shimeji aparecerá en cada página que visites."
                       : step.step === "02"
-                        ? "Haz clic en tu compañero para abrir el chat. Elige una personalidad y agrega tu API key para empezar a hablar."
+                        ? "Haz clic en tu compañero para abrir el chat. Elige una personalidad y agrega tu API key para empezar."
                         : step.step === "03"
-                          ? "Cambia al modo AI Agent y conecta un gateway OpenClaw para darle acceso a herramientas online y onchain."
+                          ? "Cambia al modo AI Agent y conecta OpenClaw para que pueda actuar online y onchain."
                           : "Abre un portal en Factory, define una intención y recibe un compañero hecho a mano con sprites únicos."
                     : step.description}
                 </p>

@@ -26,13 +26,13 @@ export function CtaSection() {
             </h2>
             <p className="mb-4 max-w-lg mx-auto text-[#000000]">
               {isSpanish
-                ? "Descarga la extensión, elige una personalidad y empeza a chatear. O activa el modo agente para herramientas onchain."
-                : "Download the extension, pick a personality, and start chatting. Or enable agent mode for onchain tools."}
+                ? "Descarga la extensión, elige una personalidad y empieza a chatear. O activa el modo agente para tareas online y onchain."
+                : "Download the extension, pick a personality, and start chatting. Or enable agent mode for online and onchain tasks."}
             </p>
             <p className="mb-8 max-w-lg mx-auto text-[#000000]/80">
               {isSpanish
-                ? "La extensión es gratis e incluye una mascota por defecto. Encarga un shimeji único en Factory."
-                : "The extension is free and includes a default mascot. Commission a unique shimeji in the Factory."}
+                ? "La extensión es gratis e incluye una mascota por defecto. Encarga un shimeji único en Factory si quieres algo hecho a medida."
+                : "The extension is free and includes a default mascot. Commission a unique shimeji in the Factory if you want something custom."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />

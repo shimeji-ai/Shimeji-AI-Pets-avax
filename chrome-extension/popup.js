@@ -247,8 +247,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!hasApiKey) {
       onboardingNote.textContent = isSpanishLocale()
-        ? "Shimeji quiere estar vivo. Para eso necesita que pongas tu API key de OpenRouter u OpenAI."
-        : "Shimeji wants to be alive. To do that, it needs your OpenRouter or OpenAI API key.";
+        ? "Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). OpenAI como segunda opcion."
+        : "Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). OpenAI as a second option.";
       return;
     }
 

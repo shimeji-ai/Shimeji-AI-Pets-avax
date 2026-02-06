@@ -52,10 +52,26 @@
     flex-shrink: 0;
 }
 
+.shimeji-chat-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .shimeji-chat-header span {
     font-size: 12px;
     font-weight: 700;
     color: #2a1f4e;
+}
+
+.shimeji-chat-meta {
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(42, 31, 78, 0.55);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .shimeji-chat-close {

@@ -10,19 +10,19 @@ const features = [
     icon: MessageSquare,
     title: "AI Chat with Personality",
     description:
-      "Your shimeji talks back. Choose from six personalities — from cozy and philosophical to chaotic and noir.",
+      "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
   },
   {
     icon: Bot,
     title: "AI Agent Mode",
     description:
-      "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online searches and onchain tools.",
+      "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
   },
   {
     icon: Sparkles,
     title: "Proactive Comments",
     description:
-      "Enable proactive messages and your shimeji will spontaneously react to the pages you browse.",
+      "Enable proactive messages and your shimeji will gently react to what you're browsing.",
   },
   {
     icon: Palette,
@@ -34,7 +34,7 @@ const features = [
     icon: ArrowLeftRight,
     title: "Stellar Wallet Integration",
     description:
-      "Connect Freighter to reserve portals and manage payments on the Stellar network.",
+      "Connect Freighter to reserve portals and handle payments on the Stellar network.",
   },
 ];
 
@@ -55,8 +55,8 @@ export function FeaturesSection() {
             </h2>
             <p className="text-lg text-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
-                ? "Más que una mascota — un compañero con IA que habla, opina y ejecuta acciones"
-                : "More than a mascot — an AI companion that talks, reacts, and takes action"}
+                ? "Más que una mascota: un compañero con IA que conversa, opina y actúa cuando lo necesitas"
+                : "More than a mascot — a companion that chats, reacts, and acts when you need it"}
             </p>
           </div>
 
@@ -86,14 +86,14 @@ export function FeaturesSection() {
                 <p className="text-muted-foreground leading-relaxed">
                   {isSpanish
                     ? feature.title === "AI Chat with Personality"
-                      ? "Tu shimeji te responde. Elige entre seis personalidades — desde filosófica y acogedora hasta caótica y noir."
+                      ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
                       : feature.title === "AI Agent Mode"
-                        ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a búsquedas online y herramientas onchain."
+                        ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
                         : feature.title === "Proactive Comments"
-                          ? "Activa los mensajes proactivos y tu shimeji reaccionará de forma espontánea a las páginas que visites."
+                          ? "Activa mensajes proactivos y tu shimeji reaccionará con comentarios suaves a lo que ves."
                           : feature.title === "Handcrafted Sprites"
                             ? "Encarga un shimeji personalizado en Factory. Cada uno se anima a mano con arte único."
-                            : "Conecta Freighter para reservar portales y gestionar pagos en la red Stellar."
+                            : "Conecta Freighter para reservar portales y manejar pagos en la red Stellar."
                     : feature.description}
                 </p>
               </div>

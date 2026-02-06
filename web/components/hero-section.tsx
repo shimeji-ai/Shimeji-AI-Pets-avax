@@ -30,8 +30,8 @@ export function HeroSection() {
               <div className="max-w-sm text-left sm:text-left">
                 <p className="text-lg leading-relaxed">
                   {isSpanish
-                    ? "Compañeros animados con IA que viven en tu navegador. Elige una personalidad, chatea con tu shimeji o conecta un agente con herramientas onchain."
-                    : "Animated AI companions that live in your browser. Pick a personality, chat with your shimeji, or connect an agent with onchain tools."}
+                    ? "Un compañero digital que vive en tu navegador. Chatea desde cualquier pestaña, recibe avisos y conecta tu agente para que haga cosas online y onchain por vos."
+                    : "A digital companion that lives in your browser. Chat from any tab, get gentle nudges, or connect your agent to handle online and onchain tasks for you."}
                 </p>              </div>
             </div>
 

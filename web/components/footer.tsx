@@ -30,8 +30,8 @@ export function Footer() {
               </div>
               <p className="text-primary-foreground/60 text-sm max-w-xs mb-6 leading-relaxed">
                 {isSpanish
-                  ? "Compañeros animados con IA para tu navegador. Chatea, recibe comentarios espontáneos o conecta un agente con herramientas onchain."
-                  : "Animated AI companions for your browser. Chat, get spontaneous comments, or connect an agent with onchain tools."}
+                  ? "Compañeros animados con IA para tu navegador. Chatea, recibe avisos suaves o conecta un agente con herramientas online y onchain."
+                  : "Animated AI companions for your browser. Chat, get gentle nudges, or connect an agent with online and onchain tools."}
               </p>
               <div className="flex gap-3">
                 <Link

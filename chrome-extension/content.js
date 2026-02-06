@@ -152,6 +152,7 @@
     let inlineThinkingEl = null;
     let chatMessagesEl = null;
     let chatInputEl = null;
+    let chatMetaEl = null;
     let conversationHistory = []; // {role, content} array for API
     let isChatOpen = false;
     let isThinking = false;
@@ -166,8 +167,8 @@
 
     function getNoApiKeyMessage() {
         return isSpanishLocale()
-            ? 'Shimeji quiere estar vivo. Para eso necesita que pongas tu API key de OpenRouter u OpenAI.'
-            : 'Shimeji wants to be alive. To do that, it needs your OpenRouter or OpenAI API key.';
+            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). OpenAI como segunda opcion.'
+            : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). OpenAI as a second option.';
     }
 
     function getNoCreditsMessage() {
@@ -194,8 +195,8 @@
 
         const isEs = isSpanishLocale();
         const prefix = isEs
-            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Consiguela en '
-            : 'Shimeji wants to be alive. To do that, it needs your API key. Get it from ';
+            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consiguela en '
+            : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). Get it from ';
         const middle = isEs ? ' o ' : ' or ';
         const suffix = isEs
             ? '. Luego haz clic en el icono de la extension y configuralo ahi pegando tu API key.'
@@ -527,8 +528,14 @@
         // Header
         const header = document.createElement('div');
         header.className = 'shimeji-chat-header';
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'shimeji-chat-title-wrap';
         const title = document.createElement('span');
         title.textContent = 'Chat';
+        chatMetaEl = document.createElement('span');
+        chatMetaEl.className = 'shimeji-chat-meta';
+        titleWrap.appendChild(title);
+        titleWrap.appendChild(chatMetaEl);
         const closeBtn = document.createElement('button');
         closeBtn.className = 'shimeji-chat-close';
         closeBtn.textContent = '\u00D7';
@@ -536,7 +543,7 @@
             e.stopPropagation();
             closeChatBubble();
         });
-        header.appendChild(title);
+        header.appendChild(titleWrap);
         header.appendChild(closeBtn);
 
         // Messages area
@@ -652,6 +659,12 @@
                     const existing = document.getElementById('shimeji-no-api-key-msg');
                     if (existing) existing.remove();
                 }
+            });
+            chrome.storage.local.get(['aiProvider', 'aiModel'], (data) => {
+                if (!chatMetaEl) return;
+                const provider = data.aiProvider || 'openrouter';
+                const model = data.aiModel || 'google/gemini-2.0-flash-001';
+                chatMetaEl.textContent = `${provider} · ${model}`;
             });
             setTimeout(() => {
                 if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
