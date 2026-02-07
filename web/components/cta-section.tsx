@@ -15,7 +15,7 @@ export function CtaSection() {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
+    <section id="cta" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center rounded-3xl neural-card p-8 md:p-12">

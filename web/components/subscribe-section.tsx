@@ -17,7 +17,7 @@ export function SubscribeSection() {
   };
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
+    <section id="subscribe" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-4xl mx-auto">
           <div className="neural-card rounded-3xl p-8 md:p-12">

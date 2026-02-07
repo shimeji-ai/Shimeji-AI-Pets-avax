@@ -17,6 +17,8 @@ export function Header() {
   const [isHowItWorksHovered, setIsHowItWorksHovered] = useState(false);
   const [isCharactersHovered, setIsCharactersHovered] = useState(false);
   const [isFeaturesHovered, setIsFeaturesHovered] = useState(false);
+  const [isSubscribeHovered, setIsSubscribeHovered] = useState(false);
+  const [isCtaHovered, setIsCtaHovered] = useState(false);
   const [isFaqHovered, setIsFaqHovered] = useState(false);
   const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
   const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
@@ -79,21 +81,6 @@ export function Header() {
             </div> */}
             <div
               className="relative"
-              onMouseEnter={() => setIsFeaturesHovered(true)}
-              onMouseLeave={() => setIsFeaturesHovered(false)}
-            >
-              <ScrollLink
-                to="features"
-                smooth={true}
-                duration={1500}
-                className=" hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
-              <SparkleAnimation isHovering={isFeaturesHovered} />
-            </div>
-            <div
-              className="relative"
               onMouseEnter={() => setIsCharactersHovered(true)}
               onMouseLeave={() => setIsCharactersHovered(false)}
             >
@@ -109,6 +96,36 @@ export function Header() {
             </div>
             <div
               className="relative"
+              onMouseEnter={() => setIsFeaturesHovered(true)}
+              onMouseLeave={() => setIsFeaturesHovered(false)}
+            >
+              <ScrollLink
+                to="features"
+                smooth={true}
+                duration={1500}
+                className=" hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Características" : "Features"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isFeaturesHovered} />
+            </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setIsSubscribeHovered(true)}
+              onMouseLeave={() => setIsSubscribeHovered(false)}
+            >
+              <ScrollLink
+                to="subscribe"
+                smooth={true}
+                duration={1500}
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Suscribirse" : "Subscribe"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isSubscribeHovered} />
+            </div>
+            <div
+              className="relative"
               onMouseEnter={() => setIsFaqHovered(true)}
               onMouseLeave={() => setIsFaqHovered(false)}
             >
@@ -121,6 +138,21 @@ export function Header() {
                 FAQ
               </ScrollLink>
               <SparkleAnimation isHovering={isFaqHovered} />
+            </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setIsCtaHovered(true)}
+              onMouseLeave={() => setIsCtaHovered(false)}
+            >
+              <ScrollLink
+                to="cta"
+                smooth={true}
+                duration={1500}
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Empezar" : "Get Started"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isCtaHovered} />
             </div>
             <div
               className="relative"
@@ -175,13 +207,13 @@ export function Header() {
                 {isSpanish ? "Cómo funciona" : "How It Works"}
               </ScrollLink>
               <ScrollLink
-                to="characters"
+                to="setup"
                 smooth={true}
                 duration={1500}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                {isSpanish ? "Personajes" : "Characters"}
+                Setup
               </ScrollLink>
               <ScrollLink
                 to="features"
@@ -193,13 +225,13 @@ export function Header() {
                 {isSpanish ? "Características" : "Features"}
               </ScrollLink>
               <ScrollLink
-                to="setup"
+                to="subscribe"
                 smooth={true}
                 duration={1500}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Setup
+                {isSpanish ? "Suscribirse" : "Subscribe"}
               </ScrollLink>
               <ScrollLink
                 to="faq"
@@ -209,6 +241,15 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 FAQ
+              </ScrollLink>
+              <ScrollLink
+                to="cta"
+                smooth={true}
+                duration={1500}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Empezar" : "Get Started"}
               </ScrollLink>
               <Link
                 href="/factory"
