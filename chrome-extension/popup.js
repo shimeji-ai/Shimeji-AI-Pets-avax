@@ -187,6 +187,10 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
+    { value: "neon", labelEn: "Neon", labelEs: "Neón" },
+    { value: "glitch", labelEn: "Glitch", labelEs: "Glitch" },
+    { value: "panda", labelEn: "Panda", labelEs: "Panda" },
+    { value: "star", labelEn: "Star", labelEs: "Estrella" },
   ];
 
   const PERSONALITY_OPTIONS = [
@@ -365,7 +369,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       chatFontSize: "medium",
       chatWidth: "medium",
       chatBubbleStyle: "glass",
-      ttsEnabled: false
+      ttsEnabled: false,
+      ttsVoiceProfile: "random",
+      ttsVoiceId: ""
     };
   }
 
@@ -390,7 +396,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
         openclawGatewayToken: shimeji.openclawGatewayToken || "",
         personality: shimeji.personality || "cryptid",
-        ttsEnabled: shimeji.ttsEnabled || false
+        ttsEnabled: shimeji.ttsEnabled || false,
+        ttsVoiceProfile: shimeji.ttsVoiceProfile || "random",
+        ttsVoiceId: shimeji.ttsVoiceId || ""
       }));
     }
 
@@ -410,7 +418,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
-      ttsEnabled: false
+      ttsEnabled: false,
+      ttsVoiceProfile: "random",
+      ttsVoiceId: ""
     }];
   }
 
@@ -592,6 +602,14 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       grid.appendChild(renderToggleField("soundEnabled", t("Sound", "Sonido"), shimeji.soundEnabled !== false));
       grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
       grid.appendChild(renderToggleField("ttsEnabled", t("Read Aloud", "Leer en voz alta"), !!shimeji.ttsEnabled));
+      grid.appendChild(renderSelectField("ttsVoiceProfile", t("Voice", "Voz"), [
+        { value: "random", labelEn: "Random", labelEs: "Aleatoria" },
+        { value: "warm", labelEn: "Warm", labelEs: "Cálida" },
+        { value: "bright", labelEn: "Bright", labelEs: "Brillante" },
+        { value: "deep", labelEn: "Deep", labelEs: "Grave" },
+        { value: "calm", labelEn: "Calm", labelEs: "Suave" },
+        { value: "energetic", labelEn: "Energetic", labelEs: "Enérgica" }
+      ], shimeji.ttsVoiceProfile || "random", "advanced-only"));
 
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";

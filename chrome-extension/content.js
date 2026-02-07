@@ -156,6 +156,47 @@
         noir: { pitch: 0.6, rate: 0.9 }
     };
 
+    const TTS_VOICE_PROFILES = {
+        random: [],
+        warm: ['female', 'maria', 'maria', 'samantha', 'sofia', 'sofia', 'lucia', 'lucía'],
+        bright: ['google', 'zira', 'susan', 'catherine', 'linda'],
+        deep: ['male', 'daniel', 'alex', 'jorge', 'diego', 'miguel'],
+        calm: ['serena', 'paulina', 'audrey', 'amelie'],
+        energetic: ['fred', 'mark', 'david', 'juan']
+    };
+
+    function getVoicesAsync() {
+        return new Promise((resolve) => {
+            const synth = window.speechSynthesis;
+            if (!synth) return resolve([]);
+            let voices = synth.getVoices();
+            if (voices && voices.length) return resolve(voices);
+            const handler = () => {
+                voices = synth.getVoices();
+                resolve(voices || []);
+                synth.removeEventListener?.('voiceschanged', handler);
+            };
+            synth.addEventListener?.('voiceschanged', handler);
+            setTimeout(() => resolve(synth.getVoices() || []), 600);
+        });
+    }
+
+    function pickVoiceByProfile(profile, voices, langPrefix) {
+        const filtered = voices.filter(v => (v.lang || '').toLowerCase().startsWith(langPrefix));
+        const pool = filtered.length ? filtered : voices;
+        if (!pool.length) return null;
+        if (profile === 'random') {
+            return pool[Math.floor(Math.random() * pool.length)];
+        }
+        const keywords = TTS_VOICE_PROFILES[profile] || [];
+        if (!keywords.length) return pool[0];
+        const found = pool.find(v => {
+            const name = (v.name || '').toLowerCase();
+            return keywords.some(k => name.includes(k));
+        });
+        return found || pool[0];
+    }
+
     function isSpanishLocale() {
         const locale = (navigator.language || '').toLowerCase();
         return locale.startsWith('es');
@@ -268,7 +309,7 @@
         }
     }
 
-    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
+    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob', 'neon', 'glitch', 'panda', 'star'];
     const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir'];
     const MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
@@ -342,7 +383,10 @@
                 soundVolume: typeof item.soundVolume === 'number' ? item.soundVolume : 0.7,
                 standardProvider: item.standardProvider || 'openrouter',
                 ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
-                ollamaModel: item.ollamaModel || 'llama3.1'
+                ollamaModel: item.ollamaModel || 'llama3.1',
+                ttsEnabled: !!item.ttsEnabled,
+                ttsVoiceProfile: item.ttsVoiceProfile || 'random',
+                ttsVoiceId: item.ttsVoiceId || ''
             }));
             list = list.slice(0, MAX_SHIMEJIS);
             chrome.storage.local.set({ shimejis: list });
@@ -424,7 +468,31 @@
             } catch (e) {}
         }
 
-        function speakText(text) {
+        async function persistVoiceId(voiceName) {
+            if (!voiceName || voiceName === config.ttsVoiceId) return;
+            config.ttsVoiceId = voiceName;
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsVoiceId: voiceName } : s);
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
+        async function ensureVoiceForTts() {
+            const voices = await getVoicesAsync();
+            if (!voices.length) return null;
+            const langPrefix = isSpanishLocale() ? 'es' : 'en';
+            if (config.ttsVoiceId) {
+                const match = voices.find(v => v.name === config.ttsVoiceId);
+                if (match) return match;
+            }
+            const profile = config.ttsVoiceProfile || 'random';
+            const picked = pickVoiceByProfile(profile, voices, langPrefix);
+            if (picked) persistVoiceId(picked.name);
+            return picked;
+        }
+
+        async function speakText(text) {
             if (!config.ttsEnabled) return;
             if (!window.speechSynthesis) return;
             try {
@@ -434,6 +502,8 @@
                 utterance.rate = ttsSettings.rate;
                 utterance.volume = Math.max(0, Math.min(1, typeof config.soundVolume === 'number' ? config.soundVolume : 0.7));
                 utterance.lang = isSpanishLocale() ? 'es' : 'en';
+                const voice = await ensureVoiceForTts();
+                if (voice) utterance.voice = voice;
                 window.speechSynthesis.speak(utterance);
             } catch (e) {}
         }
