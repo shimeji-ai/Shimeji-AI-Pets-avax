@@ -168,6 +168,7 @@ const autolockMinutesInput = document.getElementById("autolock-minutes");
 const autolockLabel = document.getElementById("autolock-label");
 const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   const linkOpenPortals = document.getElementById("link-open-portals");
+  const linkPrivacy = document.getElementById("link-privacy");
   const appearanceVisibilityTitle = document.getElementById("appearance-visibility-title");
   const labelEnabledPage = document.getElementById("label-enabled-page");
   const enableAllBtnLabel = document.getElementById("enable-all-btn");
@@ -279,6 +280,53 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     return new TextDecoder().decode(plaintext);
   }
 
+  async function getDeviceKey() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["deviceKey"], async (data) => {
+        let rawKey;
+        if (data.deviceKey) {
+          rawKey = Uint8Array.from(atob(data.deviceKey), c => c.charCodeAt(0));
+        } else {
+          rawKey = crypto.getRandomValues(new Uint8Array(32));
+          chrome.storage.local.set({ deviceKey: btoa(String.fromCharCode(...rawKey)) });
+        }
+        const key = await crypto.subtle.importKey(
+          "raw",
+          rawKey,
+          { name: "AES-GCM" },
+          false,
+          ["encrypt", "decrypt"]
+        );
+        resolve(key);
+      });
+    });
+  }
+
+  async function encryptWithDeviceKey(plaintext) {
+    const key = await getDeviceKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder();
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      enc.encode(plaintext)
+    );
+    return {
+      data: btoa(String.fromCharCode(...new Uint8Array(ciphertext))),
+      iv: btoa(String.fromCharCode(...iv)),
+      type: "device"
+    };
+  }
+
+  async function decryptWithDeviceKey(payload) {
+    if (!payload || !payload.data || !payload.iv) return "";
+    const key = await getDeviceKey();
+    const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+    const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+    return new TextDecoder().decode(plaintext);
+  }
+
   async function getSessionMasterKey() {
     return new Promise((resolve) => {
       chrome.storage.session.get(['masterKey'], (data) => {
@@ -352,6 +400,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = t("Add", "Agregar");
     if (linkOpenPortals) linkOpenPortals.textContent = t("Open more portals", "Abrir más portales");
+    if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
     if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility", "Visibilidad");
     if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this page", "Activo en esta página");
     if (enableAllBtnLabel) enableAllBtnLabel.textContent = t("Enable All", "Activar todo");
@@ -370,6 +419,10 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
   }
 
   const SIZE_OPTIONS_KEYS = ["small", "medium", "big"];
+  const THEME_COLOR_POOL = [
+    "#2a1f4e", "#1e3a5f", "#4a2040", "#0f4c3a", "#5c2d0e",
+    "#3b1260", "#0e3d6b", "#6b1d3a", "#2e4a12", "#4c1a6b"
+  ];
 
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
@@ -378,6 +431,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     const randomModel = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[0]).value;
     const randomVoiceProfile = pickRandomVoiceProfile();
     const randomSize = SIZE_OPTIONS_KEYS[Math.floor(Math.random() * SIZE_OPTIONS_KEYS.length)];
+    const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
     return {
       id: `shimeji-${index + 1}`,
       character: randomChar,
@@ -394,7 +448,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
-      chatThemeColor: "#2a1f4e",
+      chatThemeColor: randomThemeColor,
       chatBgColor: "#ffffff",
       chatFontSize: "medium",
       chatWidth: "medium",
@@ -493,6 +547,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         }
       }
 
+      let needsEncrypt = false;
       if (masterKeyEnabled && sessionKey) {
         for (const shimeji of shimejis) {
           if (shimeji.openrouterApiKeyEnc) {
@@ -506,10 +561,28 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
             } catch {}
           }
         }
+      } else if (!masterKeyEnabled) {
+        for (const shimeji of shimejis) {
+          if (!shimeji.openrouterApiKey && shimeji.openrouterApiKeyEnc) {
+            try {
+              shimeji.openrouterApiKey = await decryptWithDeviceKey(shimeji.openrouterApiKeyEnc);
+            } catch {}
+          }
+          if (!shimeji.openclawGatewayToken && shimeji.openclawGatewayTokenEnc) {
+            try {
+              shimeji.openclawGatewayToken = await decryptWithDeviceKey(shimeji.openclawGatewayTokenEnc);
+            } catch {}
+          }
+          if ((shimeji.openrouterApiKey && !shimeji.openrouterApiKeyEnc) ||
+              (shimeji.openclawGatewayToken && !shimeji.openclawGatewayTokenEnc)) {
+            needsEncrypt = true;
+          }
+        }
       }
 
       chrome.storage.local.set({ shimejis });
       renderShimejis();
+      if (needsEncrypt) saveShimejis();
     });
   }
 
@@ -519,17 +592,19 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     } catch {}
   }
 
+  function getStoredShimejis() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(["shimejis"], (data) => {
+        resolve(Array.isArray(data.shimejis) ? data.shimejis : []);
+      });
+    });
+  }
+
   async function saveShimejis() {
     if (masterKeyEnabled) {
       const sessionKey = await getSessionMasterKey();
       if (!sessionKey) {
-        const lockedCopy = shimejis.map((s) => ({
-          ...s,
-          openrouterApiKey: '',
-          openclawGatewayToken: ''
-        }));
-        chrome.storage.local.set({ shimejis: lockedCopy, masterKeyEnabled: true, masterKeySalt }, notifyRefresh);
-        shimejis = lockedCopy;
+        // Don't overwrite stored encrypted keys when locked
         return;
       }
       const out = [];
@@ -539,24 +614,56 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
           const enc = await encryptSecret(sessionKey, entry.openrouterApiKey, masterKeySalt);
           masterKeySalt = enc.salt;
           entry.openrouterApiKeyEnc = { data: enc.data, iv: enc.iv, salt: enc.salt };
-          entry.openrouterApiKey = '';
         }
         if (entry.openclawGatewayToken) {
           const enc = await encryptSecret(sessionKey, entry.openclawGatewayToken, masterKeySalt);
           masterKeySalt = enc.salt;
           entry.openclawGatewayTokenEnc = { data: enc.data, iv: enc.iv, salt: enc.salt };
-          entry.openclawGatewayToken = '';
         }
+        // Keep plaintext in-memory while storing encrypted values only
+        if (entry.openrouterApiKey) entry.openrouterApiKey = '';
+        if (entry.openclawGatewayToken) entry.openclawGatewayToken = '';
         out.push(entry);
       }
       chrome.storage.local.set({ shimejis: out, masterKeyEnabled: true, masterKeySalt }, notifyRefresh);
-      shimejis = out;
+      shimejis = shimejis.map((s, idx) => ({
+        ...s,
+        openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
+        openclawGatewayTokenEnc: out[idx]?.openclawGatewayTokenEnc || s.openclawGatewayTokenEnc
+      }));
       return;
     }
     // master key disabled, persist plaintext and clear encrypted fields
-    const cleared = shimejis.map((s) => ({ ...s, openrouterApiKeyEnc: null, openclawGatewayTokenEnc: null }));
-    chrome.storage.local.set({ shimejis: cleared, masterKeyEnabled: false, masterKeySalt: null }, notifyRefresh);
-    shimejis = cleared;
+    const stored = await getStoredShimejis();
+    const storedById = new Map(stored.map((s) => [s.id, s]));
+    const out = [];
+    for (const s of shimejis) {
+      const prev = storedById.get(s.id) || {};
+      const openrouterApiKey = s.openrouterApiKey || prev.openrouterApiKey || "";
+      const openclawGatewayToken = s.openclawGatewayToken || prev.openclawGatewayToken || "";
+      const entry = {
+        ...s,
+        openrouterApiKey: "",
+        openclawGatewayToken: ""
+      };
+      if (openrouterApiKey) {
+        entry.openrouterApiKeyEnc = await encryptWithDeviceKey(openrouterApiKey);
+      } else {
+        entry.openrouterApiKeyEnc = prev.openrouterApiKeyEnc || null;
+      }
+      if (openclawGatewayToken) {
+        entry.openclawGatewayTokenEnc = await encryptWithDeviceKey(openclawGatewayToken);
+      } else {
+        entry.openclawGatewayTokenEnc = prev.openclawGatewayTokenEnc || null;
+      }
+      out.push(entry);
+    }
+    chrome.storage.local.set({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null }, notifyRefresh);
+    shimejis = shimejis.map((s, idx) => ({
+      ...s,
+      openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
+      openclawGatewayTokenEnc: out[idx]?.openclawGatewayTokenEnc || s.openclawGatewayTokenEnc
+    }));
   }
 
   function renderShimejis() {
@@ -631,8 +738,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
-      grid.appendChild(renderSelectField("mode", t("Brain", "Cerebro"), [
-        { value: "standard", labelEn: "Standard", labelEs: "Standard" },
+      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
+        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
         { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
         { value: "decorative", labelEn: "Decorative", labelEs: "Decorativo" },
@@ -649,7 +756,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "deep", labelEn: "Deep", labelEs: "Grave" },
         { value: "calm", labelEn: "Calm", labelEs: "Suave" },
         { value: "energetic", labelEn: "Energetic", labelEs: "Enérgica" }
-      ], shimeji.ttsVoiceProfile || "random", "advanced-only"));
+      ], shimeji.ttsVoiceProfile || "random"));
       grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
 
       const standardBlock = document.createElement("div");
@@ -659,6 +766,13 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
         { value: "ollama", labelEn: "Ollama", labelEs: "Ollama" }
       ], shimeji.standardProvider || "openrouter"));
+      const providerHint = document.createElement("div");
+      providerHint.className = "helper-text";
+      providerHint.textContent = t(
+        "Your messages are sent to the selected provider.",
+        "Tus mensajes se envían al proveedor seleccionado."
+      );
+      standardBlock.appendChild(providerHint);
       const openrouterInput = renderInputField("openrouterApiKey", t("OpenRouter API Key (optional)", "API Key OpenRouter (opcional)"), shimeji.openrouterApiKey, "password", t("Paste your API key", "Pega tu API key"), "provider-openrouter");
       if (masterKeyEnabled && !masterKeyUnlocked) {
         openrouterInput.classList.add("locked");
@@ -703,7 +817,6 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       // Chat Style collapsible section
       const chatStyleBlock = document.createElement("div");
       chatStyleBlock.className = "shimeji-chat-style-section";
-      chatStyleBlock.classList.add("advanced-only");
       chatStyleBlock.style.display = (mode === "off" || mode === "decorative") ? "none" : "";
 
       const chatStyleHeader = document.createElement("div");

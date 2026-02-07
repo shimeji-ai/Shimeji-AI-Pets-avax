@@ -55,7 +55,9 @@ export function Footer() {
                   </span>
                 </Link>
                 <Link
-                  href="#"
+                  href="https://github.com/luloxi/stellar-shimeji-factory"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="GitHub"
                 >
@@ -113,6 +115,24 @@ export function Footer() {
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Descargar" : "Download"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Privacidad" : "Privacy"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="https://github.com/luloxi/stellar-shimeji-factory"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    GitHub
                   </Link>
                 </li>
               </ul>

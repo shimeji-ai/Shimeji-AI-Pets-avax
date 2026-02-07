@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Shimeji Browser Extension",
+  "name": "Shimeji AI Companions",
   "version": "1.0",
-  "description": "A cute character that wanders around your browser.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "description": "Animated AI companions for your browser. Chat with a shimeji or connect your own agent.",
+  "permissions": ["storage"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -37,7 +37,13 @@
       "run_at": "document_idle"
     }
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "https://openrouter.ai/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*",
+    "ws://127.0.0.1/*",
+    "ws://localhost/*"
+  ],
   "web_accessible_resources": [
     {
       "resources": ["characters/*", "config.html", "assets/shimeji-success.wav", "assets/shimeji-error.wav", "assets/sounds/*"],

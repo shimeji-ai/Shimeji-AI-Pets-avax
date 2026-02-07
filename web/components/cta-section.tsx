@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Github } from "lucide-react";
 import DownloadButton from "./download-button";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
@@ -43,6 +43,19 @@ export function CtaSection() {
                 >
                   <ShoppingBag className="w-4 h-4" />
                   {isSpanish ? "Visitar Fábrica" : "Visit Factory"}
+                </Button>
+              </Link>
+              <Link
+                href="https://github.com/luloxi/stellar-shimeji-factory"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button
+                  variant="outline"
+                  className="gap-2 rounded-xl neural-button-outline hover:cursor-pointer"
+                >
+                  <Github className="w-4 h-4" />
+                  GitHub
                 </Button>
               </Link>
             </div>

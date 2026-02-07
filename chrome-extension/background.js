@@ -32,34 +32,6 @@ chrome.runtime.onInstalled.addListener(() => {
     disabledAll: false,
     disabledPages: []
   });
-
-  // Re-inject content scripts into all existing tabs (needed after reinstall/update)
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach(tab => {
-      if (tab.id) {
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content.js']
-        }).catch(() => {});
-      }
-    });
-  });
-});
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === 'complete') {
-    chrome.tabs.sendMessage(tabId, { action: 'ping' }).then(response => {
-      // Content script is alive, nothing to do
-    }).catch(() => {
-      // No content script or dead content script, try to inject
-      chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      }).catch(() => {
-        // Can't inject (e.g., chrome:// page), ignore
-      });
-    });
-  }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -445,6 +417,37 @@ async function decryptSecret(masterKey, payload) {
   return new TextDecoder().decode(plaintext);
 }
 
+async function getDeviceKey() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['deviceKey'], async (data) => {
+      let rawKey;
+      if (data.deviceKey) {
+        rawKey = Uint8Array.from(atob(data.deviceKey), c => c.charCodeAt(0));
+      } else {
+        rawKey = crypto.getRandomValues(new Uint8Array(32));
+        chrome.storage.local.set({ deviceKey: btoa(String.fromCharCode(...rawKey)) });
+      }
+      const key = await crypto.subtle.importKey(
+        'raw',
+        rawKey,
+        { name: 'AES-GCM' },
+        false,
+        ['decrypt']
+      );
+      resolve(key);
+    });
+  });
+}
+
+async function decryptWithDeviceKey(payload) {
+  if (!payload || !payload.data || !payload.iv) return '';
+  const key = await getDeviceKey();
+  const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+  const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+  return new TextDecoder().decode(plaintext);
+}
+
 async function getShimejiConfigs() {
   return new Promise((resolve) => {
     chrome.storage.local.get([
@@ -503,7 +506,7 @@ async function getAiSettingsFor(shimejiId) {
   const shimeji = shimejis.find((s) => s.id === shimejiId) || shimejis[0];
   const chatMode = shimeji?.mode || 'standard';
   const masterKeyEnabled = !!shimeji?.masterKeyEnabled;
-  const standardProvider = shimeji?.standardProvider || 'openrouter';
+  const standardProvider = shimeji?.standardProvider === 'ollama' ? 'ollama' : 'openrouter';
   let apiKey = shimeji?.openrouterApiKey || '';
   let openclawToken = shimeji?.openclawGatewayToken || '';
   let locked = false;
@@ -528,6 +531,15 @@ async function getAiSettingsFor(shimejiId) {
         locked = true;
       }
     }
+  } else {
+    try {
+      if (!apiKey && shimeji?.openrouterApiKeyEnc) {
+        apiKey = await decryptWithDeviceKey(shimeji.openrouterApiKeyEnc);
+      }
+      if (!openclawToken && shimeji?.openclawGatewayTokenEnc) {
+        openclawToken = await decryptWithDeviceKey(shimeji.openclawGatewayTokenEnc);
+      }
+    } catch {}
   }
 
   return {
@@ -560,21 +572,13 @@ async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
     if (!apiKey) {
       throw new Error('No API key set! Open the extension popup to add your API key.');
     }
-    if (provider === 'openrouter') {
-      url = 'https://openrouter.ai/api/v1/chat/completions';
-      headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://shimeji.dev',
-        'X-Title': 'Shimeji Browser Extension'
-      };
-    } else {
-      url = 'https://api.openai.com/v1/chat/completions';
-      headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      };
-    }
+    url = 'https://openrouter.ai/api/v1/chat/completions';
+    headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://shimeji.dev',
+      'X-Title': 'Shimeji Browser Extension'
+    };
 
     body = {
       model: model,

@@ -164,6 +164,15 @@
         calm: ['serena', 'paulina', 'audrey', 'amelie'],
         energetic: ['fred', 'mark', 'david', 'juan']
     };
+    // Pitch/rate offsets applied on top of personality settings to make each voice profile distinct
+    const TTS_PROFILE_MODIFIERS = {
+        random: { pitchOffset: 0, rateOffset: 0 },
+        warm: { pitchOffset: 0.15, rateOffset: -0.1 },
+        bright: { pitchOffset: 0.3, rateOffset: 0.1 },
+        deep: { pitchOffset: -0.35, rateOffset: -0.1 },
+        calm: { pitchOffset: -0.1, rateOffset: -0.2 },
+        energetic: { pitchOffset: 0.2, rateOffset: 0.25 }
+    };
     const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
 
     function pickRandomTtsProfile() {
@@ -324,6 +333,10 @@
     const MODEL_KEYS_ENABLED = MODEL_KEYS.filter((model) => model !== 'moonshotai/kimi-k2.5');
 
     const SIZE_KEYS = ['small', 'medium', 'big'];
+    const THEME_COLOR_POOL = [
+        '#2a1f4e', '#1e3a5f', '#4a2040', '#0f4c3a', '#5c2d0e',
+        '#3b1260', '#0e3d6b', '#6b1d3a', '#2e4a12', '#4c1a6b'
+    ];
 
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
@@ -331,6 +344,7 @@
         const randomModel = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
         const randomVoiceProfile = pickRandomTtsProfile();
         const randomSize = SIZE_KEYS[Math.floor(Math.random() * SIZE_KEYS.length)];
+        const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
         return {
             id: `shimeji-${index + 1}`,
             character: randomChar,
@@ -345,7 +359,7 @@
             openclawGatewayToken: '',
             personality: randomPersonality,
             enabled: true,
-            chatThemeColor: '#2a1f4e',
+            chatThemeColor: randomThemeColor,
             chatBgColor: '#ffffff',
             chatFontSize: 'medium',
             chatWidth: 'medium',
@@ -450,6 +464,8 @@
         let recognition = null;
         let isListening = false;
         let micBtnEl = null;
+        let openMicBtnEl = null;
+        let ttsToggleBtnEl = null;
         let micAutoSendEl = null;
         let micAutoSendTimer = null;
         let micAutoSendInterval = null;
@@ -505,6 +521,38 @@
             });
         }
 
+        function persistTtsEnabled(enabled) {
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsEnabled: enabled } : s);
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
+        function persistOpenMicEnabled(enabled) {
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? { ...s, openMicEnabled: enabled } : s);
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
+        function updateOpenMicBtnVisual() {
+            if (!openMicBtnEl) return;
+            openMicBtnEl.classList.toggle('active', !!config.openMicEnabled);
+            openMicBtnEl.title = config.openMicEnabled
+                ? (isSpanishLocale() ? 'Desactivar micrófono abierto' : 'Disable open mic')
+                : (isSpanishLocale() ? 'Activar micrófono abierto' : 'Enable open mic');
+        }
+
+        function updateTtsToggleBtnVisual() {
+            if (!ttsToggleBtnEl) return;
+            ttsToggleBtnEl.textContent = config.ttsEnabled ? '\uD83D\uDD0A' : '\uD83D\uDD07';
+            ttsToggleBtnEl.title = config.ttsEnabled
+                ? (isSpanishLocale() ? 'Silenciar voz' : 'Mute voice')
+                : (isSpanishLocale() ? 'Activar voz' : 'Unmute voice');
+        }
+
         async function ensureVoiceForTts() {
             const voices = await getVoicesAsync();
             if (!voices.length) return null;
@@ -531,8 +579,9 @@
             try {
                 const utterance = new SpeechSynthesisUtterance(text);
                 const ttsSettings = PERSONALITY_TTS[config.personality] || { pitch: 1.0, rate: 1.0 };
-                utterance.pitch = ttsSettings.pitch;
-                utterance.rate = ttsSettings.rate;
+                const profileMod = TTS_PROFILE_MODIFIERS[config.ttsVoiceProfile] || { pitchOffset: 0, rateOffset: 0 };
+                utterance.pitch = Math.max(0.1, Math.min(2, ttsSettings.pitch + profileMod.pitchOffset));
+                utterance.rate = Math.max(0.1, Math.min(3, ttsSettings.rate + profileMod.rateOffset));
                 utterance.volume = Math.max(0, Math.min(1, typeof config.soundVolume === 'number' ? config.soundVolume : 0.7));
                 utterance.lang = isSpanishLocale() ? 'es' : 'en';
                 const voice = await ensureVoiceForTts();
@@ -640,8 +689,15 @@
                 const transcript = event.results[0][0].transcript;
                 if (chatInputEl) chatInputEl.value = transcript;
                 if (event.results[0].isFinal) {
-                    autoSendArmed = true;
                     stopVoiceInput();
+                    if (config.openMicEnabled) {
+                        // Broadcast to all shimejis with open chat
+                        document.dispatchEvent(new CustomEvent('shimeji-voice-broadcast', {
+                            detail: { transcript }
+                        }));
+                    } else {
+                        autoSendArmed = true;
+                    }
                 }
             };
 
@@ -655,6 +711,12 @@
                     showAutoSendPopup();
                 } else {
                     autoSendArmed = false;
+                    // Open mic: auto-restart if still enabled and not sending/thinking
+                    if (config.openMicEnabled && isChatOpen && !isListening && !isThinking) {
+                        setTimeout(() => {
+                            if (config.openMicEnabled && isChatOpen && !isListening && !isThinking) startVoiceInput();
+                        }, 300);
+                    }
                 }
             };
 
@@ -667,6 +729,11 @@
                 autoSendArmed = false;
                 if (event.error === 'not-allowed') {
                     appendErrorMessage(isSpanishLocale() ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.' : 'Microphone permission denied. Enable it in browser settings.');
+                } else if (config.openMicEnabled && isChatOpen && event.error !== 'aborted') {
+                    // Open mic: retry on non-fatal errors (e.g. no-speech timeout)
+                    setTimeout(() => {
+                        if (config.openMicEnabled && isChatOpen && !isListening) startVoiceInput();
+                    }, 500);
                 }
             };
 
@@ -704,6 +771,14 @@
             if (e.detail && e.detail.except !== shimejiId && isListening) {
                 stopVoiceInput();
             }
+        });
+
+        // Listen for voice broadcast from open mic (send transcript to all open chats)
+        document.addEventListener('shimeji-voice-broadcast', (e) => {
+            if (!isChatOpen || !chatInputEl || !e.detail || !e.detail.transcript) return;
+            if (isThinking) return; // already processing a message
+            chatInputEl.value = e.detail.transcript;
+            sendChatMessage();
         });
 
         const mascot = {
@@ -1057,6 +1132,37 @@
             chatMetaEl.className = 'shimeji-chat-meta';
             titleWrap.appendChild(title);
             titleWrap.appendChild(chatMetaEl);
+            const headerBtns = document.createElement('div');
+            headerBtns.className = 'shimeji-chat-header-btns';
+
+            openMicBtnEl = document.createElement('button');
+            openMicBtnEl.className = 'shimeji-chat-openmic-toggle';
+            openMicBtnEl.textContent = '\uD83C\uDF99';
+            updateOpenMicBtnVisual();
+            openMicBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                config.openMicEnabled = !config.openMicEnabled;
+                updateOpenMicBtnVisual();
+                persistOpenMicEnabled(config.openMicEnabled);
+                if (config.openMicEnabled) {
+                    // Start listening immediately when enabled
+                    if (!isListening) startVoiceInput();
+                } else {
+                    stopVoiceInput();
+                }
+            });
+
+            ttsToggleBtnEl = document.createElement('button');
+            ttsToggleBtnEl.className = 'shimeji-chat-tts-toggle';
+            updateTtsToggleBtnVisual();
+            ttsToggleBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                config.ttsEnabled = !config.ttsEnabled;
+                updateTtsToggleBtnVisual();
+                if (!config.ttsEnabled) cancelSpeech();
+                persistTtsEnabled(config.ttsEnabled);
+            });
+
             const closeBtn = document.createElement('button');
             closeBtn.className = 'shimeji-chat-close';
             closeBtn.textContent = '\u00D7';
@@ -1064,8 +1170,12 @@
                 e.stopPropagation();
                 closeChatBubble();
             });
+
+            headerBtns.appendChild(openMicBtnEl);
+            headerBtns.appendChild(ttsToggleBtnEl);
+            headerBtns.appendChild(closeBtn);
             header.appendChild(titleWrap);
-            header.appendChild(closeBtn);
+            header.appendChild(headerBtns);
 
             chatMessagesEl = document.createElement('div');
             chatMessagesEl.className = 'shimeji-chat-messages';
@@ -1457,15 +1567,18 @@
                         saveConversation();
                         appendMessage('ai', response.content);
                         playSound('success');
-                        const openMicAfter = config.openMicEnabled && isChatOpen;
-                        speakText(response.content, openMicAfter ? () => {
-                            if (isChatOpen && config.openMicEnabled) startVoiceInput();
-                        } : null);
-                        // If TTS is off but open mic is on, start listening after a short delay
-                        if (openMicAfter && !config.ttsEnabled) {
-                            setTimeout(() => {
-                                if (isChatOpen && config.openMicEnabled && !isListening) startVoiceInput();
-                            }, 500);
+                        speakText(response.content);
+                        // Open mic: restart voice input after AI response (and TTS if active)
+                        if (config.openMicEnabled && isChatOpen) {
+                            const restartOpenMic = () => {
+                                if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                                if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                                    setTimeout(restartOpenMic, 300);
+                                    return;
+                                }
+                                startVoiceInput();
+                            };
+                            setTimeout(restartOpenMic, config.ttsEnabled ? 500 : 300);
                         }
                         if (!isChatOpen) {
                             showAlert();
@@ -2008,6 +2121,8 @@
                 if (!prevTtsEnabled && config.ttsEnabled && !config.ttsVoiceId) {
                     ensureVoiceForTts().catch(() => {});
                 }
+                updateTtsToggleBtnVisual();
+                updateOpenMicBtnVisual();
             }
         };
     }
