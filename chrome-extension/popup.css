@@ -438,6 +438,10 @@ body[data-theme="kawaii"] .helper-text {
   color: rgba(42, 31, 78, 0.8);
 }
 
+body[data-theme="kawaii"] .security-status {
+  color: rgba(42, 31, 78, 0.85);
+}
+
 body[data-theme="kawaii"] .shimeji-card,
 body[data-theme="kawaii"] .security-box,
 body[data-theme="kawaii"] .toggle-row {

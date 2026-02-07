@@ -11,8 +11,10 @@ import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
 export default function FactoryPage() {
   const [mounted, setMounted] = useState(false);
   const [intent, setIntent] = useState("");
+  const [email, setEmail] = useState("");
   const [isReserving, setIsReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
+  const [reserveError, setReserveError] = useState("");
   const { isConnected, publicKey } = useFreighter();
 
   useEffect(() => {
@@ -20,13 +22,38 @@ export default function FactoryPage() {
   }, []);
 
   const handleReserve = async () => {
+    setReserveError("");
+    if (!email.trim()) {
+      setReserveError("Please enter an email so we can contact you.");
+      return;
+    }
+    if (!publicKey) {
+      setReserveError("Connect your wallet to reserve an egg.");
+      return;
+    }
     setIsReserving(true);
     setReserved(false);
 
-    setTimeout(() => {
-      setIsReserving(false);
+    try {
+      const response = await fetch("/api/egg-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          wallet: publicKey,
+          intention: intent.trim(),
+        }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || "Could not submit request.");
+      }
       setReserved(true);
-    }, 900);
+    } catch (error) {
+      setReserveError(error instanceof Error ? error.message : "Could not submit request.");
+    } finally {
+      setIsReserving(false);
+    }
   };
 
   return (
@@ -89,6 +116,18 @@ export default function FactoryPage() {
                     <span>Max 240 characters</span>
                     <span>{intent.length}/240</span>
                   </div>
+
+                  <label className="block text-sm font-semibold text-foreground mt-4 mb-2">
+                    Contact email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@email.com"
+                    className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                    required
+                  />
                 </div>
 
                 <div className="w-full lg:w-[280px]">
@@ -132,6 +171,9 @@ export default function FactoryPage() {
                       )}
                     </Button>
                   )}
+                  {reserveError ? (
+                    <p className="mt-3 text-xs text-red-500">{reserveError}</p>
+                  ) : null}
                 </div>
               </div>
             </div>
