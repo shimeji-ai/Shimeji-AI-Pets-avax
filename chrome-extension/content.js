@@ -168,19 +168,19 @@
 
     function getNoApiKeyMessage() {
         return isSpanishLocale()
-            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consiguela en OpenRouter o OpenAI.'
+            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consíguela en OpenRouter o OpenAI.'
             : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). OpenAI as a second option.';
     }
 
     function getNoCreditsMessage() {
         return isSpanishLocale()
-            ? 'No puedo hablar sin creditos. Necesito que cargues creditos en tu cuenta para seguir vivo.'
+            ? 'No puedo hablar sin créditos. Necesito que cargues créditos en tu cuenta para seguir vivo.'
             : 'I cannot speak without credits. Please add credits to your account so I can stay alive.';
     }
 
     function getNoResponseMessage() {
         return isSpanishLocale()
-            ? 'No pude recibir respuesta. Puede ser falta de creditos o conexion. Si puedes, revisa tu saldo.'
+            ? 'No pude recibir respuesta. Puede ser falta de créditos o conexión. Si puedes, revisa tu saldo.'
             : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
     }
 
@@ -269,9 +269,16 @@
     }
 
     const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
+    const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir'];
+    const MODEL_KEYS = [
+        'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
+        'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat-v3-0324', 'mistralai/mistral-large-2411'
+    ];
 
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
+        const randomPersonality = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
+        const randomModel = MODEL_KEYS[Math.floor(Math.random() * MODEL_KEYS.length)];
         return {
             id: `shimeji-${index + 1}`,
             character: randomChar,
@@ -279,12 +286,12 @@
             mode: 'standard',
             standardProvider: 'openrouter',
             openrouterApiKey: '',
-            openrouterModel: 'google/gemini-2.0-flash-001',
+            openrouterModel: randomModel,
             ollamaUrl: 'http://127.0.0.1:11434',
             ollamaModel: 'llama3.1',
             openclawGatewayUrl: 'ws://127.0.0.1:18789',
             openclawGatewayToken: '',
-            personality: 'cryptid',
+            personality: randomPersonality,
             enabled: true,
             chatThemeColor: '#2a1f4e',
             chatBgColor: '#ffffff',
@@ -475,7 +482,7 @@
 
             const isEs = isSpanishLocale();
             const prefix = isEs
-                ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consiguela en '
+                ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consíguela en '
                 : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). Get it from ';
             const middle = isEs ? ' o ' : ' or ';
             const suffix = isEs

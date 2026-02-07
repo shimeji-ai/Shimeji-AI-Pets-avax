@@ -190,7 +190,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   ];
 
   const PERSONALITY_OPTIONS = [
-    { value: "cryptid", labelEn: "Cryptid", labelEs: "Críptido" },
+    { value: "cryptid", labelEn: "Cryptid", labelEs: "Críptico" },
     { value: "cozy", labelEn: "Cozy", labelEs: "Acogedor" },
     { value: "chaotic", labelEn: "Chaotic", labelEs: "Caótico" },
     { value: "philosopher", labelEn: "Philosopher", labelEs: "Filósofo" },
@@ -280,7 +280,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
       return;
     }
     masterkeyStatus.textContent = masterKeyUnlocked
-      ? t('Master key unlocked for this session', 'Clave maestra desbloqueada en esta sesion')
+      ? t('Master key unlocked for this session', 'Clave maestra desbloqueada en esta sesión')
       : t('Master key locked', 'Clave maestra bloqueada');
   }
 
@@ -322,15 +322,15 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = t("Add", "Agregar");
-    if (linkOpenPortals) linkOpenPortals.textContent = t("Open more portals", "Abrir mas portales");
+    if (linkOpenPortals) linkOpenPortals.textContent = t("Open more portals", "Abrir más portales");
     if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility", "Visibilidad");
-    if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this page", "Activo en esta pagina");
+    if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this page", "Activo en esta página");
     if (enableAllBtnLabel) enableAllBtnLabel.textContent = t("Enable All", "Activar todo");
     if (disableAllBtnLabel) disableAllBtnLabel.textContent = t("Disable All", "Desactivar todo");
     if (popupSubtitle) popupSubtitle.textContent = t("Your AI mascot orchestrator", "Tu orquestador de mascotas AI");
     if (wakeAllBtn) wakeAllBtn.textContent = t("Wake All", "Despertar todos");
     if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All", "Dormir todos");
-if (basicModeBtn) basicModeBtn.textContent = t("Basic", "Basico");
+if (basicModeBtn) basicModeBtn.textContent = t("Basic", "Básico");
 if (advancedModeBtn) advancedModeBtn.textContent = t("Advanced", "Avanzado");
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect keys with master key", "Proteger claves con clave maestra");
@@ -342,6 +342,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
 
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
+    const randomPersonality = PERSONALITY_OPTIONS[Math.floor(Math.random() * PERSONALITY_OPTIONS.length)].value;
+    const randomModel = MODEL_OPTIONS[Math.floor(Math.random() * MODEL_OPTIONS.length)].value;
     return {
       id: `shimeji-${index + 1}`,
       character: randomChar,
@@ -349,12 +351,12 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       mode: "standard",
       standardProvider: "openrouter",
       openrouterApiKey: "",
-      openrouterModel: MODEL_OPTIONS[0].value,
+      openrouterModel: randomModel,
       ollamaUrl: "http://127.0.0.1:11434",
       ollamaModel: "llama3.1",
       openclawGatewayUrl: "ws://127.0.0.1:18789",
       openclawGatewayToken: "",
-      personality: "cryptid",
+      personality: randomPersonality,
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
@@ -574,8 +576,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       grid.className = "shimeji-grid";
 
       grid.appendChild(renderSelectField("character", t("Character", "Personaje"), CHARACTER_OPTIONS, shimeji.character));
-      grid.appendChild(renderSelectField("size", t("Size", "Tamano"), [
-        { value: "small", labelEn: "Small", labelEs: "Pequeno" },
+      grid.appendChild(renderSelectField("size", t("Size", "Tamaño"), [
+        { value: "small", labelEn: "Small", labelEs: "Pequeño" },
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
@@ -658,8 +660,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
 
       chatStyleGrid.appendChild(renderColorField("chatThemeColor", t("Theme Color", "Color Tema"), shimeji.chatThemeColor || "#2a1f4e"));
       chatStyleGrid.appendChild(renderColorField("chatBgColor", t("Background", "Fondo"), shimeji.chatBgColor || "#ffffff"));
-      chatStyleGrid.appendChild(renderSelectField("chatFontSize", t("Font Size", "Tamano Texto"), [
-        { value: "small", labelEn: "Small", labelEs: "Pequeno" },
+      chatStyleGrid.appendChild(renderSelectField("chatFontSize", t("Font Size", "Tamaño Texto"), [
+        { value: "small", labelEn: "Small", labelEs: "Pequeño" },
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "large", labelEn: "Large", labelEs: "Grande" }
       ], shimeji.chatFontSize || "medium"));
@@ -670,7 +672,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       ], shimeji.chatWidth || "medium"));
       chatStyleGrid.appendChild(renderSelectField("chatBubbleStyle", t("Style", "Estilo"), [
         { value: "glass", labelEn: "Glass", labelEs: "Vidrio" },
-        { value: "solid", labelEn: "Solid", labelEs: "Solido" },
+        { value: "solid", labelEn: "Solid", labelEs: "Sólido" },
         { value: "dark", labelEn: "Dark", labelEs: "Oscuro" }
       ], shimeji.chatBubbleStyle || "glass"));
 
