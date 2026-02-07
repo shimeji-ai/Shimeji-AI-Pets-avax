@@ -91,7 +91,9 @@ export default function FactoryPage() {
                       Egg
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold mb-1">Starter Egg</h3>
+                      <h3 className="text-xl font-semibold mb-1">
+                        Custom Handcrafted Egg
+                      </h3>
                       <p className="text-sm text-muted-foreground">
                         You are buying an egg. It opens a few days after
                         purchase. Your intention shapes its art direction and
