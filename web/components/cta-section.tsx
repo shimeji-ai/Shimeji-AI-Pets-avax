@@ -46,7 +46,7 @@ export function CtaSection() {
                 </Button>
               </Link>
               <Link
-                href="https://github.com/luloxi/stellar-shimeji-factory"
+                href="https://github.com/luloxi/Shimeji-AI-Pets"
                 target="_blank"
                 rel="noopener noreferrer"
               >

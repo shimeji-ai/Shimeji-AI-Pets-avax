@@ -55,7 +55,7 @@ export function Footer() {
                   </span>
                 </Link>
                 <Link
-                  href="https://github.com/luloxi/stellar-shimeji-factory"
+                  href="https://github.com/luloxi/Shimeji-AI-Pets"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
@@ -127,7 +127,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="https://github.com/luloxi/stellar-shimeji-factory"
+                    href="https://github.com/luloxi/Shimeji-AI-Pets"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
