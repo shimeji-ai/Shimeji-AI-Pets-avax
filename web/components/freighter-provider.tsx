@@ -6,18 +6,20 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
   getAddress,
   getNetwork,
   getNetworkDetails,
-  isConnected,
+  isConnected as apiIsConnected,
   requestAccess,
 } from "@stellar/freighter-api";
 
 type FreighterState = {
   isAvailable: boolean;
+  isDetecting: boolean;
   isConnected: boolean;
   isConnecting: boolean;
   publicKey: string | null;
@@ -57,29 +59,51 @@ async function getNetworkLabel(): Promise<string | null> {
   return details.network || details.networkPassphrase || null;
 }
 
+/** Try the API's isConnected; returns null if the call errors out. */
+async function probeFreighter(): Promise<boolean | null> {
+  try {
+    const status = await apiIsConnected();
+    if (hasError(status)) return null;
+    return status.isConnected;
+  } catch {
+    return null;
+  }
+}
+
 export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const [isAvailable, setIsAvailable] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [connected, setConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [network, setNetwork] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isDetecting, setIsDetecting] = useState(true);
+  const detectionDone = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
-      const windowAvailable = hasWindowFreighter();
-      setIsAvailable(windowAvailable);
+      // Quick check: window global may already exist
+      if (hasWindowFreighter()) {
+        setIsAvailable(true);
+      }
 
-      const status = await isConnected();
+      const status = await apiIsConnected();
       if (hasError(status)) {
-        setIsConnected(false);
+        // API returned an error – Freighter not reachable
+        if (!hasWindowFreighter()) {
+          setIsAvailable(false);
+        }
+        setConnected(false);
         setPublicKey(null);
         setNetwork(null);
         return;
       }
+
+      // If the API responded without error, Freighter is installed
       setIsAvailable(true);
+
       if (!status.isConnected) {
-        setIsConnected(false);
+        setConnected(false);
         setPublicKey(null);
         setNetwork(null);
         return;
@@ -87,14 +111,14 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
 
       const addressObj = await getAddress();
       if (hasError(addressObj)) {
-        setIsConnected(false);
+        setConnected(false);
         setPublicKey(null);
         setNetwork(null);
         return;
       }
 
       const nextNetwork = await getNetworkLabel();
-      setIsConnected(Boolean(addressObj.address));
+      setConnected(Boolean(addressObj.address));
       setPublicKey(addressObj.address || null);
       setNetwork(nextNetwork);
       setError(null);
@@ -107,26 +131,26 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      const windowAvailable = hasWindowFreighter();
-      const status = await isConnected();
-      if (!windowAvailable && (hasError(status) || !status.isConnected)) {
-        setIsAvailable(false);
-        setError("Freighter wallet not detected.");
-        return;
-      }
-      setIsAvailable(true);
-
       const access = await requestAccess();
       if (hasError(access)) {
-        throw new Error(
-          typeof access.error === "string"
-            ? access.error
-            : access.error.message || "Connection request failed."
-        );
+        // If requestAccess errors, Freighter might not be installed
+        const windowAvailable = hasWindowFreighter();
+        if (!windowAvailable) {
+          setIsAvailable(false);
+          setError("Freighter wallet not detected.");
+        } else {
+          throw new Error(
+            typeof access.error === "string"
+              ? access.error
+              : access.error.message || "Connection request failed."
+          );
+        }
+        return;
       }
 
+      setIsAvailable(true);
       const nextNetwork = await getNetworkLabel();
-      setIsConnected(true);
+      setConnected(true);
       setPublicKey(access.address);
       setNetwork(nextNetwork);
       setError(null);
@@ -139,20 +163,84 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const disconnect = useCallback(() => {
-    setIsConnected(false);
+    setConnected(false);
     setPublicKey(null);
     setNetwork(null);
     setError(null);
   }, []);
 
+  // On mount: retry detection to handle late extension injection.
+  // Freighter's content script may load after the page's JS runs;
+  // the API uses postMessage with a 2s timeout, so early calls
+  // silently return isConnected:false even when Freighter is installed.
   useEffect(() => {
-    refresh();
+    let cancelled = false;
+
+    async function detect() {
+      // Try up to 4 times: 0ms, 500ms, 1500ms, 3500ms
+      const delays = [0, 500, 1000, 2000];
+      for (const delay of delays) {
+        if (cancelled || detectionDone.current) return;
+        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+        if (cancelled) return;
+
+        // Fast path: window global appeared
+        if (hasWindowFreighter()) {
+          detectionDone.current = true;
+          setIsAvailable(true);
+          setIsDetecting(false);
+          await refresh();
+          return;
+        }
+
+        // Slow path: try the API (postMessage → extension)
+        const result = await probeFreighter();
+        if (cancelled) return;
+
+        if (result !== null) {
+          // Got a real response – extension is installed
+          detectionDone.current = true;
+          setIsAvailable(true);
+          setIsDetecting(false);
+          await refresh();
+          return;
+        }
+      }
+      // All retries exhausted – Freighter not found
+      if (!cancelled) {
+        detectionDone.current = true;
+        setIsAvailable(hasWindowFreighter());
+        setIsDetecting(false);
+      }
+    }
+
+    detect();
+
+    // Also listen for late injection via Freighter's postMessage
+    function onMessage(e: MessageEvent) {
+      if (
+        e.data?.source === "FREIGHTER_EXTERNAL_MSG_RESPONSE" &&
+        !detectionDone.current
+      ) {
+        detectionDone.current = true;
+        setIsAvailable(true);
+        setIsDetecting(false);
+        refresh();
+      }
+    }
+    window.addEventListener("message", onMessage);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("message", onMessage);
+    };
   }, [refresh]);
 
   const value = useMemo(
     () => ({
       isAvailable,
-      isConnected,
+      isDetecting,
+      isConnected: connected,
       isConnecting,
       publicKey,
       network,
@@ -163,7 +251,8 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       isAvailable,
-      isConnected,
+      isDetecting,
+      connected,
       isConnecting,
       publicKey,
       network,

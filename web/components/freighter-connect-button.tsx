@@ -10,6 +10,7 @@ function shortenKey(key: string) {
 export function FreighterConnectButton() {
   const {
     isAvailable,
+    isDetecting,
     isConnected,
     isConnecting,
     publicKey,
@@ -19,7 +20,9 @@ export function FreighterConnectButton() {
     disconnect,
   } = useFreighter();
 
-  if (!isAvailable) {
+  // While still detecting, show a connect button (not "Install")
+  // so users don't see a flash of "Install Freighter" on every load
+  if (!isAvailable && !isDetecting) {
     return (
       <Button
         asChild
@@ -37,13 +40,15 @@ export function FreighterConnectButton() {
       <Button
         onClick={isConnected ? disconnect : connect}
         className="neural-button rounded-xl px-4"
-        disabled={isConnecting}
+        disabled={isConnecting || isDetecting}
       >
-        {isConnecting
-          ? "Connecting..."
-          : isConnected
-            ? "Disconnect"
-            : "Connect Freighter"}
+        {isDetecting
+          ? "Detecting wallet..."
+          : isConnecting
+            ? "Connecting..."
+            : isConnected
+              ? "Disconnect"
+              : "Connect Freighter"}
       </Button>
       {isConnected && publicKey && (
         <div className="hidden xl:flex flex-col text-xs text-muted-foreground">
