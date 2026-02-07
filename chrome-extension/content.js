@@ -1578,8 +1578,7 @@
 
         function onClickOutsideChat(e) {
             if (!isChatOpen) return;
-            if (chatBubbleEl && chatBubbleEl.contains(e.target)) return;
-            if (mascotElement && mascotElement.contains(e.target)) return;
+            if (e.target && e.target.closest && e.target.closest('.shimeji-chat-bubble, .shimeji-mascot')) return;
             closeChatBubble();
         }
 
