@@ -35,17 +35,19 @@ export default function FactoryPage() {
 
       <section className="pt-28 pb-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
-              <Sparkles className="w-8 h-8" />
+          <div className="flex items-center gap-3 mb-8">
+            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 border border-white/10 text-[var(--brand-accent)]">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-semibold mb-4">
-              Shimeji AI Pets
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Buy an egg, set an intention, and your pet will arrive ready to
-              chat and accompany you.
-            </p>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
+                Shimeji AI Pets
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Buy an egg, set an intention, and your pet will arrive ready to
+                chat and accompany you.
+              </p>
+            </div>
           </div>
 
           <div className="neural-card rounded-2xl p-6 mb-8">
