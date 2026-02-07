@@ -160,8 +160,7 @@ const securityTitle = document.getElementById("security-title");
 const masterkeyToggle = document.getElementById("masterkey-toggle");
 const masterkeyLabel = document.getElementById("masterkey-label");
 const masterkeyInput = document.getElementById("masterkey-input");
-const masterkeyUnlockBtn = document.getElementById("masterkey-unlock-btn");
-const masterkeyLockBtn = document.getElementById("masterkey-lock-btn");
+const masterkeyActionBtn = document.getElementById("masterkey-action-btn");
 const masterkeyStatus = document.getElementById("masterkey-status");
 const shimejiLockHint = document.getElementById("shimeji-lock-hint");
 const securityHint = document.getElementById("security-hint");
@@ -432,8 +431,12 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   function applyMasterKeyUiState() {
     if (masterkeyToggle) masterkeyToggle.checked = masterKeyEnabled;
     if (masterkeyInput) masterkeyInput.disabled = false;
-    if (masterkeyUnlockBtn) masterkeyUnlockBtn.disabled = !masterKeyEnabled;
-    if (masterkeyLockBtn) masterkeyLockBtn.disabled = !masterKeyEnabled;
+    if (masterkeyActionBtn) {
+      masterkeyActionBtn.disabled = !masterKeyEnabled;
+      masterkeyActionBtn.textContent = masterKeyUnlocked
+        ? t("Lock now", "Bloquear ahora")
+        : t("Unlock", "Desbloquear");
+    }
     if (autolockToggle) autolockToggle.checked = masterKeyAutoLockEnabled;
     if (autolockMinutesInput) autolockMinutesInput.value = String(masterKeyAutoLockMinutes);
     updateAutolockLabel();
@@ -549,8 +552,7 @@ if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del po
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
-if (masterkeyUnlockBtn) masterkeyUnlockBtn.textContent = t("Unlock", "Desbloquear");
-if (masterkeyLockBtn) masterkeyLockBtn.textContent = t("Lock", "Bloquear");
+if (masterkeyActionBtn) masterkeyActionBtn.textContent = t("Unlock", "Desbloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
 if (securityHint) securityHint.textContent = t(
   "Use a password to lock configuration changes. You'll be asked once per browser session.",
@@ -890,7 +892,11 @@ if (securityHint) securityHint.textContent = t(
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
-      // Move AI Brain select closer to provider for clearer flow
+      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
+        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
+        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
+        { value: "off", labelEn: "Off", labelEs: "Apagado" },
+      ], mode));
       grid.appendChild(renderToggleField("enabled", t("Active", "Activo"), shimeji.enabled !== false));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Sound", "Sonido"), shimeji.soundEnabled !== false));
@@ -910,11 +916,6 @@ if (securityHint) securityHint.textContent = t(
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
       standardBlock.dataset.mode = "standard";
-      standardBlock.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
-        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
-        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
-        { value: "off", labelEn: "Off", labelEs: "Apagado" },
-      ], mode));
       standardBlock.appendChild(renderSelectField("standardProvider", t("Provider", "Proveedor"), [
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
         { value: "ollama", labelEn: "Ollama", labelEs: "Ollama" }
@@ -1369,28 +1370,26 @@ if (securityHint) securityHint.textContent = t(
     });
   }
 
-  if (masterkeyUnlockBtn) {
-    masterkeyUnlockBtn.addEventListener('click', async () => {
-      const value = masterkeyInput?.value || '';
-      if (!value) return;
+  if (masterkeyActionBtn) {
+    masterkeyActionBtn.addEventListener('click', async () => {
       if (!masterKeyEnabled) {
-        await enableMasterKeyWithValue(value);
+        setMasterKeyStatusMessage(t('Enable protection first', 'Activa la protección primero'));
         return;
       }
-      await tryUnlockMasterKey(value);
-    });
-  }
-
-  if (masterkeyLockBtn) {
-    masterkeyLockBtn.addEventListener('click', () => {
-      clearSessionMasterKey();
-      masterKeyUnlocked = false;
-      if (masterKeyAutoLockTimer) {
-        clearTimeout(masterKeyAutoLockTimer);
-        masterKeyAutoLockTimer = null;
+      if (masterKeyUnlocked) {
+        clearSessionMasterKey();
+        masterKeyUnlocked = false;
+        if (masterKeyAutoLockTimer) {
+          clearTimeout(masterKeyAutoLockTimer);
+          masterKeyAutoLockTimer = null;
+        }
+        applyMasterKeyUiState();
+        renderShimejis();
+        return;
       }
-      applyMasterKeyUiState();
-      renderShimejis();
+      const value = masterkeyInput?.value || '';
+      if (!value) return;
+      await tryUnlockMasterKey(value);
     });
   }
 
