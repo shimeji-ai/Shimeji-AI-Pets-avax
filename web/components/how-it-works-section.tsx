@@ -102,7 +102,33 @@ export function HowItWorksSection() {
                       </>
                     )
                   ) : (
-                    isSpanish ? step.descriptionEs : step.descriptionEn
+                    step.step === "04" ? (
+                      isSpanish ? (
+                        <>
+                          <Link
+                            href="/factory"
+                            className="font-semibold underline decoration-2 underline-offset-2"
+                          >
+                            Compra un huevo en Factory
+                          </Link>
+                          , define una intención y recibe una mascota hecha a mano
+                          con sprites únicos.
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href="/factory"
+                            className="font-semibold underline decoration-2 underline-offset-2"
+                          >
+                            Buy an egg in the Factory
+                          </Link>
+                          , set an intention, and receive a handcrafted pet with
+                          unique sprites.
+                        </>
+                      )
+                    ) : (
+                      isSpanish ? step.descriptionEs : step.descriptionEn
+                    )
                   )}
                 </p>
               </div>

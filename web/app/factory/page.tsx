@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { NavHeader } from "@/components/nav-header";
 import { Footer } from "@/components/footer";
-import { CollectionRequestForm } from "@/components/collection-request-form";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
 import { useFreighter } from "@/components/freighter-provider";
 import { Button } from "@/components/ui/button";
@@ -44,7 +43,6 @@ export default function FactoryPage() {
               Shimeji AI Pets
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Commission a custom shimeji with unique hand-animated sprites.
               Buy an egg, set an intention, and your pet will arrive ready to
               chat and accompany you.
             </p>
@@ -53,9 +51,9 @@ export default function FactoryPage() {
           <div className="neural-card rounded-2xl p-6 mb-8">
             <h2 className="text-xl font-semibold mb-2">Intergalactic Egg</h2>
             <p className="text-muted-foreground text-sm">
-              Each egg produces a unique shimeji with custom sprites. Your
-              intention shapes its art direction and personality. Once ready, it
-              appears in the extension with full AI chat support.
+              Each egg produces a unique shimeji. Your intention shapes its art
+              direction and personality. Once ready, it appears in the
+              extension with full AI chat support.
             </p>
           </div>
 
@@ -65,77 +63,80 @@ export default function FactoryPage() {
               <p className="text-muted-foreground">Loading...</p>
             </div>
           ) : isConnected ? (
-            <div className="grid lg:grid-cols-[2fr,1fr] gap-6 mb-10">
-              <div className="neural-card rounded-2xl p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
-                    Egg
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-1">Starter Egg</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Opens in a few days after purchase. We&apos;ll email you when
-                      your shimeji is ready.
-                    </p>
-                    <label className="block text-sm font-semibold text-foreground mb-2">
-                      Intention for this egg
-                    </label>
-                    <textarea
-                      value={intent}
-                      onChange={(event) => setIntent(event.target.value)}
-                      placeholder="e.g. Help me focus while I code, remind me to take breaks"
-                      className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                      maxLength={240}
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                      <span>Max 240 characters</span>
-                      <span>{intent.length}/240</span>
+            <div className="neural-card rounded-2xl p-6 mb-10">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
+                      Egg
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold mb-1">Starter Egg</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Opens a few days after purchase. We&apos;ll email you when
+                        your shimeji is ready.
+                      </p>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <div className="neural-card rounded-2xl p-6 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Checkout</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Connected as {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
-                  </p>
-                  <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
-                    <span>Egg price</span>
-                    <span className="font-semibold">Coming soon</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2 text-sm">
-                    <span>Network</span>
-                    <span className="font-semibold">Stellar</span>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    Intention for this egg
+                  </label>
+                  <textarea
+                    value={intent}
+                    onChange={(event) => setIntent(event.target.value)}
+                    placeholder="e.g. Help me focus while I code, remind me to take breaks"
+                    className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                    maxLength={240}
+                  />
+                  <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                    <span>Max 240 characters</span>
+                    <span>{intent.length}/240</span>
                   </div>
                 </div>
 
-                {reserved ? (
-                  <div className="mt-6 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
-                    <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-foreground">
-                      Egg reserved!
+                <div className="w-full lg:w-[280px]">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <h3 className="text-lg font-semibold mb-2">Checkout</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Connected as {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      We&apos;ll reach out when payments go live.
-                    </p>
+                    <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
+                      <span>Egg price</span>
+                      <span className="font-semibold">Coming soon</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2 text-sm">
+                      <span>Network</span>
+                      <span className="font-semibold">Stellar</span>
+                    </div>
                   </div>
-                ) : (
-                  <Button
-                    onClick={handleReserve}
-                    disabled={isReserving}
-                    className="mt-6 neural-button rounded-xl py-6"
-                  >
-                    {isReserving ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" /> Reserving...
-                      </span>
-                    ) : (
-                      "Reserve Egg"
-                    )}
-                  </Button>
-                )}
+
+                  {reserved ? (
+                    <div className="mt-4 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
+                      <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-foreground">
+                        Egg reserved!
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        We&apos;ll reach out when payments go live.
+                      </p>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleReserve}
+                      disabled={isReserving}
+                      className="mt-4 w-full neural-button rounded-xl py-6"
+                    >
+                      {isReserving ? (
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" /> Reserving...
+                        </span>
+                      ) : (
+                        "Reserve Egg"
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -148,7 +149,6 @@ export default function FactoryPage() {
             </div>
           )}
 
-          <CollectionRequestForm />
         </div>
       </section>
 
