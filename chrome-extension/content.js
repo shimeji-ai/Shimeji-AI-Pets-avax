@@ -613,8 +613,8 @@
             if (!relayToggleBtnEl) return;
             relayToggleBtnEl.classList.toggle('active', !!config.relayEnabled);
             relayToggleBtnEl.title = config.relayEnabled
-                ? (isSpanishLocale() ? 'Dejar de hablar con otros shimejis' : 'Stop talking to other shimejis')
-                : (isSpanishLocale() ? 'Hablar con otros shimejis' : 'Talk to other shimejis');
+                ? (isSpanishLocale() ? 'Hablar con otros shimejis: activado' : 'Talk to other shimejis: on')
+                : (isSpanishLocale() ? 'Hablar con otros shimejis: apagado' : 'Talk to other shimejis: off');
         }
 
         async function ensureVoiceForTts() {
@@ -1345,7 +1345,9 @@
             relayRow.className = 'shimeji-chat-control-row';
             const relayLabel = document.createElement('span');
             relayLabel.className = 'shimeji-chat-control-label';
-            relayLabel.textContent = isSpanishLocale() ? 'Relay' : 'Relay';
+            relayLabel.textContent = isSpanishLocale()
+                ? 'Hablar con otros shimejis'
+                : 'Talk to other shimejis';
             relayRow.appendChild(relayLabel);
             relayRow.appendChild(relayToggleBtnEl);
             controlsPanel.appendChild(relayRow);
