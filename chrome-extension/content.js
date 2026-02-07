@@ -268,10 +268,13 @@
         }
     }
 
+    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
+
     function getDefaultShimeji(index) {
+        const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
         return {
             id: `shimeji-${index + 1}`,
-            character: 'shimeji',
+            character: randomChar,
             size: 'medium',
             mode: 'standard',
             standardProvider: 'openrouter',

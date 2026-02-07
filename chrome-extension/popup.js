@@ -341,9 +341,10 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
   }
 
   function getDefaultShimeji(index) {
+    const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
     return {
       id: `shimeji-${index + 1}`,
-      character: "shimeji",
+      character: randomChar,
       size: "medium",
       mode: "standard",
       standardProvider: "openrouter",
@@ -383,7 +384,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         soundVolume: typeof shimeji.soundVolume === "number" ? shimeji.soundVolume : 0.7,
         standardProvider: shimeji.standardProvider || "openrouter",
         ollamaUrl: shimeji.ollamaUrl || "http://127.0.0.1:11434",
-        ollamaModel: shimeji.ollamaModel || "llama3.1"
+        ollamaModel: shimeji.ollamaModel || "llama3.1",
+        openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
+        openclawGatewayToken: shimeji.openclawGatewayToken || "",
+        personality: shimeji.personality || "cryptid",
+        ttsEnabled: shimeji.ttsEnabled || false
       }));
     }
 
