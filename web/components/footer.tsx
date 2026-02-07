@@ -144,21 +144,21 @@ export function Footer() {
             <p className="text-sm text-muted-foreground">
               {isSpanish ? "Creado por " : "Created by "}
               <Link
-                href="https://x.com/LuloxDev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-foreground hover:underline"
-              >
-                @LuloxDev
-              </Link>{" "}
-              &{" "}
-              <Link
                 href="https://x.com/Kathonejo"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground hover:underline"
               >
                 @Kathonejo
+              </Link>{" "}
+              &{" "}
+              <Link
+                href="https://x.com/LuloxDev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground hover:underline"
+              >
+                @LuloxDev
               </Link>
             </p>
           </div>
