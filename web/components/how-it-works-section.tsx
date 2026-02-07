@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, MessageSquare, Sparkles, Bot } from "lucide-react";
+import { Download, MessageSquare, Bot, Sparkles } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
 
@@ -8,30 +8,34 @@ const steps = [
   {
     icon: Download,
     step: "01",
-    title: "Install the Extension",
-    description:
-      "Download the Chrome extension and your shimeji will appear on every page you visit.",
+    titleEn: "Install the Extension",
+    titleEs: "Instala la extensión",
+    descriptionEn: "Download the Chrome extension and your shimeji will appear on every page you visit.",
+    descriptionEs: "Descarga la extensión de Chrome y tu shimeji aparecerá en cada página que visites.",
   },
   {
     icon: MessageSquare,
     step: "02",
-    title: "Chat with Your Shimeji",
-    description:
-      "Click your companion to open chat. Choose a personality and add your API key to start talking.",
+    titleEn: "Add an API Key",
+    titleEs: "Agrega una API key",
+    descriptionEn: "Get an OpenRouter key and paste it in the popup. You can also use Ollama for local models.",
+    descriptionEs: "Consigue una key de OpenRouter y pegala en el popup. También podés usar Ollama para modelos locales.",
   },
   {
     icon: Bot,
     step: "03",
-    title: "Enable the AI Agent",
-    description:
-      "Switch to AI Agent mode and connect OpenClaw so your shimeji can act online and onchain.",
+    titleEn: "Chat & Enable Agent Mode",
+    titleEs: "Chatea y activa el modo agente",
+    descriptionEn: "Click your shimeji to chat. Switch to AI Agent mode with OpenClaw for online and onchain actions.",
+    descriptionEs: "Hace clic en tu shimeji para chatear. Cambia al modo AI Agent con OpenClaw para acciones online y onchain.",
   },
   {
     icon: Sparkles,
     step: "04",
-    title: "Commission a Custom Shimeji",
-    description:
-      "Open a portal in the Factory, set an intention, and receive a handcrafted companion with unique sprites.",
+    titleEn: "Commission a Custom Shimeji",
+    titleEs: "Encarga un shimeji único",
+    descriptionEn: "Open a portal in the Factory, set an intention, and receive a handcrafted companion with unique sprites.",
+    descriptionEs: "Abre un portal en Factory, define una intención y recibe un compañero hecho a mano con sprites únicos.",
   },
 ];
 
@@ -43,22 +47,22 @@ export function HowItWorksSection() {
   };
 
   return (
-    <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
+    <section id="get-started" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Flujo base" : "Core flow"}
+              {isSpanish ? "Guía rápida" : "Quick guide"}
             </p>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight text-balance">
-              {isSpanish ? "Cómo Funciona" : "How It Works"}
+              {isSpanish ? "Empezar" : "Get Started"}
             </h2>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {steps.map((step) => (
               <div
-                key={step.title}
+                key={step.step}
                 className="group relative neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-8">
@@ -71,26 +75,10 @@ export function HowItWorksSection() {
                 </div>
 
                 <h3 className="text-xl font-bold text-foreground mb-3">
-                  {isSpanish
-                    ? step.step === "01"
-                      ? "Instala la extensión"
-                      : step.step === "02"
-                        ? "Chatea con tu shimeji"
-                        : step.step === "03"
-                          ? "Activa el agente IA"
-                          : "Encarga un shimeji único"
-                    : step.title}
+                  {isSpanish ? step.titleEs : step.titleEn}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {isSpanish
-                    ? step.step === "01"
-                      ? "Descarga la extensión de Chrome y tu shimeji aparecerá en cada página que visites."
-                      : step.step === "02"
-                        ? "Haz clic en tu compañero para abrir el chat. Elige una personalidad y agrega tu API key para empezar."
-                        : step.step === "03"
-                          ? "Cambia al modo AI Agent y conecta OpenClaw para que pueda actuar online y onchain."
-                          : "Abre un portal en Factory, define una intención y recibe un compañero hecho a mano con sprites únicos."
-                    : step.description}
+                  {isSpanish ? step.descriptionEs : step.descriptionEn}
                 </p>
               </div>
             ))}
