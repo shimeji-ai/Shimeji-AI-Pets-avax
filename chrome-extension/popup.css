@@ -335,6 +335,11 @@ h3 {
   margin: 8px 0 4px;
 }
 
+.footer-links {
+  margin-top: 12px;
+  align-items: center;
+}
+
 .popup-link {
   display: flex;
   align-items: center;
@@ -419,6 +424,15 @@ body[data-theme="kawaii"] .shimeji-card-id {
   color: #2a1f4e;
 }
 
+body[data-theme="kawaii"] #shimeji-section-title,
+body[data-theme="kawaii"] #shimeji-limit-hint {
+  color: #2a1f4e;
+}
+
+body[data-theme="kawaii"] .helper-text {
+  color: rgba(42, 31, 78, 0.8);
+}
+
 body[data-theme="kawaii"] .shimeji-card,
 body[data-theme="kawaii"] .security-box,
 body[data-theme="kawaii"] .toggle-row {
@@ -498,7 +512,8 @@ body[data-theme="pink"] .ai-select option {
   background: rgba(18, 24, 36, 0.7);
   border: 1px solid rgba(120, 140, 255, 0.2);
   color: rgba(200, 210, 235, 0.8);
-  font-size: 11px;
+  font-size: 10px;
+  padding: 6px 10px;
 }
 
 .privacy-link:hover {
@@ -875,9 +890,17 @@ body[data-theme="pink"] .ai-select {
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffe6f2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
 
+body[data-theme="pink"] .ai-select {
+  background-image: none;
+}
+
 body[data-theme="pink"] .ai-select option {
   color: #ffe6f2;
   background: #1e0e18;
+}
+
+body[data-theme="kawaii"] .ai-select {
+  background-image: none;
 }
 
 .ai-select:focus {

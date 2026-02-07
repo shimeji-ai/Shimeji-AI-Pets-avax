@@ -177,6 +177,13 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-padding-top: 96px;
+  }
+  section[id],
+  #feedback-form-section {
+    scroll-margin-top: 96px;
+  }
   body {
     @apply bg-background text-foreground;
     background-image:

@@ -51,7 +51,13 @@ export function GiveawayWidget() {
 
   function goToFeedback() {
     const formSection = document.getElementById("feedback-form-section");
-    formSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (formSection) {
+      const header = document.querySelector("header.fixed");
+      const headerHeight = header instanceof HTMLElement ? header.offsetHeight + 24 : 88;
+      const rect = formSection.getBoundingClientRect();
+      const target = window.scrollY + rect.top - headerHeight;
+      window.scrollTo({ top: target, behavior: "smooth" });
+    }
     setIsOpen(false);
   }
 

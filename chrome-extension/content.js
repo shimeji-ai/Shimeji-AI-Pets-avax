@@ -933,9 +933,8 @@
             const prefix = isEs
                 ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consíguela en '
                 : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). Get it from ';
-            const middle = isEs ? ' o ' : ' or ';
             const suffix = isEs
-                ? '. Luego haz clic en el icono de la extension y configuralo ahi pegando tu API key.'
+                ? '. Luego haz clic en el icono de la extension y configuralo ahí pegando tu API key.'
                 : '. Then click the extension icon and configure it there by pasting your API key.';
 
             msgEl.appendChild(document.createTextNode(prefix));
@@ -946,15 +945,6 @@
             openRouterLink.rel = 'noopener noreferrer';
             openRouterLink.textContent = 'OpenRouter';
             msgEl.appendChild(openRouterLink);
-
-            msgEl.appendChild(document.createTextNode(middle));
-
-            const openAiLink = document.createElement('a');
-            openAiLink.href = 'https://platform.openai.com/api-keys';
-            openAiLink.target = '_blank';
-            openAiLink.rel = 'noopener noreferrer';
-            openAiLink.textContent = 'OpenAI';
-            msgEl.appendChild(openAiLink);
 
             msgEl.appendChild(document.createTextNode(suffix));
 
