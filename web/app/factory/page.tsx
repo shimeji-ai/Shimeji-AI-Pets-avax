@@ -50,15 +50,6 @@ export default function FactoryPage() {
             </div>
           </div>
 
-          <div className="neural-card rounded-2xl p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-2">Intergalactic Egg</h2>
-            <p className="text-muted-foreground text-sm">
-              Each egg produces a unique shimeji. Your intention shapes its art
-              direction and personality. Once ready, it appears in the
-              extension with full AI chat support.
-            </p>
-          </div>
-
           {!mounted ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
@@ -75,8 +66,11 @@ export default function FactoryPage() {
                     <div>
                       <h3 className="text-xl font-semibold mb-1">Starter Egg</h3>
                       <p className="text-sm text-muted-foreground">
-                        Opens a few days after purchase. We&apos;ll email you when
-                        your shimeji is ready.
+                        You are buying an egg. It opens a few days after
+                        purchase. Your intention shapes its art direction and
+                        personality. We&apos;ll email you when your shimeji is
+                        ready, and it will appear in the extension with full AI
+                        chat support.
                       </p>
                     </div>
                   </div>
