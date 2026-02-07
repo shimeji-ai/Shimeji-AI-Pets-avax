@@ -892,8 +892,8 @@
             const raw = (e.detail.text || '').trim();
             if (!raw) return;
             const prefix = isSpanishLocale()
-                ? 'Esto es lo que dijo tu compañero shimeji AI companion: '
-                : 'This is what your shimeji AI companion said: ';
+                ? 'Esto es lo que dijo tu mascota shimeji AI pet: '
+                : 'This is what your shimeji AI pet said: ';
             sendChatMessageWithText(prefix + raw, { isRelay: true });
         });
 

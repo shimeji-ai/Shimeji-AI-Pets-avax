@@ -32,7 +32,7 @@ export function getConfirmationEmailHtml({
           <tr>
             <td style="background: linear-gradient(135deg, #f472b6 0%, #a855f7 100%); padding: 32px 40px; text-align: center;">
               <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">
-                Shimeji Factory
+                Shimeji AI Pets
               </h1>
             </td>
           </tr>
@@ -44,7 +44,7 @@ export function getConfirmationEmailHtml({
                 Confirm your subscription
               </h2>
               <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Thanks for signing up to receive ${message} from Shimeji Factory!
+                Thanks for signing up to receive ${message} from Shimeji AI Pets!
               </p>
               <p style="margin: 0 0 32px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
                 Please click the button below to confirm your email address:
@@ -76,7 +76,7 @@ export function getConfirmationEmailHtml({
           <tr>
             <td style="padding: 24px 40px; background-color: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
               <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                Shimeji Factory - Desktop companions for everyone
+                Shimeji AI Pets - Browser pets for everyone
               </p>
             </td>
           </tr>
@@ -102,7 +102,7 @@ export function getConfirmationEmailText({
   const message = typeMessages[type] || "updates";
 
   return `
-Confirm your subscription to Shimeji Factory
+Confirm your subscription to Shimeji AI Pets
 
 Thanks for signing up to receive ${message}!
 
@@ -112,6 +112,6 @@ ${confirmationUrl}
 If you didn't sign up for this, you can safely ignore this email.
 
 ---
-Shimeji Factory - Desktop companions for everyone
+Shimeji AI Pets - Browser pets for everyone
 `.trim();
 }

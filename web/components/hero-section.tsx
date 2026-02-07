@@ -22,7 +22,7 @@ export function HeroSection() {
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left lg:mr-10">
             {/* Large background typography */}
             <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance lg:text-left">
-              Shimeji Factory
+              Shimeji AI Pets
             </h1>
 
             {/* Info cards */}
@@ -30,8 +30,8 @@ export function HeroSection() {
               <div className="max-w-sm text-left sm:text-left">
                 <p className="text-lg leading-relaxed text-muted-foreground">
                   {isSpanish
-                    ? "Un compañero digital que vive en tu navegador. Chatea desde cualquier pestaña, recibe avisos y conecta tu agente para que haga cosas online y onchain por vos."
-                    : "A digital companion that lives in your browser. Chat from any tab, get gentle nudges, or connect your agent to handle online and onchain tasks for you."}
+                    ? "Un mascota digital que vive en tu navegador. Chatea desde cualquier pestaña, recibe avisos y conecta tu agente para que haga cosas online y onchain por vos."
+                    : "A digital pet that lives in your browser. Chat from any tab, get gentle nudges, or connect your agent to handle online and onchain tasks for you."}
                 </p>              </div>
             </div>
 

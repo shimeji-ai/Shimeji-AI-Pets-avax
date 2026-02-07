@@ -21,8 +21,8 @@ export default function PrivacyPage() {
           <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
             <p>
               {isSpanish
-                ? "Shimeji Factory es una extensión de navegador que te permite interactuar con mascotas animadas y conectarlas a proveedores de IA o a tu propio agente."
-                : "Shimeji Factory is a browser extension that lets you interact with animated companions and connect them to AI providers or your own agent."}
+                ? "Shimeji AI Pets es una extensión de navegador que te permite interactuar con mascotas animadas y conectarlas a proveedores de IA o a tu propio agente."
+                : "Shimeji AI Pets is a browser extension that lets you interact with animated pets and connect them to AI providers or your own agent."}
             </p>
 
             <div>

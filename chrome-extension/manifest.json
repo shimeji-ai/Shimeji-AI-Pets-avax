@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Shimeji AI Companions",
+  "name": "Shimeji AI Pets",
   "version": "1.0",
-  "description": "Animated AI companions for your browser. Chat with a shimeji or connect your own agent.",
+  "description": "Animated AI pets for your browser. Chat with a shimeji or connect your own agent.",
   "permissions": ["storage"],
   "action": {
     "default_popup": "popup.html",

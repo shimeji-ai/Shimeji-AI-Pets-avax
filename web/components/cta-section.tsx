@@ -21,8 +21,8 @@ export function CtaSection() {
           <div className="text-center rounded-3xl neural-card p-8 md:p-12">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold mb-4 tracking-tight text-balance text-foreground">
               {isSpanish
-                ? "Tu compañero IA te espera"
-                : "Your AI companion is waiting"}
+                ? "Tu mascota IA te espera"
+                : "Your AI pet is waiting"}
             </h2>
             <p className="mb-4 max-w-lg mx-auto text-muted-foreground">
               {isSpanish

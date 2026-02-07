@@ -22,7 +22,7 @@ const features = [
     icon: Sparkles,
     title: "Multi Shimeji",
     description:
-      "Run up to five companions at once, each with its own personality and brain.",
+      "Run up to five pets at once, each with its own personality and brain.",
   },
   {
     icon: Palette,
@@ -58,8 +58,8 @@ export function FeaturesSection() {
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
-                ? "Más que una mascota: un compañero con IA que conversa, opina y actúa cuando lo necesitas"
-                : "More than a mascot — a companion that chats, reacts, and acts when you need it"}
+                ? "Más que una mascota: un mascota con IA que conversa, opina y actúa cuando lo necesitas"
+                : "More than a mascot — a pet that chats, reacts, and acts when you need it"}
             </p>
           </div>
 
@@ -93,7 +93,7 @@ export function FeaturesSection() {
                       : feature.title === "AI Agent Mode"
                         ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
                         : feature.title === "Multi Shimeji"
-                          ? "Muestra hasta cinco compañeros a la vez, cada uno con su personalidad y cerebro."
+                          ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
                           : feature.title === "Handcrafted Sprites"
                             ? "Encarga un shimeji personalizado en Factory. Cada uno se anima a mano con arte único."
                             : "Conecta Freighter para reservar portales y manejar pagos en la red Stellar."

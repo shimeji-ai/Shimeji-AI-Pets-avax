@@ -41,11 +41,11 @@ export default function FactoryPage() {
               <Sparkles className="w-8 h-8" />
             </div>
             <h1 className="text-4xl md:text-5xl font-semibold mb-4">
-              Shimeji Factory
+              Shimeji AI Pets
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Commission a custom shimeji with unique hand-animated sprites.
-              Open a portal, set an intention, and your companion will arrive
+              Open a portal, set an intention, and your pet will arrive
               ready to chat and accompany you.
             </p>
           </div>

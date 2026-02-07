@@ -79,10 +79,10 @@ export async function POST(request: NextRequest) {
 
     // Send confirmation email
     const { error: emailError } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "Shimeji Factory <noreply@shimeji.dev>",
+      from: process.env.RESEND_FROM_EMAIL || "Shimeji AI Pets <noreply@shimeji.dev>",
       replyTo: "kathonejo@gmail.com",
       to: normalizedEmail,
-      subject: "Confirm your subscription to Shimeji Factory",
+      subject: "Confirm your subscription to Shimeji AI Pets",
       html: getConfirmationEmailHtml({ confirmationUrl, type }),
       text: getConfirmationEmailText({ confirmationUrl, type }),
     });

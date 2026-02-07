@@ -32,9 +32,9 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "Shimeji Factory | AI Companions for Your Browser",
+  title: "Shimeji AI Pets | AI Pets for Your Browser",
   description:
-    "Animated browser companions with AI chat. Choose a personality, talk to your shimeji, or connect an AI agent with onchain tools.",
+    "Animated browser pets with AI chat. Choose a personality, talk to your shimeji, or connect an AI agent with onchain tools.",
   generator: "v0.app",
   icons: {
     icon: [

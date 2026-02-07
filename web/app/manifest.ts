@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Shimeji Factory",
-    short_name: "Shimeji",
-    description: "AI companions for your browser.",
+    name: "Shimeji AI Pets",
+    short_name: "Shimeji Pets",
+    description: "AI pets for your browser.",
     start_url: "/",
     display: "standalone",
     background_color: "#0b0f14",

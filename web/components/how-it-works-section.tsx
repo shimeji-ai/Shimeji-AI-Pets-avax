@@ -2,6 +2,7 @@
 
 import { Download, MessageSquare, Bot, Sparkles } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
+import Link from "next/link";
 import { useLanguage } from "./language-provider";
 
 const steps = [
@@ -34,8 +35,8 @@ const steps = [
     step: "04",
     titleEn: "Commission a Custom Shimeji",
     titleEs: "Encarga un shimeji único",
-    descriptionEn: "Open a portal in the Factory, set an intention, and receive a handcrafted companion with unique sprites.",
-    descriptionEs: "Abre un portal en Factory, define una intención y recibe un compañero hecho a mano con sprites únicos.",
+    descriptionEn: "Open a portal in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
+    descriptionEs: "Abre un portal en Factory, define una intención y recibe un mascota hecho a mano con sprites únicos.",
   },
 ];
 
@@ -78,7 +79,31 @@ export function HowItWorksSection() {
                   {isSpanish ? step.titleEs : step.titleEn}
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {isSpanish ? step.descriptionEs : step.descriptionEn}
+                  {step.step === "01" ? (
+                    isSpanish ? (
+                      <>
+                        <Link
+                          href="/download"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Descarga la extensión de Chrome
+                        </Link>{" "}
+                        y tu shimeji aparecerá en cada página que visites.
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href="/download"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Download the Chrome extension
+                        </Link>{" "}
+                        and your shimeji will appear on every page you visit.
+                      </>
+                    )
+                  ) : (
+                    isSpanish ? step.descriptionEs : step.descriptionEn
+                  )}
                 </p>
               </div>
             ))}

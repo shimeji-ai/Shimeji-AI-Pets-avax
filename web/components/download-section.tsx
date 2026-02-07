@@ -19,7 +19,7 @@ export function DownloadSection() {
           </div>
           <h2 className="text-5xl font-semibold mb-4">Download Shimeji.dev</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Install the extension and get an AI companion in your browser.
+            Install the extension and get an AI pet in your browser.
             Chat with it, let it react to your browsing, or connect it to
             onchain tools.
           </p>

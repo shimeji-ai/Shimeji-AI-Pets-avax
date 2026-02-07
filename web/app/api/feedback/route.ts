@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const safeTwitter = escapeHtml(senderLabel);
 
     const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "Shimeji Factory <noreply@shimeji.dev>",
+      from: process.env.RESEND_FROM_EMAIL || "Shimeji AI Pets <noreply@shimeji.dev>",
       to: FEEDBACK_TO_EMAIL,
       subject: "New Shimeji project feedback",
       text: `New feedback from website\n\nX username: ${senderLabel}\n\nFeedback:\n${feedback}`,

@@ -13,7 +13,7 @@ const faqs = [
   {
     question: "What is a shimeji?",
     answer:
-      "Shimeji are animated companions that originated in Japan. They live on your screen, wander around, and — with this extension — chat with you using AI.",
+      "Shimeji are animated pets that originated in Japan. They live on your screen, wander around, and — with this extension — chat with you using AI.",
   },
   {
     question: "What is Standard mode?",
@@ -94,7 +94,7 @@ export function FAQSection() {
                 <AccordionContent className="text-md text-muted-foreground pb-5 leading-relaxed">
                   {isSpanish
                     ? index === 0
-                      ? "Los shimeji son compañeros animados que nacieron en Japón. Viven en tu pantalla, pasean y — con esta extensión — chatean contigo usando IA."
+                      ? "Los shimeji son mascotas animados que nacieron en Japón. Viven en tu pantalla, pasean y — con esta extensión — chatean contigo usando IA."
                       : index === 1
                         ? "El modo Standard es chat de texto con IA. Elegís una personalidad y usás OpenRouter o Ollama."
                         : index === 2

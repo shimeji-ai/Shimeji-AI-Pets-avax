@@ -33,8 +33,8 @@ export default async function SubscriptionSuccessPage({
 
         <p className="text-muted-foreground mb-6">
           {already
-            ? `Your email was already confirmed. You'll receive ${message} from Shimeji Factory.`
-            : `Thanks for confirming! You'll now receive ${message} from Shimeji Factory.`}
+            ? `Your email was already confirmed. You'll receive ${message} from Shimeji AI Pets.`
+            : `Thanks for confirming! You'll now receive ${message} from Shimeji AI Pets.`}
         </p>
 
         <Link href="/">

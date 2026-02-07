@@ -38,7 +38,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
                 />
               </div>
               <span className="text-lg font-semibold text-foreground tracking-tight">
-                Shimeji Factory
+                Shimeji AI Pets
               </span>
             </Link>
             <SparkleAnimation isHovering={isLogoHovered} />
