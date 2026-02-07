@@ -376,6 +376,18 @@ body[data-theme="kawaii"] #feedback-form-section input {
   color: #2a1f4e !important;
 }
 
+body[data-theme="kawaii"] .neural-card textarea,
+body[data-theme="kawaii"] .neural-card input {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-color: rgba(42, 31, 78, 0.2) !important;
+  color: #2a1f4e !important;
+}
+
+body[data-theme="kawaii"] .neural-card textarea::placeholder,
+body[data-theme="kawaii"] .neural-card input::placeholder {
+  color: rgba(42, 31, 78, 0.55) !important;
+}
+
 body[data-theme="kawaii"] #feedback-form-section textarea::placeholder,
 body[data-theme="kawaii"] #feedback-form-section input::placeholder {
   color: rgba(42, 31, 78, 0.55) !important;

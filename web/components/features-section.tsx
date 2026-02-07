@@ -28,13 +28,13 @@ const features = [
     icon: Palette,
     title: "Handcrafted Sprites",
     description:
-      "Commission a custom shimeji through the Factory. Each one is hand-animated with unique art.",
+      "Commission a custom shimeji through the Factory. Each egg is hand-animated with unique art.",
   },
   {
     icon: ArrowLeftRight,
     title: "Stellar Wallet Integration",
     description:
-      "Connect Freighter to reserve portals and handle payments on the Stellar network.",
+      "Connect Freighter to reserve eggs and handle payments on the Stellar network.",
   },
 ];
 
@@ -95,8 +95,8 @@ export function FeaturesSection() {
                         : feature.title === "Multi Shimeji"
                           ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
                           : feature.title === "Handcrafted Sprites"
-                            ? "Encarga un shimeji personalizado en Factory. Cada uno se anima a mano con arte único."
-                            : "Conecta Freighter para reservar portales y manejar pagos en la red Stellar."
+                            ? "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
+                            : "Conecta Freighter para reservar huevos y manejar pagos en la red Stellar."
                     : feature.description}
                 </p>
               </div>

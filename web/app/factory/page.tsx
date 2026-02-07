@@ -45,15 +45,15 @@ export default function FactoryPage() {
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Commission a custom shimeji with unique hand-animated sprites.
-              Open a portal, set an intention, and your pet will arrive
-              ready to chat and accompany you.
+              Buy an egg, set an intention, and your pet will arrive ready to
+              chat and accompany you.
             </p>
           </div>
 
           <div className="neural-card rounded-2xl p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-2">Intergalactic Portal</h2>
+            <h2 className="text-xl font-semibold mb-2">Intergalactic Egg</h2>
             <p className="text-muted-foreground text-sm">
-              Each portal produces a unique shimeji with custom sprites. Your
+              Each egg produces a unique shimeji with custom sprites. Your
               intention shapes its art direction and personality. Once ready, it
               appears in the extension with full AI chat support.
             </p>
@@ -69,16 +69,16 @@ export default function FactoryPage() {
               <div className="neural-card rounded-2xl p-6">
                 <div className="flex items-start gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
-                    Portal
+                    Egg
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold mb-1">Starter Portal</h3>
+                    <h3 className="text-xl font-semibold mb-1">Starter Egg</h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       Opens in a few days after purchase. We&apos;ll email you when
                       your shimeji is ready.
                     </p>
                     <label className="block text-sm font-semibold text-foreground mb-2">
-                      Intention for this portal
+                      Intention for this egg
                     </label>
                     <textarea
                       value={intent}
@@ -102,7 +102,7 @@ export default function FactoryPage() {
                     Connected as {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
                   </p>
                   <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
-                    <span>Portal price</span>
+                    <span>Egg price</span>
                     <span className="font-semibold">Coming soon</span>
                   </div>
                   <div className="flex items-center justify-between py-2 text-sm">
@@ -115,7 +115,7 @@ export default function FactoryPage() {
                   <div className="mt-6 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
                     <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
                     <p className="text-sm font-semibold text-foreground">
-                      Portal reserved!
+                      Egg reserved!
                     </p>
                     <p className="text-xs text-muted-foreground">
                       We&apos;ll reach out when payments go live.
@@ -132,7 +132,7 @@ export default function FactoryPage() {
                         <Loader2 className="w-4 h-4 animate-spin" /> Reserving...
                       </span>
                     ) : (
-                      "Reserve Portal"
+                      "Reserve Egg"
                     )}
                   </Button>
                 )}
@@ -142,7 +142,7 @@ export default function FactoryPage() {
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                Connect your Freighter wallet to reserve a portal.
+                Connect your Freighter wallet to reserve an egg.
               </p>
               <FreighterConnectButton />
             </div>

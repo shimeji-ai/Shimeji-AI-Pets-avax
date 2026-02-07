@@ -1,11 +1,11 @@
 # Shimeji Chrome Extension
 
-A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. The mascot either follows your mouse pointer or wanders around the browser window when idle. Connect a Stellar wallet (Freighter) to link your Factory account and future portals.
+A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. The mascot either follows your mouse pointer or wanders around the browser window when idle. Connect a Stellar wallet (Freighter) to link your Factory account and future eggs.
 
 ## Features
 
 - **Pointer follow / wander:** Mascots follow the pointer while you move, and wander autonomously when idle.
-- **Freighter wallet connect:** Connect your Stellar wallet to sync your account and upcoming portals.
+- **Freighter wallet connect:** Connect your Stellar wallet to sync your account and upcoming eggs.
 - **Lightweight:** Minimal permissions and a simple UI for toggling mascots and settings.
 
 ## Quick install (dev mode)
@@ -90,7 +90,7 @@ index.js (Vercel) <-> dapp_content_script.js (injected) <-> background.js (exten
 ## Next steps / enhancements
 
 - Add more mascots and animations in `characters/`.
-- Add a portal unlock flow once portal purchases go live.
+- Add an egg unlock flow once egg purchases go live.
 - Add settings for mascot size, z-index, and persistence across tabs.
 
 If you'd like, I can also run a quick check of the extension files or add a short demo script to toggle unlocks automatically.

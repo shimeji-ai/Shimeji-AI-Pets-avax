@@ -59,8 +59,8 @@ export function CharactersSection() {
               Meet the Characters
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
-              Each portal can reveal a unique shimeji with its own personality
-              and animations
+              Each egg can reveal a unique shimeji with its own personality and
+              animations
             </p>
           </div>
 

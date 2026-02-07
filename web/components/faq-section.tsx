@@ -38,12 +38,12 @@ const faqs = [
   {
     question: "Is the Chrome extension free?",
     answer:
-      "Yes. The extension is free and includes a default mascot with full AI chat. Custom shimejis can be commissioned through the Factory.",
+      "Yes. The extension is free and includes a default mascot with full AI chat. Custom shimejis can be ordered as eggs in the Factory.",
   },
   {
     question: "Do I need a wallet?",
     answer:
-      "Only if you want to commission a custom shimeji through the Factory. The AI chat features work without a wallet.",
+      "Only if you want to order a custom shimeji egg through the Factory. The AI chat features work without a wallet.",
   },
 ];
 
@@ -104,8 +104,8 @@ export function FAQSection() {
                         : index === 4
                               ? "Sí. Elegís Ollama en Standard y apuntás a tu URL local y modelo."
                               : index === 5
-                                ? "Sí. La extensión es gratuita e incluye una mascota por defecto con chat IA. Los shimejis personalizados se encargan en Factory."
-                                : "Solo si querés encargar un shimeji personalizado en Factory. Las funciones de chat IA funcionan sin wallet."
+                                ? "Sí. La extensión es gratuita e incluye una mascota por defecto con chat IA. Los shimejis personalizados se piden como huevos en Factory."
+                                : "Solo si querés pedir un huevo personalizado en Factory. Las funciones de chat IA funcionan sin wallet."
                     : faq.answer}
                 </AccordionContent>
               </AccordionItem>

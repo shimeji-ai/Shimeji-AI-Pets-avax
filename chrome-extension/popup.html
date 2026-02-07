@@ -13,20 +13,54 @@
   </header>
 
   <section class="controls-section">
-    <div class="control-group">
-      <div class="mode-switch">
-        <button class="control-btn mode-switch-btn" id="basic-mode-btn">Basic</button>
-        <button class="control-btn mode-switch-btn" id="advanced-mode-btn">Advanced</button>
+    <div class="control-group" id="shimeji-config-group">
+      <div class="section-header">
+        <h3 id="shimeji-section-title">Shimejis</h3>
       </div>
-    </div>
-    <div class="control-group">
-      <label class="ai-label" id="popup-theme-label">Theme</label>
-      <select class="ai-select" id="popup-theme-select"></select>
+      <div class="security-status config-lock-hint" id="shimeji-lock-hint"></div>
+      <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
+      <div class="popup-links">
+        <a href="https://www.shimeji.dev/factory" target="_blank" class="popup-link marketplace-link">
+          <span id="link-open-portals">Get more eggs</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+      <div class="shimeji-selector-row">
+        <button class="shimeji-add-btn" id="add-shimeji-btn" aria-label="Add shimeji">+</button>
+        <div class="shimeji-selector" id="shimeji-selector"></div>
+      </div>
+      <div id="shimeji-list" class="shimeji-list"></div>
     </div>
 
-    <div class="control-group advanced-only">
+    <div class="control-group">
+      <h3 id="appearance-visibility-title">Visibility</h3>
+      <div class="visibility-controls">
+        <label class="toggle-row" id="page-toggle-row">
+          <span class="toggle-label" id="label-enabled-page">Enabled on this page</span>
+          <input type="checkbox" id="page-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="global-controls">
+          <button class="control-btn global-btn" id="enable-all-btn">Enable All</button>
+          <button class="control-btn global-btn" id="disable-all-btn">Disable All</button>
+        </div>
+        <div class="ai-hint" id="ai-state-hint"></div>
+        <div class="mode-controls">
+          <button class="control-btn mode-btn" id="wake-all-btn">Wake All</button>
+          <button class="control-btn mode-btn" id="sleep-all-btn">Sleep All</button>
+        </div>
+        <div class="global-status" id="global-status"></div>
+      </div>
+    </div>
+
+    <div class="control-group">
       <h3 id="security-title">Security</h3>
       <div class="security-box">
+        <div class="security-status" id="security-hint"></div>
         <label class="toggle-row mini-toggle">
           <span class="toggle-label" id="masterkey-label">Protect keys with master key</span>
           <input type="checkbox" id="masterkey-toggle" class="toggle-checkbox">
@@ -50,47 +84,9 @@
       </div>
     </div>
 
-    <div class="control-group" id="shimeji-config-group">
-      <div class="section-header">
-        <h3 id="shimeji-section-title">Shimejis</h3>
-      </div>
-      <div class="security-status config-lock-hint" id="shimeji-lock-hint"></div>
-      <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
-      <div class="popup-links">
-        <a href="https://www.shimeji.dev/factory" target="_blank" class="popup-link marketplace-link">
-          <span id="link-open-portals">Open more portals</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-        </a>
-      </div>
-      <div class="shimeji-selector-row">
-        <button class="shimeji-add-btn" id="add-shimeji-btn" aria-label="Add shimeji">+</button>
-        <div class="shimeji-selector" id="shimeji-selector"></div>
-      </div>
-      <div class="mode-controls">
-        <button class="control-btn mode-btn" id="wake-all-btn">Wake All</button>
-        <button class="control-btn mode-btn" id="sleep-all-btn">Sleep All</button>
-      </div>
-      <div id="shimeji-list" class="shimeji-list"></div>
-    </div>
-
     <div class="control-group">
-      <h3 id="appearance-visibility-title">Visibility</h3>
-      <div class="visibility-controls">
-        <label class="toggle-row" id="page-toggle-row">
-          <span class="toggle-label" id="label-enabled-page">Enabled on this page</span>
-          <input type="checkbox" id="page-toggle" class="toggle-checkbox">
-          <span class="toggle-slider"></span>
-        </label>
-        <div class="global-controls">
-          <button class="control-btn global-btn" id="enable-all-btn">Enable All</button>
-          <button class="control-btn global-btn" id="disable-all-btn">Disable All</button>
-        </div>
-        <div class="global-status" id="global-status"></div>
-      </div>
+      <label class="ai-label" id="popup-theme-label">Theme</label>
+      <select class="ai-select" id="popup-theme-select"></select>
     </div>
 
     <div class="control-group">

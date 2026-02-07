@@ -35,8 +35,8 @@ const steps = [
     step: "04",
     titleEn: "Commission a Custom Shimeji",
     titleEs: "Encarga un shimeji único",
-    descriptionEn: "Open a portal in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
-    descriptionEs: "Abre un portal en Factory, define una intención y recibe un mascota hecho a mano con sprites únicos.",
+    descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
+    descriptionEs: "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano con sprites únicos.",
   },
 ];
 

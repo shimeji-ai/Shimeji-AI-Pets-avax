@@ -154,8 +154,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const popupStats = document.getElementById("popup-stats");
   const wakeAllBtn = document.getElementById("wake-all-btn");
   const sleepAllBtn = document.getElementById("sleep-all-btn");
-const basicModeBtn = document.getElementById("basic-mode-btn");
-const advancedModeBtn = document.getElementById("advanced-mode-btn");
 const popupThemeLabel = document.getElementById("popup-theme-label");
 const popupThemeSelect = document.getElementById("popup-theme-select");
 const securityTitle = document.getElementById("security-title");
@@ -166,6 +164,7 @@ const masterkeyUnlockBtn = document.getElementById("masterkey-unlock-btn");
 const masterkeyLockBtn = document.getElementById("masterkey-lock-btn");
 const masterkeyStatus = document.getElementById("masterkey-status");
 const shimejiLockHint = document.getElementById("shimeji-lock-hint");
+const securityHint = document.getElementById("security-hint");
 const autolockToggle = document.getElementById("autolock-toggle");
 const autolockMinutesInput = document.getElementById("autolock-minutes");
 const autolockLabel = document.getElementById("autolock-label");
@@ -176,6 +175,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   const labelEnabledPage = document.getElementById("label-enabled-page");
   const enableAllBtnLabel = document.getElementById("enable-all-btn");
   const disableAllBtnLabel = document.getElementById("disable-all-btn");
+  const aiStateHint = document.getElementById("ai-state-hint");
 
   const MODEL_OPTIONS = [
     { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
@@ -431,7 +431,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
 
   function applyMasterKeyUiState() {
     if (masterkeyToggle) masterkeyToggle.checked = masterKeyEnabled;
-    if (masterkeyInput) masterkeyInput.disabled = !masterKeyEnabled;
+    if (masterkeyInput) masterkeyInput.disabled = false;
     if (masterkeyUnlockBtn) masterkeyUnlockBtn.disabled = !masterKeyEnabled;
     if (masterkeyLockBtn) masterkeyLockBtn.disabled = !masterKeyEnabled;
     if (autolockToggle) autolockToggle.checked = masterKeyAutoLockEnabled;
@@ -453,7 +453,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
       setMasterKeyStatusMessage(t('Enter a password to enable protection', 'Ingresa una contraseña para habilitar'));
       masterKeyEnabled = false;
       applyMasterKeyUiState();
-      return;
+      return false;
     }
     masterKeyEnabled = true;
     masterKeyUnlocked = true;
@@ -467,6 +467,27 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     scheduleAutoLock();
     await saveShimejis();
     loadShimejis();
+    return true;
+  }
+
+  async function promptForMasterKey({ confirmNew } = { confirmNew: false }) {
+    const value = window.prompt(
+      t(
+        "Set a password for shimeji settings.",
+        "Define una contraseña para la configuración de shimejis."
+      )
+    );
+    if (!value) return "";
+    if (confirmNew) {
+      const confirmValue = window.prompt(
+        t("Confirm your password.", "Confirma tu contraseña.")
+      );
+      if (confirmValue !== value) {
+        setMasterKeyStatusMessage(t("Passwords do not match", "Las contraseñas no coinciden"));
+        return "";
+      }
+    }
+    return value;
   }
 
   async function tryUnlockMasterKey(value) {
@@ -514,17 +535,16 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = "+";
-    if (linkOpenPortals) linkOpenPortals.textContent = t("Open more portals", "Abrir más portales");
+    if (linkOpenPortals) linkOpenPortals.textContent = t("Get more eggs", "Conseguir más huevos");
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
-    if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility", "Visibilidad");
-    if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this page", "Activo en esta página");
-    if (enableAllBtnLabel) enableAllBtnLabel.textContent = t("Enable All", "Activar todo");
-    if (disableAllBtnLabel) disableAllBtnLabel.textContent = t("Disable All", "Desactivar todo");
+    if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility & Activity", "Visibilidad y actividad");
+    if (labelEnabledPage) labelEnabledPage.textContent = t("Show on this page", "Mostrar en esta página");
+    if (enableAllBtnLabel) enableAllBtnLabel.textContent = t("Show All", "Mostrar todo");
+    if (disableAllBtnLabel) disableAllBtnLabel.textContent = t("Hide All", "Ocultar todo");
     if (popupSubtitle) popupSubtitle.textContent = t("Your AI mascot orchestrator", "Tu orquestador de mascotas AI");
-    if (wakeAllBtn) wakeAllBtn.textContent = t("Wake All", "Despertar todos");
-if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All", "Dormir todos");
-if (basicModeBtn) basicModeBtn.textContent = t("Basic", "Básico");
-if (advancedModeBtn) advancedModeBtn.textContent = t("Advanced", "Avanzado");
+    if (aiStateHint) aiStateHint.textContent = t("AI activity (wake/sleep all)", "Actividad de IA (activar/pausar)");
+    if (wakeAllBtn) wakeAllBtn.textContent = t("Wake All AI", "Activar todas las IA");
+if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All AI", "Pausar todas las IA");
 if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del popup");
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
@@ -532,6 +552,10 @@ if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
 if (masterkeyUnlockBtn) masterkeyUnlockBtn.textContent = t("Unlock", "Desbloquear");
 if (masterkeyLockBtn) masterkeyLockBtn.textContent = t("Lock", "Bloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
+if (securityHint) securityHint.textContent = t(
+  "Use a password to lock configuration changes. You'll be asked once per browser session.",
+  "Usa una contraseña para bloquear cambios. Se pedirá una vez por sesión del navegador."
+);
   }
 
   const SIZE_OPTIONS_KEYS = ["small", "medium", "big"];
@@ -1327,7 +1351,20 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         renderShimejis();
         return;
       }
-      const value = masterkeyInput?.value || '';
+      let value = masterkeyInput?.value || '';
+      if (!value) {
+        value = await promptForMasterKey({ confirmNew: true });
+        if (masterkeyInput && value) masterkeyInput.value = value;
+      }
+      if (!value) {
+        masterkeyToggle.checked = false;
+        setMasterKeyStatusMessage(t('Enter a password to enable protection', 'Ingresa una contraseña para habilitar'));
+        return;
+      }
+      if (masterKeyEnabled) {
+        await tryUnlockMasterKey(value);
+        return;
+      }
       await enableMasterKeyWithValue(value);
     });
   }
@@ -1375,31 +1412,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
   }
 
   setPopupLabels();
-  chrome.storage.local.get(["popupAdvancedMode"], (data) => {
-    const advanced = !!data.popupAdvancedMode;
-    document.body.classList.toggle("advanced", advanced);
-    if (basicModeBtn) basicModeBtn.classList.toggle("active", !advanced);
-    if (advancedModeBtn) advancedModeBtn.classList.toggle("active", advanced);
-    loadShimejis();
-  });
-
-  if (basicModeBtn) {
-    basicModeBtn.addEventListener("click", () => {
-      document.body.classList.remove("advanced");
-      basicModeBtn.classList.add("active");
-      if (advancedModeBtn) advancedModeBtn.classList.remove("active");
-      chrome.storage.local.set({ popupAdvancedMode: false });
-    });
-  }
-
-  if (advancedModeBtn) {
-    advancedModeBtn.addEventListener("click", () => {
-      document.body.classList.add("advanced");
-      advancedModeBtn.classList.add("active");
-      if (basicModeBtn) basicModeBtn.classList.remove("active");
-      chrome.storage.local.set({ popupAdvancedMode: true });
-    });
-  }
+  loadShimejis();
 
   if (popupThemeSelect) {
     popupThemeSelect.addEventListener("change", () => {

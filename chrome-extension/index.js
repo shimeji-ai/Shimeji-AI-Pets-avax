@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.addEventListener('click', () => selectCharacter(id));
             } else {
                 card.addEventListener('click', () => {
-                    alert('This character is locked. Visit the factory to open a portal and unlock more!');
+                    alert('This character is locked. Visit the factory to get an egg and unlock more!');
                 });
             }
 

@@ -588,24 +588,6 @@ body[data-theme="kawaii"] .shimeji-chat-style-section .ai-select option {
   flex-direction: column;
 }
 
-.mode-switch {
-  display: flex;
-  gap: 6px;
-}
-
-.mode-switch-btn {
-  flex: 1;
-}
-
-.mode-switch-btn.active {
-  background: #5b7bff;
-  border-color: transparent;
-  color: #08111f;
-}
-
-body:not(.advanced) .advanced-only {
-  display: none !important;
-}
 
 .security-box {
   display: flex;
@@ -743,6 +725,14 @@ body[data-theme="pink"] .control-btn.selected {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.visibility-controls .mode-controls {
+  margin-top: 4px;
+}
+
+.visibility-controls .ai-hint {
+  margin-top: 2px;
 }
 
 .toggle-row {

@@ -15,10 +15,10 @@ export function CollectionRequestForm() {
           <Sparkles className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold mb-2">Custom Portal Lineages</h2>
+          <h2 className="text-xl font-bold mb-2">Custom Shimeji Requests</h2>
           <p className="text-gray-700 text-sm mb-4">
-            Soon you&apos;ll be able to request custom portal lineages, traits, and
-            behaviors. Subscribe to get notified when this feature launches!
+            Soon you&apos;ll be able to request custom traits and behaviors for new
+            shimejis. Subscribe to get notified when this feature launches!
           </p>
           <Button
             onClick={() => setIsModalOpen(true)}
@@ -35,7 +35,7 @@ export function CollectionRequestForm() {
         onClose={() => setIsModalOpen(false)}
         type="collection_request"
         title="Coming Soon!"
-        subtitle="We'll notify you when custom portal requests open"
+        subtitle="We'll notify you when custom requests open"
         buttonText="Notify Me"
       />
     </div>
