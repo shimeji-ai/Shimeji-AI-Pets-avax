@@ -165,6 +165,7 @@ const masterkeyInput = document.getElementById("masterkey-input");
 const masterkeyUnlockBtn = document.getElementById("masterkey-unlock-btn");
 const masterkeyLockBtn = document.getElementById("masterkey-lock-btn");
 const masterkeyStatus = document.getElementById("masterkey-status");
+const shimejiLockHint = document.getElementById("shimeji-lock-hint");
 const autolockToggle = document.getElementById("autolock-toggle");
 const autolockMinutesInput = document.getElementById("autolock-minutes");
 const autolockLabel = document.getElementById("autolock-label");
@@ -392,12 +393,12 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   function updateMasterKeyStatus() {
     if (!masterkeyStatus) return;
     if (!masterKeyEnabled) {
-      masterkeyStatus.textContent = t('Master key disabled', 'Clave maestra desactivada');
+      masterkeyStatus.textContent = t('Password protection disabled', 'Protección con contraseña desactivada');
       return;
     }
     masterkeyStatus.textContent = masterKeyUnlocked
-      ? t('Master key unlocked for this session', 'Clave maestra desbloqueada en esta sesión')
-      : t('Master key locked', 'Clave maestra bloqueada');
+      ? t('Configuration unlocked for this session', 'Configuración desbloqueada en esta sesión')
+      : t('Configuration locked', 'Configuración bloqueada');
   }
 
   function setMasterKeyStatusMessage(message) {
@@ -437,11 +438,19 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     if (autolockMinutesInput) autolockMinutesInput.value = String(masterKeyAutoLockMinutes);
     updateAutolockLabel();
     updateMasterKeyStatus();
+    const configLocked = masterKeyEnabled && !masterKeyUnlocked;
+    document.body.classList.toggle("config-locked", configLocked);
+    if (shimejiLockHint) {
+      shimejiLockHint.textContent = t(
+        "Unlock to edit shimeji configuration.",
+        "Desbloquea para editar la configuración de shimejis."
+      );
+    }
   }
 
   async function enableMasterKeyWithValue(value) {
     if (!value) {
-      setMasterKeyStatusMessage(t('Enter a master key to enable', 'Ingresa una clave maestra para habilitar'));
+      setMasterKeyStatusMessage(t('Enter a password to enable protection', 'Ingresa una contraseña para habilitar'));
       masterKeyEnabled = false;
       applyMasterKeyUiState();
       return;
@@ -458,6 +467,47 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     scheduleAutoLock();
     await saveShimejis();
     loadShimejis();
+  }
+
+  async function tryUnlockMasterKey(value) {
+    if (!value) return false;
+    // If we have encrypted data, verify the key by attempting a decrypt.
+    const testPayload = shimejis.find((s) => s.openrouterApiKeyEnc || s.openclawGatewayTokenEnc);
+    if (testPayload) {
+      const payload = testPayload.openrouterApiKeyEnc || testPayload.openclawGatewayTokenEnc;
+      try {
+        await decryptSecret(value, payload);
+      } catch {
+        setMasterKeyStatusMessage(t('Incorrect password', 'Contraseña incorrecta'));
+        return false;
+      }
+    }
+    masterKeyUnlocked = true;
+    setSessionMasterKey(value);
+    applyMasterKeyUiState();
+    scheduleAutoLock();
+    await loadShimejis();
+    return true;
+  }
+
+  async function maybePromptMasterKey() {
+    if (!masterKeyEnabled || masterKeyUnlocked) return;
+    const session = await new Promise((resolve) => {
+      chrome.storage.session.get(["masterKeyPrompted"], resolve);
+    });
+    if (session.masterKeyPrompted) return;
+    chrome.storage.session.set({ masterKeyPrompted: true });
+    const value = window.prompt(
+      t(
+        "Enter your password to unlock shimeji settings for this session.",
+        "Ingresa tu contraseña para desbloquear la configuración de shimejis en esta sesión."
+      )
+    );
+    if (!value) {
+      setMasterKeyStatusMessage(t('Configuration locked', 'Configuración bloqueada'));
+      return;
+    }
+    await tryUnlockMasterKey(value);
   }
 
   function setPopupLabels() {
@@ -477,8 +527,8 @@ if (basicModeBtn) basicModeBtn.textContent = t("Basic", "Básico");
 if (advancedModeBtn) advancedModeBtn.textContent = t("Advanced", "Avanzado");
 if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del popup");
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
-if (masterkeyLabel) masterkeyLabel.textContent = t("Protect keys with master key", "Proteger claves con clave maestra");
-if (masterkeyInput) masterkeyInput.placeholder = t("Master key", "Clave maestra");
+if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
+if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
 if (masterkeyUnlockBtn) masterkeyUnlockBtn.textContent = t("Unlock", "Desbloquear");
 if (masterkeyLockBtn) masterkeyLockBtn.textContent = t("Lock", "Bloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
@@ -662,6 +712,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       chrome.storage.local.set({ shimejis, ttsEnabledMigrationDone: true });
       renderShimejis();
       if (needsEncrypt) saveShimejis();
+      maybePromptMasterKey();
     });
   }
 
@@ -1261,7 +1312,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         const sessionKey = await getSessionMasterKey();
         if (!sessionKey) {
           masterkeyToggle.checked = true;
-          setMasterKeyStatusMessage(t('Unlock to disable master key', 'Desbloquea para desactivar la clave maestra'));
+          setMasterKeyStatusMessage(t('Unlock to disable protection', 'Desbloquea para desactivar la protección'));
           return;
         }
         masterKeyEnabled = false;
@@ -1285,7 +1336,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     masterkeyUnlockBtn.addEventListener('click', async () => {
       const value = masterkeyInput?.value || '';
       if (!value) return;
-      await enableMasterKeyWithValue(value);
+      if (!masterKeyEnabled) {
+        await enableMasterKeyWithValue(value);
+        return;
+      }
+      await tryUnlockMasterKey(value);
     });
   }
 

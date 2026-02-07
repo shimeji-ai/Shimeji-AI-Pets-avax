@@ -649,6 +649,22 @@ body:not(.advanced) .advanced-only {
   min-height: 14px;
 }
 
+.config-lock-hint {
+  margin-top: 6px;
+  margin-bottom: 4px;
+  display: none;
+}
+
+body.config-locked #shimeji-config-group {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+body.config-locked #shimeji-config-group .config-lock-hint {
+  display: block;
+  pointer-events: none;
+}
+
 .helper-text {
   font-size: 10px;
   color: rgba(200, 210, 235, 0.6);

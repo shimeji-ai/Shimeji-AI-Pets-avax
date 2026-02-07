@@ -2255,8 +2255,9 @@
         function resetMascotState() {
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
+            const maxX = Math.max(0, window.innerWidth - size);
 
-            mascot.x = window.innerWidth / 2 - size / 2;
+            mascot.x = Math.random() * maxX;
             mascot.y = size;
             mascot.velocityX = 0;
             mascot.velocityY = 0;
