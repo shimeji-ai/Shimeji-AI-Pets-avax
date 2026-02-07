@@ -41,12 +41,27 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const themeScript = `
+    (function() {
+      var themes = ['neural', 'pink', 'kawaii'];
+      var theme = themes[Math.floor(Math.random() * themes.length)];
+      document.documentElement.setAttribute('data-theme', theme);
+      if (document.body) {
+        document.body.setAttribute('data-theme', theme);
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.setAttribute('data-theme', theme);
+        });
+      }
+    })();
+  `;
   return (
     <html lang="en">
       <body
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <FreighterProvider>
           <LanguageProvider>{children}</LanguageProvider>
         </FreighterProvider>

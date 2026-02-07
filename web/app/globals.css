@@ -48,6 +48,34 @@
   --sidebar-ring: oklch(0.7 0.08 200);
 }
 
+:root[data-theme="pink"] {
+  --brand-black: #170910;
+  --brand-graphite: #1b0b15;
+  --brand-ink: #23101c;
+  --brand-steel: #2b1523;
+  --brand-border: #3a1f31;
+  --brand-slate: #d1a5bd;
+  --brand-ice: #ffe6f2;
+  --brand-accent: #ff9ad8;
+  --background: oklch(0.16 0.04 340);
+  --foreground: oklch(0.95 0.02 340);
+  --card: oklch(0.2 0.04 340);
+  --card-foreground: oklch(0.95 0.02 340);
+  --popover: oklch(0.2 0.04 340);
+  --popover-foreground: oklch(0.95 0.02 340);
+  --primary: oklch(0.9 0.08 340);
+  --primary-foreground: oklch(0.2 0.04 340);
+  --secondary: oklch(0.22 0.04 340);
+  --secondary-foreground: oklch(0.95 0.02 340);
+  --muted: oklch(0.22 0.04 340);
+  --muted-foreground: oklch(0.7 0.04 340);
+  --accent: oklch(0.75 0.15 340);
+  --accent-foreground: oklch(0.2 0.04 340);
+  --border: oklch(0.28 0.05 340);
+  --input: oklch(0.22 0.05 340);
+  --ring: oklch(0.7 0.12 340);
+}
+
 .dark {
   --background: oklch(0.12 0.02 280);
   --foreground: oklch(0.95 0.01 280);
@@ -129,6 +157,18 @@
       linear-gradient(180deg, rgba(7, 9, 13, 1), rgba(11, 15, 20, 1));
     background-attachment: fixed;
   }
+body[data-theme="pink"] {
+  background-image:
+    radial-gradient(1200px circle at 10% -10%, rgba(255, 154, 216, 0.18), transparent 45%),
+    radial-gradient(900px circle at 90% 10%, rgba(255, 202, 235, 0.14), transparent 50%),
+    linear-gradient(180deg, rgba(23, 9, 16, 1), rgba(27, 11, 21, 1));
+}
+  body[data-theme="kawaii"] {
+    background-image:
+      radial-gradient(1200px circle at 10% -10%, rgba(255, 183, 255, 0.22), transparent 45%),
+      radial-gradient(900px circle at 90% 10%, rgba(112, 164, 222, 0.2), transparent 50%),
+      linear-gradient(180deg, #F6FB8E, #FFB7FF 45%, #70A4DE);
+  }
 }
 
 .neural-shell {
@@ -149,6 +189,17 @@
   z-index: -1;
 }
 
+body[data-theme="pink"] .neural-shell::before {
+  background-image:
+    linear-gradient(transparent 95%, rgba(255, 154, 216, 0.12) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(255, 154, 216, 0.12) 100%);
+}
+body[data-theme="kawaii"] .neural-shell::before {
+  background-image:
+    linear-gradient(transparent 95%, rgba(42, 31, 78, 0.08) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(42, 31, 78, 0.08) 100%);
+}
+
 .neural-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(134, 240, 255, 0.12);
@@ -156,14 +207,40 @@
   backdrop-filter: blur(10px);
 }
 
+body[data-theme="pink"] .neural-card {
+  border: 1px solid rgba(255, 154, 216, 0.18);
+  box-shadow: 0 20px 60px rgba(25, 5, 15, 0.45);
+}
+body[data-theme="kawaii"] .neural-card {
+  border: 1px solid rgba(42, 31, 78, 0.18);
+  background: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 20px 60px rgba(42, 31, 78, 0.2);
+}
+
 .neural-outline {
   border: 1px solid rgba(134, 240, 255, 0.18);
+}
+
+body[data-theme="pink"] .neural-outline {
+  border: 1px solid rgba(255, 154, 216, 0.22);
+}
+body[data-theme="kawaii"] .neural-outline {
+  border: 1px solid rgba(42, 31, 78, 0.2);
 }
 
 .neural-hero {
   position: relative;
   background: radial-gradient(800px circle at 20% 10%, rgba(134, 240, 255, 0.12), transparent 45%),
     radial-gradient(700px circle at 80% 20%, rgba(120, 132, 255, 0.12), transparent 55%);
+}
+
+body[data-theme="pink"] .neural-hero {
+  background: radial-gradient(800px circle at 20% 10%, rgba(255, 154, 216, 0.16), transparent 45%),
+    radial-gradient(700px circle at 80% 20%, rgba(255, 202, 235, 0.12), transparent 55%);
+}
+body[data-theme="kawaii"] .neural-hero {
+  background: radial-gradient(800px circle at 20% 10%, rgba(255, 183, 255, 0.2), transparent 45%),
+    radial-gradient(700px circle at 80% 20%, rgba(112, 164, 222, 0.18), transparent 55%);
 }
 
 .neural-button {
@@ -173,8 +250,28 @@
   box-shadow: 0 10px 30px rgba(134, 240, 255, 0.2);
 }
 
+body[data-theme="pink"] .neural-button {
+  background: rgba(255, 154, 216, 0.2);
+  border: 1px solid rgba(255, 154, 216, 0.5);
+  color: #ffe6f2;
+  box-shadow: 0 10px 30px rgba(255, 154, 216, 0.25);
+}
+body[data-theme="kawaii"] .neural-button {
+  background: rgba(42, 31, 78, 0.25);
+  border: 1px solid rgba(42, 31, 78, 0.4);
+  color: #2a1f4e;
+  box-shadow: 0 10px 30px rgba(42, 31, 78, 0.2);
+}
+
 .neural-button:hover {
   background: rgba(134, 240, 255, 0.3);
+}
+
+body[data-theme="pink"] .neural-button:hover {
+  background: rgba(255, 154, 216, 0.35);
+}
+body[data-theme="kawaii"] .neural-button:hover {
+  background: rgba(42, 31, 78, 0.35);
 }
 
 .neural-button-outline {
@@ -183,9 +280,27 @@
   color: #e6f6ff;
 }
 
+body[data-theme="pink"] .neural-button-outline {
+  border: 1px solid rgba(255, 202, 235, 0.35);
+  color: #ffe6f2;
+}
+body[data-theme="kawaii"] .neural-button-outline {
+  border: 1px solid rgba(42, 31, 78, 0.3);
+  color: #2a1f4e;
+}
+
 .neural-button-outline:hover {
   border-color: rgba(134, 240, 255, 0.5);
   color: #86f0ff;
+}
+
+body[data-theme="pink"] .neural-button-outline:hover {
+  border-color: rgba(255, 154, 216, 0.6);
+  color: #ff9ad8;
+}
+body[data-theme="kawaii"] .neural-button-outline:hover {
+  border-color: rgba(42, 31, 78, 0.5);
+  color: #2a1f4e;
 }
 
 /* Force hide burger menu on desktop */

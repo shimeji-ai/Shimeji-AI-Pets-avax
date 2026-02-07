@@ -19,6 +19,10 @@
         <button class="control-btn mode-switch-btn" id="advanced-mode-btn">Advanced</button>
       </div>
     </div>
+    <div class="control-group">
+      <label class="ai-label" id="popup-theme-label">Theme</label>
+      <select class="ai-select" id="popup-theme-select"></select>
+    </div>
 
     <div class="control-group advanced-only">
       <h3 id="security-title">Security</h3>
@@ -49,7 +53,6 @@
     <div class="control-group">
       <div class="section-header">
         <h3 id="shimeji-section-title">Shimejis</h3>
-        <button class="control-btn add-btn" id="add-shimeji-btn">Add</button>
       </div>
       <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
       <div class="popup-links">
@@ -65,7 +68,10 @@
           <span id="link-privacy">Privacy</span>
         </a>
       </div>
-      <div class="shimeji-selector" id="shimeji-selector"></div>
+      <div class="shimeji-selector-row">
+        <button class="shimeji-add-btn" id="add-shimeji-btn" aria-label="Add shimeji">+</button>
+        <div class="shimeji-selector" id="shimeji-selector"></div>
+      </div>
       <div class="mode-controls">
         <button class="control-btn mode-btn" id="wake-all-btn">Wake All</button>
         <button class="control-btn mode-btn" id="sleep-all-btn">Sleep All</button>

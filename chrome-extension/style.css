@@ -37,7 +37,7 @@
 
 /* Dark style */
 .shimeji-chat-bubble.chat-style-dark {
-    background: rgba(20, 15, 40, 0.92);
+    background: color-mix(in srgb, var(--chat-bg, #140f28) 92%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     color: #e0dce8;
@@ -72,7 +72,7 @@
     height: 0;
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
-    border-top: 8px solid rgba(20, 15, 40, 0.92);
+    border-top: 8px solid var(--chat-bg, #140f28);
 }
 
 /* Chat header with close button */
@@ -115,7 +115,10 @@
 }
 
 .shimeji-chat-openmic-toggle,
-.shimeji-chat-tts-toggle {
+.shimeji-chat-tts-toggle,
+.shimeji-chat-theme-toggle,
+.shimeji-chat-relay-toggle,
+.shimeji-chat-settings-toggle {
     width: 20px;
     height: 20px;
     border: none;
@@ -132,7 +135,10 @@
 }
 
 .shimeji-chat-openmic-toggle:hover,
-.shimeji-chat-tts-toggle:hover {
+.shimeji-chat-tts-toggle:hover,
+.shimeji-chat-theme-toggle:hover,
+.shimeji-chat-relay-toggle:hover,
+.shimeji-chat-settings-toggle:hover {
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
 }
 
@@ -140,6 +146,11 @@
     background: rgba(220, 38, 38, 0.2);
     box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
     animation: shimejiMicPulse 1.4s ease-in-out infinite;
+}
+
+.shimeji-chat-relay-toggle.active {
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
 }
 
 .shimeji-chat-close {
@@ -161,6 +172,81 @@
 
 .shimeji-chat-close:hover {
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
+}
+
+.shimeji-chat-controls-panel {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(42, 31, 78, 0.08);
+    background: color-mix(in srgb, var(--chat-bg, #ffffff) 90%, transparent);
+    flex-shrink: 0;
+}
+
+.shimeji-chat-controls-panel.open {
+    display: flex;
+}
+
+.shimeji-chat-control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.shimeji-chat-control-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--chat-theme, #2a1f4e);
+}
+
+.shimeji-chat-theme-panel {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(42, 31, 78, 0.08);
+    background: color-mix(in srgb, var(--chat-bg, #ffffff) 90%, transparent);
+    flex-shrink: 0;
+}
+
+.shimeji-chat-theme-panel.open {
+    display: flex;
+}
+
+.shimeji-chat-theme-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.shimeji-chat-theme-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--chat-theme, #2a1f4e);
+}
+
+.shimeji-chat-theme-select,
+.shimeji-chat-theme-style {
+    font-size: 11px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(42, 31, 78, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+    color: #2a1f4e;
+}
+
+.shimeji-chat-theme-color,
+.shimeji-chat-theme-bg {
+    width: 36px;
+    height: 24px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid rgba(42, 31, 78, 0.2);
+    background: transparent;
+    cursor: pointer;
 }
 
 /* Messages area */
@@ -518,17 +604,27 @@
 }
 
 .chat-style-dark .shimeji-chat-openmic-toggle,
-.chat-style-dark .shimeji-chat-tts-toggle {
+.chat-style-dark .shimeji-chat-tts-toggle,
+.chat-style-dark .shimeji-chat-theme-toggle,
+.chat-style-dark .shimeji-chat-relay-toggle,
+.chat-style-dark .shimeji-chat-settings-toggle {
     background: rgba(255, 255, 255, 0.1);
 }
 
 .chat-style-dark .shimeji-chat-openmic-toggle:hover,
-.chat-style-dark .shimeji-chat-tts-toggle:hover {
+.chat-style-dark .shimeji-chat-tts-toggle:hover,
+.chat-style-dark .shimeji-chat-theme-toggle:hover,
+.chat-style-dark .shimeji-chat-relay-toggle:hover,
+.chat-style-dark .shimeji-chat-settings-toggle:hover {
     background: rgba(255, 255, 255, 0.2);
 }
 
 .chat-style-dark .shimeji-chat-openmic-toggle.active {
     background: rgba(220, 38, 38, 0.25);
+}
+
+.chat-style-dark .shimeji-chat-relay-toggle.active {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .chat-style-dark .shimeji-chat-close {
@@ -538,6 +634,36 @@
 
 .chat-style-dark .shimeji-chat-close:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.chat-style-dark .shimeji-chat-controls-panel {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--chat-bg, #140f28) 90%, transparent);
+}
+
+.chat-style-dark .shimeji-chat-control-label {
+    color: #e0dce8;
+}
+
+.chat-style-dark .shimeji-chat-theme-panel {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--chat-bg, #140f28) 90%, transparent);
+}
+
+.chat-style-dark .shimeji-chat-theme-label {
+    color: #e0dce8;
+}
+
+.chat-style-dark .shimeji-chat-theme-select,
+.chat-style-dark .shimeji-chat-theme-style {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(20, 15, 40, 0.8);
+    color: #e0dce8;
+}
+
+.chat-style-dark .shimeji-chat-theme-color,
+.chat-style-dark .shimeji-chat-theme-bg {
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .chat-style-dark .shimeji-chat-msg.ai {

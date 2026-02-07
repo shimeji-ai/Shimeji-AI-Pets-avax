@@ -338,6 +338,33 @@
         '#3b1260', '#0e3d6b', '#6b1d3a', '#2e4a12', '#4c1a6b'
     ];
 
+    const CHAT_THEMES = [
+        {
+            id: 'pastel',
+            labelEn: 'Pastel',
+            labelEs: 'Pastel',
+            theme: '#7b5cff',
+            bg: '#fff7fb',
+            bubble: 'glass'
+        },
+        {
+            id: 'kawaii',
+            labelEn: 'Kawaii',
+            labelEs: 'Kawaii',
+            theme: '#ff6cab',
+            bg: '#fff1f9',
+            bubble: 'glass'
+        },
+        {
+            id: 'cyberpunk',
+            labelEn: 'Cyberpunk',
+            labelEs: 'Cyberpunk',
+            theme: '#19d3ff',
+            bg: '#0d0b1f',
+            bubble: 'dark'
+        }
+    ];
+
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
         const randomPersonality = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
@@ -345,6 +372,7 @@
         const randomVoiceProfile = pickRandomTtsProfile();
         const randomSize = SIZE_KEYS[Math.floor(Math.random() * SIZE_KEYS.length)];
         const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
+        const preset = CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
         return {
             id: `shimeji-${index + 1}`,
             character: randomChar,
@@ -359,15 +387,16 @@
             openclawGatewayToken: '',
             personality: randomPersonality,
             enabled: true,
-            chatThemeColor: randomThemeColor,
-            chatBgColor: '#ffffff',
+            chatThemeColor: preset?.theme || randomThemeColor,
+            chatBgColor: preset?.bg || '#ffffff',
             chatFontSize: 'medium',
             chatWidth: 'medium',
-            chatBubbleStyle: 'glass',
+            chatBubbleStyle: preset?.bubble || 'glass',
             ttsEnabled: true,
             ttsVoiceProfile: randomVoiceProfile,
             ttsVoiceId: '',
-            openMicEnabled: false
+            openMicEnabled: false,
+            relayEnabled: false
         };
     }
 
@@ -387,9 +416,10 @@
             openclawGatewayToken: data.openclawGatewayToken || '',
             personality: data.aiPersonality || 'cryptid',
             enabled: true,
-            ttsEnabled: false,
+            ttsEnabled: true,
             ttsVoiceProfile: pickRandomTtsProfile(),
-            ttsVoiceId: ''
+            ttsVoiceId: '',
+            relayEnabled: false
         }];
     }
 
@@ -401,12 +431,14 @@
             'aiPersonality',
             'chatMode',
             'openclawGatewayUrl',
-            'openclawGatewayToken'
+            'openclawGatewayToken',
+            'ttsEnabledMigrationDone'
         ], (data) => {
             let list = migrateLegacy(data);
             if (!Array.isArray(list) || list.length === 0) {
                 list = [getDefaultShimeji(0)];
             }
+            const needsTtsMigration = !data.ttsEnabledMigrationDone;
             list = list.map((item) => ({
                 ...item,
                 mode: normalizeMode(item.mode),
@@ -415,13 +447,14 @@
                 standardProvider: item.standardProvider || 'openrouter',
                 ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
                 ollamaModel: item.ollamaModel || 'llama3.1',
-                ttsEnabled: !!item.ttsEnabled,
+                ttsEnabled: needsTtsMigration ? true : item.ttsEnabled !== false,
                 ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
                 ttsVoiceId: item.ttsVoiceId || '',
-                openMicEnabled: !!item.openMicEnabled
+                openMicEnabled: !!item.openMicEnabled,
+                relayEnabled: !!item.relayEnabled
             }));
             list = list.slice(0, MAX_SHIMEJIS);
-            chrome.storage.local.set({ shimejis: list });
+            chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
             callback(list);
         });
     }
@@ -454,18 +487,23 @@
         let chatMessagesEl = null;
         let chatInputEl = null;
         let chatMetaEl = null;
+        let chatControlsPanelEl = null;
+        let lastAssistantText = '';
         let conversationHistory = [];
         let isChatOpen = false;
         let isThinking = false;
         let hasUnreadMessage = false;
+        let pendingSpeechText = null;
         let soundBuffers = { success: null, error: null };
         let soundBuffersLoaded = false;
 
         let recognition = null;
         let isListening = false;
         let micBtnEl = null;
+        let chatThemePanelEl = null;
         let openMicBtnEl = null;
         let ttsToggleBtnEl = null;
+        let relayToggleBtnEl = null;
         let micAutoSendEl = null;
         let micAutoSendTimer = null;
         let micAutoSendInterval = null;
@@ -537,6 +575,30 @@
             });
         }
 
+        function persistRelayEnabled(enabled) {
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? { ...s, relayEnabled: enabled } : s);
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
+        function persistChatStyle(themeColor, bgColor, bubbleStyle) {
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => {
+                    if (s.id !== shimejiId) return s;
+                    return {
+                        ...s,
+                        chatThemeColor: themeColor,
+                        chatBgColor: bgColor,
+                        chatBubbleStyle: bubbleStyle
+                    };
+                });
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
         function updateOpenMicBtnVisual() {
             if (!openMicBtnEl) return;
             openMicBtnEl.classList.toggle('active', !!config.openMicEnabled);
@@ -553,6 +615,14 @@
                 : (isSpanishLocale() ? 'Activar voz' : 'Unmute voice');
         }
 
+        function updateRelayToggleBtnVisual() {
+            if (!relayToggleBtnEl) return;
+            relayToggleBtnEl.classList.toggle('active', !!config.relayEnabled);
+            relayToggleBtnEl.title = config.relayEnabled
+                ? (isSpanishLocale() ? 'Dejar de hablar con otros shimejis' : 'Stop talking to other shimejis')
+                : (isSpanishLocale() ? 'Hablar con otros shimejis' : 'Talk to other shimejis');
+        }
+
         async function ensureVoiceForTts() {
             const voices = await getVoicesAsync();
             if (!voices.length) return null;
@@ -567,7 +637,17 @@
             return picked;
         }
 
-        async function speakText(text, onEndCallback) {
+        function getSpeechManager() {
+            if (!window.__shimejiSpeechManager) {
+                window.__shimejiSpeechManager = {
+                    queue: [],
+                    speaking: false
+                };
+            }
+            return window.__shimejiSpeechManager;
+        }
+
+        async function speakTextRaw(text, onEndCallback) {
             if (!config.ttsEnabled) {
                 if (onEndCallback) onEndCallback();
                 return;
@@ -593,6 +673,25 @@
             } catch (e) {
                 if (onEndCallback) onEndCallback();
             }
+        }
+
+        function enqueueSpeech(text, onEndCallback) {
+            const manager = getSpeechManager();
+            manager.queue.push({ text, onEndCallback });
+            if (manager.speaking) return;
+            const playNext = () => {
+                const next = manager.queue.shift();
+                if (!next) {
+                    manager.speaking = false;
+                    return;
+                }
+                manager.speaking = true;
+                speakTextRaw(next.text, () => {
+                    if (next.onEndCallback) next.onEndCallback();
+                    playNext();
+                });
+            };
+            playNext();
         }
 
         function cancelSpeech() {
@@ -771,6 +870,19 @@
             if (e.detail && e.detail.except !== shimejiId && isListening) {
                 stopVoiceInput();
             }
+        });
+
+        document.addEventListener('shimeji-relay', (e) => {
+            if (!e.detail || e.detail.sourceId === shimejiId) return;
+            if (config.enabled === false) return;
+            const mode = getMode();
+            if (mode === 'off' || mode === 'decorative') return;
+            const raw = (e.detail.text || '').trim();
+            if (!raw) return;
+            const prefix = isSpanishLocale()
+                ? 'Esto es lo que dijo tu compañero shimeji AI companion: '
+                : 'This is what your shimeji AI companion said: ';
+            sendChatMessageWithText(prefix + raw, { isRelay: true });
         });
 
         // Listen for voice broadcast from open mic (send transcript to all open chats)
@@ -1135,6 +1247,16 @@
             const headerBtns = document.createElement('div');
             headerBtns.className = 'shimeji-chat-header-btns';
 
+            const settingsBtnEl = document.createElement('button');
+            settingsBtnEl.className = 'shimeji-chat-settings-toggle';
+            settingsBtnEl.textContent = '\u2699';
+            settingsBtnEl.title = isSpanishLocale() ? 'Controles' : 'Controls';
+
+            const themeBtnEl = document.createElement('button');
+            themeBtnEl.className = 'shimeji-chat-theme-toggle';
+            themeBtnEl.textContent = '\uD83C\uDFA8';
+            themeBtnEl.title = isSpanishLocale() ? 'Tema de chat' : 'Chat theme';
+
             openMicBtnEl = document.createElement('button');
             openMicBtnEl.className = 'shimeji-chat-openmic-toggle';
             openMicBtnEl.textContent = '\uD83C\uDF99';
@@ -1159,8 +1281,27 @@
                 e.stopPropagation();
                 config.ttsEnabled = !config.ttsEnabled;
                 updateTtsToggleBtnVisual();
-                if (!config.ttsEnabled) cancelSpeech();
+                if (!config.ttsEnabled) {
+                    cancelSpeech();
+                } else if (lastAssistantText) {
+                    const openMicAfter = config.openMicEnabled && isChatOpen;
+                    enqueueSpeech(lastAssistantText, openMicAfter ? () => {
+                        if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                        startVoiceInput();
+                    } : null);
+                }
                 persistTtsEnabled(config.ttsEnabled);
+            });
+
+            relayToggleBtnEl = document.createElement('button');
+            relayToggleBtnEl.className = 'shimeji-chat-relay-toggle';
+            relayToggleBtnEl.textContent = '\uD83D\uDD01';
+            updateRelayToggleBtnVisual();
+            relayToggleBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                config.relayEnabled = !config.relayEnabled;
+                updateRelayToggleBtnVisual();
+                persistRelayEnabled(config.relayEnabled);
             });
 
             const closeBtn = document.createElement('button');
@@ -1171,11 +1312,169 @@
                 closeChatBubble();
             });
 
-            headerBtns.appendChild(openMicBtnEl);
-            headerBtns.appendChild(ttsToggleBtnEl);
+            headerBtns.appendChild(settingsBtnEl);
             headerBtns.appendChild(closeBtn);
             header.appendChild(titleWrap);
             header.appendChild(headerBtns);
+
+            const controlsPanel = document.createElement('div');
+            controlsPanel.className = 'shimeji-chat-controls-panel';
+            chatControlsPanelEl = controlsPanel;
+
+            const voiceRow = document.createElement('div');
+            voiceRow.className = 'shimeji-chat-control-row';
+            const voiceLabel = document.createElement('span');
+            voiceLabel.className = 'shimeji-chat-control-label';
+            voiceLabel.textContent = isSpanishLocale() ? 'Voz' : 'Voice';
+            voiceRow.appendChild(voiceLabel);
+            voiceRow.appendChild(ttsToggleBtnEl);
+            controlsPanel.appendChild(voiceRow);
+
+            const micRow = document.createElement('div');
+            micRow.className = 'shimeji-chat-control-row';
+            const micLabel = document.createElement('span');
+            micLabel.className = 'shimeji-chat-control-label';
+            micLabel.textContent = isSpanishLocale() ? 'Micrófono abierto' : 'Open mic';
+            micRow.appendChild(micLabel);
+            micRow.appendChild(openMicBtnEl);
+            controlsPanel.appendChild(micRow);
+
+            const relayRow = document.createElement('div');
+            relayRow.className = 'shimeji-chat-control-row';
+            const relayLabel = document.createElement('span');
+            relayLabel.className = 'shimeji-chat-control-label';
+            relayLabel.textContent = isSpanishLocale() ? 'Relay' : 'Relay';
+            relayRow.appendChild(relayLabel);
+            relayRow.appendChild(relayToggleBtnEl);
+            controlsPanel.appendChild(relayRow);
+
+            const themeRowControl = document.createElement('div');
+            themeRowControl.className = 'shimeji-chat-control-row';
+            const themeLabelControl = document.createElement('span');
+            themeLabelControl.className = 'shimeji-chat-control-label';
+            themeLabelControl.textContent = isSpanishLocale() ? 'Tema' : 'Theme';
+            themeRowControl.appendChild(themeLabelControl);
+            themeRowControl.appendChild(themeBtnEl);
+            controlsPanel.appendChild(themeRowControl);
+
+            settingsBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                controlsPanel.classList.toggle('open');
+            });
+
+            const themePanel = document.createElement('div');
+            themePanel.className = 'shimeji-chat-theme-panel';
+            chatThemePanelEl = themePanel;
+
+            const themeRow = document.createElement('div');
+            themeRow.className = 'shimeji-chat-theme-row';
+            const themeLabel = document.createElement('span');
+            themeLabel.className = 'shimeji-chat-theme-label';
+            themeLabel.textContent = isSpanishLocale() ? 'Tema' : 'Theme';
+            const themeSelect = document.createElement('select');
+            themeSelect.className = 'shimeji-chat-theme-select';
+
+            const customOption = document.createElement('option');
+            customOption.value = 'custom';
+            customOption.textContent = isSpanishLocale() ? 'Personalizado' : 'Custom';
+            themeSelect.appendChild(customOption);
+            CHAT_THEMES.forEach((theme) => {
+                const opt = document.createElement('option');
+                opt.value = theme.id;
+                opt.textContent = isSpanishLocale() ? (theme.labelEs || theme.labelEn) : (theme.labelEn || theme.labelEs);
+                themeSelect.appendChild(opt);
+            });
+
+            const styleSelect = document.createElement('select');
+            styleSelect.className = 'shimeji-chat-theme-style';
+            [
+                { value: 'glass', en: 'Glass', es: 'Vidrio' },
+                { value: 'solid', en: 'Solid', es: 'Sólido' },
+                { value: 'dark', en: 'Dark', es: 'Oscuro' }
+            ].forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.value;
+                opt.textContent = isSpanishLocale() ? item.es : item.en;
+                styleSelect.appendChild(opt);
+            });
+
+            themeRow.appendChild(themeLabel);
+            themeRow.appendChild(themeSelect);
+            themeRow.appendChild(styleSelect);
+            themePanel.appendChild(themeRow);
+
+            const colorRow = document.createElement('div');
+            colorRow.className = 'shimeji-chat-theme-row';
+            const colorLabel = document.createElement('span');
+            colorLabel.className = 'shimeji-chat-theme-label';
+            colorLabel.textContent = isSpanishLocale() ? 'Colores' : 'Colors';
+            const themeColorInput = document.createElement('input');
+            themeColorInput.type = 'color';
+            themeColorInput.className = 'shimeji-chat-theme-color';
+            const bgColorInput = document.createElement('input');
+            bgColorInput.type = 'color';
+            bgColorInput.className = 'shimeji-chat-theme-bg';
+            colorRow.appendChild(colorLabel);
+            colorRow.appendChild(themeColorInput);
+            colorRow.appendChild(bgColorInput);
+            themePanel.appendChild(colorRow);
+
+            function resolveThemeSelection() {
+                const found = CHAT_THEMES.find((t) => t.id === themeSelect.value);
+                if (!found) return;
+                themeColorInput.value = found.theme;
+                bgColorInput.value = found.bg;
+                styleSelect.value = found.bubble;
+                updateThemeFromInputs();
+            }
+
+            function updateThemeFromInputs() {
+                config.chatThemeColor = themeColorInput.value;
+                config.chatBgColor = bgColorInput.value;
+                config.chatBubbleStyle = styleSelect.value;
+                applyChatStyle();
+                persistChatStyle(config.chatThemeColor, config.chatBgColor, config.chatBubbleStyle);
+            }
+
+            function syncThemeInputs() {
+                themeColorInput.value = config.chatThemeColor || '#2a1f4e';
+                bgColorInput.value = config.chatBgColor || '#ffffff';
+                styleSelect.value = config.chatBubbleStyle || 'glass';
+                const match = CHAT_THEMES.find((t) =>
+                    t.theme.toLowerCase() === themeColorInput.value.toLowerCase()
+                    && t.bg.toLowerCase() === bgColorInput.value.toLowerCase()
+                    && t.bubble === styleSelect.value
+                );
+                themeSelect.value = match ? match.id : 'custom';
+            }
+
+            themeBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                themePanel.classList.toggle('open');
+            });
+
+            themeSelect.addEventListener('change', () => {
+                if (themeSelect.value === 'custom') {
+                    syncThemeInputs();
+                    return;
+                }
+                resolveThemeSelection();
+            });
+
+            styleSelect.addEventListener('change', () => {
+                themeSelect.value = 'custom';
+                updateThemeFromInputs();
+            });
+
+            themeColorInput.addEventListener('input', () => {
+                themeSelect.value = 'custom';
+                updateThemeFromInputs();
+            });
+
+            bgColorInput.addEventListener('input', () => {
+                themeSelect.value = 'custom';
+                updateThemeFromInputs();
+            });
 
             chatMessagesEl = document.createElement('div');
             chatMessagesEl.className = 'shimeji-chat-messages';
@@ -1213,12 +1512,15 @@
             inputArea.appendChild(micBtnEl);
 
             chatBubbleEl.appendChild(header);
+            chatBubbleEl.appendChild(controlsPanel);
+            chatBubbleEl.appendChild(themePanel);
             chatBubbleEl.appendChild(chatMessagesEl);
             chatBubbleEl.appendChild(inputArea);
 
             chatBubbleEl.addEventListener('mousedown', (e) => e.stopPropagation());
             chatBubbleEl.addEventListener('touchstart', (e) => e.stopPropagation());
 
+            syncThemeInputs();
             applyChatStyle();
 
             document.body.appendChild(chatBubbleEl);
@@ -1310,8 +1612,10 @@
 
                 const mode = getMode();
                 const provider = config.standardProvider || 'openrouter';
-                const needsApiKey = mode === 'standard' && provider === 'openrouter' && !(config.openrouterApiKey || '').trim();
-                const needsAgent = mode === 'agent' && !(config.openclawGatewayToken || '').trim();
+                const hasOpenRouterKey = !!(config.openrouterApiKey || '').trim() || !!config.openrouterApiKeyEnc;
+                const hasOpenClawToken = !!(config.openclawGatewayToken || '').trim() || !!config.openclawGatewayTokenEnc;
+                const needsApiKey = mode === 'standard' && provider === 'openrouter' && !hasOpenRouterKey;
+                const needsAgent = mode === 'agent' && !hasOpenClawToken;
                 if (mode === 'off') {
                     appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
                 } else if (mode === 'decorative') {
@@ -1345,6 +1649,17 @@
                 setTimeout(() => {
                     if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
                     if (chatInputEl) chatInputEl.focus();
+                    if (pendingSpeechText) {
+                        const text = pendingSpeechText;
+                        pendingSpeechText = null;
+                        if (config.ttsEnabled) {
+                            const openMicAfter = config.openMicEnabled && isChatOpen;
+                            enqueueSpeech(text, openMicAfter ? () => {
+                                if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                                startVoiceInput();
+                            } : null);
+                        }
+                    }
                 }, 50);
             });
         }
@@ -1355,6 +1670,8 @@
             clearAutoSendPopup();
             isChatOpen = false;
             if (chatBubbleEl) chatBubbleEl.classList.remove('visible');
+            if (chatControlsPanelEl) chatControlsPanelEl.classList.remove('open');
+            if (chatThemePanelEl) chatThemePanelEl.classList.remove('open');
             removeInlineThinking();
 
             if (mascot.state === State.SITTING || mascot.state === State.HEAD_SPIN || mascot.state === State.SPRAWLED) {
@@ -1461,6 +1778,8 @@
         function loadConversation(callback) {
             chrome.storage.local.get([conversationKey], (data) => {
                 conversationHistory = Array.isArray(data[conversationKey]) ? data[conversationKey] : [];
+                const lastAssistant = [...conversationHistory].reverse().find((msg) => msg.role === 'assistant');
+                lastAssistantText = lastAssistant ? lastAssistant.content : '';
                 if (callback) callback();
             });
         }
@@ -1473,6 +1792,7 @@
                 msgEl.className = `shimeji-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
                 msgEl.textContent = msg.content;
                 chatMessagesEl.appendChild(msgEl);
+                if (msg.role === 'assistant') lastAssistantText = msg.content;
             });
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
@@ -1484,6 +1804,7 @@
             msgEl.textContent = content;
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            if (role === 'ai') lastAssistantText = content;
         }
 
         function appendErrorMessage(text) {
@@ -1503,21 +1824,29 @@
             }
         }
 
-        function sendChatMessage() {
+        function dispatchRelay(text) {
+            const relayEvent = new CustomEvent('shimeji-relay', {
+                detail: {
+                    sourceId: shimejiId,
+                    text
+                }
+            });
+            document.dispatchEvent(relayEvent);
+        }
+
+        function sendChatMessageWithText(text, options = {}) {
             clearAutoSendPopup();
-            if (!chatInputEl) return;
-            const text = chatInputEl.value.trim();
             if (!text) return;
 
             const mode = getMode();
             if (mode === 'off') {
-                chatInputEl.value = '';
+                if (chatInputEl) chatInputEl.value = '';
                 appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
                 playSound('error');
                 return;
             }
             if (mode === 'decorative') {
-                chatInputEl.value = '';
+                if (chatInputEl) chatInputEl.value = '';
                 appendMessage('ai', getDecorativeMessage());
                 playSound('error');
                 return;
@@ -1527,7 +1856,7 @@
             getAudioContext();
             cancelSpeech();
 
-            chatInputEl.value = '';
+            if (chatInputEl) chatInputEl.value = '';
             appendMessage('user', text);
             conversationHistory.push({ role: 'user', content: text });
             saveConversation();
@@ -1567,18 +1896,23 @@
                         saveConversation();
                         appendMessage('ai', response.content);
                         playSound('success');
-                        speakText(response.content);
-                        // Open mic: restart voice input after AI response (and TTS if active)
-                        if (config.openMicEnabled && isChatOpen) {
-                            const restartOpenMic = () => {
+                        if (isChatOpen) {
+                            const openMicAfter = config.openMicEnabled && isChatOpen;
+                            enqueueSpeech(response.content, openMicAfter ? () => {
                                 if (!isChatOpen || !config.openMicEnabled || isListening) return;
-                                if (window.speechSynthesis && window.speechSynthesis.speaking) {
-                                    setTimeout(restartOpenMic, 300);
-                                    return;
-                                }
                                 startVoiceInput();
-                            };
-                            setTimeout(restartOpenMic, config.ttsEnabled ? 500 : 300);
+                            } : null);
+                            // If TTS is off but open mic is on, start listening after a short delay
+                            if (openMicAfter && !config.ttsEnabled) {
+                                setTimeout(() => {
+                                    if (isChatOpen && config.openMicEnabled && !isListening) startVoiceInput();
+                                }, 300);
+                            }
+                        } else {
+                            pendingSpeechText = response.content;
+                        }
+                        if (config.relayEnabled && !options.isRelay) {
+                            dispatchRelay(response.content);
                         }
                         if (!isChatOpen) {
                             showAlert();
@@ -1586,6 +1920,13 @@
                     }
                 }
             );
+        }
+
+        function sendChatMessage() {
+            if (!chatInputEl) return;
+            const text = chatInputEl.value.trim();
+            if (!text) return;
+            sendChatMessageWithText(text);
         }
 
         function updateState() {
@@ -2121,10 +2462,25 @@
                 if (!prevTtsEnabled && config.ttsEnabled && !config.ttsVoiceId) {
                     ensureVoiceForTts().catch(() => {});
                 }
+                if (!prevTtsEnabled && config.ttsEnabled && lastAssistantText) {
+                    const openMicAfter = config.openMicEnabled && isChatOpen;
+                    enqueueSpeech(lastAssistantText, openMicAfter ? () => {
+                        if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                        startVoiceInput();
+                    } : null);
+                }
                 updateTtsToggleBtnVisual();
                 updateOpenMicBtnVisual();
+            if (chatThemePanelEl) {
+                const colorInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-color');
+                const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
+                const styleSelect = chatThemePanelEl.querySelector('.shimeji-chat-theme-style');
+                if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
+                if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
+                if (styleSelect) styleSelect.value = config.chatBubbleStyle || 'glass';
             }
-        };
+        }
+    };
     }
 
     let runtimes = [];

@@ -156,6 +156,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const sleepAllBtn = document.getElementById("sleep-all-btn");
 const basicModeBtn = document.getElementById("basic-mode-btn");
 const advancedModeBtn = document.getElementById("advanced-mode-btn");
+const popupThemeLabel = document.getElementById("popup-theme-label");
+const popupThemeSelect = document.getElementById("popup-theme-select");
 const securityTitle = document.getElementById("security-title");
 const masterkeyToggle = document.getElementById("masterkey-toggle");
 const masterkeyLabel = document.getElementById("masterkey-label");
@@ -238,6 +240,43 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   function t(en, es) {
     return isSpanishLocale() ? es : en;
   }
+
+  function applyTheme(theme) {
+    document.body.dataset.theme = theme;
+  }
+
+  function getRandomTheme() {
+    const themes = ["neural", "pink", "kawaii"];
+    return themes[Math.floor(Math.random() * themes.length)];
+  }
+
+  function populatePopupThemeSelect(value) {
+    if (!popupThemeSelect) return;
+    const options = [
+      { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
+      { value: "neural", labelEn: "Neural", labelEs: "Neural" },
+      { value: "pink", labelEn: "Pink", labelEs: "Rosa" },
+      { value: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii" }
+    ];
+    popupThemeSelect.innerHTML = "";
+    options.forEach((opt) => {
+      const option = document.createElement("option");
+      option.value = opt.value;
+      option.textContent = isSpanishLocale() ? opt.labelEs : opt.labelEn;
+      if (opt.value === value) option.selected = true;
+      popupThemeSelect.appendChild(option);
+    });
+  }
+
+  function initPopupTheme() {
+    chrome.storage.local.get(["popupTheme"], (data) => {
+      const theme = data.popupTheme || "random";
+      populatePopupThemeSelect(theme);
+      applyTheme(theme === "random" ? getRandomTheme() : theme);
+    });
+  }
+
+  initPopupTheme();
 
   async function deriveKeyFromMaster(masterKey, saltBase64) {
     const enc = new TextEncoder();
@@ -361,6 +400,11 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
       : t('Master key locked', 'Clave maestra bloqueada');
   }
 
+  function setMasterKeyStatusMessage(message) {
+    if (!masterkeyStatus) return;
+    masterkeyStatus.textContent = message;
+  }
+
   function updateAutolockLabel() {
     if (!autolockMinutesLabel) return;
     autolockMinutesLabel.textContent = `${masterKeyAutoLockMinutes} min`;
@@ -395,10 +439,31 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     updateMasterKeyStatus();
   }
 
+  async function enableMasterKeyWithValue(value) {
+    if (!value) {
+      setMasterKeyStatusMessage(t('Enter a master key to enable', 'Ingresa una clave maestra para habilitar'));
+      masterKeyEnabled = false;
+      applyMasterKeyUiState();
+      return;
+    }
+    masterKeyEnabled = true;
+    masterKeyUnlocked = true;
+    setSessionMasterKey(value);
+    if (!masterKeySalt) {
+      const enc = await encryptSecret(value, 'seed', null);
+      masterKeySalt = enc.salt;
+    }
+    chrome.storage.local.set({ masterKeyEnabled: true, masterKeySalt });
+    applyMasterKeyUiState();
+    scheduleAutoLock();
+    await saveShimejis();
+    loadShimejis();
+  }
+
   function setPopupLabels() {
     if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
-    if (addShimejiBtn) addShimejiBtn.textContent = t("Add", "Agregar");
+    if (addShimejiBtn) addShimejiBtn.textContent = "+";
     if (linkOpenPortals) linkOpenPortals.textContent = t("Open more portals", "Abrir más portales");
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
     if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility", "Visibilidad");
@@ -407,9 +472,10 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     if (disableAllBtnLabel) disableAllBtnLabel.textContent = t("Disable All", "Desactivar todo");
     if (popupSubtitle) popupSubtitle.textContent = t("Your AI mascot orchestrator", "Tu orquestador de mascotas AI");
     if (wakeAllBtn) wakeAllBtn.textContent = t("Wake All", "Despertar todos");
-    if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All", "Dormir todos");
+if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All", "Dormir todos");
 if (basicModeBtn) basicModeBtn.textContent = t("Basic", "Básico");
 if (advancedModeBtn) advancedModeBtn.textContent = t("Advanced", "Avanzado");
+if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del popup");
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect keys with master key", "Proteger claves con clave maestra");
 if (masterkeyInput) masterkeyInput.placeholder = t("Master key", "Clave maestra");
@@ -423,6 +489,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     "#2a1f4e", "#1e3a5f", "#4a2040", "#0f4c3a", "#5c2d0e",
     "#3b1260", "#0e3d6b", "#6b1d3a", "#2e4a12", "#4c1a6b"
   ];
+  const CHAT_THEMES = [
+    { id: "pastel", labelEn: "Pastel", labelEs: "Pastel", theme: "#7b5cff", bg: "#fff7fb", bubble: "glass" },
+    { id: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", theme: "#ff6cab", bg: "#fff1f9", bubble: "glass" },
+    { id: "cyberpunk", labelEn: "Cyberpunk", labelEs: "Cyberpunk", theme: "#19d3ff", bg: "#0d0b1f", bubble: "dark" }
+  ];
 
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
@@ -432,6 +503,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     const randomVoiceProfile = pickRandomVoiceProfile();
     const randomSize = SIZE_OPTIONS_KEYS[Math.floor(Math.random() * SIZE_OPTIONS_KEYS.length)];
     const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
+    const preset = CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
     return {
       id: `shimeji-${index + 1}`,
       character: randomChar,
@@ -448,15 +520,16 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
-      chatThemeColor: randomThemeColor,
-      chatBgColor: "#ffffff",
+      chatThemeColor: preset?.theme || randomThemeColor,
+      chatBgColor: preset?.bg || "#ffffff",
       chatFontSize: "medium",
       chatWidth: "medium",
-      chatBubbleStyle: "glass",
+      chatBubbleStyle: preset?.bubble || "glass",
       ttsEnabled: true,
       ttsVoiceProfile: randomVoiceProfile,
       ttsVoiceId: "",
-      openMicEnabled: false
+      openMicEnabled: false,
+      relayEnabled: false
     };
   }
 
@@ -481,10 +554,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
         openclawGatewayToken: shimeji.openclawGatewayToken || "",
         personality: shimeji.personality || "cryptid",
-        ttsEnabled: shimeji.ttsEnabled || false,
+        ttsEnabled: shimeji.ttsEnabled !== false,
         ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
         ttsVoiceId: shimeji.ttsVoiceId || "",
-        openMicEnabled: !!shimeji.openMicEnabled
+        openMicEnabled: !!shimeji.openMicEnabled,
+        relayEnabled: !!shimeji.relayEnabled
       }));
     }
 
@@ -504,10 +578,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
-      ttsEnabled: false,
+      ttsEnabled: true,
       ttsVoiceProfile: pickRandomVoiceProfile(),
       ttsVoiceId: "",
-      openMicEnabled: false
+      openMicEnabled: false,
+      relayEnabled: false
     }];
   }
 
@@ -523,7 +598,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       'masterKeyEnabled',
       'masterKeySalt',
       'masterKeyAutoLockEnabled',
-      'masterKeyAutoLockMinutes'
+      'masterKeyAutoLockMinutes',
+      'ttsEnabledMigrationDone'
     ], async (data) => {
       masterKeyEnabled = !!data.masterKeyEnabled;
       masterKeySalt = data.masterKeySalt || null;
@@ -536,6 +612,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       shimejis = ensureShimejiIds(migrateLegacy(data));
       if (!Array.isArray(shimejis) || shimejis.length === 0) {
         shimejis = [getDefaultShimeji(0)];
+      }
+      if (!data.ttsEnabledMigrationDone) {
+        shimejis = shimejis.map((s) => ({ ...s, ttsEnabled: true }));
       }
       if (shimejis.length > 0) {
         const hasAnyActive = shimejis.some((s) => {
@@ -580,7 +659,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         }
       }
 
-      chrome.storage.local.set({ shimejis });
+      chrome.storage.local.set({ shimejis, ttsEnabledMigrationDone: true });
       renderShimejis();
       if (needsEncrypt) saveShimejis();
     });
@@ -758,6 +837,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "energetic", labelEn: "Energetic", labelEs: "Enérgica" }
       ], shimeji.ttsVoiceProfile || "random"));
       grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
+      grid.appendChild(renderToggleField("relayEnabled", t("Talk to other shimejis", "Hablar con otros shimejis"), !!shimeji.relayEnabled));
 
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
@@ -1183,13 +1263,13 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         const sessionKey = await getSessionMasterKey();
         if (!sessionKey) {
           masterkeyToggle.checked = true;
-          updateMasterKeyStatus();
+          setMasterKeyStatusMessage(t('Unlock to disable master key', 'Desbloquea para desactivar la clave maestra'));
           return;
         }
         masterKeyEnabled = false;
+        masterKeyUnlocked = false;
         await saveShimejis();
         clearSessionMasterKey();
-        masterKeyUnlocked = false;
         if (masterKeyAutoLockTimer) {
           clearTimeout(masterKeyAutoLockTimer);
           masterKeyAutoLockTimer = null;
@@ -1198,9 +1278,8 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         renderShimejis();
         return;
       }
-      masterKeyEnabled = true;
-      applyMasterKeyUiState();
-      chrome.storage.local.set({ masterKeyEnabled: true });
+      const value = masterkeyInput?.value || '';
+      await enableMasterKeyWithValue(value);
     });
   }
 
@@ -1208,17 +1287,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     masterkeyUnlockBtn.addEventListener('click', async () => {
       const value = masterkeyInput?.value || '';
       if (!value) return;
-      masterKeyEnabled = true;
-      setSessionMasterKey(value);
-      masterKeyUnlocked = true;
-      if (!masterKeySalt) {
-        const enc = await encryptSecret(value, 'seed', null);
-        masterKeySalt = enc.salt;
-        chrome.storage.local.set({ masterKeySalt });
-      }
-      applyMasterKeyUiState();
-      scheduleAutoLock();
-      loadShimejis();
+      await enableMasterKeyWithValue(value);
     });
   }
 
@@ -1276,6 +1345,14 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       advancedModeBtn.classList.add("active");
       if (basicModeBtn) basicModeBtn.classList.remove("active");
       chrome.storage.local.set({ popupAdvancedMode: true });
+    });
+  }
+
+  if (popupThemeSelect) {
+    popupThemeSelect.addEventListener("change", () => {
+      const value = popupThemeSelect.value || "random";
+      chrome.storage.local.set({ popupTheme: value });
+      applyTheme(value === "random" ? getRandomTheme() : value);
     });
   }
 
