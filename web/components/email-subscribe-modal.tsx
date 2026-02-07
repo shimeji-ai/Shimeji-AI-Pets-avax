@@ -103,7 +103,7 @@ export function EmailSubscribeModal({
         </button>
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#1159CC] mb-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 border border-white/10 mb-4 text-[var(--brand-accent)]">
             {isSuccess ? (
               <CheckCircle className="w-6 h-6 text-white" />
             ) : (
@@ -133,7 +133,7 @@ export function EmailSubscribeModal({
                   setError("");
                 }}
                 placeholder="Enter your email"
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-[#FF9999] focus:outline-none text-gray-800 placeholder:text-gray-500"
+                className="w-full px-4 py-3 rounded-xl bg-[#0b0f14] border border-white/10 focus:border-[var(--brand-accent)] focus:outline-none text-foreground placeholder:text-muted-foreground"
                 disabled={isSubmitting}
               />
               {error && (
@@ -144,7 +144,7 @@ export function EmailSubscribeModal({
             <Button
               type="submit"
               disabled={isSubmitting || !email}
-              className="w-full bg-[#1159CC] hover:bg-[#000000] text-white py-6 text-lg rounded-xl"
+              className="w-full neural-button py-6 text-lg rounded-xl"
             >
               {isSubmitting ? (
                 <>

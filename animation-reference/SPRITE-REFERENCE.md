@@ -98,11 +98,12 @@ function getSitSprite(cursorY, screenHeight) {
 
 **Edge Sit Animation:**
 ```javascript
-const edgeDangleFrames = [
-  { sprite: 'sit-edge-legs-down.png', duration: 5 },
-  { sprite: 'sit-edge-dangle-frame-1.png', duration: 15 },
-  { sprite: 'sit-edge-legs-down.png', duration: 5 },
-  { sprite: 'sit-edge-dangle-frame-2.png', duration: 15 }
+const edgeSitFrames = [
+  { sprite: 'sit-edge-legs-up.png', duration: 10 },       // transition: settling onto edge
+  { sprite: 'sit-edge-legs-down.png', duration: 20 },      // legs hang down
+  { sprite: 'sit-edge-dangle-frame-1.png', duration: 15 }, // dangle left
+  { sprite: 'sit-edge-legs-down.png', duration: 20 },      // return center
+  { sprite: 'sit-edge-dangle-frame-2.png', duration: 15 }  // dangle right
 ];
 ```
 

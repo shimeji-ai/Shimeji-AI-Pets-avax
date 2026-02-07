@@ -27,7 +27,12 @@
       "css": ["style.css"]
     },
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "https://chrome-extension-stellar-shimeji-fa.vercel.app/*",
+        "https://shimeji.dev/*",
+        "https://www.shimeji.dev/*",
+        "http://localhost:3000/*"
+      ],
       "js": ["dapp_content_script.js"],
       "run_at": "document_idle"
     }
@@ -35,7 +40,7 @@
   "host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {
-      "resources": ["characters/*", "config.html"],
+      "resources": ["characters/*", "config.html", "assets/shimeji-success.wav", "assets/shimeji-error.wav", "assets/sounds/*"],
       "matches": ["<all_urls>"]
     }
   ]

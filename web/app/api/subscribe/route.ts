@@ -16,9 +16,17 @@ interface SubscribeRequest {
   metadata?: Record<string, unknown>;
 }
 
+function getSigningSecret() {
+  const secret = process.env.SUBSCRIBE_SIGNING_SECRET || process.env.RESEND_API_KEY;
+  if (!secret) {
+    throw new Error("Missing signing secret");
+  }
+  return secret;
+}
+
 // Create a signed token to prevent tampering
 function createSignedToken(email: string, type: string, metadata?: Record<string, unknown>): string {
-  const secret = process.env.RESEND_API_KEY || "fallback-secret";
+  const secret = getSigningSecret();
   const data = JSON.stringify({ email, type, metadata, timestamp: Date.now() });
   const signature = createHmac("sha256", secret).update(data).digest("hex");
   const token = Buffer.from(JSON.stringify({ data, signature })).toString("base64url");

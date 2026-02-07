@@ -18,7 +18,7 @@ const faqs = [
   {
     question: "What is Standard mode?",
     answer:
-      "Standard mode is text-only AI chat. Pick a personality, add your API key (OpenRouter or OpenAI), and your shimeji responds in character.",
+      "Standard mode is text-only AI chat. Pick a personality, choose OpenRouter or Ollama, and your shimeji responds in character.",
   },
   {
     question: "What is AI Agent mode?",
@@ -28,12 +28,12 @@ const faqs = [
   {
     question: "Do I need an API key?",
     answer:
-      "For Standard mode, yes — use your own OpenRouter or OpenAI key. For AI Agent mode, you need a running OpenClaw gateway instead.",
+      "For Standard mode, you can use OpenRouter (API key) or Ollama (local). For AI Agent mode, you need a running OpenClaw gateway.",
   },
   {
-    question: "What are proactive messages?",
+    question: "Can I run local models?",
     answer:
-      "When enabled, your shimeji will comment on the page you're browsing — a small observation or a playful reaction.",
+      "Yes. Choose Ollama in Standard mode and point it to your local Ollama URL and model.",
   },
   {
     question: "Is the Chrome extension free?",
@@ -55,11 +55,14 @@ export function FAQSection() {
   };
 
   return (
-    <section id="faq" className="py-8 px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight">
+            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
+              {isSpanish ? "Preguntas" : "FAQ"}
+            </p>
+            <h2 className="text-4xl sm:text-5xl font-semibold text-foreground tracking-tight">
               {isSpanish ? "Preguntas Frecuentes" : "Frequently Asked Questions"}
             </h2>
           </div>
@@ -69,7 +72,7 @@ export function FAQSection() {
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="bg-card border border-border rounded-2xl px-6 data-[state=open]:shadow-sm"
+                className="neural-card border border-white/10 rounded-2xl px-6 data-[state=open]:shadow-sm"
               >
                 <AccordionTrigger className="text-md text-left text-foreground hover:no-underline py-5 font-semibold">
                   {isSpanish
@@ -79,10 +82,10 @@ export function FAQSection() {
                         ? "¿Qué es el modo Standard?"
                         : index === 2
                           ? "¿Qué es el modo AI Agent?"
-                          : index === 3
-                            ? "¿Necesito una API key?"
-                            : index === 4
-                              ? "¿Qué son los mensajes proactivos?"
+                        : index === 3
+                          ? "¿Necesito una API key?"
+                        : index === 4
+                              ? "¿Puedo usar modelos locales?"
                               : index === 5
                                 ? "¿La extensión de Chrome es gratis?"
                                 : "¿Necesito una wallet?"
@@ -93,13 +96,13 @@ export function FAQSection() {
                     ? index === 0
                       ? "Los shimeji son compañeros animados que nacieron en Japón. Viven en tu pantalla, pasean y — con esta extensión — chatean contigo usando IA."
                       : index === 1
-                        ? "El modo Standard es chat de texto con IA. Elegís una personalidad, agregás tu API key (OpenRouter u OpenAI) y tu shimeji responde acorde a su personaje."
+                        ? "El modo Standard es chat de texto con IA. Elegís una personalidad y usás OpenRouter o Ollama."
                         : index === 2
                           ? "El modo AI Agent conecta tu shimeji a un gateway OpenClaw. Esto le da acceso a herramientas online y onchain más allá del chat de texto."
-                          : index === 3
-                            ? "Para el modo Standard, sí — usás tu propia key de OpenRouter u OpenAI. Para el modo AI Agent, necesitás un gateway OpenClaw corriendo."
-                            : index === 4
-                              ? "Cuando están activados, tu shimeji comenta lo que estás viendo — una observación breve o una reacción simpática."
+                        : index === 3
+                            ? "Para el modo Standard podés usar OpenRouter (API key) u Ollama local. Para el modo AI Agent necesitás un gateway OpenClaw corriendo."
+                        : index === 4
+                              ? "Sí. Elegís Ollama en Standard y apuntás a tu URL local y modelo."
                               : index === 5
                                 ? "Sí. La extensión es gratuita e incluye una mascota por defecto con chat IA. Los shimejis personalizados se encargan en Factory."
                                 : "Solo si querés encargar un shimeji personalizado en Factory. Las funciones de chat IA funcionan sin wallet."

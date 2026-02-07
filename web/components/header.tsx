@@ -23,7 +23,7 @@ export function Header() {
 
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
-      <div className="max-w-6xl mx-auto bg-[#FFCCCC] backdrop-blur-lg rounded-2xl  shadow-sm">
+      <div className="max-w-6xl mx-auto neural-card rounded-2xl border border-white/10">
         <div className="flex items-center justify-between h-16 px-6 w-full">
           <div
             className="relative"
@@ -31,7 +31,7 @@ export function Header() {
             onMouseLeave={() => setIsLogoHovered(false)}
           >
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
                 <Image
                   src="/logo.png"
                   alt="Shimeji Logo"
@@ -39,7 +39,7 @@ export function Header() {
                   height={36}
                 />
               </div>
-              <span className="text-lg font-bold text-foreground tracking-tight">
+              <span className="text-lg font-semibold text-foreground tracking-tight">
                 Shimeji Factory
               </span>
             </Link>
@@ -56,7 +56,7 @@ export function Header() {
                 to="how-it-works"
                 smooth={true}
                 duration={1500}
-                className="hover:cursor-pointer text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Cómo funciona" : "How It Works"}
               </ScrollLink>
@@ -86,11 +86,26 @@ export function Header() {
                 to="features"
                 smooth={true}
                 duration={1500}
-                className=" hover:cursor-pointer text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className=" hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Características" : "Features"}
               </ScrollLink>
               <SparkleAnimation isHovering={isFeaturesHovered} />
+            </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setIsCharactersHovered(true)}
+              onMouseLeave={() => setIsCharactersHovered(false)}
+            >
+              <ScrollLink
+                to="setup"
+                smooth={true}
+                duration={1500}
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Setup" : "Setup"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isCharactersHovered} />
             </div>
             <div
               className="relative"
@@ -101,7 +116,7 @@ export function Header() {
                 to="faq"
                 smooth={true}
                 duration={1500}
-                className="hover:cursor-pointer text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 FAQ
               </ScrollLink>
@@ -114,7 +129,7 @@ export function Header() {
             >
               <Link
                 href="/factory"
-                className="hover:cursor-pointer text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Fábrica" : "Factory"}
               </Link>
@@ -176,6 +191,15 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Características" : "Features"}
+              </ScrollLink>
+              <ScrollLink
+                to="setup"
+                smooth={true}
+                duration={1500}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Setup
               </ScrollLink>
               <ScrollLink
                 to="faq"

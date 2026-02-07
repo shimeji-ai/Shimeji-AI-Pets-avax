@@ -12,9 +12,18 @@ interface TokenData {
   timestamp: number;
 }
 
+function getSigningSecret() {
+  const secret = process.env.SUBSCRIBE_SIGNING_SECRET || process.env.RESEND_API_KEY;
+  if (!secret) {
+    return null;
+  }
+  return secret;
+}
+
 function verifyAndDecodeToken(token: string): TokenData | null {
   try {
-    const secret = process.env.RESEND_API_KEY || "fallback-secret";
+    const secret = getSigningSecret();
+    if (!secret) return null;
     const decoded = JSON.parse(Buffer.from(token, "base64url").toString());
     const { data, signature } = decoded;
 

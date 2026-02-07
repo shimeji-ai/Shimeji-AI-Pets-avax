@@ -15,6 +15,34 @@
 
 console.log("[DApp Content Script] Loaded and ready.");
 
+const ALLOWED_ORIGINS = new Set([
+  "https://chrome-extension-stellar-shimeji-fa.vercel.app",
+  "https://shimeji.dev",
+  "https://www.shimeji.dev",
+  "http://localhost:3000"
+]);
+
+const ALLOWED_MESSAGE_TYPES = new Set([
+  "walletConnected",
+  "walletDisconnected",
+  "revokePermissionsRequest",
+  "setCharacter",
+  "getCharacter",
+  "setBehavior",
+  "getBehavior",
+  "setSize",
+  "getSize",
+  "getUnlockedCharacters"
+]);
+
+function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.has(origin);
+}
+
+function getTargetOrigin() {
+  return ALLOWED_ORIGINS.has(window.location.origin) ? window.location.origin : "https://shimeji.dev";
+}
+
 // Listen for messages from the web page (dapp.js)
 window.addEventListener('message', (event) => {
   // Only accept messages from our own window
@@ -24,9 +52,23 @@ window.addEventListener('message', (event) => {
 
   // Ensure the message has the DAPP_MESSAGE type
   if (event.data && event.data.type === 'DAPP_MESSAGE') {
+    if (!isAllowedOrigin(event.origin)) {
+      console.warn("[DApp Content Script] Rejected message from untrusted origin:", event.origin);
+      return;
+    }
+
     console.log("[DApp Content Script] Received from page:", event.data.payload);
 
     const { type, payload } = event.data.payload;
+    if (!ALLOWED_MESSAGE_TYPES.has(type)) {
+      console.warn("[DApp Content Script] Rejected unknown message type:", type);
+      window.postMessage({
+        type: 'EXTENSION_RESPONSE_ERROR',
+        originalType: type,
+        error: 'Unsupported message type'
+      }, event.origin);
+      return;
+    }
 
     // Relay the message to the extension's background script
     chrome.runtime.sendMessage({ type, payload }, (response) => {
@@ -36,7 +78,7 @@ window.addEventListener('message', (event) => {
           type: 'EXTENSION_RESPONSE_ERROR',
           originalType: type,
           error: chrome.runtime.lastError.message
-        }, '*');
+        }, event.origin);
         return;
       }
 
@@ -48,7 +90,7 @@ window.addEventListener('message', (event) => {
           type: 'EXTENSION_RESPONSE',
           originalType: type,
           payload: response
-        }, '*');
+        }, event.origin);
       }
     });
   }
@@ -57,11 +99,12 @@ window.addEventListener('message', (event) => {
 // Listen for messages from the background script and relay to the page
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("[DApp Content Script] Received from background:", request);
+  const targetOrigin = getTargetOrigin();
 
   // Forward all EXTENSION_MESSAGE types to the page
   if (request.type === 'EXTENSION_MESSAGE') {
     console.log("[DApp Content Script] Forwarding EXTENSION_MESSAGE to page:", request.payload);
-    window.postMessage(request, '*');
+    window.postMessage(request, targetOrigin);
     sendResponse({ status: 'Message forwarded to page' });
     return true;
   }
@@ -71,7 +114,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       request.type === 'revokePermissionsFromBackground' ||
       request.type === 'updateUnlockedCharacters') {
     console.log("[DApp Content Script] Forwarding legacy message to page:", request);
-    window.postMessage({ type: 'EXTENSION_MESSAGE', payload: request }, '*');
+    window.postMessage({ type: 'EXTENSION_MESSAGE', payload: request }, targetOrigin);
     sendResponse({ status: 'Message forwarded to page' });
     return true;
   }

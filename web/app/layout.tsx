@@ -1,16 +1,19 @@
 import type React from "react";
 import type { Metadata, Viewport } from "next";
-import { Nunito, Space_Mono } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 import { FreighterProvider } from "@/components/freighter-provider";
 
-const nunito = Nunito({ subsets: ["latin"], variable: "--font-nunito" });
-const spaceMono = Space_Mono({
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "700"],
   subsets: ["latin"],
-  variable: "--font-space-mono",
+  variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#e8e4f0",
+  themeColor: "#0b0f14",
 };
 
 export default function RootLayout({
@@ -41,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${nunito.variable} ${spaceMono.variable} font-sans antialiased`}
+        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         <FreighterProvider>

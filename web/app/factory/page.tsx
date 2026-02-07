@@ -31,28 +31,28 @@ export default function FactoryPage() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gradient-to-b from-[#FFCC66] via-[#FF9999] to-[#1159CC]">
+    <main className="min-h-screen overflow-x-hidden neural-shell">
       <NavHeader showConnectButton />
 
       <section className="pt-28 pb-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#1159CC] mb-6">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
+              <Sparkles className="w-8 h-8" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <h1 className="text-4xl md:text-5xl font-semibold mb-4">
               Shimeji Factory
             </h1>
-            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Commission a custom shimeji with unique hand-animated sprites.
               Open a portal, set an intention, and your companion will arrive
               ready to chat and accompany you.
             </p>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-8">
-            <h2 className="text-xl font-bold mb-2">Intergalactic Portal</h2>
-            <p className="text-gray-700 text-sm">
+          <div className="neural-card rounded-2xl p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-2">Intergalactic Portal</h2>
+            <p className="text-muted-foreground text-sm">
               Each portal produces a unique shimeji with custom sprites. Your
               intention shapes its art direction and personality. Once ready, it
               appears in the extension with full AI chat support.
@@ -61,33 +61,33 @@ export default function FactoryPage() {
 
           {!mounted ? (
             <div className="text-center py-16">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#FF9999] border-t-transparent mb-4"></div>
-              <p className="text-gray-700">Loading...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
+              <p className="text-muted-foreground">Loading...</p>
             </div>
           ) : isConnected ? (
             <div className="grid lg:grid-cols-[2fr,1fr] gap-6 mb-10">
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+              <div className="neural-card rounded-2xl p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FFCC66] via-[#FF9999] to-[#FF99CC] flex items-center justify-center text-black font-bold">
+                  <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
                     Portal
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold mb-1">Starter Portal</h3>
-                    <p className="text-sm text-gray-700 mb-4">
+                    <h3 className="text-xl font-semibold mb-1">Starter Portal</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
                       Opens in a few days after purchase. We&apos;ll email you when
                       your shimeji is ready.
                     </p>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
                       Intention for this portal
                     </label>
                     <textarea
                       value={intent}
                       onChange={(event) => setIntent(event.target.value)}
                       placeholder="e.g. Help me focus while I code, remind me to take breaks"
-                      className="w-full min-h-[110px] rounded-xl border border-white/50 bg-white/80 p-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1159CC]"
+                      className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
                       maxLength={240}
                     />
-                    <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
+                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
                       <span>Max 240 characters</span>
                       <span>{intent.length}/240</span>
                     </div>
@@ -95,13 +95,13 @@ export default function FactoryPage() {
                 </div>
               </div>
 
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 flex flex-col justify-between">
+              <div className="neural-card rounded-2xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-lg font-bold mb-2">Checkout</h3>
-                  <p className="text-sm text-gray-700 mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Checkout</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
                     Connected as {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
                   </p>
-                  <div className="flex items-center justify-between py-2 border-b border-white/30 text-sm">
+                  <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
                     <span>Portal price</span>
                     <span className="font-semibold">Coming soon</span>
                   </div>
@@ -112,12 +112,12 @@ export default function FactoryPage() {
                 </div>
 
                 {reserved ? (
-                  <div className="mt-6 bg-white/80 rounded-2xl p-4 text-center">
-                    <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                    <p className="text-sm font-semibold text-gray-900">
+                  <div className="mt-6 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
+                    <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-foreground">
                       Portal reserved!
                     </p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-muted-foreground">
                       We&apos;ll reach out when payments go live.
                     </p>
                   </div>
@@ -125,7 +125,7 @@ export default function FactoryPage() {
                   <Button
                     onClick={handleReserve}
                     disabled={isReserving}
-                    className="mt-6 bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl py-6"
+                    className="mt-6 neural-button rounded-xl py-6"
                   >
                     {isReserving ? (
                       <span className="inline-flex items-center gap-2">
@@ -139,9 +139,9 @@ export default function FactoryPage() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 mb-8 bg-white/10 backdrop-blur-lg rounded-2xl">
-              <Wallet className="w-12 h-12 text-gray-500 mb-4" />
-              <p className="text-gray-700 text-center mb-4 max-w-sm">
+            <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
+              <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground text-center mb-4 max-w-sm">
                 Connect your Freighter wallet to reserve a portal.
               </p>
               <FreighterConnectButton />

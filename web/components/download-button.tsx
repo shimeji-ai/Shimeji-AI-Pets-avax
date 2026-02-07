@@ -42,13 +42,12 @@ const StyledWrapper = styled.div`
     transition: 0.5s;
     animation: gradient_301 5s ease infinite;
     border: double 4px transparent;
-    background-image: linear-gradient(#000000, #000000),
+    background-image: linear-gradient(#0b0f14, #0b0f14),
       linear-gradient(
-        137.48deg,
-        #ffcc66 10%,
-        #ff6666 45%,
-        #ff99cc 67%,
-        #1159cc 87%
+        120deg,
+        rgba(134, 240, 255, 0.6),
+        rgba(255, 255, 255, 0.15) 40%,
+        rgba(134, 240, 255, 0.6) 100%
       );
     background-origin: border-box;
     background-clip: content-box, border-box;
@@ -76,8 +75,8 @@ const StyledWrapper = styled.div`
     z-index: 2;
     font-size: 12px;
     letter-spacing: 3px;
-    color: #ffffff;
-    text-shadow: 0 0 4px white;
+    color: #e6f6ff;
+    text-shadow: 0 0 6px rgba(134, 240, 255, 0.6);
   }
 
   #glow {
@@ -95,16 +94,16 @@ const StyledWrapper = styled.div`
   }
 
   .circle:nth-of-type(1) {
-    background: rgba(255, 102, 102, 0.65);
+    background: rgba(134, 240, 255, 0.4);
   }
 
   .circle:nth-of-type(2) {
-    background: rgba(17, 89, 204, 0.7);
+    background: rgba(255, 255, 255, 0.2);
   }
 
   .btn:hover #container-stars {
     z-index: 1;
-    background-color: #000000;
+    background-color: #0b0f14;
   }
 
   .btn:hover {
@@ -112,14 +111,14 @@ const StyledWrapper = styled.div`
   }
 
   .btn:active {
-    border: double 4px #ff6666;
+    border: double 4px rgba(134, 240, 255, 0.8);
     background-origin: border-box;
     background-clip: content-box, border-box;
     animation: none;
   }
 
   .btn:active .circle {
-    background: #ff6666;
+    background: rgba(134, 240, 255, 0.8);
   }
 
   #stars {

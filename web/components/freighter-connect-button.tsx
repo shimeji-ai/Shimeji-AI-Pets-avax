@@ -23,7 +23,7 @@ export function FreighterConnectButton() {
     return (
       <Button
         asChild
-        className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-4"
+        className="neural-button rounded-xl px-4"
       >
         <a href="https://www.freighter.app/" target="_blank" rel="noreferrer">
           Install Freighter
@@ -36,7 +36,7 @@ export function FreighterConnectButton() {
     <div className="flex items-center gap-2">
       <Button
         onClick={isConnected ? disconnect : connect}
-        className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-4"
+        className="neural-button rounded-xl px-4"
         disabled={isConnecting}
       >
         {isConnecting

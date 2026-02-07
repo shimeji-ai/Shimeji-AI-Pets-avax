@@ -7,44 +7,72 @@
 <body>
   <header class="popup-header">
     <span class="logo">Shimeji</span>
+    <div class="popup-subtitle" id="popup-subtitle">Your AI mascot orchestrator</div>
+    <div class="popup-stats" id="popup-stats"></div>
   </header>
-
-  <section class="character-section">
-    <div class="popup-links">
-      <a href="https://chrome-extension-stellar-shimeji-fa.vercel.app/" target="_blank" class="popup-link wallet-link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-          <line x1="9" y1="9" x2="9.01" y2="9"></line>
-          <line x1="15" y1="9" x2="15.01" y2="9"></line>
-        </svg>
-        <span>Select character</span>
-      </a>
-      <a href="https://www.shimeji.dev/factory" target="_blank" class="popup-link marketplace-link">
-        <span>Open more portals</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <line x1="10" y1="14" x2="21" y2="3"></line>
-        </svg>
-      </a>
-    </div>
-  </section>
 
   <section class="controls-section">
     <div class="control-group">
-      <h3>Size</h3>
-      <div class="button-group">
-        <button class="control-btn size-btn" data-size="small">S</button>
-        <button class="control-btn size-btn" data-size="medium">M</button>
-        <button class="control-btn size-btn" data-size="big">L</button>
+      <div class="mode-switch">
+        <button class="control-btn mode-switch-btn" id="basic-mode-btn">Basic</button>
+        <button class="control-btn mode-switch-btn" id="advanced-mode-btn">Advanced</button>
       </div>
     </div>
+
+    <div class="control-group advanced-only">
+      <h3 id="security-title">Security</h3>
+      <div class="security-box">
+        <label class="toggle-row mini-toggle">
+          <span class="toggle-label" id="masterkey-label">Protect keys with master key</span>
+          <input type="checkbox" id="masterkey-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <label class="toggle-row mini-toggle">
+          <span class="toggle-label" id="autolock-label">Auto-lock</span>
+          <input type="checkbox" id="autolock-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="security-input-row">
+          <input type="range" id="autolock-minutes" class="ai-range" min="5" max="120" step="5">
+          <span class="security-inline-label" id="autolock-minutes-label">30 min</span>
+        </div>
+        <div class="security-input-row">
+          <input type="password" id="masterkey-input" class="ai-input" placeholder="Master key">
+          <button class="control-btn mini-btn" id="masterkey-unlock-btn">Unlock</button>
+          <button class="control-btn mini-btn" id="masterkey-lock-btn">Lock</button>
+        </div>
+        <div class="security-status" id="masterkey-status"></div>
+      </div>
+    </div>
+
     <div class="control-group">
-      <h3>Visibility</h3>
+      <div class="section-header">
+        <h3 id="shimeji-section-title">Shimejis</h3>
+        <button class="control-btn add-btn" id="add-shimeji-btn">Add</button>
+      </div>
+      <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
+      <div class="mode-controls">
+        <button class="control-btn mode-btn" id="wake-all-btn">Wake All</button>
+        <button class="control-btn mode-btn" id="sleep-all-btn">Sleep All</button>
+      </div>
+      <div id="shimeji-list" class="shimeji-list"></div>
+      <div class="popup-links">
+        <a href="https://www.shimeji.dev/factory" target="_blank" class="popup-link marketplace-link">
+          <span id="link-open-portals">Open more portals</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <h3 id="appearance-visibility-title">Visibility</h3>
       <div class="visibility-controls">
         <label class="toggle-row" id="page-toggle-row">
-          <span class="toggle-label">Enabled on this page</span>
+          <span class="toggle-label" id="label-enabled-page">Enabled on this page</span>
           <input type="checkbox" id="page-toggle" class="toggle-checkbox">
           <span class="toggle-slider"></span>
         </label>
@@ -53,68 +81,6 @@
           <button class="control-btn global-btn" id="disable-all-btn">Disable All</button>
         </div>
         <div class="global-status" id="global-status"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="controls-section ai-section">
-    <div class="control-group">
-      <h3>AI Chat</h3>
-      <div class="ai-controls">
-        <div class="chat-mode-toggle">
-          <button class="mode-card selected" data-mode="standard">
-            <span class="mode-card-title">Standard</span>
-            <span class="mode-card-subtitle">Text only</span>
-          </button>
-          <button class="mode-card" data-mode="agent">
-            <span class="mode-card-title">AI Agent</span>
-            <span class="mode-card-subtitle">Online & onchain tools</span>
-          </button>
-        </div>
-        <div id="standard-fields">
-          <div class="ai-field">
-            <label class="ai-label" for="ai-personality">Personality</label>
-            <select id="ai-personality" class="ai-select">
-              <option value="cryptid">Cryptid</option>
-              <option value="cozy">Cozy</option>
-              <option value="chaotic">Chaotic</option>
-              <option value="philosopher">Philosopher</option>
-              <option value="hype">Hype Beast</option>
-              <option value="noir">Noir</option>
-            </select>
-          </div>
-          <div class="ai-field">
-            <label class="ai-label" for="ai-provider">Provider</label>
-            <select id="ai-provider" class="ai-select">
-              <option value="openrouter">OpenRouter</option>
-              <option value="openai">OpenAI</option>
-            </select>
-          </div>
-          <div class="ai-field">
-            <label class="ai-label" for="ai-model">Model</label>
-            <select id="ai-model" class="ai-select"></select>
-          </div>
-          <div class="ai-field">
-            <label class="ai-label" for="ai-api-key">API Key</label>
-            <div class="api-key-wrapper">
-              <input type="password" id="ai-api-key" class="ai-input" placeholder="Enter your API key">
-              <button id="toggle-key-visibility" class="key-toggle-btn" type="button">Show</button>
-            </div>
-          </div>
-        </div>
-        <div id="agent-fields" style="display: none;">
-          <div class="ai-field">
-            <label class="ai-label" for="openclaw-gateway-url">Gateway URL</label>
-            <input type="text" id="openclaw-gateway-url" class="ai-input" placeholder="ws://127.0.0.1:18789">
-          </div>
-        </div>
-        <div id="ai-onboarding" class="ai-onboarding" role="note"></div>
-        <label class="toggle-row" id="proactive-toggle-row">
-          <span class="toggle-label">Proactive messages</span>
-          <input type="checkbox" id="proactive-toggle" class="toggle-checkbox">
-          <span class="toggle-slider"></span>
-        </label>
-        <div class="ai-hint">Shimeji will occasionally comment on the page you're browsing</div>
       </div>
     </div>
   </section>

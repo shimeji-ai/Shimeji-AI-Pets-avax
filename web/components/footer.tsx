@@ -11,12 +11,12 @@ export function Footer() {
   return (
     <footer>
       {/* Footer Links */}
-      <div className="border-t border-primary-foreground/10 bg-primary">
+      <div className="border-t border-white/10 bg-[#0b0f14]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-3 gap-10">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
                   <Image
                     src="/logo.png"
                     alt="Shimeji Logo"
@@ -24,11 +24,11 @@ export function Footer() {
                     height={36}
                   />
                 </div>
-                <span className="text-lg font-bold text-primary-foreground">
+                <span className="text-lg font-semibold text-foreground">
                   Shimeji Factory
                 </span>
               </div>
-              <p className="text-primary-foreground/60 text-sm max-w-xs mb-6 leading-relaxed">
+              <p className="text-muted-foreground text-sm max-w-xs mb-6 leading-relaxed">
                 {isSpanish
                   ? "Compañeros animados con IA para tu navegador. Chatea, recibe avisos suaves o conecta un agente con herramientas online y onchain."
                   : "Animated AI companions for your browser. Chat, get gentle nudges, or connect an agent with online and onchain tools."}
@@ -38,28 +38,28 @@ export function Footer() {
                   href="https://x.com/ShimejiFactory"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FFCC66] via-[#FF9999] to-[#1159CC] p-[2px] shadow-[0_10px_22px_rgba(17,89,204,0.35)] transition-transform hover:-translate-y-0.5"
+                  className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="Twitter"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0B0B14] text-[#FFCC66]">
+                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
                     <Twitter className="w-5 h-5" />
                   </span>
                 </Link>
                 <Link
                   href="#"
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FFCC66] via-[#FF9999] to-[#1159CC] p-[2px] shadow-[0_10px_22px_rgba(17,89,204,0.35)] transition-transform hover:-translate-y-0.5"
+                  className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="Discord"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0B0B14] text-[#FFCC66]">
+                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
                     <MessageCircle className="w-5 h-5" />
                   </span>
                 </Link>
                 <Link
                   href="#"
-                  className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#FFCC66] via-[#FF9999] to-[#1159CC] p-[2px] shadow-[0_10px_22px_rgba(17,89,204,0.35)] transition-transform hover:-translate-y-0.5"
+                  className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="GitHub"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0B0B14] text-[#FFCC66]">
+                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
                     <Github className="w-5 h-5" />
                   </span>
                 </Link>
@@ -67,24 +67,24 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4 text-sm text-primary-foreground">
+              <h3 className="font-semibold mb-4 text-sm text-foreground">
                 {isSpanish ? "Mantente informado" : "Stay Updated"}
               </h3>
               <UpdatesSubscribePopup
-                buttonClassName="bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground text-sm"
+                buttonClassName="bg-white/5 hover:bg-white/10 text-foreground text-sm"
                 buttonVariant="ghost"
               />
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4 text-sm text-primary-foreground">
+              <h3 className="font-semibold mb-4 text-sm text-foreground">
                 {isSpanish ? "Navegación" : "Navigate"}
               </h3>
               <ul className="space-y-3">
                 <li>
                   <Link
                     href="/"
-                    className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Inicio" : "Home"}
                   </Link>
@@ -92,7 +92,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/factory"
-                    className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Fábrica" : "Factory"}
                   </Link>
@@ -102,7 +102,7 @@ export function Footer() {
                     href="https://x.com/ShimejiFactory"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     X / Twitter
                   </Link>
@@ -110,7 +110,7 @@ export function Footer() {
                 <li>
                   <Link
                     href="/download"
-                    className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Descargar" : "Download"}
                   </Link>
@@ -120,14 +120,14 @@ export function Footer() {
           </div>
 
           {/* Credits */}
-          <div className="border-t border-primary-foreground/10 mt-10 pt-6 text-center">
-            <p className="text-sm text-primary-foreground/60">
+          <div className="border-t border-white/10 mt-10 pt-6 text-center">
+            <p className="text-sm text-muted-foreground">
               {isSpanish ? "Creado por " : "Created by "}
               <Link
                 href="https://x.com/LuloxDev"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary-foreground hover:underline"
+                className="text-foreground hover:underline"
               >
                 @LuloxDev
               </Link>{" "}
@@ -136,7 +136,7 @@ export function Footer() {
                 href="https://x.com/Kathonejo"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary-foreground hover:underline"
+                className="text-foreground hover:underline"
               >
                 @Kathonejo
               </Link>

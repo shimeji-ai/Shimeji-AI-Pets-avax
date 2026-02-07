@@ -68,8 +68,8 @@ export function GiveawayWidget() {
             : "pointer-events-none w-0 opacity-0 translate-x-3"
         }`}
       >
-        <div className="rounded-2xl giveaway-border p-[2px] shadow-[0_12px_30px_rgba(17,89,204,0.45)]">
-          <div className="relative rounded-[calc(1rem-2px)] bg-[#1159CC] text-white p-3 md:p-4">
+        <div className="rounded-2xl giveaway-border p-[2px] shadow-[0_12px_30px_rgba(0,0,0,0.45)]">
+          <div className="relative rounded-[calc(1rem-2px)] bg-[#0b0f14] text-white p-3 md:p-4 border border-white/10">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
@@ -78,7 +78,7 @@ export function GiveawayWidget() {
             >
               ×
             </button>
-            <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[#FFCC66]">
+            <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
               {isSpanish ? "Giveaway Shimeji" : "Shimeji Giveaway"}
             </p>
             <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
@@ -90,7 +90,7 @@ export function GiveawayWidget() {
                 href="https://x.com/ShimejiFactory"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-bold underline decoration-2 underline-offset-2 text-[#FFCC66] hover:opacity-80"
+                className="font-bold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
               >
                 @ShimejiFactory
               </Link>
@@ -101,7 +101,7 @@ export function GiveawayWidget() {
             <button
               type="button"
               onClick={goToFeedback}
-              className="mt-3 h-8 rounded-lg px-3 text-xs font-bold bg-[#1159CC] text-white hover:bg-[#000000]"
+              className="mt-3 h-8 rounded-lg px-3 text-xs font-bold neural-button"
             >
               {isSpanish ? "Ir al formulario" : "Go to feedback form"}
             </button>
@@ -112,13 +112,12 @@ export function GiveawayWidget() {
       <style jsx>{`
         .giveaway-border {
           background-size: 300% 300%;
-          animation: gradient_301 5s ease infinite;
+          animation: gradient_301 6s ease infinite;
           background-image: linear-gradient(
             137.48deg,
-            #FFCC66 10%,
-            #FF6666 45%,
-            #FF99CC 67%,
-            #1159CC 87%
+            rgba(134, 240, 255, 0.35) 10%,
+            rgba(255, 255, 255, 0.1) 45%,
+            rgba(134, 240, 255, 0.35) 87%
           );
         }
 

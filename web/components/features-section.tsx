@@ -20,9 +20,9 @@ const features = [
   },
   {
     icon: Sparkles,
-    title: "Proactive Comments",
+    title: "Multi Shimeji",
     description:
-      "Enable proactive messages and your shimeji will gently react to what you're browsing.",
+      "Run up to five companions at once, each with its own personality and brain.",
   },
   {
     icon: Palette,
@@ -46,14 +46,17 @@ export function FeaturesSection() {
   };
 
   return (
-    <section id="features" className="py-8 px-4 sm:px-6 lg:px-8">
+    <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight">
+          <div className="text-center mb-16">
+            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
+              {isSpanish ? "Capacidades" : "Capabilities"}
+            </p>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight">
               {isSpanish ? "¿Qué puede hacer tu Shimeji?" : "What Can Your Shimeji Do?"}
             </h2>
-            <p className="text-lg text-foreground mt-4 max-w-xl mx-auto">
+            <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
                 ? "Más que una mascota: un compañero con IA que conversa, opina y actúa cuando lo necesitas"
                 : "More than a mascot — a companion that chats, reacts, and acts when you need it"}
@@ -64,20 +67,20 @@ export function FeaturesSection() {
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group bg-card rounded-3xl p-8 border border-[#FF9999] transition-all"
+                className="group neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
-                <div className="w-12 h-12 bg-[#FF6666] rounded-2xl flex items-center justify-center mb-6 transition-colors">
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 transition-colors text-[var(--brand-accent)]">
                   <feature.icon className="w-5 h-5" />
                 </div>
 
-                <h3 className="text-lg font-bold text-foreground mb-2">
+                <h3 className="text-lg font-semibold text-foreground mb-2">
                   {isSpanish
                     ? feature.title === "AI Chat with Personality"
                       ? "Chat IA con personalidad"
                       : feature.title === "AI Agent Mode"
                         ? "Modo agente IA"
-                        : feature.title === "Proactive Comments"
-                          ? "Comentarios espontáneos"
+                        : feature.title === "Multi Shimeji"
+                          ? "Multi shimejis"
                           : feature.title === "Handcrafted Sprites"
                             ? "Sprites hechos a mano"
                             : "Integración con Stellar"
@@ -89,8 +92,8 @@ export function FeaturesSection() {
                       ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
                       : feature.title === "AI Agent Mode"
                         ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
-                        : feature.title === "Proactive Comments"
-                          ? "Activa mensajes proactivos y tu shimeji reaccionará con comentarios suaves a lo que ves."
+                        : feature.title === "Multi Shimeji"
+                          ? "Muestra hasta cinco compañeros a la vez, cada uno con su personalidad y cerebro."
                           : feature.title === "Handcrafted Sprites"
                             ? "Encarga un shimeji personalizado en Factory. Cada uno se anima a mano con arte único."
                             : "Conecta Freighter para reservar portales y manejar pagos en la red Stellar."

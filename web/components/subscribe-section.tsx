@@ -17,21 +17,21 @@ export function SubscribeSection() {
   };
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8">
+    <section className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-r from-[#1159CC]/15 to-[#FF9999]/10 backdrop-blur-lg rounded-3xl p-8 md:p-12 border border-[#1159CC]/25">
+          <div className="neural-card rounded-3xl p-8 md:p-12">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-shrink-0">
-                <div className="w-16 h-16 rounded-2xl bg-[#1159CC] flex items-center justify-center">
-                  <Mail className="w-8 h-8 text-white" />
+                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--brand-accent)]">
+                  <Mail className="w-8 h-8" />
                 </div>
               </div>
               <div className="flex-1 text-center md:text-left">
-                <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                <h2 className="text-2xl md:text-3xl font-semibold mb-2">
                   {isSpanish ? "Mantente al día" : "Stay in the Loop"}
                 </h2>
-                <p className="text-gray-700">
+                <p className="text-muted-foreground">
                   {isSpanish
                     ? "Recibe avisos sobre nuevas funciones, soporte para todas las colecciones y lanzamientos de la plataforma."
                     : "Get notified about new features, support for all collections, and platform launches. Be the first to know when we release updates!"}
@@ -40,7 +40,7 @@ export function SubscribeSection() {
               <div className="flex-shrink-0">
                 <Button
                   onClick={() => setIsModalOpen(true)}
-                  className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-6 py-6 text-lg"
+                  className="neural-button rounded-xl px-6 py-6 text-lg"
                 >
                   <Bell className="w-5 h-5 mr-2" />
                   {isSpanish ? "Suscribirme" : "Subscribe"}

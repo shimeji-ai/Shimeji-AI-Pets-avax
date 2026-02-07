@@ -21,7 +21,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
 
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
-      <div className="max-w-6xl mx-auto bg-[#FFCCCC] backdrop-blur-lg rounded-2xl shadow-sm">
+      <div className="max-w-6xl mx-auto neural-card rounded-2xl border border-white/10">
         <div className="flex items-center justify-between h-16 px-6 w-full">
           <div
             className="relative"
@@ -29,7 +29,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             onMouseLeave={() => setIsLogoHovered(false)}
           >
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
                 <Image
                   src="/logo.png"
                   alt="Shimeji Logo"
@@ -37,7 +37,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
                   height={36}
                 />
               </div>
-              <span className="text-lg font-bold text-foreground tracking-tight">
+              <span className="text-lg font-semibold text-foreground tracking-tight">
                 Shimeji Factory
               </span>
             </Link>
@@ -47,13 +47,13 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
           <nav className="hidden lg:flex items-center gap-8">
             <Link
               href="/"
-              className="text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Inicio" : "Home"}
             </Link>
             <Link
               href="/factory"
-              className="text-md text-muted-foreground hover:text-foreground transition-colors font-medium"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Fábrica" : "Factory"}
             </Link>

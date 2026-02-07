@@ -43,11 +43,14 @@ export function HowItWorksSection() {
   };
 
   return (
-    <section id="how-it-works" className="py-8 px-4 sm:px-6 lg:px-8">
+    <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight text-balance">
+          <div className="text-center mb-16">
+            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
+              {isSpanish ? "Flujo base" : "Core flow"}
+            </p>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight text-balance">
               {isSpanish ? "Cómo Funciona" : "How It Works"}
             </h2>
           </div>
@@ -56,13 +59,13 @@ export function HowItWorksSection() {
             {steps.map((step) => (
               <div
                 key={step.title}
-                className="group relative bg-card rounded-3xl p-8 border border-[#FF9999] transition-all hover:shadow-lg"
+                className="group relative neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-8">
-                  <div className="w-14 h-14 bg-[#FF6666] rounded-2xl flex items-center justify-center transition-colors">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-[var(--brand-accent)]">
                     <step.icon className="w-6 h-6" />
                   </div>
-                  <span className="text-5xl font-bold text-border  transition-colors font-mono">
+                  <span className="text-5xl font-semibold text-white/10 transition-colors font-mono">
                     {step.step}
                   </span>
                 </div>

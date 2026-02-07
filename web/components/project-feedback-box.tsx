@@ -103,7 +103,7 @@ export function ProjectFeedbackBox() {
 
   return (
     <div id="feedback-form-section" className="mt-10 md:mt-12">
-      <div className="bg-white/75 backdrop-blur rounded-3xl border border-[#FF9999] p-6 md:p-8">
+      <div className="neural-card rounded-3xl p-6 md:p-8 border border-white/10">
         <h3 className="text-2xl font-bold text-foreground mb-2">
           {isSpanish
             ? "¿Qué te parece este proyecto?"
@@ -129,7 +129,7 @@ export function ProjectFeedbackBox() {
             value={feedback}
             onChange={(event) => setFeedback(event.target.value)}
             placeholder={isSpanish ? "Comparte tu opinión..." : "Share your thoughts..."}
-            className="w-full min-h-28 rounded-2xl border border-[#FF9999] bg-white p-4 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[#FF9999]"
+            className="w-full min-h-28 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             maxLength={1500}
             required
           />
@@ -143,7 +143,7 @@ export function ProjectFeedbackBox() {
                 ? "Usuario de X (opcional) ej: @tuusuario"
                 : "X username (optional) e.g. @yourhandle"
             }
-            className="w-full rounded-xl border border-[#FF9999] bg-white px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[#FF9999]"
+            className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
 
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -155,7 +155,7 @@ export function ProjectFeedbackBox() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-6"
+              className="neural-button rounded-xl px-6"
             >
               {isSubmitting
                 ? isSpanish

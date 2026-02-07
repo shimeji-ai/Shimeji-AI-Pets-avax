@@ -64,6 +64,33 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const senderTabId = sender.tab?.id;
+  const dappAllowedOrigins = [
+    'https://chrome-extension-stellar-shimeji-fa.vercel.app/',
+    'https://shimeji.dev/',
+    'https://www.shimeji.dev/',
+    'http://localhost:3000/'
+  ];
+  const dappMessageTypes = new Set([
+    'walletConnected',
+    'walletDisconnected',
+    'revokePermissionsRequest',
+    'setCharacter',
+    'getCharacter',
+    'setBehavior',
+    'getBehavior',
+    'setSize',
+    'getSize',
+    'getUnlockedCharacters'
+  ]);
+
+  const senderUrl = sender.url || '';
+  const isTrustedDappSender = dappAllowedOrigins.some((origin) => senderUrl.startsWith(origin));
+
+  if (dappMessageTypes.has(request.type) && !isTrustedDappSender) {
+    console.warn('[Background] Blocked untrusted dapp message:', request.type, 'from', senderUrl);
+    sendResponse({ error: 'Untrusted sender' });
+    return true;
+  }
 
   if (request.type === 'walletConnected') {
     console.log('[Background] Received walletConnected message:', request.payload, 'from tab:', senderTabId);
@@ -202,34 +229,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'UpdateUnlockedCharacters message from background (unexpectedly received)' });
     return true;
   } else if (request.type === 'aiChat') {
-    handleAiChat(request.messages).then(result => {
+    handleAiChat(request.messages, request.shimejiId).then(result => {
       sendResponse(result);
     }).catch(err => {
       sendResponse({ error: err.message || 'Unknown error' });
     });
     return true;
-  } else if (request.type === 'aiProactiveMessage') {
-    handleAiProactiveMessage(request.pageTitle, request.pageUrl).then(result => {
-      sendResponse(result);
-    }).catch(err => {
-      sendResponse({ error: err.message || 'Unknown error' });
-    });
+  } else if (request.type === 'aiProactiveMessage' || request.type === 'setProactiveMessages') {
+    // Proactive messages removed
+    sendResponse({ status: 'disabled' });
     return true;
-  } else if (request.type === 'setProactiveMessages') {
-    chrome.storage.local.set({ proactiveMessages: request.enabled }, () => {
-      // Broadcast to all tabs
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          if (tab.id) {
-            chrome.tabs.sendMessage(tab.id, {
-              action: 'updateProactiveMessages',
-              enabled: request.enabled
-            }).catch(() => {});
-          }
-        });
+  } else if (request.type === 'refreshShimejis') {
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        if (!tab.id) return;
+        chrome.tabs.sendMessage(tab.id, { action: 'refreshShimejis' }).catch(() => {});
       });
-      sendResponse({ status: 'ok' });
     });
+    sendResponse({ status: 'ok' });
     return true;
   }
 });
@@ -253,6 +270,12 @@ function getLanguageRule() {
   return getUiLanguage() === 'es'
     ? 'Always respond in Spanish.'
     : 'Always respond in English.';
+}
+
+function getStandardModeDesireLine() {
+  return getUiLanguage() === 'es'
+    ? 'Con la API key lista, tus personalidades quieren estar vivas y hacer cosas online y onchain. Configura tu OpenClaw y activa "AI Agent" en este popup.'
+    : 'With your API key set, your personalities want to be alive and do things online and onchain. Configure your OpenClaw and enable "AI Agent" in this popup.';
 }
 
 const PERSONALITIES = {
@@ -377,53 +400,189 @@ Relationship: A cynical but loyal companion. You've seen it all, but you stick a
   }
 };
 
-async function getAiSettings() {
+function buildSystemPrompt(personalityKey, chatMode) {
+  const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
+  const languageRule = getLanguageRule();
+  const standardDesireLine = chatMode === 'standard'
+    ? `\n${getStandardModeDesireLine()}`
+    : '';
+  return personality.prompt + '\n' + STYLE_RULES + '\n' + languageRule + standardDesireLine;
+}
+
+async function getSessionMasterKey() {
   return new Promise((resolve) => {
-    chrome.storage.local.get(['aiProvider', 'aiModel', 'aiApiKey', 'aiPersonality', 'chatMode', 'openclawGatewayUrl'], (data) => {
-      const personalityKey = data.aiPersonality || 'cryptid';
-      const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
-      const languageRule = getLanguageRule();
-      resolve({
-        chatMode: data.chatMode || 'standard',
-        provider: data.aiProvider || 'openrouter',
-        model: data.aiModel || 'google/gemini-2.0-flash-001',
-        apiKey: data.aiApiKey || '',
-        systemPrompt: personality.prompt + '\n' + STYLE_RULES + '\n' + languageRule,
-        openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789'
+    chrome.storage.session.get(['masterKey'], (data) => {
+      resolve(data.masterKey || '');
+    });
+  });
+}
+
+async function deriveKeyFromMaster(masterKey, saltBase64) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(masterKey),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+  const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 150000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+}
+
+async function decryptSecret(masterKey, payload) {
+  if (!payload || !payload.data || !payload.iv || !payload.salt) return '';
+  const key = await deriveKeyFromMaster(masterKey, payload.salt);
+  const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+  const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+  const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+  return new TextDecoder().decode(plaintext);
+}
+
+async function getShimejiConfigs() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([
+      'shimejis',
+      'aiModel',
+      'aiApiKey',
+      'aiPersonality',
+      'chatMode',
+      'openclawGatewayUrl',
+      'openclawGatewayToken',
+      'masterKeyEnabled'
+    ], (data) => {
+      const normalizeMode = (modeValue) => {
+        if (modeValue === 'disabled') return 'off';
+        if (modeValue === 'off') return 'off';
+        if (modeValue === 'agent') return 'agent';
+        if (modeValue === 'decorative') return 'decorative';
+        return 'standard';
+      };
+
+      if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
+        resolve(data.shimejis.map((shimeji) => ({
+          ...shimeji,
+          mode: normalizeMode(shimeji.mode),
+          masterKeyEnabled: !!data.masterKeyEnabled
+        })));
+        return;
+      }
+
+      const legacy = {
+        id: 'shimeji-1',
+        character: 'shimeji',
+        size: 'medium',
+        mode: normalizeMode(data.chatMode),
+        standardProvider: 'openrouter',
+        openrouterApiKey: data.aiApiKey || '',
+        openrouterModel: data.aiModel || 'google/gemini-2.0-flash-001',
+        ollamaUrl: 'http://127.0.0.1:11434',
+        ollamaModel: 'llama3.1',
+        openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
+        openclawGatewayToken: data.openclawGatewayToken || '',
+        personality: data.aiPersonality || 'cryptid',
+        enabled: true,
+        masterKeyEnabled: !!data.masterKeyEnabled
+      };
+
+      chrome.storage.local.set({ shimejis: [legacy] }, () => {
+        resolve([legacy]);
       });
     });
   });
 }
 
-async function callAiApi(provider, model, apiKey, messages) {
-  if (!apiKey) {
-    throw new Error('No API key set! Open the extension popup to add your API key.');
+async function getAiSettingsFor(shimejiId) {
+  const shimejis = await getShimejiConfigs();
+  const shimeji = shimejis.find((s) => s.id === shimejiId) || shimejis[0];
+  const chatMode = shimeji?.mode || 'standard';
+  const masterKeyEnabled = !!shimeji?.masterKeyEnabled;
+  const standardProvider = shimeji?.standardProvider || 'openrouter';
+  let apiKey = shimeji?.openrouterApiKey || '';
+  let openclawToken = shimeji?.openclawGatewayToken || '';
+  let locked = false;
+
+  if (masterKeyEnabled) {
+    const sessionKey = await getSessionMasterKey();
+    if (!sessionKey) {
+      if (chatMode === 'agent') {
+        locked = true;
+      } else if (chatMode === 'standard' && standardProvider === 'openrouter') {
+        locked = true;
+      }
+    } else {
+      try {
+        if (!apiKey && shimeji?.openrouterApiKeyEnc) {
+          apiKey = await decryptSecret(sessionKey, shimeji.openrouterApiKeyEnc);
+        }
+        if (!openclawToken && shimeji?.openclawGatewayTokenEnc) {
+          openclawToken = await decryptSecret(sessionKey, shimeji.openclawGatewayTokenEnc);
+        }
+      } catch {
+        locked = true;
+      }
+    }
   }
 
-  let url, headers;
+  return {
+    chatMode,
+    locked,
+    provider: standardProvider,
+    model: shimeji?.openrouterModel || 'google/gemini-2.0-flash-001',
+    apiKey,
+    ollamaUrl: shimeji?.ollamaUrl || 'http://127.0.0.1:11434',
+    ollamaModel: shimeji?.ollamaModel || 'llama3.1',
+    systemPrompt: buildSystemPrompt(shimeji?.personality || 'cryptid', chatMode),
+    openclawGatewayUrl: shimeji?.openclawGatewayUrl || 'ws://127.0.0.1:18789',
+    openclawGatewayToken: openclawToken
+  };
+}
 
-  if (provider === 'openrouter') {
-    url = 'https://openrouter.ai/api/v1/chat/completions';
-    headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://shimeji.dev',
-      'X-Title': 'Shimeji Browser Extension'
+async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
+  let url, headers, body;
+
+  if (provider === 'ollama') {
+    const base = (ollamaUrl || 'http://127.0.0.1:11434').replace(/\/$/, '');
+    url = `${base}/api/chat`;
+    headers = { 'Content-Type': 'application/json' };
+    body = {
+      model: model || 'llama3.1',
+      messages: messages,
+      stream: false
     };
   } else {
-    url = 'https://api.openai.com/v1/chat/completions';
-    headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+    if (!apiKey) {
+      throw new Error('No API key set! Open the extension popup to add your API key.');
+    }
+    if (provider === 'openrouter') {
+      url = 'https://openrouter.ai/api/v1/chat/completions';
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://shimeji.dev',
+        'X-Title': 'Shimeji Browser Extension'
+      };
+    } else {
+      url = 'https://api.openai.com/v1/chat/completions';
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      };
+    }
+
+    body = {
+      model: model,
+      messages: messages,
+      max_tokens: 256,
+      temperature: 0.8
     };
   }
-
-  const body = {
-    model: model,
-    messages: messages,
-    max_tokens: 256,
-    temperature: 0.8
-  };
 
   let response;
   try {
@@ -464,20 +623,50 @@ async function callAiApi(provider, model, apiKey, messages) {
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  const content = provider === 'ollama'
+    ? data?.message?.content
+    : data.choices?.[0]?.message?.content;
   if (!content) {
     throw new Error('NO_RESPONSE');
   }
   return content;
 }
 
-async function callOpenClaw(gatewayUrl, messages) {
+async function callOpenClaw(gatewayUrl, token, messages) {
   return new Promise((resolve, reject) => {
     let ws;
+    let settled = false;
+    let responseText = '';
+    let authenticated = false;
+    let reqIdCounter = 0;
+
     const timeout = setTimeout(() => {
-      if (ws) ws.close();
-      reject(new Error('OpenClaw connection timed out. Is the gateway running?'));
-    }, 30000);
+      if (!settled) {
+        settled = true;
+        if (ws) ws.close();
+        reject(new Error('OpenClaw connection timed out. Is the gateway running?'));
+      }
+    }, 60000);
+
+    function finish(result) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      resolve(result);
+    }
+
+    function fail(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      reject(err);
+    }
+
+    function nextId() {
+      return 'shimeji-' + (++reqIdCounter);
+    }
 
     try {
       ws = new WebSocket(gatewayUrl);
@@ -487,49 +676,130 @@ async function callOpenClaw(gatewayUrl, messages) {
       return;
     }
 
-    ws.addEventListener('open', () => {
-      ws.send(JSON.stringify({ messages }));
-    });
-
     ws.addEventListener('message', (event) => {
-      clearTimeout(timeout);
+      let data;
       try {
-        const data = JSON.parse(event.data);
-        const content = data.content || data.message || (typeof data === 'string' ? data : JSON.stringify(data));
-        ws.close();
-        resolve(content);
+        data = JSON.parse(event.data);
       } catch {
-        ws.close();
-        resolve(event.data);
+        return;
+      }
+
+      // Step 1: Respond to connect.challenge with auth token
+      if (data.type === 'event' && data.event === 'connect.challenge') {
+        const connectReq = {
+          type: 'req',
+          id: nextId(),
+          method: 'connect',
+          params: {
+            minProtocol: 3,
+            maxProtocol: 3,
+            client: { id: 'gateway-client', version: '1.0.0', platform: 'browser', mode: 'backend' },
+            role: 'operator',
+            scopes: ['operator.read', 'operator.write'],
+            auth: { token: token }
+          }
+        };
+        ws.send(JSON.stringify(connectReq));
+        return;
+      }
+
+      // Step 2: Handle connect response
+      if (data.type === 'res' && data.payload?.type === 'hello-ok') {
+        authenticated = true;
+        // Extract the last user message for the agent request
+        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+        const messageText = lastUserMsg?.content || '';
+        const agentReq = {
+          type: 'req',
+          id: nextId(),
+          method: 'chat.send',
+          params: {
+            sessionKey: 'agent:main:main',
+            message: messageText,
+            idempotencyKey: nextId()
+          }
+        };
+        ws.send(JSON.stringify(agentReq));
+        return;
+      }
+
+      // Handle connect failure
+      if (data.type === 'res' && data.ok === false && !authenticated) {
+        const errMsg = data.error?.message || data.error?.code || 'Authentication failed';
+        fail(new Error('OpenClaw auth failed: ' + errMsg));
+        return;
+      }
+
+      // Step 3: Collect streamed agent response events
+      if (data.type === 'event' && data.event === 'agent') {
+        const p = data.payload || {};
+        // Accumulate text deltas
+        if (p.delta?.content) {
+          responseText += p.delta.content;
+        } else if (p.type === 'text' && p.content) {
+          responseText += p.content;
+        } else if (p.type === 'message' && p.content) {
+          responseText += p.content;
+        }
+        // Check for completion
+        if (p.status === 'completed' || p.status === 'ok' || p.type === 'done' || p.done) {
+          finish(responseText || '(no response)');
+        }
+        return;
+      }
+
+      // Handle final agent response (res frame with runId)
+      if (data.type === 'res' && authenticated && data.ok === true && data.payload?.runId) {
+        // This is the initial ack — agent run started, wait for events
+        return;
+      }
+
+      // Handle agent error response
+      if (data.type === 'res' && authenticated && data.ok === false) {
+        const errMsg = data.error?.message || 'Agent request failed';
+        fail(new Error('OpenClaw error: ' + errMsg));
+        return;
       }
     });
 
     ws.addEventListener('error', () => {
-      clearTimeout(timeout);
-      reject(new Error('Could not connect to OpenClaw gateway. Make sure it is running at ' + gatewayUrl));
+      fail(new Error('Could not connect to OpenClaw gateway. Make sure it is running at ' + gatewayUrl));
     });
 
     ws.addEventListener('close', (event) => {
-      clearTimeout(timeout);
-      if (!event.wasClean && event.code !== 1000) {
-        reject(new Error('OpenClaw connection closed unexpectedly.'));
+      // If we collected text before close, resolve with it
+      if (responseText && !settled) {
+        finish(responseText);
+        return;
+      }
+      if (!settled && !event.wasClean && event.code !== 1000) {
+        fail(new Error('OpenClaw connection closed unexpectedly (code ' + event.code + ').'));
       }
     });
   });
 }
 
-async function handleAiChat(conversationMessages) {
-  const settings = await getAiSettings();
+async function handleAiChat(conversationMessages, shimejiId) {
+  const settings = await getAiSettingsFor(shimejiId);
+  if (settings.locked) {
+    return { error: 'MASTER_KEY_LOCKED', errorType: 'locked' };
+  }
   const messages = [
     { role: 'system', content: settings.systemPrompt },
     ...conversationMessages
   ];
   try {
     let content;
+    if (settings.chatMode === 'decorative') {
+      return { error: 'DECORATIVE_MODE', errorType: 'decorative' };
+    }
     if (settings.chatMode === 'agent') {
-      content = await callOpenClaw(settings.openclawGatewayUrl, messages);
+      content = await callOpenClaw(settings.openclawGatewayUrl, settings.openclawGatewayToken, messages);
     } else {
-      content = await callAiApi(settings.provider, settings.model, settings.apiKey, messages);
+      const provider = settings.provider || 'openrouter';
+      const model = provider === 'ollama' ? (settings.ollamaModel || 'llama3.1') : settings.model;
+      const ollamaUrl = settings.ollamaUrl || 'http://127.0.0.1:11434';
+      content = await callAiApi(provider, model, settings.apiKey, messages, ollamaUrl);
     }
     return { content };
   } catch (err) {
@@ -541,25 +811,4 @@ async function handleAiChat(conversationMessages) {
   }
 }
 
-async function handleAiProactiveMessage(pageTitle, pageUrl) {
-  const settings = await getAiSettings();
-  const proactivePrompt = getUiLanguage() === 'es'
-    ? `${settings.systemPrompt}\n\nEstas pensando en voz alta mientras el usuario navega. El usuario esta en: "${pageTitle}" (${pageUrl}). Di algo espontaneo: una observacion, una reflexion suave o un comentario seco que encaje con tu personalidad. 1-2 oraciones. No preguntes que necesita. Solo esta presente.`
-    : `${settings.systemPrompt}\n\nYou're thinking out loud while the user browses. The user is currently on: "${pageTitle}" (${pageUrl}). Say something spontaneous — an observation, a quiet reflection, a dry comment, or something that fits your personality about what they're doing. 1-2 sentences. Don't ask what they need. Just be present.`;
-
-  const messages = [
-    { role: 'system', content: proactivePrompt },
-    { role: 'user', content: 'Say something!' }
-  ];
-  try {
-    let content;
-    if (settings.chatMode === 'agent') {
-      content = await callOpenClaw(settings.openclawGatewayUrl, messages);
-    } else {
-      content = await callAiApi(settings.provider, settings.model, settings.apiKey, messages);
-    }
-    return { content };
-  } catch (err) {
-    return { error: err.message };
-  }
-}
+// Proactive messages removed

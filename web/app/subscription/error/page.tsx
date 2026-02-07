@@ -38,10 +38,10 @@ export default async function SubscriptionErrorPage({
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#FFCC66] via-[#FF9999] to-[#1159CC] flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-6">
-          <AlertCircle className="w-8 h-8 text-red-600" />
+    <main className="min-h-screen neural-shell flex items-center justify-center p-4">
+      <div className="neural-card rounded-3xl max-w-md w-full p-8 text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 border border-white/10 mb-6 text-red-400">
+          <AlertCircle className="w-8 h-8" />
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-2">
@@ -51,7 +51,7 @@ export default async function SubscriptionErrorPage({
         <p className="text-muted-foreground mb-6">{error.message}</p>
 
         <Link href="/">
-          <Button className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-6">
+          <Button className="neural-button rounded-xl px-6">
             <Home className="w-4 h-4 mr-2" />
             Back to Home
           </Button>

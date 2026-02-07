@@ -3,47 +3,49 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* New soft lavender/cream theme inspired by playful 3D mascot design */
+/* Neuralink-inspired dark minimal theme */
 :root {
-  --brand-black: #000000;
-  --brand-peach: #ff9999;
-  --brand-coral: #ff6666;
-  --brand-pink: #ff99cc;
-  --brand-gold: #ffcc66;
-  --brand-blue: #1159cc;
-  --background: oklch(0.95 0.015 280);
-  --foreground: oklch(0.15 0.02 280);
-  --card: oklch(0.98 0.01 280);
-  --card-foreground: oklch(0.15 0.02 280);
-  --popover: oklch(0.98 0.01 280);
-  --popover-foreground: oklch(0.15 0.02 280);
-  --primary: oklch(0.2 0.02 280);
-  --primary-foreground: oklch(0.98 0.01 280);
-  --secondary: oklch(0.92 0.025 280);
-  --secondary-foreground: oklch(0.2 0.02 280);
-  --muted: oklch(0.9 0.02 280);
-  --muted-foreground: oklch(0.45 0.02 280);
-  --accent: oklch(0.65 0.15 340);
-  --accent-foreground: oklch(0.98 0.01 280);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.02 280);
-  --input: oklch(0.92 0.02 280);
-  --ring: oklch(0.65 0.1 280);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 1rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --brand-black: #07090d;
+  --brand-graphite: #0b0f14;
+  --brand-ink: #0f141b;
+  --brand-steel: #151b24;
+  --brand-border: #1d2632;
+  --brand-slate: #7b8696;
+  --brand-ice: #d7dde6;
+  --brand-accent: #86f0ff;
+  --background: oklch(0.12 0.01 240);
+  --foreground: oklch(0.96 0.01 240);
+  --card: oklch(0.18 0.01 240);
+  --card-foreground: oklch(0.96 0.01 240);
+  --popover: oklch(0.18 0.01 240);
+  --popover-foreground: oklch(0.96 0.01 240);
+  --primary: oklch(0.92 0.02 240);
+  --primary-foreground: oklch(0.18 0.01 240);
+  --secondary: oklch(0.22 0.01 240);
+  --secondary-foreground: oklch(0.96 0.01 240);
+  --muted: oklch(0.2 0.01 240);
+  --muted-foreground: oklch(0.7 0.01 240);
+  --accent: oklch(0.8 0.08 200);
+  --accent-foreground: oklch(0.12 0.01 240);
+  --destructive: oklch(0.62 0.22 27);
+  --destructive-foreground: oklch(0.96 0.01 240);
+  --border: oklch(0.26 0.01 240);
+  --input: oklch(0.22 0.01 240);
+  --ring: oklch(0.7 0.08 200);
+  --chart-1: oklch(0.62 0.12 200);
+  --chart-2: oklch(0.7 0.08 160);
+  --chart-3: oklch(0.5 0.08 220);
+  --chart-4: oklch(0.78 0.1 190);
+  --chart-5: oklch(0.58 0.1 210);
+  --radius: 1.1rem;
+  --sidebar: oklch(0.16 0.01 240);
+  --sidebar-foreground: oklch(0.96 0.01 240);
+  --sidebar-primary: oklch(0.78 0.08 200);
+  --sidebar-primary-foreground: oklch(0.12 0.01 240);
+  --sidebar-accent: oklch(0.2 0.01 240);
+  --sidebar-accent-foreground: oklch(0.96 0.01 240);
+  --sidebar-border: oklch(0.24 0.01 240);
+  --sidebar-ring: oklch(0.7 0.08 200);
 }
 
 .dark {
@@ -75,8 +77,8 @@
 }
 
 @theme inline {
-  --font-sans: "Nunito", "Nunito Fallback", sans-serif;
-  --font-mono: "Space Mono", "Space Mono Fallback", monospace;
+  --font-sans: "Space Grotesk", "Space Grotesk Fallback", sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,7 +123,69 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(1200px circle at 10% -10%, rgba(134, 240, 255, 0.15), transparent 45%),
+      radial-gradient(900px circle at 90% 10%, rgba(120, 132, 255, 0.12), transparent 50%),
+      linear-gradient(180deg, rgba(7, 9, 13, 1), rgba(11, 15, 20, 1));
+    background-attachment: fixed;
   }
+}
+
+.neural-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.neural-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(transparent 95%, rgba(134, 240, 255, 0.08) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(134, 240, 255, 0.08) 100%);
+  background-size: 24px 24px;
+  opacity: 0.2;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.neural-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(134, 240, 255, 0.12);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+}
+
+.neural-outline {
+  border: 1px solid rgba(134, 240, 255, 0.18);
+}
+
+.neural-hero {
+  position: relative;
+  background: radial-gradient(800px circle at 20% 10%, rgba(134, 240, 255, 0.12), transparent 45%),
+    radial-gradient(700px circle at 80% 20%, rgba(120, 132, 255, 0.12), transparent 55%);
+}
+
+.neural-button {
+  background: rgba(134, 240, 255, 0.15);
+  border: 1px solid rgba(134, 240, 255, 0.4);
+  color: #e6f6ff;
+  box-shadow: 0 10px 30px rgba(134, 240, 255, 0.2);
+}
+
+.neural-button:hover {
+  background: rgba(134, 240, 255, 0.3);
+}
+
+.neural-button-outline {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e6f6ff;
+}
+
+.neural-button-outline:hover {
+  border-color: rgba(134, 240, 255, 0.5);
+  color: #86f0ff;
 }
 
 /* Force hide burger menu on desktop */

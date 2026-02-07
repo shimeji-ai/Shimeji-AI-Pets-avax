@@ -9,9 +9,9 @@ export function CollectionRequestForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6">
+    <div className="neural-card rounded-2xl p-6">
       <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#1159CC] flex items-center justify-center">
+        <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center text-[var(--brand-accent)]">
           <Sparkles className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1">
@@ -22,7 +22,7 @@ export function CollectionRequestForm() {
           </p>
           <Button
             onClick={() => setIsModalOpen(true)}
-            className="bg-[#1159CC] hover:bg-[#000000] text-white rounded-xl px-6"
+            className="neural-button rounded-xl px-6"
           >
             <Bell className="w-4 h-4 mr-2" />
             Notify Me When Available

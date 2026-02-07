@@ -4,9 +4,9 @@ import { NavHeader } from "@/components/nav-header";
 
 export default function DownloadPage() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen neural-shell">
       <NavHeader />
-      <div className="bg-gradient-to-b from-[#FFCC66] via-[#FF9999]  to-[#1159CC] overflow-x-hidden ">
+      <div className="bg-transparent overflow-x-hidden">
         <DownloadSection />
       </div>
       <Footer />
