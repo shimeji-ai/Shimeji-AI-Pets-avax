@@ -464,7 +464,7 @@ async function getShimejiConfigs() {
         if (modeValue === 'disabled') return 'off';
         if (modeValue === 'off') return 'off';
         if (modeValue === 'agent') return 'agent';
-        if (modeValue === 'decorative') return 'decorative';
+        if (modeValue === 'decorative') return 'off';
         return 'standard';
       };
 
@@ -794,9 +794,6 @@ async function handleAiChat(conversationMessages, shimejiId) {
   ];
   try {
     let content;
-    if (settings.chatMode === 'decorative') {
-      return { error: 'DECORATIVE_MODE', errorType: 'decorative' };
-    }
     if (settings.chatMode === 'agent') {
       content = await callOpenClaw(settings.openclawGatewayUrl, settings.openclawGatewayToken, messages);
     } else {

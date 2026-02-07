@@ -537,7 +537,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     if (modeValue === "disabled") return "off";
     if (modeValue === "off") return "off";
     if (modeValue === "agent") return "agent";
-    if (modeValue === "decorative") return "decorative";
+    if (modeValue === "decorative") return "off";
     return "standard";
   }
 
@@ -788,9 +788,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         ? t("Agent", "Agente")
         : mode === "off"
           ? t("Off", "Apagado")
-          : mode === "decorative"
-            ? t("Decorative", "Decorativo")
-            : t("Standard", "Standard");
+          : t("Standard", "Standard");
       const lockedBadge = document.createElement("div");
       lockedBadge.className = "shimeji-status locked";
       lockedBadge.textContent = t("Locked", "Bloqueado");
@@ -817,12 +815,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
-      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
-        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
-        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
-        { value: "off", labelEn: "Off", labelEs: "Apagado" },
-        { value: "decorative", labelEn: "Decorative", labelEs: "Decorativo" },
-      ], mode));
+      // Move AI Brain select closer to provider for clearer flow
       grid.appendChild(renderToggleField("enabled", t("Active", "Activo"), shimeji.enabled !== false));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Sound", "Sonido"), shimeji.soundEnabled !== false));
@@ -842,6 +835,11 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
       standardBlock.dataset.mode = "standard";
+      standardBlock.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
+        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
+        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
+        { value: "off", labelEn: "Off", labelEs: "Apagado" },
+      ], mode));
       standardBlock.appendChild(renderSelectField("standardProvider", t("Provider", "Proveedor"), [
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
         { value: "ollama", labelEn: "Ollama", labelEs: "Ollama" }
@@ -897,7 +895,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       // Chat Style collapsible section
       const chatStyleBlock = document.createElement("div");
       chatStyleBlock.className = "shimeji-chat-style-section";
-      chatStyleBlock.style.display = (mode === "off" || mode === "decorative") ? "none" : "";
+      chatStyleBlock.style.display = mode === "off" ? "none" : "";
 
       const chatStyleHeader = document.createElement("div");
       chatStyleHeader.className = "chat-style-toggle";
@@ -1105,7 +1103,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     const chatStyleBlock = card.querySelector(".shimeji-chat-style-section");
     if (standardBlock) standardBlock.style.display = mode === "standard" ? "" : "none";
     if (agentBlock) agentBlock.style.display = mode === "agent" ? "" : "none";
-    if (chatStyleBlock) chatStyleBlock.style.display = (mode === "off" || mode === "decorative") ? "none" : "";
+    if (chatStyleBlock) chatStyleBlock.style.display = mode === "off" ? "none" : "";
     if (card) card.dataset.mode = mode;
   }
 

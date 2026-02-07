@@ -240,12 +240,6 @@
             : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
     }
 
-    function getDecorativeMessage() {
-        return isSpanishLocale()
-            ? 'Estoy en modo decorativo. Puedo moverme, pero no hablo ni ejecuto acciones.'
-            : 'I am in decorative mode. I can move, but I do not talk or run actions.';
-    }
-
     function getLockedMessage() {
         return isSpanishLocale()
             ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
@@ -256,7 +250,7 @@
         if (modeValue === 'disabled') return 'off';
         if (modeValue === 'off') return 'off';
         if (modeValue === 'agent') return 'agent';
-        if (modeValue === 'decorative') return 'decorative';
+        if (modeValue === 'decorative') return 'off';
         return 'standard';
     }
 
@@ -666,10 +660,25 @@
                 utterance.lang = isSpanishLocale() ? 'es' : 'en';
                 const voice = await ensureVoiceForTts();
                 if (voice) utterance.voice = voice;
-                if (onEndCallback) {
-                    utterance.onend = onEndCallback;
-                }
+                // Chrome pauses speechSynthesis after ~15s; keep-alive resumes it
+                let keepAlive = null;
+                let callbackFired = false;
+                const fireCallback = () => {
+                    if (callbackFired) return;
+                    callbackFired = true;
+                    if (keepAlive) { clearInterval(keepAlive); keepAlive = null; }
+                    if (onEndCallback) onEndCallback();
+                };
+                utterance.onend = fireCallback;
+                utterance.onerror = fireCallback;
                 window.speechSynthesis.speak(utterance);
+                keepAlive = setInterval(() => {
+                    if (!window.speechSynthesis.speaking) {
+                        fireCallback();
+                    } else {
+                        window.speechSynthesis.resume();
+                    }
+                }, 5000);
             } catch (e) {
                 if (onEndCallback) onEndCallback();
             }
@@ -696,6 +705,9 @@
 
         function cancelSpeech() {
             try {
+                const manager = getSpeechManager();
+                manager.queue.length = 0;
+                manager.speaking = false;
                 if (window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e) {}
         }
@@ -876,7 +888,7 @@
             if (!e.detail || e.detail.sourceId === shimejiId) return;
             if (config.enabled === false) return;
             const mode = getMode();
-            if (mode === 'off' || mode === 'decorative') return;
+            if (mode === 'off') return;
             const raw = (e.detail.text || '').trim();
             if (!raw) return;
             const prefix = isSpanishLocale()
@@ -1608,8 +1620,6 @@
                 const needsAgent = mode === 'agent' && !hasOpenClawToken;
                 if (mode === 'off') {
                     appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
-                } else if (mode === 'decorative') {
-                    appendMessage('ai', getDecorativeMessage());
                 } else if (needsApiKey || needsAgent) {
                     ensureNoApiKeyOnboardingMessage();
                 } else {
@@ -1622,8 +1632,6 @@
                         chatMetaEl.textContent = 'openclaw · agent';
                     } else if (mode === 'off') {
                         chatMetaEl.textContent = isSpanishLocale() ? 'sin configurar' : 'not configured';
-                    } else if (mode === 'decorative') {
-                        chatMetaEl.textContent = isSpanishLocale() ? 'decorativo' : 'decorative';
                     } else {
                         const provider = config.standardProvider || 'openrouter';
                         if (provider === 'ollama') {
@@ -1835,13 +1843,6 @@
                 playSound('error');
                 return;
             }
-            if (mode === 'decorative') {
-                if (chatInputEl) chatInputEl.value = '';
-                appendMessage('ai', getDecorativeMessage());
-                playSound('error');
-                return;
-            }
-
             // Resume AudioContext on user gesture so Chrome autoplay policy allows later playback
             getAudioContext();
             cancelSpeech();
@@ -1868,9 +1869,6 @@
                             playSound('error');
                         } else if (response.errorType === 'locked') {
                             appendMessage('ai', getLockedMessage());
-                            playSound('error');
-                        } else if (response.errorType === 'decorative') {
-                            appendMessage('ai', getDecorativeMessage());
                             playSound('error');
                         } else if (response.errorType === 'no_response') {
                             appendMessage('ai', getNoResponseMessage());

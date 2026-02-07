@@ -429,6 +429,11 @@ body[data-theme="kawaii"] #shimeji-limit-hint {
   color: #2a1f4e;
 }
 
+body[data-theme="kawaii"] .control-group h3,
+body[data-theme="kawaii"] #appearance-visibility-title {
+  color: #2a1f4e;
+}
+
 body[data-theme="kawaii"] .helper-text {
   color: rgba(42, 31, 78, 0.8);
 }
@@ -465,6 +470,15 @@ body[data-theme="kawaii"] .marketplace-link {
   box-shadow: 0 6px 18px rgba(42, 31, 78, 0.2);
 }
 
+body[data-theme="kawaii"] .chat-style-toggle {
+  color: #2a1f4e;
+  border-top-color: rgba(42, 31, 78, 0.2);
+}
+
+body[data-theme="kawaii"] .chat-style-toggle:hover {
+  color: #1b1338;
+}
+
 body[data-theme="kawaii"] .shimeji-selector-btn,
 body[data-theme="kawaii"] .shimeji-add-btn {
   background: rgba(255, 255, 255, 0.7);
@@ -492,6 +506,18 @@ body[data-theme="kawaii"] .ai-select option {
 body[data-theme="pink"] .ai-select option {
   background: #2b1220;
   color: #ffe6f2;
+}
+
+body[data-theme="kawaii"] .shimeji-chat-style-section .ai-select {
+  background: #ffffff;
+  border-color: rgba(42, 31, 78, 0.3);
+  color: #2a1f4e;
+  box-shadow: 0 6px 14px rgba(42, 31, 78, 0.12);
+}
+
+body[data-theme="kawaii"] .shimeji-chat-style-section .ai-select option {
+  background: #ffffff;
+  color: #2a1f4e;
 }
 
 .marketplace-link::before {
