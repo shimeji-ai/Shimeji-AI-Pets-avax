@@ -68,6 +68,43 @@ section {
   gap: 10px;
 }
 
+.shimeji-selector {
+  display: flex;
+  gap: 6px;
+  padding: 8px 0 4px;
+  flex-wrap: wrap;
+}
+
+.shimeji-selector-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(42, 31, 78, 0.2);
+  background: rgba(255, 255, 255, 0.7);
+  color: #2a1f4e;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.shimeji-selector-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(42, 31, 78, 0.4);
+}
+
+.shimeji-selector-btn.active {
+  background: #2a1f4e;
+  color: #fff;
+  border-color: #2a1f4e;
+  box-shadow: 0 6px 16px rgba(42, 31, 78, 0.25);
+}
+
+.shimeji-selector-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .shimeji-card {
   border: 1px solid rgba(42, 31, 78, 0.15);
   background: rgba(255, 255, 255, 0.55);
@@ -77,6 +114,10 @@ section {
   flex-direction: column;
   gap: 8px;
   backdrop-filter: blur(4px);
+}
+
+.shimeji-card.hidden {
+  display: none;
 }
 
 .shimeji-card-header {

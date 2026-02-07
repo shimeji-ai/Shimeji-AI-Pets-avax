@@ -164,6 +164,12 @@
         calm: ['serena', 'paulina', 'audrey', 'amelie'],
         energetic: ['fred', 'mark', 'david', 'juan']
     };
+    const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
+
+    function pickRandomTtsProfile() {
+        if (!TTS_PROFILE_POOL.length) return 'random';
+        return TTS_PROFILE_POOL[Math.floor(Math.random() * TTS_PROFILE_POOL.length)];
+    }
 
     function getVoicesAsync() {
         return new Promise((resolve) => {
@@ -309,21 +315,26 @@
         }
     }
 
-    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob', 'neon', 'glitch', 'panda', 'star'];
+    const CHARACTER_KEYS = ['shimeji', 'bunny', 'bunny-hero', 'kitten', 'ghost', 'blob', 'neon', 'glitch', 'panda', 'star'];
     const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir'];
     const MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
         'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat-v3-0324', 'mistralai/mistral-large-2411'
     ];
+    const MODEL_KEYS_ENABLED = MODEL_KEYS.filter((model) => model !== 'moonshotai/kimi-k2.5');
+
+    const SIZE_KEYS = ['small', 'medium', 'big'];
 
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
         const randomPersonality = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
-        const randomModel = MODEL_KEYS[Math.floor(Math.random() * MODEL_KEYS.length)];
+        const randomModel = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
+        const randomVoiceProfile = pickRandomTtsProfile();
+        const randomSize = SIZE_KEYS[Math.floor(Math.random() * SIZE_KEYS.length)];
         return {
             id: `shimeji-${index + 1}`,
             character: randomChar,
-            size: 'medium',
+            size: randomSize,
             mode: 'standard',
             standardProvider: 'openrouter',
             openrouterApiKey: '',
@@ -339,7 +350,10 @@
             chatFontSize: 'medium',
             chatWidth: 'medium',
             chatBubbleStyle: 'glass',
-            ttsEnabled: false
+            ttsEnabled: true,
+            ttsVoiceProfile: randomVoiceProfile,
+            ttsVoiceId: '',
+            openMicEnabled: false
         };
     }
 
@@ -358,7 +372,10 @@
             openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
             openclawGatewayToken: data.openclawGatewayToken || '',
             personality: data.aiPersonality || 'cryptid',
-            enabled: true
+            enabled: true,
+            ttsEnabled: false,
+            ttsVoiceProfile: pickRandomTtsProfile(),
+            ttsVoiceId: ''
         }];
     }
 
@@ -385,8 +402,9 @@
                 ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
                 ollamaModel: item.ollamaModel || 'llama3.1',
                 ttsEnabled: !!item.ttsEnabled,
-                ttsVoiceProfile: item.ttsVoiceProfile || 'random',
-                ttsVoiceId: item.ttsVoiceId || ''
+                ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
+                ttsVoiceId: item.ttsVoiceId || '',
+                openMicEnabled: !!item.openMicEnabled
             }));
             list = list.slice(0, MAX_SHIMEJIS);
             chrome.storage.local.set({ shimejis: list });
@@ -428,6 +446,15 @@
         let hasUnreadMessage = false;
         let soundBuffers = { success: null, error: null };
         let soundBuffersLoaded = false;
+
+        let recognition = null;
+        let isListening = false;
+        let micBtnEl = null;
+        let micAutoSendEl = null;
+        let micAutoSendTimer = null;
+        let micAutoSendInterval = null;
+        let micAutoSendSeconds = 0;
+        let autoSendArmed = false;
 
         async function loadSoundBuffers() {
             soundBuffersLoaded = false;
@@ -492,9 +519,15 @@
             return picked;
         }
 
-        async function speakText(text) {
-            if (!config.ttsEnabled) return;
-            if (!window.speechSynthesis) return;
+        async function speakText(text, onEndCallback) {
+            if (!config.ttsEnabled) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
+            if (!window.speechSynthesis) {
+                if (onEndCallback) onEndCallback();
+                return;
+            }
             try {
                 const utterance = new SpeechSynthesisUtterance(text);
                 const ttsSettings = PERSONALITY_TTS[config.personality] || { pitch: 1.0, rate: 1.0 };
@@ -504,8 +537,13 @@
                 utterance.lang = isSpanishLocale() ? 'es' : 'en';
                 const voice = await ensureVoiceForTts();
                 if (voice) utterance.voice = voice;
+                if (onEndCallback) {
+                    utterance.onend = onEndCallback;
+                }
                 window.speechSynthesis.speak(utterance);
-            } catch (e) {}
+            } catch (e) {
+                if (onEndCallback) onEndCallback();
+            }
         }
 
         function cancelSpeech() {
@@ -513,6 +551,160 @@
                 if (window.speechSynthesis) window.speechSynthesis.cancel();
             } catch (e) {}
         }
+
+        function clearAutoSendPopup() {
+            autoSendArmed = false;
+            if (micAutoSendTimer) {
+                clearTimeout(micAutoSendTimer);
+                micAutoSendTimer = null;
+            }
+            if (micAutoSendInterval) {
+                clearInterval(micAutoSendInterval);
+                micAutoSendInterval = null;
+            }
+            if (micAutoSendEl) {
+                micAutoSendEl.remove();
+                micAutoSendEl = null;
+            }
+        }
+
+        function showAutoSendPopup() {
+            if (!micBtnEl || !chatBubbleEl) return;
+            clearAutoSendPopup();
+            const isEs = isSpanishLocale();
+            micAutoSendSeconds = 3;
+
+            micAutoSendEl = document.createElement('div');
+            micAutoSendEl.className = 'shimeji-mic-autosend';
+
+            const textEl = document.createElement('span');
+            const countdownEl = document.createElement('strong');
+            const cancelBtn = document.createElement('button');
+
+            textEl.textContent = isEs ? 'Enviando audio en' : 'Sending audio in';
+            countdownEl.textContent = `${micAutoSendSeconds}`;
+            cancelBtn.textContent = isEs ? 'Cancelar' : 'Cancel';
+
+            cancelBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                clearAutoSendPopup();
+            });
+
+            micAutoSendEl.appendChild(textEl);
+            micAutoSendEl.appendChild(countdownEl);
+            micAutoSendEl.appendChild(cancelBtn);
+
+            const inputArea = micBtnEl.closest('.shimeji-chat-input-area');
+            if (inputArea) {
+                inputArea.appendChild(micAutoSendEl);
+            } else {
+                chatBubbleEl.appendChild(micAutoSendEl);
+            }
+
+            micAutoSendInterval = setInterval(() => {
+                micAutoSendSeconds -= 1;
+                if (countdownEl) countdownEl.textContent = `${micAutoSendSeconds}`;
+            }, 1000);
+
+            micAutoSendTimer = setTimeout(() => {
+                clearAutoSendPopup();
+                sendChatMessage();
+            }, micAutoSendSeconds * 1000);
+        }
+
+        function startVoiceInput() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                appendErrorMessage(isSpanishLocale() ? 'Tu navegador no soporta reconocimiento de voz.' : 'Your browser does not support speech recognition.');
+                return;
+            }
+            // Stop any other shimeji's recognition (browser only allows one at a time)
+            if (window.__shimejiActiveRecognition && window.__shimejiActiveRecognition !== shimejiId) {
+                try {
+                    const evt = new CustomEvent('shimeji-stop-mic', { detail: { except: shimejiId } });
+                    document.dispatchEvent(evt);
+                } catch (e) {}
+            }
+            clearAutoSendPopup();
+            // Cancel any ongoing TTS before starting mic
+            cancelSpeech();
+            if (recognition) {
+                try { recognition.abort(); } catch (e) {}
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = isSpanishLocale() ? 'es' : 'en';
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (chatInputEl) chatInputEl.value = transcript;
+                if (event.results[0].isFinal) {
+                    autoSendArmed = true;
+                    stopVoiceInput();
+                }
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                if (micBtnEl) micBtnEl.classList.remove('listening');
+                if (window.__shimejiActiveRecognition === shimejiId) {
+                    window.__shimejiActiveRecognition = null;
+                }
+                if (autoSendArmed && chatInputEl && chatInputEl.value.trim()) {
+                    showAutoSendPopup();
+                } else {
+                    autoSendArmed = false;
+                }
+            };
+
+            recognition.onerror = (event) => {
+                isListening = false;
+                if (micBtnEl) micBtnEl.classList.remove('listening');
+                if (window.__shimejiActiveRecognition === shimejiId) {
+                    window.__shimejiActiveRecognition = null;
+                }
+                autoSendArmed = false;
+                if (event.error === 'not-allowed') {
+                    appendErrorMessage(isSpanishLocale() ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.' : 'Microphone permission denied. Enable it in browser settings.');
+                }
+            };
+
+            try {
+                recognition.start();
+                isListening = true;
+                window.__shimejiActiveRecognition = shimejiId;
+                if (micBtnEl) micBtnEl.classList.add('listening');
+            } catch (e) {
+                isListening = false;
+            }
+        }
+
+        function stopVoiceInput() {
+            if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+            }
+            isListening = false;
+            if (micBtnEl) micBtnEl.classList.remove('listening');
+            if (window.__shimejiActiveRecognition === shimejiId) {
+                window.__shimejiActiveRecognition = null;
+            }
+        }
+
+        function toggleVoiceInput() {
+            if (isListening) {
+                stopVoiceInput();
+            } else {
+                startVoiceInput();
+            }
+        }
+
+        // Listen for stop-mic events from other shimejis
+        document.addEventListener('shimeji-stop-mic', (e) => {
+            if (e.detail && e.detail.except !== shimejiId && isListening) {
+                stopVoiceInput();
+            }
+        });
 
         const mascot = {
             x: window.innerWidth / 2,
@@ -898,8 +1090,17 @@
                 sendChatMessage();
             });
 
+            micBtnEl = document.createElement('button');
+            micBtnEl.className = 'shimeji-chat-mic';
+            micBtnEl.textContent = '\uD83C\uDF99';
+            micBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleVoiceInput();
+            });
+
             inputArea.appendChild(chatInputEl);
             inputArea.appendChild(sendBtn);
+            inputArea.appendChild(micBtnEl);
 
             chatBubbleEl.appendChild(header);
             chatBubbleEl.appendChild(chatMessagesEl);
@@ -1039,7 +1240,9 @@
         }
 
         function closeChatBubble() {
+            stopVoiceInput();
             cancelSpeech();
+            clearAutoSendPopup();
             isChatOpen = false;
             if (chatBubbleEl) chatBubbleEl.classList.remove('visible');
             removeInlineThinking();
@@ -1191,6 +1394,7 @@
         }
 
         function sendChatMessage() {
+            clearAutoSendPopup();
             if (!chatInputEl) return;
             const text = chatInputEl.value.trim();
             if (!text) return;
@@ -1199,11 +1403,13 @@
             if (mode === 'off') {
                 chatInputEl.value = '';
                 appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
+                playSound('error');
                 return;
             }
             if (mode === 'decorative') {
                 chatInputEl.value = '';
                 appendMessage('ai', getDecorativeMessage());
+                playSound('error');
                 return;
             }
 
@@ -1224,6 +1430,7 @@
                     hideThinking();
                     if (chrome.runtime.lastError) {
                         appendErrorMessage('Could not reach extension. Try reloading the page.');
+                        playSound('error');
                         return;
                     }
                     if (response && response.error) {
@@ -1250,7 +1457,16 @@
                         saveConversation();
                         appendMessage('ai', response.content);
                         playSound('success');
-                        speakText(response.content);
+                        const openMicAfter = config.openMicEnabled && isChatOpen;
+                        speakText(response.content, openMicAfter ? () => {
+                            if (isChatOpen && config.openMicEnabled) startVoiceInput();
+                        } : null);
+                        // If TTS is off but open mic is on, start listening after a short delay
+                        if (openMicAfter && !config.ttsEnabled) {
+                            setTimeout(() => {
+                                if (isChatOpen && config.openMicEnabled && !isListening) startVoiceInput();
+                            }, 500);
+                        }
                         if (!isChatOpen) {
                             showAlert();
                         }
@@ -1646,6 +1862,7 @@
                 startDelayTimer = null;
             }
 
+            stopVoiceInput();
             cancelSpeech();
             mascot.isDragging = false;
             mascot.dragPending = false;
@@ -1730,7 +1947,9 @@
         }
 
         function destroy() {
+            stopVoiceInput();
             cancelSpeech();
+            clearAutoSendPopup();
             if (gameLoopTimer) {
                 clearInterval(gameLoopTimer);
                 gameLoopTimer = null;
@@ -1760,6 +1979,8 @@
             updateConfig(nextConfig) {
                 const prevCharacter = config.character;
                 const prevPersonality = config.personality;
+                const prevTtsEnabled = !!config.ttsEnabled;
+                const prevTtsProfile = config.ttsVoiceProfile;
                 config = {
                     ...nextConfig,
                     mode: normalizeMode(nextConfig.mode)
@@ -1769,6 +1990,7 @@
                 applyChatStyle();
                 const charChanged = config.character && config.character !== currentCharacter;
                 const personalityChanged = config.personality !== prevPersonality;
+                const ttsProfileChanged = prevTtsProfile && config.ttsVoiceProfile && prevTtsProfile !== config.ttsVoiceProfile;
                 if (charChanged) {
                     currentCharacter = config.character;
                     CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
@@ -1779,6 +2001,12 @@
                 if (charChanged || personalityChanged) {
                     invalidateSoundBuffers();
                     loadSoundBuffers();
+                }
+                if (ttsProfileChanged) {
+                    config.ttsVoiceId = '';
+                }
+                if (!prevTtsEnabled && config.ttsEnabled && !config.ttsVoiceId) {
+                    ensureVoiceForTts().catch(() => {});
                 }
             }
         };

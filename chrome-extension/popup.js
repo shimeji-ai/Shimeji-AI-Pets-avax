@@ -147,6 +147,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const MAX_SHIMEJIS = 5;
   const shimejiListEl = document.getElementById("shimeji-list");
   const addShimejiBtn = document.getElementById("add-shimeji-btn");
+  const shimejiSelectorEl = document.getElementById("shimeji-selector");
   const shimejiSectionTitle = document.getElementById("shimeji-section-title");
   const shimejiLimitHint = document.getElementById("shimeji-limit-hint");
   const popupSubtitle = document.getElementById("popup-subtitle");
@@ -174,7 +175,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
 
   const MODEL_OPTIONS = [
     { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
-    { value: "moonshotai/kimi-k2.5", label: "Kimi K2.5" },
+    { value: "moonshotai/kimi-k2.5", labelEn: "Kimi K2.5 (disabled)", labelEs: "Kimi K2.5 (deshabilitado)", disabled: true },
     { value: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
     { value: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick" },
     { value: "deepseek/deepseek-chat-v3-0324", label: "DeepSeek Chat v3" },
@@ -184,6 +185,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   const CHARACTER_OPTIONS = [
     { value: "shimeji", labelEn: "Shimeji", labelEs: "Shimeji" },
     { value: "bunny", labelEn: "Bunny", labelEs: "Conejo" },
+    { value: "bunny-hero", labelEn: "Hero Bunny", labelEs: "Conejo Hero" },
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
@@ -201,8 +203,31 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     { value: "hype", labelEn: "Hype Beast", labelEs: "Entusiasta" },
     { value: "noir", labelEn: "Noir", labelEs: "Noir" },
   ];
+  const VOICE_PROFILE_POOL = ["warm", "bright", "deep", "calm", "energetic"];
+  function pickRandomVoiceProfile() {
+    return VOICE_PROFILE_POOL[Math.floor(Math.random() * VOICE_PROFILE_POOL.length)];
+  }
 
   let shimejis = [];
+  let selectedShimejiId = null;
+
+  function ensureShimejiIds(list) {
+    const used = new Set();
+    return list.map((item, index) => {
+      let id = item.id;
+      if (!id || used.has(id)) {
+        let base = `shimeji-${index + 1}`;
+        id = base;
+        let suffix = 1;
+        while (used.has(id)) {
+          id = `${base}-${suffix}`;
+          suffix += 1;
+        }
+      }
+      used.add(id);
+      return { ...item, id };
+    });
+  }
 
   function isSpanishLocale() {
     const locale = (navigator.language || '').toLowerCase();
@@ -344,14 +369,19 @@ if (masterkeyLockBtn) masterkeyLockBtn.textContent = t("Lock", "Bloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
   }
 
+  const SIZE_OPTIONS_KEYS = ["small", "medium", "big"];
+
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
     const randomPersonality = PERSONALITY_OPTIONS[Math.floor(Math.random() * PERSONALITY_OPTIONS.length)].value;
-    const randomModel = MODEL_OPTIONS[Math.floor(Math.random() * MODEL_OPTIONS.length)].value;
+    const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled);
+    const randomModel = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[0]).value;
+    const randomVoiceProfile = pickRandomVoiceProfile();
+    const randomSize = SIZE_OPTIONS_KEYS[Math.floor(Math.random() * SIZE_OPTIONS_KEYS.length)];
     return {
       id: `shimeji-${index + 1}`,
       character: randomChar,
-      size: "medium",
+      size: randomSize,
       mode: "standard",
       standardProvider: "openrouter",
       openrouterApiKey: "",
@@ -369,9 +399,10 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       chatFontSize: "medium",
       chatWidth: "medium",
       chatBubbleStyle: "glass",
-      ttsEnabled: false,
-      ttsVoiceProfile: "random",
-      ttsVoiceId: ""
+      ttsEnabled: true,
+      ttsVoiceProfile: randomVoiceProfile,
+      ttsVoiceId: "",
+      openMicEnabled: false
     };
   }
 
@@ -397,8 +428,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         openclawGatewayToken: shimeji.openclawGatewayToken || "",
         personality: shimeji.personality || "cryptid",
         ttsEnabled: shimeji.ttsEnabled || false,
-        ttsVoiceProfile: shimeji.ttsVoiceProfile || "random",
-        ttsVoiceId: shimeji.ttsVoiceId || ""
+        ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
+        ttsVoiceId: shimeji.ttsVoiceId || "",
+        openMicEnabled: !!shimeji.openMicEnabled
       }));
     }
 
@@ -419,8 +451,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       soundEnabled: true,
       soundVolume: 0.7,
       ttsEnabled: false,
-      ttsVoiceProfile: "random",
-      ttsVoiceId: ""
+      ttsVoiceProfile: pickRandomVoiceProfile(),
+      ttsVoiceId: "",
+      openMicEnabled: false
     }];
   }
 
@@ -446,7 +479,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       masterKeyUnlocked = !!sessionKey;
       applyMasterKeyUiState();
 
-      shimejis = migrateLegacy(data);
+      shimejis = ensureShimejiIds(migrateLegacy(data));
       if (!Array.isArray(shimejis) || shimejis.length === 0) {
         shimejis = [getDefaultShimeji(0)];
       }
@@ -530,6 +563,10 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     if (!shimejiListEl) return;
     shimejiListEl.innerHTML = "";
 
+    if (!selectedShimejiId || !shimejis.find((s) => s.id === selectedShimejiId)) {
+      selectedShimejiId = shimejis[0]?.id || null;
+    }
+
     let countStandard = 0;
     let countAgent = 0;
     let countOff = 0;
@@ -544,6 +581,9 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       card.className = "shimeji-card";
       card.dataset.shimejiId = shimeji.id;
       card.dataset.mode = mode;
+      if (selectedShimejiId && shimeji.id !== selectedShimejiId) {
+        card.classList.add("hidden");
+      }
 
       const header = document.createElement("div");
       header.className = "shimeji-card-header";
@@ -610,6 +650,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
         { value: "calm", labelEn: "Calm", labelEs: "Suave" },
         { value: "energetic", labelEn: "Energetic", labelEs: "Enérgica" }
       ], shimeji.ttsVoiceProfile || "random", "advanced-only"));
+      grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
 
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
@@ -708,6 +749,24 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       toggleProviderBlocks(card, shimeji.standardProvider || "openrouter");
     });
 
+    if (shimejiSelectorEl) {
+      shimejiSelectorEl.innerHTML = "";
+      for (let i = 0; i < MAX_SHIMEJIS; i += 1) {
+        const btn = document.createElement("button");
+        btn.className = "shimeji-selector-btn";
+        btn.type = "button";
+        btn.textContent = `${i + 1}`;
+        const shimeji = shimejis[i];
+        if (!shimeji) {
+          btn.disabled = true;
+        } else {
+          btn.dataset.shimejiId = shimeji.id;
+          if (shimeji.id === selectedShimejiId) btn.classList.add("active");
+        }
+        shimejiSelectorEl.appendChild(btn);
+      }
+    }
+
     if (addShimejiBtn) {
       addShimejiBtn.disabled = shimejis.length >= MAX_SHIMEJIS;
     }
@@ -735,6 +794,7 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       const option = document.createElement("option");
       option.value = opt.value;
       option.textContent = isSpanishLocale() ? (opt.labelEs || opt.labelEn || opt.label) : (opt.labelEn || opt.labelEs || opt.label);
+      if (opt.disabled) option.disabled = true;
       select.appendChild(option);
     });
     select.value = value;
@@ -873,6 +933,14 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
     if (!target) return;
     if (field === "mode") {
       target[field] = normalizeMode(value);
+    } else if (field === "ttsVoiceProfile") {
+      target.ttsVoiceProfile = value;
+      target.ttsVoiceId = "";
+    } else if (field === "ttsEnabled") {
+      target.ttsEnabled = value;
+      if (value && !target.ttsVoiceProfile) {
+        target.ttsVoiceProfile = pickRandomVoiceProfile();
+      }
     } else {
       target[field] = value;
     }
@@ -882,7 +950,17 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
   if (addShimejiBtn) {
     addShimejiBtn.addEventListener("click", () => {
       if (shimejis.length >= MAX_SHIMEJIS) return;
-      shimejis.push(getDefaultShimeji(shimejis.length));
+      const newShimeji = getDefaultShimeji(shimejis.length);
+      // Copy API key and provider settings from an existing shimeji
+      const donor = shimejis.find((s) => (s.openrouterApiKey || "").trim());
+      if (donor) {
+        newShimeji.openrouterApiKey = donor.openrouterApiKey;
+        newShimeji.standardProvider = donor.standardProvider || "openrouter";
+        if (donor.openrouterApiKeyEnc) newShimeji.openrouterApiKeyEnc = donor.openrouterApiKeyEnc;
+      }
+      shimejis.push(newShimeji);
+      shimejis = ensureShimejiIds(shimejis);
+      selectedShimejiId = shimejis[shimejis.length - 1]?.id || null;
       saveShimejis();
       renderShimejis();
     });
@@ -895,9 +973,14 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       if (!card) return;
       const id = card.dataset.shimejiId;
       if (action === "remove") {
+        const removeIndex = shimejis.findIndex((s) => s.id === id);
         shimejis = shimejis.filter((s) => s.id !== id);
         if (shimejis.length === 0) {
           shimejis = [getDefaultShimeji(0)];
+        }
+        if (selectedShimejiId === id) {
+          const next = shimejis[removeIndex] || shimejis[removeIndex - 1] || shimejis[0];
+          selectedShimejiId = next ? next.id : null;
         }
         saveShimejis();
         renderShimejis();
@@ -951,6 +1034,17 @@ if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
       } else {
         updateShimeji(id, field, e.target.value);
       }
+    });
+  }
+
+  if (shimejiSelectorEl) {
+    shimejiSelectorEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".shimeji-selector-btn");
+      if (!btn || btn.disabled) return;
+      const id = btn.dataset.shimejiId;
+      if (!id || id === selectedShimejiId) return;
+      selectedShimejiId = id;
+      renderShimejis();
     });
   }
 
