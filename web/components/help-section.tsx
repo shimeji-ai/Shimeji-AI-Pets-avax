@@ -3,6 +3,7 @@
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
 import Link from "next/link";
+import DownloadButton from "./download-button";
 
 const providers = [
   {
@@ -279,9 +280,11 @@ export function HelpSection() {
                   </p>
                 </div>
               </div>
-              <Link href="/collection" className="neural-button inline-flex items-center gap-2">
-                {isSpanish ? "Ir a Colección" : "Go to Collection"}
-              </Link>
+              <DownloadButton
+                href="/collection"
+                labelEn="GO TO COLLECTION"
+                labelEs="IR A COLECCIÓN"
+              />
             </div>
           </div>
 

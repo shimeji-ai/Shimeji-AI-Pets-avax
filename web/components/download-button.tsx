@@ -5,15 +5,23 @@ import styled from "styled-components";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
 
-const DownloadButton = () => {
+interface DownloadButtonProps {
+  href?: string;
+  labelEn?: string;
+  labelEs?: string;
+}
+
+const DownloadButton = ({
+  href = "/download",
+  labelEn = "TRY OUR CHROME EXTENSION",
+  labelEs = "PROBAR EXTENSIÓN",
+}: DownloadButtonProps) => {
   const { isSpanish } = useLanguage();
   return (
     <StyledWrapper>
-      <Link href="/download">
+      <Link href={href}>
         <button type="button" className="btn">
-          <strong>
-            {isSpanish ? "PROBAR EXTENSIÓN" : "TRY OUR CHROME EXTENSION"}
-          </strong>
+          <strong>{isSpanish ? labelEs : labelEn}</strong>
           <div id="container-stars">
             <div id="stars" />
           </div>
