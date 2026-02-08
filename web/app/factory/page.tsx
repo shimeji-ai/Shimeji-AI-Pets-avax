@@ -26,11 +26,15 @@ export default function FactoryPage() {
   const handleReserve = async () => {
     setReserveError("");
     if (!email.trim()) {
-      setReserveError("Please enter an email so we can contact you.");
+      setReserveError(isSpanish
+        ? "Ingresa un email para poder contactarte."
+        : "Please enter an email so we can contact you.");
       return;
     }
     if (!publicKey) {
-      setReserveError("Connect your wallet to reserve an egg.");
+      setReserveError(isSpanish
+        ? "Conecta tu wallet para reservar un huevo."
+        : "Connect your wallet to reserve an egg.");
       return;
     }
     setIsReserving(true);
