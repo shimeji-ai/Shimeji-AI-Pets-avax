@@ -778,6 +778,12 @@ body[data-theme="pink"] .control-btn.selected {
   color: #240d1b;
 }
 
+body[data-theme="pink"] .global-btn.active {
+  background: #ff9ad8;
+  border-color: transparent;
+  color: #240d1b;
+}
+
 .size-btn {
   flex: none;
   width: 40px;

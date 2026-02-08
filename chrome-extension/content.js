@@ -1025,12 +1025,7 @@
             climbSpeed: 1.5
         };
 
-        function ensureNoApiKeyOnboardingMessage() {
-            if (!chatMessagesEl) return;
-
-            const existing = chatMessagesEl.querySelector('.shimeji-no-api-key-msg');
-            if (existing) existing.remove();
-
+        function buildNoApiKeyMessageElement(includeWarning = false) {
             const msgEl = document.createElement('div');
             msgEl.className = 'shimeji-chat-msg ai shimeji-no-api-key-msg';
 
@@ -1053,7 +1048,20 @@
 
             msgEl.appendChild(document.createTextNode(suffix));
 
-            chatMessagesEl.prepend(msgEl);
+            if (includeWarning) {
+                msgEl.appendChild(document.createTextNode(' ⚠️'));
+            }
+
+            return msgEl;
+        }
+
+        function ensureNoApiKeyOnboardingMessage() {
+            if (!chatMessagesEl) return;
+
+            const existing = chatMessagesEl.querySelector('.shimeji-no-api-key-msg');
+            if (existing) existing.remove();
+
+            chatMessagesEl.prepend(buildNoApiKeyMessageElement(false));
         }
 
         function ensureNoApiKeyNudgeMessage() {
@@ -1723,6 +1731,7 @@
         }
 
         function openChatBubble() {
+            if (isDisabled) return;
             if (!chatBubbleEl) createChatBubble();
             isChatOpen = true;
             chatBubbleEl.classList.add('visible');
@@ -1979,6 +1988,7 @@
         }
 
         function handleMascotClick() {
+            if (isDisabled) return;
             if (isChatOpen) {
                 closeChatBubble();
             } else {
@@ -2049,7 +2059,12 @@
                         } else {
                             const errorText = response.error || '';
                             if (/No API key set/i.test(errorText)) {
-                                appendMessage('ai', addWarning(getNoApiKeyMessage()));
+                                if (chatMessagesEl) {
+                                    chatMessagesEl.appendChild(buildNoApiKeyMessageElement(true));
+                                    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+                                } else {
+                                    appendMessage('ai', addWarning(getNoApiKeyMessage()));
+                                }
                             } else if (/Invalid API key/i.test(errorText)) {
                                 appendMessage('ai', addWarning(isSpanishLocale()
                                     ? 'La API key no es válida. Revisa la key en el popup de la extensión.'
