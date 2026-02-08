@@ -605,6 +605,7 @@ if (securityHint) securityHint.textContent = t(
       chatWidth: "medium",
       chatBubbleStyle: preset?.bubble || "glass",
       ttsEnabled: false,
+      ttsWhenClosed: false,
       ttsVoiceProfile: randomVoiceProfile,
       ttsVoiceId: "",
       openMicEnabled: false,
@@ -635,6 +636,7 @@ if (securityHint) securityHint.textContent = t(
         openclawGatewayToken: shimeji.openclawGatewayToken || "",
         personality: shimeji.personality || "cryptid",
         ttsEnabled: shimeji.ttsEnabled === true,
+        ttsWhenClosed: shimeji.ttsWhenClosed === true,
         ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
         ttsVoiceId: shimeji.ttsVoiceId || "",
         openMicEnabled: !!shimeji.openMicEnabled,
@@ -662,6 +664,7 @@ if (securityHint) securityHint.textContent = t(
       soundEnabled: true,
       soundVolume: 0.7,
       ttsEnabled: false,
+      ttsWhenClosed: false,
       ttsVoiceProfile: pickRandomVoiceProfile(),
       ttsVoiceId: "",
       openMicEnabled: false,
@@ -867,6 +870,7 @@ if (securityHint) securityHint.textContent = t(
       card.className = "shimeji-card";
       card.dataset.shimejiId = shimeji.id;
       card.dataset.mode = mode;
+      card.dataset.enabled = shimeji.enabled !== false ? "on" : "off";
       if (selectedShimejiId && shimeji.id !== selectedShimejiId) {
         card.classList.add("hidden");
       }
@@ -889,9 +893,9 @@ if (securityHint) securityHint.textContent = t(
       headerActions.className = "shimeji-card-actions";
       const activeToggle = document.createElement("label");
       activeToggle.className = "toggle-row mini-toggle header-active-toggle";
-      const activeLabel = document.createElement("span");
-      activeLabel.className = "toggle-label";
-      activeLabel.textContent = shimeji.enabled !== false ? t("Active", "Activo") : t("Off", "Apagado");
+      activeToggle.title = shimeji.enabled !== false
+        ? t("Active", "Activo")
+        : t("Off", "Apagado");
       const activeInput = document.createElement("input");
       activeInput.type = "checkbox";
       activeInput.className = "toggle-checkbox";
@@ -899,7 +903,6 @@ if (securityHint) securityHint.textContent = t(
       activeInput.checked = shimeji.enabled !== false;
       const activeSlider = document.createElement("span");
       activeSlider.className = "toggle-slider";
-      activeToggle.appendChild(activeLabel);
       activeToggle.appendChild(activeInput);
       activeToggle.appendChild(activeSlider);
       const removeBtn = document.createElement("button");
@@ -926,7 +929,6 @@ if (securityHint) securityHint.textContent = t(
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
-      grid.appendChild(renderToggleField("enabled", t("Active", "Activo"), shimeji.enabled !== false));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), shimeji.soundEnabled !== false));
       grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
@@ -1184,42 +1186,21 @@ if (securityHint) securityHint.textContent = t(
     nftSelect.classList.add("character-select");
     if (source !== "nft") nftSelect.classList.add("hidden");
 
+    const toggleRowWrap = document.createElement("div");
+    toggleRowWrap.className = "character-toggle-row";
+    toggleRowWrap.appendChild(toggleRow);
+    const ctaInline = document.createElement("a");
+    ctaInline.href = "https://www.shimeji.dev/factory";
+    ctaInline.target = "_blank";
+    ctaInline.rel = "noopener noreferrer";
+    ctaInline.className = "shimeji-nft-cta inline";
+    ctaInline.textContent = t("Get a Shimeji NFT", "Conseguí un Shimeji NFT");
+    toggleRowWrap.appendChild(ctaInline);
+
     wrapper.appendChild(label);
-    wrapper.appendChild(toggleRow);
+    wrapper.appendChild(toggleRowWrap);
     wrapper.appendChild(freeSelect);
     wrapper.appendChild(nftSelect);
-
-    if (source === "nft" && nftCharacters.length === 0) {
-      const cta = document.createElement("a");
-      cta.href = "https://www.shimeji.dev/factory";
-      cta.target = "_blank";
-      cta.rel = "noopener noreferrer";
-      cta.className = "popup-link marketplace-link mini-marketplace-link";
-      const span = document.createElement("span");
-      span.textContent = t("Get an NFT shimeji", "Conseguí un shimeji NFT");
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("width", "12");
-      svg.setAttribute("height", "12");
-      svg.setAttribute("viewBox", "0 0 24 24");
-      svg.setAttribute("fill", "none");
-      svg.setAttribute("stroke", "currentColor");
-      svg.setAttribute("stroke-width", "2");
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6");
-      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      polyline.setAttribute("points", "15 3 21 3 21 9");
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", "10");
-      line.setAttribute("y1", "14");
-      line.setAttribute("x2", "21");
-      line.setAttribute("y2", "3");
-      svg.appendChild(path);
-      svg.appendChild(polyline);
-      svg.appendChild(line);
-      cta.appendChild(span);
-      cta.appendChild(svg);
-      wrapper.appendChild(cta);
-    }
 
     return wrapper;
   }
@@ -1452,6 +1433,9 @@ if (securityHint) securityHint.textContent = t(
       if (!field) return;
       if (e.target.type === "checkbox") {
         updateShimeji(id, field, e.target.checked);
+        if (field === "enabled") {
+          card.dataset.enabled = e.target.checked ? "on" : "off";
+        }
         const label = e.target.closest(".toggle-row")?.querySelector(".toggle-label");
         if (label) label.textContent = e.target.checked ? t("On", "Activo") : t("Off", "Apagado");
       } else {

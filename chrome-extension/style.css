@@ -180,6 +180,7 @@
 .shimeji-chat-tts-toggle,
 .shimeji-chat-theme-toggle,
 .shimeji-chat-relay-toggle,
+.shimeji-chat-tts-closed-toggle,
 .shimeji-chat-settings-toggle {
     width: 28px;
     height: 28px;
@@ -200,6 +201,7 @@
 .shimeji-chat-tts-toggle:hover,
 .shimeji-chat-theme-toggle:hover,
 .shimeji-chat-relay-toggle:hover,
+.shimeji-chat-tts-closed-toggle:hover,
 .shimeji-chat-settings-toggle:hover {
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
 }
@@ -214,6 +216,18 @@
 .shimeji-chat-relay-toggle.active {
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    color: #ffffff;
+}
+
+.shimeji-chat-tts-closed-toggle.active {
+    background: rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
+    color: #ffffff;
+}
+
+.shimeji-chat-tts-closed-toggle.active {
+    background: rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.45);
     color: #ffffff;
 }
 
@@ -682,6 +696,7 @@
 .chat-style-dark .shimeji-chat-tts-toggle,
 .chat-style-dark .shimeji-chat-theme-toggle,
 .chat-style-dark .shimeji-chat-relay-toggle,
+.chat-style-dark .shimeji-chat-tts-closed-toggle,
 .chat-style-dark .shimeji-chat-settings-toggle {
     background: rgba(255, 255, 255, 0.1);
 }
@@ -690,6 +705,7 @@
 .chat-style-dark .shimeji-chat-tts-toggle:hover,
 .chat-style-dark .shimeji-chat-theme-toggle:hover,
 .chat-style-dark .shimeji-chat-relay-toggle:hover,
+.chat-style-dark .shimeji-chat-tts-closed-toggle:hover,
 .chat-style-dark .shimeji-chat-settings-toggle:hover {
     background: rgba(255, 255, 255, 0.2);
 }
@@ -700,6 +716,10 @@
 
 .chat-style-dark .shimeji-chat-relay-toggle.active {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.chat-style-dark .shimeji-chat-tts-closed-toggle.active {
+    background: rgba(56, 189, 248, 0.45);
 }
 
 .chat-style-dark .shimeji-chat-close {

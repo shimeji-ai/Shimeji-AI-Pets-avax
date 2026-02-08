@@ -5,6 +5,7 @@ import { NavHeader } from "@/components/nav-header";
 import { Footer } from "@/components/footer";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
 import { useFreighter } from "@/components/freighter-provider";
+import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default function FactoryPage() {
   const [isReserving, setIsReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
   const [reserveError, setReserveError] = useState("");
+  const { isSpanish } = useLanguage();
   const { isConnected, publicKey, isAvailable } = useFreighter();
 
   useEffect(() => {

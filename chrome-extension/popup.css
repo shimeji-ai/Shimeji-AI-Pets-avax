@@ -196,6 +196,23 @@ body[data-theme="pink"] .shimeji-card {
   padding: 4px 8px;
 }
 
+.header-active-toggle {
+  gap: 0;
+  padding: 6px 8px;
+}
+
+.header-active-toggle .toggle-slider {
+  width: 34px;
+  height: 18px;
+}
+
+.header-active-toggle .toggle-slider::after {
+  width: 12px;
+  height: 12px;
+  top: 3px;
+  left: 3px;
+}
+
 body[data-theme="kawaii"] .header-active-toggle {
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(42, 31, 78, 0.2);
@@ -938,6 +955,29 @@ body[data-theme="pink"] .toggle-row {
   border: 1px solid rgba(255, 154, 216, 0.3);
 }
 
+body[data-theme="pink"] .toggle-slider {
+  background: rgba(255, 92, 140, 0.6);
+}
+
+body[data-theme="pink"] .toggle-checkbox:checked + .toggle-slider {
+  background: rgba(100, 235, 155, 0.7);
+}
+
+body[data-theme="kawaii"] .toggle-row {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(42, 31, 78, 0.2);
+}
+
+body[data-theme="kawaii"] .toggle-slider {
+  background: rgba(255, 153, 190, 0.7);
+  box-shadow: inset 0 0 8px rgba(150, 40, 90, 0.25);
+}
+
+body[data-theme="kawaii"] .toggle-checkbox:checked + .toggle-slider {
+  background: rgba(122, 255, 170, 0.8);
+  box-shadow: inset 0 0 8px rgba(20, 110, 60, 0.25);
+}
+
 .toggle-row:hover {
   background: rgba(30, 40, 60, 0.9);
 }
@@ -960,10 +1000,11 @@ body[data-theme="pink"] .toggle-row {
 .toggle-slider {
   width: 40px;
   height: 22px;
-  background: rgba(120, 140, 255, 0.35);
+  background: rgba(255, 92, 115, 0.6);
   border-radius: 11px;
   position: relative;
   transition: all 0.2s ease;
+  box-shadow: inset 0 0 8px rgba(120, 20, 40, 0.35);
 }
 
 .toggle-slider::after {
@@ -980,7 +1021,8 @@ body[data-theme="pink"] .toggle-row {
 }
 
 .toggle-checkbox:checked + .toggle-slider {
-  background: #5b7bff;
+  background: rgba(62, 228, 107, 0.7);
+  box-shadow: inset 0 0 8px rgba(10, 120, 50, 0.35);
 }
 
 .toggle-checkbox:checked + .toggle-slider::after {
@@ -1187,6 +1229,69 @@ body[data-theme="kawaii"] .character-source-btn.active {
   grid-column: 1 / -1;
 }
 
+.character-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.character-toggle-row .character-source-toggle {
+  flex: 1;
+  min-width: 140px;
+}
+
+.shimeji-nft-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border: 2px solid rgba(255, 214, 102, 0.9);
+  background: rgba(36, 26, 10, 0.5);
+  color: #fff3c6;
+  box-shadow:
+    0 0 0 1px rgba(255, 214, 102, 0.35),
+    0 0 28px rgba(255, 214, 102, 0.55),
+    0 0 70px rgba(255, 214, 102, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shimeji-nft-cta.inline {
+  flex: none;
+  padding: 6px 8px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: 160px;
+  text-align: center;
+}
+
+.shimeji-nft-cta:hover {
+  transform: scale(1.04);
+  box-shadow:
+    0 0 0 1px rgba(255, 214, 102, 0.45),
+    0 0 42px rgba(255, 214, 102, 0.75),
+    0 0 90px rgba(255, 214, 102, 0.45);
+}
+
+body[data-theme="kawaii"] .shimeji-nft-cta {
+  background: rgba(255, 248, 230, 0.8);
+  color: #7a4b0c;
+}
+
+body[data-theme="pink"] .shimeji-nft-cta {
+  background: rgba(36, 26, 10, 0.55);
+  color: #fff3c6;
+}
+
 .ai-label {
   font-size: 11px;
   font-weight: 600;
@@ -1362,6 +1467,10 @@ body[data-theme="kawaii"] .ai-field.locked .ai-input::placeholder {
   color: rgba(200, 210, 235, 0.55);
   line-height: 1.3;
   padding: 0 2px;
+}
+
+body[data-theme="kawaii"] .ai-hint {
+  color: rgba(42, 31, 78, 0.75);
 }
 
 /* Chat Style Section */
