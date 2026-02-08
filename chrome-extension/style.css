@@ -16,12 +16,18 @@
     box-shadow: 0 8px 32px rgba(42, 31, 78, 0.18);
     font-family: 'Nunito', sans-serif;
     color: #2a1f4e;
-    display: none;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
     opacity: 0;
-    transform: translateY(6px) scale(0.94);
-    transition: transform 220ms ease, opacity 180ms ease;
+    transform: translateY(8px);
+    clip-path: inset(100% 0 0 0);
+    transition: clip-path 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 280ms ease,
+                visibility 0s 350ms;
 }
 
 /* Glass style (default) */
@@ -47,9 +53,15 @@
 }
 
 .shimeji-chat-bubble.visible {
-    display: flex;
+    visibility: visible;
+    pointer-events: auto;
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                transform 350ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 280ms ease,
+                visibility 0s 0s;
 }
 
 /* Speech bubble tail */

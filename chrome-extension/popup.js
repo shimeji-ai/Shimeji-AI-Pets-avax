@@ -893,16 +893,16 @@ if (securityHint) securityHint.textContent = t(
         { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
       ], mode);
-      aiBrainField.classList.add("full-width");
+      aiBrainField.classList.add("full-width", "ai-core-field");
       grid.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
-      standardBlock.className = "shimeji-mode-row";
+      standardBlock.className = "shimeji-mode-row ai-core-panel";
       standardBlock.dataset.mode = "standard";
       standardBlock.appendChild(renderSelectField("standardProvider", t("Provider", "Proveedor"), [
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
         { value: "ollama", labelEn: "Ollama", labelEs: "Ollama" }
-      ], shimeji.standardProvider || "openrouter"));
+      ], shimeji.standardProvider || "openrouter", "ai-core-field"));
       const providerHint = document.createElement("div");
       providerHint.className = "helper-text";
       providerHint.textContent = t(
@@ -910,7 +910,14 @@ if (securityHint) securityHint.textContent = t(
         "Tus mensajes se envían al proveedor seleccionado."
       );
       standardBlock.appendChild(providerHint);
-      const openrouterInput = renderInputField("openrouterApiKey", t("OpenRouter API Key (optional)", "API Key OpenRouter (opcional)"), shimeji.openrouterApiKey, "password", t("Paste your API key", "Pega tu API key"), "provider-openrouter");
+      const openrouterInput = renderInputField(
+        "openrouterApiKey",
+        t("OpenRouter API Key (optional)", "API Key OpenRouter (opcional)"),
+        shimeji.openrouterApiKey,
+        "password",
+        t("Paste your API key", "Pega tu API key"),
+        "provider-openrouter ai-core-field"
+      );
       if (masterKeyEnabled && !masterKeyUnlocked) {
         openrouterInput.classList.add("locked");
         const input = openrouterInput.querySelector("input");
@@ -922,23 +929,29 @@ if (securityHint) securityHint.textContent = t(
         if (toggle) toggle.disabled = true;
       }
       standardBlock.appendChild(openrouterInput);
-      standardBlock.appendChild(renderSelectField("openrouterModel", t("Model", "Modelo"), MODEL_OPTIONS, shimeji.openrouterModel, "provider-openrouter"));
+      standardBlock.appendChild(renderSelectField(
+        "openrouterModel",
+        t("Model", "Modelo"),
+        MODEL_OPTIONS,
+        shimeji.openrouterModel,
+        "provider-openrouter ai-core-field"
+      ));
       const ollamaBlock = document.createElement("div");
       ollamaBlock.className = "shimeji-mode-row";
       ollamaBlock.dataset.provider = "ollama";
-      ollamaBlock.appendChild(renderInputField("ollamaUrl", t("Ollama URL", "Ollama URL"), shimeji.ollamaUrl || "http://127.0.0.1:11434", "text", "http://127.0.0.1:11434"));
-      ollamaBlock.appendChild(renderInputField("ollamaModel", t("Ollama Model", "Modelo Ollama"), shimeji.ollamaModel || "llama3.1", "text", "llama3.1"));
+      ollamaBlock.appendChild(renderInputField("ollamaUrl", t("Ollama URL", "Ollama URL"), shimeji.ollamaUrl || "http://127.0.0.1:11434", "text", "http://127.0.0.1:11434", "ai-core-field"));
+      ollamaBlock.appendChild(renderInputField("ollamaModel", t("Ollama Model", "Modelo Ollama"), shimeji.ollamaModel || "llama3.1", "text", "llama3.1", "ai-core-field"));
       standardBlock.appendChild(ollamaBlock);
 
       const agentBlock = document.createElement("div");
-      agentBlock.className = "shimeji-mode-row";
+      agentBlock.className = "shimeji-mode-row ai-core-panel";
       agentBlock.dataset.mode = "agent";
-      agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789"));
+      agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
       const openclawHint = document.createElement("div");
       openclawHint.className = "helper-text";
       openclawHint.textContent = t("OpenClaw needs a WebSocket URL + gateway token.", "OpenClaw necesita un WebSocket + token del gateway.");
       agentBlock.appendChild(openclawHint);
-      const openclawTokenInput = renderInputField("openclawGatewayToken", t("OpenClaw Token", "Token OpenClaw"), shimeji.openclawGatewayToken, "password", t("Enter gateway token", "Token del gateway"));
+      const openclawTokenInput = renderInputField("openclawGatewayToken", t("OpenClaw Token", "Token OpenClaw"), shimeji.openclawGatewayToken, "password", t("Enter gateway token", "Token del gateway"), "ai-core-field");
       if (masterKeyEnabled && !masterKeyUnlocked) {
         openclawTokenInput.classList.add("locked");
         const input = openclawTokenInput.querySelector("input");

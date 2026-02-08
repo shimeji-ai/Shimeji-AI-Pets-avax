@@ -240,20 +240,11 @@
             : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
     }
 
-        function getLockedMessage() {
-            return isSpanishLocale()
-                ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
-                : 'Keys are protected. Open the popup and unlock the master key.';
-        }
-
-        async function isMasterKeyLocked() {
-            if (!config.masterKeyEnabled) return false;
-            return new Promise((resolve) => {
-                chrome.storage.session.get(['masterKey'], (data) => {
-                    resolve(!data.masterKey);
-                });
-            });
-        }
+    function getLockedMessage() {
+        return isSpanishLocale()
+            ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
+            : 'Keys are protected. Open the popup and unlock the master key.';
+    }
 
     function normalizeMode(modeValue) {
         if (modeValue === 'disabled') return 'off';
@@ -322,6 +313,55 @@
         } catch (e) {
             return null;
         }
+    }
+
+    // Pentatonic notes so each shimeji slot sounds distinct
+    const SHIMEJI_NOTE_FREQ = [523.25, 659.25, 783.99, 880.00, 1046.50]; // C5 E5 G5 A5 C6
+
+    function synthesizeFluteNote(sampleRate, freq, duration) {
+        const len = Math.ceil(sampleRate * duration);
+        const data = new Float32Array(len);
+        const attack = 0.045;
+        const release = 0.15;
+        const releaseStart = duration - release;
+        for (let i = 0; i < len; i++) {
+            const t = i / sampleRate;
+            let env;
+            if (t < attack) env = t / attack;
+            else if (t < releaseStart) env = 1.0;
+            else env = Math.max(0, (duration - t) / release);
+            const vibrato = Math.sin(2 * Math.PI * 5.2 * t) * 2.5;
+            const f = freq + vibrato;
+            const s = Math.sin(2 * Math.PI * f * t) * 0.55
+                + Math.sin(2 * Math.PI * f * 2 * t) * 0.22
+                + Math.sin(2 * Math.PI * f * 3 * t) * 0.07;
+            data[i] = s * env;
+        }
+        return data;
+    }
+
+    function synthesizeShimejiSounds(shimejiId) {
+        const ctx = getAudioContext();
+        const sr = ctx.sampleRate;
+        const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
+        const baseFreq = SHIMEJI_NOTE_FREQ[idx % SHIMEJI_NOTE_FREQ.length];
+
+        // Success: single flute note
+        const successSamples = synthesizeFluteNote(sr, baseFreq, 0.38);
+        const successBuf = ctx.createBuffer(1, successSamples.length, sr);
+        successBuf.getChannelData(0).set(successSamples);
+
+        // Error: two notes — second lower with slight dissonance (detuned tritone)
+        const errorFreq2 = baseFreq * 0.69;
+        const note1 = synthesizeFluteNote(sr, baseFreq, 0.2);
+        const gapLen = Math.ceil(sr * 0.06);
+        const note2 = synthesizeFluteNote(sr, errorFreq2, 0.28);
+        const errorBuf = ctx.createBuffer(1, note1.length + gapLen + note2.length, sr);
+        const errorData = errorBuf.getChannelData(0);
+        errorData.set(note1, 0);
+        errorData.set(note2, note1.length + gapLen);
+
+        return { success: successBuf, error: errorBuf };
     }
 
     const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
@@ -519,18 +559,29 @@
         let soundGestureArmed = false;
         let pendingOnboardingGreeting = false;
 
+        async function isMasterKeyLocked() {
+            if (!config.masterKeyEnabled) return false;
+            return new Promise((resolve) => {
+                chrome.storage.session.get(['masterKey'], (data) => {
+                    resolve(!data.masterKey);
+                });
+            });
+        }
+
         async function loadSoundBuffers() {
             soundBuffersLoaded = false;
-            const kinds = ['success', 'error'];
-            for (const kind of kinds) {
+            // Character-specific WAVs can override synthesised sounds
+            for (const kind of ['success', 'error']) {
                 const charUrl = chrome.runtime.getURL(`characters/${currentCharacter}/${kind}.wav`);
-                const personalityUrl = chrome.runtime.getURL(`assets/sounds/${config.personality || 'cryptid'}-${kind}.wav`);
-                const defaultUrl = chrome.runtime.getURL(`assets/shimeji-${kind}.wav`);
-
-                const buf = await loadAudioBuffer(charUrl)
-                    || await loadAudioBuffer(personalityUrl)
-                    || await loadAudioBuffer(defaultUrl);
-                soundBuffers[kind] = buf;
+                soundBuffers[kind] = await loadAudioBuffer(charUrl);
+            }
+            // Fill missing with per-shimeji synthesised flute tones
+            if (!soundBuffers.success || !soundBuffers.error) {
+                try {
+                    const synth = synthesizeShimejiSounds(shimejiId);
+                    if (!soundBuffers.success) soundBuffers.success = synth.success;
+                    if (!soundBuffers.error) soundBuffers.error = synth.error;
+                } catch (e) {}
             }
             soundBuffersLoaded = true;
         }
@@ -810,7 +861,7 @@
 
             micAutoSendTimer = setTimeout(() => {
                 clearAutoSendPopup();
-                sendChatMessage();
+                safeSendChatMessage();
             }, micAutoSendSeconds * 1000);
         }
 
@@ -1011,9 +1062,21 @@
             if (existing) return;
             const msgEl = document.createElement('div');
             msgEl.className = 'shimeji-chat-msg ai shimeji-no-api-key-nudge';
-            msgEl.textContent = isSpanishLocale()
-                ? '¡Hola! Necesito tu API key para poder hablar.'
-                : 'Hi! I need your API key to be able to talk.';
+            const isEs = isSpanishLocale();
+            const prefix = isEs
+                ? '¡Hola! Necesito una API key de '
+                : 'Hi! I need an API key from ';
+            const suffix = isEs
+                ? ' (tiene prueba gratis). Pégala en la configuración de la extensión para poder hablar.'
+                : ' (free trial available). Paste it in the extension settings to chat.';
+            msgEl.appendChild(document.createTextNode(prefix));
+            const openRouterLink = document.createElement('a');
+            openRouterLink.href = 'https://openrouter.ai/settings/keys';
+            openRouterLink.target = '_blank';
+            openRouterLink.rel = 'noopener noreferrer';
+            openRouterLink.textContent = 'OpenRouter';
+            msgEl.appendChild(openRouterLink);
+            msgEl.appendChild(document.createTextNode(suffix));
             chatMessagesEl.prepend(msgEl);
         }
 
@@ -1544,7 +1607,7 @@
             chatInputEl.type = 'text';
             chatInputEl.placeholder = isSpanishLocale() ? 'Di algo...' : 'Say something...';
             chatInputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') sendChatMessage();
+                if (e.key === 'Enter') safeSendChatMessage();
             });
             chatInputEl.addEventListener('mousedown', (e) => e.stopPropagation());
             chatInputEl.addEventListener('touchstart', (e) => e.stopPropagation());
@@ -1554,7 +1617,7 @@
             sendBtn.textContent = '\u25B6';
             sendBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                sendChatMessage();
+                safeSendChatMessage();
             });
 
             micBtnEl = document.createElement('button');
@@ -1684,6 +1747,10 @@
 
             loadConversation(async () => {
                 renderConversationHistory();
+                if (chatInputEl) {
+                    // Focus after render so typing works immediately.
+                    setTimeout(() => chatInputEl && chatInputEl.focus(), 0);
+                }
 
                 const mode = getMode();
                 const provider = config.standardProvider || 'openrouter';
@@ -1900,9 +1967,15 @@
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
             msgEl.className = 'shimeji-chat-msg error';
-            msgEl.textContent = text;
+            msgEl.textContent = addWarning(text);
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+        }
+
+        function addWarning(text) {
+            if (!text) return '⚠️';
+            const trimmed = text.trim();
+            return trimmed.endsWith('⚠️') ? trimmed : `${trimmed} ⚠️`;
         }
 
         function handleMascotClick() {
@@ -1957,22 +2030,35 @@
                 (response) => {
                     hideThinking();
                     if (chrome.runtime.lastError) {
-                        appendErrorMessage('Could not reach extension. Try reloading the page.');
+                        appendMessage('ai', addWarning(isSpanishLocale()
+                            ? 'No pude comunicarme con la extensión. Recarga la página.'
+                            : 'Could not reach extension. Try reloading the page.'));
                         playSound('error');
                         return;
                     }
                     if (response && response.error) {
                         if (response.errorType === 'no_credits') {
-                            appendMessage('ai', getNoCreditsMessage());
+                            appendMessage('ai', addWarning(getNoCreditsMessage()));
                             playSound('error');
                         } else if (response.errorType === 'locked') {
-                            appendMessage('ai', getLockedMessage());
+                            appendMessage('ai', addWarning(getLockedMessage()));
                             playSound('error');
                         } else if (response.errorType === 'no_response') {
-                            appendMessage('ai', getNoResponseMessage());
+                            appendMessage('ai', addWarning(getNoResponseMessage()));
                             playSound('error');
                         } else {
-                            appendErrorMessage(response.error);
+                            const errorText = response.error || '';
+                            if (/No API key set/i.test(errorText)) {
+                                appendMessage('ai', addWarning(getNoApiKeyMessage()));
+                            } else if (/Invalid API key/i.test(errorText)) {
+                                appendMessage('ai', addWarning(isSpanishLocale()
+                                    ? 'La API key no es válida. Revisa la key en el popup de la extensión.'
+                                    : 'Invalid API key. Please check your key in the extension popup.'));
+                            } else {
+                                appendMessage('ai', addWarning(isSpanishLocale()
+                                    ? 'Ocurrió un error al hablar. Revisa tu configuración.'
+                                    : 'Something went wrong while chatting. Check your settings.'));
+                            }
                             playSound('error');
                         }
                         return;
@@ -1981,7 +2067,9 @@
                         conversationHistory.push({ role: 'assistant', content: response.content });
                         saveConversation();
                         appendMessage('ai', response.content);
-                        playSound('success');
+                        if (!(isChatOpen && config.ttsEnabled)) {
+                            playSound('success');
+                        }
                         if (isChatOpen) {
                             const openMicAfter = config.openMicEnabled && isChatOpen;
                             enqueueSpeech(response.content, openMicAfter ? () => {
@@ -2059,6 +2147,18 @@
             }, duration);
         }
 
+        async function safeSendChatMessage() {
+            try {
+                await sendChatMessage();
+            } catch (error) {
+                console.error('Failed to send chat message', error);
+                appendErrorMessage(isSpanishLocale()
+                    ? 'No pude enviar el mensaje. Recarga la extensión o la página.'
+                    : 'Could not send the message. Reload the extension or the page.');
+                playSound('error');
+            }
+        }
+
         async function sendChatMessage() {
             if (!chatInputEl) return;
             const text = chatInputEl.value.trim();
@@ -2075,6 +2175,13 @@
 
             if (mascot.isDragging) {
                 updateDragAnimation();
+                return;
+            }
+
+            if (isChatOpen && (mascot.state === State.CLIMBING_WALL || mascot.state === State.CLIMBING_CEILING)) {
+                // Freeze on walls/ceiling while chat is open so the bubble doesn't drift.
+                mascot.velocityX = 0;
+                mascot.velocityY = 0;
                 return;
             }
 
@@ -2629,7 +2736,7 @@
             showOnboardingHint() {
                 if (visibilityState.disabledAll) return;
                 pendingOnboardingGreeting = true;
-                showAlert();
+                openChatBubble();
                 playSoundOrQueue('success');
             },
             updateConfig(nextConfig) {
