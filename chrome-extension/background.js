@@ -30,7 +30,8 @@ chrome.runtime.onInstalled.addListener(() => {
     connectedAddress: null,
     connectedNetwork: null,
     disabledAll: false,
-    disabledPages: []
+    disabledPages: [],
+    nftCharacters: []
   });
 });
 
@@ -52,7 +53,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     'getBehavior',
     'setSize',
     'getSize',
-    'getUnlockedCharacters'
+    'getUnlockedCharacters',
+    'getNftCharacters',
+    'setNftCharacters',
+    'pingExtension'
   ]);
 
   const senderUrl = sender.url || '';
@@ -193,6 +197,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const payload = data.unlockedCharacters || { 'shimeji': true };
       console.log('[Background] getUnlockedCharacters - sending payload:', payload);
       sendResponse({ type: 'EXTENSION_RESPONSE', payload: payload });
+    });
+    return true;
+  } else if (request.type === 'pingExtension') {
+    sendResponse({ type: 'EXTENSION_RESPONSE', payload: { installed: true } });
+    return true;
+  } else if (request.type === 'getNftCharacters') {
+    chrome.storage.sync.get(['nftCharacters'], (data) => {
+      sendResponse({ type: 'EXTENSION_RESPONSE', payload: data.nftCharacters || [] });
+    });
+    return true;
+  } else if (request.type === 'setNftCharacters') {
+    chrome.storage.sync.set({ nftCharacters: request.payload.characters || [] }, () => {
+      sendResponse({ type: 'EXTENSION_RESPONSE', payload: { status: 'saved' } });
     });
     return true;
   } else if (request.type === 'updateUnlockedCharacters') {

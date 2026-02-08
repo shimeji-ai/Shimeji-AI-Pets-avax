@@ -32,7 +32,10 @@ const ALLOWED_MESSAGE_TYPES = new Set([
   "getBehavior",
   "setSize",
   "getSize",
-  "getUnlockedCharacters"
+  "getUnlockedCharacters",
+  "getNftCharacters",
+  "setNftCharacters",
+  "pingExtension"
 ]);
 
 function isAllowedOrigin(origin) {

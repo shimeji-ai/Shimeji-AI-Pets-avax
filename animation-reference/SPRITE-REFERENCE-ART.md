@@ -119,6 +119,59 @@ The dangle frames alternate to create a gentle leg swing.
 
 ---
 
+## Original Shimeji-ee Sprite Mapping (For Importing New Characters)
+
+This mapping shows which **Shimeji-ee original sprite** each renamed file corresponds to. Use this when bringing in existing Shimeji-ee packs and renaming them for this extension.
+
+| Renamed Sprite | Shimeji-ee Original |
+|----------------|---------------------|
+| `stand-neutral.png` | `shime1` |
+| `walk-step-left.png` | `shime2` |
+| `walk-step-right.png` | `shime3` |
+| `fall.png` | `shime4` |
+| `resist-frame-1.png` | `shime5` |
+| `resist-frame-2.png` | `shime6` |
+| `dragged-tilt-left-light.png` | `shime7` |
+| `dragged-tilt-right-light.png` | `shime8` |
+| `dragged-tilt-left-heavy.png` | `shime9` |
+| `dragged-tilt-right-heavy.png` | `shime10` |
+| `sit.png` | `shime11` |
+| `climb-wall-frame-1.png` | `shime12` |
+| `grab-wall.png` | `shime13` |
+| `climb-wall-frame-2.png` | `shime14` |
+| `spin-head-frame-1.png` | `shime15` |
+| `spin-head-frame-2.png` | `shime16` |
+| `spin-head-frame-3.png` | `shime17` |
+| `bounce-squish.png` | `shime18` |
+| `bounce-recover.png` | `shime19` |
+| `crawl-crouch.png` | `shime20` |
+| `sprawl-lying.png` | `shime21` |
+| `jump.png` | `shime22` |
+| `grab-ceiling.png` | `shime23` |
+| `climb-ceiling-frame-1.png` | `shime24` |
+| `climb-ceiling-frame-2.png` | `shime25` |
+| `sit-look-up.png` | `shime26` |
+| `spin-head-frame-4.png` | `shime27` |
+| `spin-head-frame-5.png` | `shime28` |
+| `spin-head-frame-6.png` | `shime29` |
+| `sit-edge-legs-up.png` | `shime30` |
+| `sit-edge-legs-down.png` | `shime31` |
+| `sit-edge-dangle-frame-1.png` | `shime32` |
+| `sit-edge-dangle-frame-2.png` | `shime33` |
+| `carry-window-walk-frame-1.png` | `shime34` |
+| `carry-window-walk-frame-2.png` | `shime35` |
+| `carry-window-stand.png` | `shime36` |
+| `throw-window.png` | `shime37` |
+| `pull-up-friend-frame-1.png` | `shime38` |
+| `pull-up-friend-frame-2.png` | `shime39` |
+| `pull-up-friend-frame-3.png` | `shime40` |
+| `pull-up-friend-frame-4.png` | `shime41` |
+| `divide-frame-1.png` | `shime42` |
+| `divide-frame-2.png` | `shime43` |
+| `divide-frame-3.png` | `shime44` |
+| `divide-frame-4.png` | `shime45` |
+| `divide-frame-5.png` | `shime46` |
+
 ## Head Spin (Playful Idle)
 
 | Image | Preview | Pose / Feeling | Used When |

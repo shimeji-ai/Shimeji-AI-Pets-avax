@@ -503,6 +503,11 @@
         let micAutoSendInterval = null;
         let micAutoSendSeconds = 0;
         let autoSendArmed = false;
+        let noKeyNudgeTimer = null;
+        let noKeyNudgeShown = false;
+        let isPrimary = !!options.isPrimary;
+        let chatWiggleTimer = null;
+        let pendingSoundKind = null;
 
         async function loadSoundBuffers() {
             soundBuffersLoaded = false;
@@ -541,6 +546,21 @@
                 gain.connect(ctx.destination);
                 source.start(0);
             } catch (e) {}
+        }
+
+        function scheduleSoundAfterUserGesture(kind) {
+            if (!kind) return;
+            pendingSoundKind = kind;
+            const resumeAndPlay = () => {
+                if (!pendingSoundKind) return;
+                const ctx = getAudioContext();
+                ctx.resume().catch(() => {});
+                playSound(pendingSoundKind);
+                pendingSoundKind = null;
+            };
+            ['click', 'keydown', 'touchstart'].forEach((evt) => {
+                window.addEventListener(evt, resumeAndPlay, { capture: true, once: true });
+            });
         }
 
         async function persistVoiceId(voiceName) {
@@ -960,6 +980,18 @@
 
             msgEl.appendChild(document.createTextNode(suffix));
 
+            chatMessagesEl.prepend(msgEl);
+        }
+
+        function ensureNoApiKeyNudgeMessage() {
+            if (!chatMessagesEl) return;
+            const existing = chatMessagesEl.querySelector('.shimeji-no-api-key-nudge');
+            if (existing) return;
+            const msgEl = document.createElement('div');
+            msgEl.className = 'shimeji-chat-msg ai shimeji-no-api-key-nudge';
+            msgEl.textContent = isSpanishLocale()
+                ? '¡Hola! Necesito tu API key para poder hablar.'
+                : 'Hi! I need your API key to be able to talk.';
             chatMessagesEl.prepend(msgEl);
         }
 
@@ -1541,6 +1573,16 @@
             el.style.setProperty('--chat-width', widthMap[config.chatWidth] || '280px');
             el.classList.remove('chat-style-glass', 'chat-style-solid', 'chat-style-dark');
             el.classList.add('chat-style-' + (config.chatBubbleStyle || 'glass'));
+            applyAuxBubbleTheme(thinkingBubbleEl);
+            applyAuxBubbleTheme(alertBubbleEl);
+        }
+
+        function applyAuxBubbleTheme(el) {
+            if (!el) return;
+            el.style.setProperty('--chat-theme', config.chatThemeColor || '#2a1f4e');
+            el.style.setProperty('--chat-bg', config.chatBgColor || '#ffffff');
+            el.classList.remove('chat-style-glass', 'chat-style-solid', 'chat-style-dark');
+            el.classList.add('chat-style-' + (config.chatBubbleStyle || 'glass'));
         }
 
         function createThinkingBubble() {
@@ -1555,6 +1597,7 @@
                 thinkingBubbleEl.appendChild(dot);
             }
             document.body.appendChild(thinkingBubbleEl);
+            applyAuxBubbleTheme(thinkingBubbleEl);
         }
 
         function createAlertBubble() {
@@ -1565,6 +1608,7 @@
             alertBubbleEl.className = 'shimeji-alert-bubble';
             alertBubbleEl.textContent = '!';
             document.body.appendChild(alertBubbleEl);
+            applyAuxBubbleTheme(alertBubbleEl);
         }
 
         function createInlineThinking() {
@@ -1911,6 +1955,62 @@
             );
         }
 
+        function needsApiKeyForChat() {
+            const mode = getMode();
+            if (mode !== 'standard') return false;
+            const provider = config.standardProvider || 'openrouter';
+            if (provider !== 'openrouter') return false;
+            return !((config.openrouterApiKey || '').trim() || config.openrouterApiKeyEnc);
+        }
+
+        function scheduleNoKeyNudge() {
+            if (!isPrimary || noKeyNudgeShown) return;
+            if (noKeyNudgeTimer) {
+                clearTimeout(noKeyNudgeTimer);
+                noKeyNudgeTimer = null;
+            }
+            if (!needsApiKeyForChat()) return;
+            noKeyNudgeTimer = setTimeout(() => {
+                noKeyNudgeTimer = null;
+                if (noKeyNudgeShown) return;
+                if (!needsApiKeyForChat()) return;
+                noKeyNudgeShown = true;
+                ensureNoApiKeyNudgeMessage();
+                if (!isChatOpen) {
+                    showAlert();
+                    const ctx = getAudioContext();
+                    if (ctx.state === 'suspended') {
+                        scheduleSoundAfterUserGesture('success');
+                    } else {
+                        playSound('success');
+                    }
+                }
+            }, 4000);
+        }
+
+        function getAnimationDuration(name) {
+            const anim = ANIMATIONS[name];
+            if (!anim || !anim.length) return 0;
+            return anim.reduce((sum, frame) => sum + frame.duration, 0) * TICK_MS;
+        }
+
+        function startChatLegWiggle() {
+            if (chatWiggleTimer || mascot.state !== State.SITTING) return;
+            const duration = getAnimationDuration('sittingEdge');
+            if (!duration) return;
+            mascot.currentAnimation = 'sittingEdge';
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+            chatWiggleTimer = setTimeout(() => {
+                chatWiggleTimer = null;
+                if (mascot.state === State.SITTING && isChatOpen) {
+                    mascot.currentAnimation = 'sitting';
+                    mascot.animationFrame = 0;
+                    mascot.animationTick = 0;
+                }
+            }, duration);
+        }
+
         function sendChatMessage() {
             if (!chatInputEl) return;
             const text = chatInputEl.value.trim();
@@ -1931,7 +2031,52 @@
             }
 
             if (isChatOpen && (mascot.state === State.SITTING || mascot.state === State.HEAD_SPIN || mascot.state === State.SPRAWLED)) {
-                return;
+                if (mascot.state === State.SITTING) {
+                    mascot.stateTimer++;
+                    if (!chatWiggleTimer) {
+                        if (lastCursorY !== null && lastCursorY < window.innerHeight / 2) {
+                            mascot.currentAnimation = 'sittingLookUp';
+                        } else if (mascot.currentAnimation !== 'sittingEdge') {
+                            mascot.currentAnimation = 'sitting';
+                        }
+                    }
+                    if (mascot.stateTimer > 70 && Math.random() < 0.02) {
+                        startChatLegWiggle();
+                        mascot.stateTimer = 0;
+                    }
+                    if (mascot.stateTimer > 90 && Math.random() < 0.02) {
+                        mascot.state = State.HEAD_SPIN;
+                        mascot.currentAnimation = 'headSpin';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    return;
+                }
+                if (mascot.state === State.HEAD_SPIN) {
+                    mascot.stateTimer++;
+                    const hsAnim = ANIMATIONS.headSpin;
+                    const hsDuration = hsAnim.reduce((sum, f) => sum + f.duration, 0);
+                    if (mascot.stateTimer >= hsDuration) {
+                        mascot.state = State.SITTING;
+                        mascot.currentAnimation = 'sitting';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    return;
+                }
+                if (mascot.state === State.SPRAWLED) {
+                    mascot.stateTimer++;
+                    if (mascot.stateTimer > 150 && Math.random() < 0.02) {
+                        mascot.state = State.SITTING;
+                        mascot.currentAnimation = 'sitting';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    return;
+                }
             }
 
             switch (mascot.state) {
@@ -2286,6 +2431,7 @@
                 createThinkingBubble();
                 createAlertBubble();
                 loadSoundBuffers();
+                scheduleNoKeyNudge();
 
                 gameLoopTimer = setInterval(gameLoop, TICK_MS);
 
@@ -2304,6 +2450,14 @@
             if (startDelayTimer) {
                 clearTimeout(startDelayTimer);
                 startDelayTimer = null;
+            }
+            if (noKeyNudgeTimer) {
+                clearTimeout(noKeyNudgeTimer);
+                noKeyNudgeTimer = null;
+            }
+            if (chatWiggleTimer) {
+                clearTimeout(chatWiggleTimer);
+                chatWiggleTimer = null;
             }
 
             stopVoiceInput();
@@ -2398,6 +2552,10 @@
                 clearInterval(gameLoopTimer);
                 gameLoopTimer = null;
             }
+            if (chatWiggleTimer) {
+                clearTimeout(chatWiggleTimer);
+                chatWiggleTimer = null;
+            }
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             document.removeEventListener('touchmove', onTouchMove);
@@ -2461,16 +2619,21 @@
                 }
                 updateTtsToggleBtnVisual();
                 updateOpenMicBtnVisual();
-            if (chatThemePanelEl) {
-                const colorInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-color');
-                const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
-                const styleSelect = chatThemePanelEl.querySelector('.shimeji-chat-theme-style');
-                if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
-                if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
-                if (styleSelect) styleSelect.value = config.chatBubbleStyle || 'glass';
+                if (chatThemePanelEl) {
+                    const colorInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-color');
+                    const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
+                    const styleSelect = chatThemePanelEl.querySelector('.shimeji-chat-theme-style');
+                    if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
+                    if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
+                    if (styleSelect) styleSelect.value = config.chatBubbleStyle || 'glass';
+                }
+                scheduleNoKeyNudge();
+            },
+            setPrimary(value) {
+                isPrimary = !!value;
+                scheduleNoKeyNudge();
             }
-        }
-    };
+        };
     }
 
     let runtimes = [];
@@ -2490,12 +2653,15 @@
         });
 
         // Update existing or add new
-        nextEnabled.forEach((config) => {
+        nextEnabled.forEach((config, index) => {
             const existing = runtimes.find(r => r.id === config.id);
             if (existing) {
                 existing.updateConfig(config);
+                if (typeof existing.setPrimary === 'function') {
+                    existing.setPrimary(index === 0);
+                }
             } else {
-                runtimes.push(createShimejiRuntime(config, visibilityState));
+                runtimes.push(createShimejiRuntime(config, visibilityState, { isPrimary: index === 0 }));
             }
         });
     }

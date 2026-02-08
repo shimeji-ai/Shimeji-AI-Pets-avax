@@ -1104,3 +1104,84 @@ body[data-theme="pink"] .ai-input {
   padding: 2px;
   background: rgba(18, 24, 36, 0.9);
 }
+
+/* NFT Collection Section */
+.nft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nft-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(120, 140, 255, 0.25);
+  background: rgba(14, 20, 32, 0.85);
+  border-radius: 1rem;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 24px rgba(3, 8, 18, 0.4);
+}
+
+body[data-theme="pink"] .nft-card {
+  border: 1px solid rgba(255, 154, 216, 0.3);
+  background: rgba(28, 13, 22, 0.86);
+}
+
+body[data-theme="kawaii"] .nft-card {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(42, 31, 78, 0.15);
+}
+
+.nft-card-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 0.75rem;
+  background: rgba(91, 123, 255, 0.15);
+  border: 1px solid rgba(120, 140, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e6e9f2;
+  flex-shrink: 0;
+}
+
+.nft-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #e6e9f2;
+}
+
+body[data-theme="kawaii"] .nft-card-name {
+  color: #2a1f4e;
+}
+
+.nft-card-id {
+  font-size: 10px;
+  color: rgba(200, 210, 235, 0.6);
+}
+
+.nft-empty-state {
+  font-size: 11px;
+  color: rgba(200, 210, 235, 0.55);
+  line-height: 1.4;
+  padding: 12px;
+  text-align: center;
+  border: 1px dashed rgba(120, 140, 255, 0.2);
+  border-radius: 1rem;
+  background: rgba(14, 20, 32, 0.5);
+}
+
+body[data-theme="pink"] .nft-empty-state {
+  border-color: rgba(255, 154, 216, 0.25);
+  background: rgba(28, 13, 22, 0.5);
+}
+
+body[data-theme="kawaii"] .nft-empty-state {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(42, 31, 78, 0.15);
+  color: rgba(42, 31, 78, 0.7);
+}

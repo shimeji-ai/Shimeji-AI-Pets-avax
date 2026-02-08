@@ -19,6 +19,9 @@
     display: none;
     flex-direction: column;
     overflow: hidden;
+    opacity: 0;
+    transform: translateY(6px) scale(0.94);
+    transition: transform 220ms ease, opacity 180ms ease;
 }
 
 /* Glass style (default) */
@@ -45,6 +48,8 @@
 
 .shimeji-chat-bubble.visible {
     display: flex;
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }
 
 /* Speech bubble tail */
@@ -475,12 +480,12 @@
     justify-content: center;
     gap: 4px;
     padding: 8px 14px;
-    background: rgba(255, 255, 255, 0.88);
+    background: var(--chat-bg, rgba(255, 255, 255, 0.88));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 14px;
-    border: 1px solid rgba(42, 31, 78, 0.1);
-    box-shadow: 0 4px 16px rgba(42, 31, 78, 0.12);
+    border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--chat-theme, #2a1f4e) 18%, transparent);
 }
 
 .shimeji-thinking-bubble.visible {
@@ -498,13 +503,13 @@
     height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    border-top: 6px solid rgba(255, 255, 255, 0.88);
+    border-top: 6px solid var(--chat-bg, rgba(255, 255, 255, 0.88));
 }
 
 .shimeji-thinking-dot {
     width: 6px;
     height: 6px;
-    background: #2a1f4e;
+    background: var(--chat-theme, #2a1f4e);
     border-radius: 50%;
     opacity: 0.5;
     animation: shimejiBounce 1.2s ease-in-out infinite;
@@ -538,16 +543,16 @@
     justify-content: center;
     width: 42px;
     height: 42px;
-    background: rgba(255, 255, 255, 0.96);
+    background: var(--chat-bg, rgba(255, 255, 255, 0.96));
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 50%;
-    border: 1px solid rgba(42, 31, 78, 0.12);
-    box-shadow: 0 6px 20px rgba(42, 31, 78, 0.2);
+    border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 18%, transparent);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--chat-theme, #2a1f4e) 22%, transparent);
     font-family: 'Nunito', sans-serif;
     font-size: 24px;
     font-weight: 900;
-    color: #2a1f4e;
+    color: var(--chat-theme, #2a1f4e);
     animation: shimejiAlertPulse 1.6s ease-in-out infinite;
 }
 
@@ -565,7 +570,7 @@
     height: 0;
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
-    border-top: 6px solid rgba(255, 255, 255, 0.92);
+    border-top: 6px solid var(--chat-bg, rgba(255, 255, 255, 0.92));
 }
 
 @keyframes shimejiAlertPulse {

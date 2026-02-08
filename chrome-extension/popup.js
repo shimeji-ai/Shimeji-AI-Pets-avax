@@ -892,11 +892,6 @@ if (securityHint) securityHint.textContent = t(
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
       ], shimeji.size));
-      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
-        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
-        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
-        { value: "off", labelEn: "Off", labelEs: "Apagado" },
-      ], mode));
       grid.appendChild(renderToggleField("enabled", t("Active", "Activo"), shimeji.enabled !== false));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Sound", "Sonido"), shimeji.soundEnabled !== false));
@@ -912,6 +907,11 @@ if (securityHint) securityHint.textContent = t(
       ], shimeji.ttsVoiceProfile || "random"));
       grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
       grid.appendChild(renderToggleField("relayEnabled", t("Talk to other shimejis", "Hablar con otros shimejis"), !!shimeji.relayEnabled));
+      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
+        { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
+        { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
+        { value: "off", labelEn: "Off", labelEs: "Apagado" },
+      ], mode));
 
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
@@ -1410,8 +1410,60 @@ if (securityHint) securityHint.textContent = t(
     });
   }
 
+  const nftSectionTitle = document.getElementById("nft-section-title");
+  const nftHint = document.getElementById("nft-hint");
+  const nftListEl = document.getElementById("nft-list");
+  const linkNftCollection = document.getElementById("link-nft-collection");
+
+  function renderNftSection() {
+    if (nftSectionTitle) nftSectionTitle.textContent = t("NFT Shimejis", "Shimejis NFT");
+    if (linkNftCollection) linkNftCollection.textContent = t("Manage Collection", "Gestionar Colección");
+    if (!nftListEl) return;
+
+    chrome.storage.sync.get(['nftCharacters'], (data) => {
+      const nfts = data.nftCharacters || [];
+      nftListEl.innerHTML = "";
+
+      if (nfts.length === 0) {
+        if (nftHint) nftHint.textContent = "";
+        const empty = document.createElement("div");
+        empty.className = "nft-empty-state";
+        empty.textContent = t(
+          "No NFT characters yet. Visit the collection page to connect your wallet.",
+          "Aún no hay personajes NFT. Visita la página de colección para conectar tu wallet."
+        );
+        nftListEl.appendChild(empty);
+        return;
+      }
+
+      if (nftHint) nftHint.textContent = t(
+        `${nfts.length} NFT character${nfts.length === 1 ? '' : 's'}`,
+        `${nfts.length} personaje${nfts.length === 1 ? '' : 's'} NFT`
+      );
+
+      nfts.forEach((nft) => {
+        const card = document.createElement("div");
+        card.className = "nft-card";
+        const preview = document.createElement("div");
+        preview.className = "nft-card-preview";
+        preview.textContent = (nft.name || "?")[0].toUpperCase();
+        const name = document.createElement("div");
+        name.className = "nft-card-name";
+        name.textContent = nft.name || t("Unknown", "Desconocido");
+        const id = document.createElement("div");
+        id.className = "nft-card-id";
+        id.textContent = nft.id || "";
+        card.appendChild(preview);
+        card.appendChild(name);
+        card.appendChild(id);
+        nftListEl.appendChild(card);
+      });
+    });
+  }
+
   setPopupLabels();
   loadShimejis();
+  renderNftSection();
 
   if (popupThemeSelect) {
     popupThemeSelect.addEventListener("change", () => {

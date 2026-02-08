@@ -57,6 +57,12 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             >
               {isSpanish ? "Fábrica" : "Factory"}
             </Link>
+            <Link
+              href="/collection"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+            >
+              {isSpanish ? "Colección" : "Collection"}
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -95,6 +101,13 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Fábrica" : "Factory"}
+              </Link>
+              <Link
+                href="/collection"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Colección" : "Collection"}
               </Link>
               <Link
                 href="/download"
