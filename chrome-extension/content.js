@@ -219,6 +219,13 @@
     };
     const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
 
+    const SHIMEJI_PITCH_FACTORS = [0.9, 0.96, 1.02, 1.08, 1.14];
+
+    function getShimejiPitchFactor(shimejiId) {
+        const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
+        return SHIMEJI_PITCH_FACTORS[idx % SHIMEJI_PITCH_FACTORS.length];
+    }
+
     function pickRandomTtsProfile() {
         if (!TTS_PROFILE_POOL.length) return 'random';
         return TTS_PROFILE_POOL[Math.floor(Math.random() * TTS_PROFILE_POOL.length)];
@@ -340,8 +347,8 @@
         return sharedAudioCtx;
     }
 
-    function ensureAudioContextFromGesture(fromGesture) {
-        if (!fromGesture) return null;
+    function ensureAudioContextFromGesture(evt) {
+        if (!evt || evt.isTrusted === false) return null;
         if (!audioUnlocked) {
             audioUnlocked = true;
         }
@@ -355,8 +362,8 @@
     function armAudioUnlock() {
         if (audioUnlockArmed) return;
         audioUnlockArmed = true;
-        const unlock = () => {
-            ensureAudioContextFromGesture(true);
+        const unlock = (evt) => {
+            ensureAudioContextFromGesture(evt);
         };
         ['click', 'keydown', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, unlock, { capture: true, once: true });
@@ -552,7 +559,8 @@
             mode: 'standard',
             standardProvider: 'openrouter',
             openrouterApiKey: '',
-            openrouterModel: randomModel,
+            openrouterModel: 'random',
+            openrouterModelResolved: randomModel,
             ollamaUrl: 'http://127.0.0.1:11434',
             ollamaModel: 'llama3.1',
             openclawGatewayUrl: 'ws://127.0.0.1:18789',
@@ -563,6 +571,7 @@
             chatBgColor: preset?.bg || '#ffffff',
             chatFontSize: 'medium',
             chatWidth: 'medium',
+            chatHeightPx: 320,
             chatBubbleStyle: preset?.bubble || 'glass',
             ttsEnabled: false,
             ttsWhenClosed: false,
@@ -585,7 +594,8 @@
             size: 'medium',
             mode: data.chatMode || 'standard',
             openrouterApiKey: data.aiApiKey || '',
-            openrouterModel: data.aiModel || 'google/gemini-2.0-flash-001',
+            openrouterModel: 'random',
+            openrouterModelResolved: MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)],
             openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
             openclawGatewayToken: data.openclawGatewayToken || '',
             personality: data.aiPersonality || 'cryptid',
@@ -617,23 +627,32 @@
                 list = [getDefaultShimeji(0)];
             }
             const needsTtsMigration = !data.ttsEnabledMigrationDone;
-            list = list.map((item) => ({
-                ...item,
-                mode: normalizeMode(item.mode),
-                soundEnabled: item.soundEnabled !== false,
-                soundVolume: typeof item.soundVolume === 'number' ? item.soundVolume : 0.7,
-                standardProvider: item.standardProvider || 'openrouter',
-                ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
-                ollamaModel: item.ollamaModel || 'llama3.1',
-                ttsEnabled: needsTtsMigration ? item.ttsEnabled === true : item.ttsEnabled === true,
-                ttsWhenClosed: item.ttsWhenClosed === true,
-                ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
-                ttsVoiceId: item.ttsVoiceId || '',
-                openMicEnabled: !!item.openMicEnabled,
-                relayEnabled: !!item.relayEnabled,
-                animationQuality: item.animationQuality || 'full',
-                masterKeyEnabled: !!data.masterKeyEnabled
-            }));
+            list = list.map((item) => {
+                const needsRandom = !item.openrouterModel || item.openrouterModel === 'google/gemini-2.0-flash-001';
+                const modelValue = needsRandom ? 'random' : item.openrouterModel;
+                return {
+                    ...item,
+                    mode: normalizeMode(item.mode),
+                    soundEnabled: item.soundEnabled !== false,
+                    soundVolume: typeof item.soundVolume === 'number' ? item.soundVolume : 0.7,
+                    standardProvider: item.standardProvider || 'openrouter',
+                    openrouterModel: modelValue,
+                    openrouterModelResolved: item.openrouterModelResolved
+                        || (modelValue !== 'random'
+                            ? modelValue
+                            : MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)]),
+                    ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
+                    ollamaModel: item.ollamaModel || 'llama3.1',
+                    ttsEnabled: needsTtsMigration ? item.ttsEnabled === true : item.ttsEnabled === true,
+                    ttsWhenClosed: item.ttsWhenClosed === true,
+                    ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
+                    ttsVoiceId: item.ttsVoiceId || '',
+                    openMicEnabled: !!item.openMicEnabled,
+                    relayEnabled: !!item.relayEnabled,
+                    animationQuality: item.animationQuality || 'full',
+                    masterKeyEnabled: !!data.masterKeyEnabled
+                };
+            });
             list = list.slice(0, MAX_SHIMEJIS);
             chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
             callback(list);
@@ -759,7 +778,9 @@
                 if (ctx.state === 'suspended') return;
                 const source = ctx.createBufferSource();
                 source.buffer = buffer;
-                source.playbackRate.value = PERSONALITY_PITCH[config.personality] || 1.0;
+                const personalityRate = PERSONALITY_PITCH[config.personality] || 1.0;
+                const shimejiRate = getShimejiPitchFactor(shimejiId);
+                source.playbackRate.value = Math.max(0.6, Math.min(1.6, personalityRate * shimejiRate));
                 const gain = ctx.createGain();
                 gain.gain.value = Math.max(0, Math.min(1, typeof config.soundVolume === 'number' ? config.soundVolume : 0.7));
                 source.connect(gain);
@@ -773,9 +794,9 @@
             pendingSoundKind = kind;
             if (soundGestureArmed) return;
             soundGestureArmed = true;
-            const resumeAndPlay = () => {
+            const resumeAndPlay = (evt) => {
                 if (!pendingSoundKind) return;
-                const ctx = ensureAudioContextFromGesture(true);
+                const ctx = ensureAudioContextFromGesture(evt);
                 if (!ctx) return;
                 if (!soundBuffersLoaded) loadSoundBuffers();
                 playSound(pendingSoundKind);
@@ -885,7 +906,7 @@
 
         function updateQuickTtsBtnVisual() {
             if (!quickTtsBtnEl) return;
-            quickTtsBtnEl.textContent = config.ttsEnabled ? '\uD83D\uDD0A' : '\uD83D\uDD07';
+            quickTtsBtnEl.textContent = config.ttsEnabled ? '🔊' : '🔇';
             quickTtsBtnEl.title = config.ttsEnabled
                 ? (isSpanishLocale() ? 'Voz activada' : 'Voice on')
                 : (isSpanishLocale() ? 'Voz desactivada' : 'Voice off');
@@ -1407,7 +1428,9 @@
             if (isChatOpen) closeChatBubble();
 
             mascot.prevDragX = mascot.x;
+            mascot.prevDragY = mascot.y;
             mascot.smoothedVelocityX = 0;
+            mascot.smoothedVelocityY = 0;
             mascot.dragTick = 0;
             mascot.isResisting = false;
             mascot.resistAnimTick = 0;
@@ -1495,8 +1518,10 @@
             mascot.dragPending = false;
             mascotElement.style.cursor = 'grab';
 
-            mascot.velocityX = mascot.smoothedVelocityX * 0.2;
-            mascot.velocityY = 0;
+            const throwScale = 0.22;
+            const maxThrow = 16;
+            mascot.velocityX = Math.max(-maxThrow, Math.min(maxThrow, mascot.smoothedVelocityX * throwScale));
+            mascot.velocityY = Math.max(-maxThrow, Math.min(maxThrow, mascot.smoothedVelocityY * throwScale));
             mascot.state = State.FALLING;
             mascot.currentAnimation = 'falling';
             mascot.animationFrame = 0;
@@ -1508,10 +1533,13 @@
 
             mascot.dragTick++;
             const dragDelta = mascot.x - mascot.prevDragX;
+            const dragDeltaY = mascot.y - mascot.prevDragY;
             mascot.prevDragX = mascot.x;
+            mascot.prevDragY = mascot.y;
 
             const alpha = 0.2;
             mascot.smoothedVelocityX = mascot.smoothedVelocityX * (1 - alpha) + dragDelta * alpha * 5;
+            mascot.smoothedVelocityY = mascot.smoothedVelocityY * (1 - alpha) + dragDeltaY * alpha * 5;
 
             if (mascot.dragTick % 60 === 0) {
                 mascot.isResisting = true;
@@ -1594,17 +1622,17 @@
 
             const settingsBtnEl = document.createElement('button');
             settingsBtnEl.className = 'shimeji-chat-settings-toggle';
-            settingsBtnEl.textContent = '\u2699';
+            settingsBtnEl.textContent = '⚙️';
             settingsBtnEl.title = isSpanishLocale() ? 'Controles' : 'Controls';
 
             const themeBtnEl = document.createElement('button');
             themeBtnEl.className = 'shimeji-chat-theme-toggle';
-            themeBtnEl.textContent = '\uD83C\uDFA8';
+            themeBtnEl.textContent = '🎨';
             themeBtnEl.title = isSpanishLocale() ? 'Tema de chat' : 'Chat theme';
 
             openMicBtnEl = document.createElement('button');
             openMicBtnEl.className = 'shimeji-chat-openmic-toggle';
-            openMicBtnEl.textContent = '\uD83C\uDF99';
+            openMicBtnEl.textContent = '🎙️';
             updateOpenMicBtnVisual();
             openMicBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1621,7 +1649,7 @@
 
             ttsClosedBtnEl = document.createElement('button');
             ttsClosedBtnEl.className = 'shimeji-chat-tts-closed-toggle';
-            ttsClosedBtnEl.textContent = '\uD83D\uDD0A';
+            ttsClosedBtnEl.textContent = '💤';
             updateTtsClosedBtnVisual();
             ttsClosedBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1637,7 +1665,7 @@
 
             relayToggleBtnEl = document.createElement('button');
             relayToggleBtnEl.className = 'shimeji-chat-relay-toggle';
-            relayToggleBtnEl.textContent = '\uD83D\uDD01';
+            relayToggleBtnEl.textContent = '🔁';
             updateRelayToggleBtnVisual();
             relayToggleBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2195,32 +2223,19 @@
                     if (needsApiKeyForChat()) {
                         noKeyNudgeShown = true;
                         ensureNoApiKeyOnboardingMessage();
-                        playSound('error');
+                        playSoundOrQueue('error');
                     } else {
                         const msg = isSpanishLocale()
-                            ? 'Hola, soy tu shimeji. Haz clic para hablar conmigo.'
-                            : 'Hi, I am your shimeji. Click me to chat.';
+                            ? 'Hola, soy tu shimeji. Estoy listo para hablar contigo.'
+                            : 'Hi, I am your shimeji. I am ready to chat with you.';
                         appendMessage('ai', msg);
-                        playSound('success');
+                        conversationHistory.push({ role: 'assistant', content: msg });
+                        saveConversation();
+                        playSoundOrQueue('success');
                     }
                 }
 
-                if (chatMetaEl) {
-                    if (mode === 'agent') {
-                        chatMetaEl.textContent = 'openclaw · agent';
-                    } else if (mode === 'off') {
-                        chatMetaEl.textContent = isSpanishLocale() ? 'sin configurar' : 'not configured';
-                    } else {
-                        const provider = config.standardProvider || 'openrouter';
-                        if (provider === 'ollama') {
-                            const model = config.ollamaModel || 'llama3.1';
-                            chatMetaEl.textContent = `ollama · ${model}`;
-                        } else {
-                            const model = config.openrouterModel || 'google/gemini-2.0-flash-001';
-                            chatMetaEl.textContent = model;
-                        }
-                    }
-                }
+                updateChatMeta();
 
                 setTimeout(() => {
                     if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -2255,6 +2270,39 @@
                 mascot.currentAnimation = 'idle';
                 mascot.stateTimer = 0;
                 mascot.animationFrame = 0;
+            }
+        }
+
+        function updateChatMeta() {
+            if (!chatMetaEl) return;
+            const mode = getMode();
+            if (mode === 'agent') {
+                chatMetaEl.textContent = 'openclaw · agent';
+                return;
+            }
+            if (mode === 'off') {
+                chatMetaEl.textContent = isSpanishLocale() ? 'sin configurar' : 'not configured';
+                return;
+            }
+            const provider = config.standardProvider || 'openrouter';
+            if (provider === 'ollama') {
+                const model = config.ollamaModel || 'llama3.1';
+                chatMetaEl.textContent = `ollama · ${model}`;
+            } else {
+                let model = config.openrouterModel || 'google/gemini-2.0-flash-001';
+                if (model === 'random') {
+                    if (!config.openrouterModelResolved) {
+                        const resolved = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
+                        config.openrouterModelResolved = resolved;
+                        chrome.storage.local.get(['shimejis'], (data) => {
+                            const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                            const updated = list.map((s) => s.id === shimejiId ? { ...s, openrouterModelResolved: resolved } : s);
+                            chrome.storage.local.set({ shimejis: updated });
+                        });
+                    }
+                    model = config.openrouterModelResolved || MODEL_KEYS_ENABLED[0];
+                }
+                chatMetaEl.textContent = model;
             }
         }
 
@@ -2430,17 +2478,15 @@
                 appendMessage('ai', getLockedMessage());
                 conversationHistory.push({ role: 'assistant', content: getLockedMessage() });
                 saveConversation();
-                playSound('error');
+                playSoundOrQueue('error');
                 return;
             }
             if (mode === 'off') {
                 if (chatInputEl) chatInputEl.value = '';
                 appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
-                playSound('error');
+                playSoundOrQueue('error');
                 return;
             }
-            // Resume AudioContext on user gesture so Chrome autoplay policy allows later playback
-            ensureAudioContextFromGesture(true);
             cancelSpeech();
 
             if (chatInputEl) chatInputEl.value = '';
@@ -2458,19 +2504,19 @@
                         appendMessage('ai', addWarning(isSpanishLocale()
                             ? 'No pude comunicarme con la extensión. Recarga la página.'
                             : 'Could not reach extension. Try reloading the page.'));
-                        playSound('error');
+                        playSoundOrQueue('error');
                         return;
                     }
                     if (response && response.error) {
                         if (response.errorType === 'no_credits') {
                             appendMessage('ai', addWarning(getNoCreditsMessage()));
-                            playSound('error');
+                            playSoundOrQueue('error');
                         } else if (response.errorType === 'locked') {
                             appendMessage('ai', addWarning(getLockedMessage()));
-                            playSound('error');
+                            playSoundOrQueue('error');
                         } else if (response.errorType === 'no_response') {
                             appendMessage('ai', addWarning(getNoResponseMessage()));
-                            playSound('error');
+                            playSoundOrQueue('error');
                         } else {
                             const errorText = response.error || '';
                             if (/No API key set/i.test(errorText)) {
@@ -2489,7 +2535,7 @@
                                     ? 'Ocurrió un error al hablar. Revisa tu configuración.'
                                     : 'Something went wrong while chatting. Check your settings.'));
                             }
-                            playSound('error');
+                            playSoundOrQueue('error');
                         }
                         return;
                     }
@@ -2498,7 +2544,7 @@
                         saveConversation();
                         appendMessage('ai', response.content);
                         if (!(isChatOpen && config.ttsEnabled) && !( !isChatOpen && config.ttsEnabled && config.ttsWhenClosed)) {
-                            playSound('success');
+                            playSoundOrQueue('success');
                         }
                         if (isChatOpen) {
                             const openMicAfter = config.openMicEnabled && isChatOpen;
@@ -2590,7 +2636,7 @@
                 appendErrorMessage(isSpanishLocale()
                     ? 'No pude enviar el mensaje. Recarga la extensión o la página.'
                     : 'Could not send the message. Reload the extension or the page.');
-                playSound('error');
+                playSoundOrQueue('error');
             }
         }
 
@@ -3190,6 +3236,7 @@
                 currentSize = config.size || currentSize;
                 updateMascotStyle();
                 applyChatStyle();
+                updateChatMeta();
                 const charChanged = config.character && config.character !== currentCharacter;
                 const personalityChanged = config.personality !== prevPersonality;
                 const ttsProfileChanged = prevTtsProfile && config.ttsVoiceProfile && prevTtsProfile !== config.ttsVoiceProfile;
@@ -3250,6 +3297,12 @@
     function syncRuntimes(shimejiConfigs) {
         const nextEnabled = shimejiConfigs.filter(c => c && c.enabled !== false);
         const nextIds = new Set(nextEnabled.map(c => c.id));
+
+        if (nextEnabled.length === 0) {
+            runtimes.forEach((runtime) => runtime.destroy());
+            runtimes = [];
+            return;
+        }
 
         // Remove runtimes that no longer exist
         runtimes = runtimes.filter((runtime) => {

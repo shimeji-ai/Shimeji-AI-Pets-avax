@@ -60,6 +60,29 @@ body[data-theme="pink"] .popup-header {
   font-weight: 600;
 }
 
+.security-lock-banner {
+  display: none;
+  margin: 10px 12px 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 92, 115, 0.7);
+  background: rgba(60, 10, 18, 0.9);
+  color: #ffd1d8;
+  box-shadow: 0 8px 22px rgba(255, 92, 115, 0.25);
+}
+
+.security-lock-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.security-lock-text {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
 .onboarding-banner {
   margin: 10px 12px 0;
   padding: 12px;
@@ -909,8 +932,23 @@ body[data-theme="pink"] .marketplace-link span {
 
 .security-input-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 6px;
+}
+
+.security-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.security-input-row .ai-input {
+  width: 100%;
+}
+
+#masterkey-save-btn,
+#masterkey-change-btn {
+  min-width: 86px;
 }
 
 .security-inline-label {
@@ -921,11 +959,11 @@ body[data-theme="pink"] .marketplace-link span {
 }
 
 .security-input-row .ai-range {
-  grid-column: 1 / span 2;
+  grid-column: 1;
 }
 
 .security-input-row .security-inline-label {
-  grid-column: 3;
+  grid-column: 2;
 }
 .mini-btn {
   padding: 6px 8px;

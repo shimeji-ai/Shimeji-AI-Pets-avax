@@ -11,6 +11,10 @@
     <div class="popup-subtitle" id="popup-subtitle">Your AI mascot orchestrator</div>
     <div class="popup-stats" id="popup-stats"></div>
   </header>
+  <section class="security-lock-banner" id="security-lock-banner">
+    <div class="security-lock-title" id="security-lock-title">Configuration locked</div>
+    <div class="security-lock-text" id="security-lock-text">Enter your password to unlock and use features.</div>
+  </section>
   <section class="onboarding-banner" id="onboarding-banner">
     <div class="onboarding-header">
       <div class="onboarding-title" id="onboarding-title">Welcome to Shimeji AI Pets</div>
@@ -86,18 +90,25 @@
           <input type="checkbox" id="masterkey-toggle" class="toggle-checkbox">
           <span class="toggle-slider"></span>
         </label>
-        <label class="toggle-row mini-toggle">
+        <label class="toggle-row mini-toggle" id="autolock-row">
           <span class="toggle-label" id="autolock-label">Auto-lock</span>
           <input type="checkbox" id="autolock-toggle" class="toggle-checkbox">
           <span class="toggle-slider"></span>
         </label>
-        <div class="security-input-row">
+        <div class="security-input-row" id="autolock-minutes-row">
           <input type="range" id="autolock-minutes" class="ai-range" min="5" max="120" step="5">
           <span class="security-inline-label" id="autolock-minutes-label">30 min</span>
         </div>
         <div class="security-input-row">
           <input type="password" id="masterkey-input" class="ai-input" placeholder="Master key">
           <button class="control-btn mini-btn" id="masterkey-action-btn">Unlock</button>
+        </div>
+        <div class="security-input-row" id="masterkey-confirm-row">
+          <input type="password" id="masterkey-confirm" class="ai-input" placeholder="Confirm password">
+          <button class="control-btn mini-btn" id="masterkey-save-btn">Save</button>
+        </div>
+        <div class="security-actions-row" id="masterkey-actions-row">
+          <button class="control-btn mini-btn" id="masterkey-change-btn">Change password</button>
         </div>
         <div class="security-status" id="masterkey-status"></div>
       </div>

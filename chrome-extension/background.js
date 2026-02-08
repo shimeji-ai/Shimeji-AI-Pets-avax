@@ -476,7 +476,10 @@ async function getShimejiConfigs() {
       'chatMode',
       'openclawGatewayUrl',
       'openclawGatewayToken',
-      'masterKeyEnabled'
+      'masterKeyEnabled',
+      'lastOpenrouterApiKeyEnc',
+      'lastStandardProvider',
+      'lastOpenrouterModel'
     ], (data) => {
       const normalizeMode = (modeValue) => {
         if (modeValue === 'disabled') return 'off';
@@ -487,22 +490,43 @@ async function getShimejiConfigs() {
       };
 
       if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
+        const enabledModels = [
+          'google/gemini-2.0-flash-001',
+          'anthropic/claude-sonnet-4',
+          'meta-llama/llama-4-maverick',
+          'deepseek/deepseek-chat-v3-0324',
+          'mistralai/mistral-large-2411'
+        ];
         resolve(data.shimejis.map((shimeji) => ({
           ...shimeji,
           mode: normalizeMode(shimeji.mode),
+          openrouterModel: shimeji.openrouterModel || 'random',
+          openrouterModelResolved: shimeji.openrouterModelResolved
+            || (shimeji.openrouterModel && shimeji.openrouterModel !== 'random'
+              ? shimeji.openrouterModel
+              : enabledModels[Math.floor(Math.random() * enabledModels.length)]),
           masterKeyEnabled: !!data.masterKeyEnabled
         })));
         return;
       }
 
+      const enabledModels = [
+        'google/gemini-2.0-flash-001',
+        'anthropic/claude-sonnet-4',
+        'meta-llama/llama-4-maverick',
+        'deepseek/deepseek-chat-v3-0324',
+        'mistralai/mistral-large-2411'
+      ];
       const legacy = {
         id: 'shimeji-1',
         character: 'shimeji',
         size: 'medium',
         mode: normalizeMode(data.chatMode),
-        standardProvider: 'openrouter',
+        standardProvider: data.lastStandardProvider || 'openrouter',
         openrouterApiKey: data.aiApiKey || '',
-        openrouterModel: data.aiModel || 'google/gemini-2.0-flash-001',
+        openrouterApiKeyEnc: data.lastOpenrouterApiKeyEnc || null,
+        openrouterModel: 'random',
+        openrouterModelResolved: enabledModels[Math.floor(Math.random() * enabledModels.length)],
         ollamaUrl: 'http://127.0.0.1:11434',
         ollamaModel: 'llama3.1',
         openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
@@ -525,6 +549,13 @@ async function getAiSettingsFor(shimejiId) {
   const chatMode = shimeji?.mode || 'standard';
   const masterKeyEnabled = !!shimeji?.masterKeyEnabled;
   const standardProvider = shimeji?.standardProvider === 'ollama' ? 'ollama' : 'openrouter';
+  const MODEL_KEYS_ENABLED = [
+    'google/gemini-2.0-flash-001',
+    'anthropic/claude-sonnet-4',
+    'meta-llama/llama-4-maverick',
+    'deepseek/deepseek-chat-v3-0324',
+    'mistralai/mistral-large-2411'
+  ];
   let apiKey = shimeji?.openrouterApiKey || '';
   let openclawToken = shimeji?.openclawGatewayToken || '';
   let locked = false;
@@ -560,11 +591,24 @@ async function getAiSettingsFor(shimejiId) {
     } catch {}
   }
 
+  let model = shimeji?.openrouterModel || 'google/gemini-2.0-flash-001';
+  if (standardProvider === 'openrouter' && model === 'random') {
+    const resolved = shimeji?.openrouterModelResolved || MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
+    model = resolved;
+    if (!shimeji?.openrouterModelResolved) {
+      chrome.storage.local.get(['shimejis'], (data) => {
+        const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+        const updated = list.map((s) => s.id === shimeji?.id ? { ...s, openrouterModelResolved: resolved } : s);
+        chrome.storage.local.set({ shimejis: updated });
+      });
+    }
+  }
+
   return {
     chatMode,
     locked,
     provider: standardProvider,
-    model: shimeji?.openrouterModel || 'google/gemini-2.0-flash-001',
+    model,
     apiKey,
     ollamaUrl: shimeji?.ollamaUrl || 'http://127.0.0.1:11434',
     ollamaModel: shimeji?.ollamaModel || 'llama3.1',

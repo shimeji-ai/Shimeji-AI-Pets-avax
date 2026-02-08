@@ -10,8 +10,8 @@
     position: fixed;
     z-index: 100000;
     width: var(--chat-width, 280px);
-    height: var(--chat-height, auto);
-    max-height: var(--chat-height, 360px);
+    height: var(--chat-height, 340px);
+    max-height: var(--chat-height, 420px);
     min-width: 220px;
     min-height: 160px;
     border-radius: 16px;
@@ -152,27 +152,29 @@
 }
 
 .shimeji-chat-voice-quick {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border-radius: 10px;
     border: none;
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
-    color: var(--chat-theme, #2a1f4e);
-    font-size: 13px;
+    background: #1159CC;
+    color: #ffffff;
+    font-size: 18px;
     line-height: 1;
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s, transform 0.2s;
+    box-shadow: 0 0 0 1px #0c47a6;
 }
 
 .shimeji-chat-voice-quick:hover {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
+    background: #0c47a6;
+    transform: translateY(-1px);
 }
 
 .shimeji-chat-voice-quick.active {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    background: #1159CC;
+    box-shadow: 0 0 0 2px #0c47a6;
     color: #ffffff;
 }
 
@@ -182,19 +184,31 @@
 .shimeji-chat-relay-toggle,
 .shimeji-chat-tts-closed-toggle,
 .shimeji-chat-settings-toggle {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border: none;
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 28%, #ffffff);
     border-radius: 10px;
-    font-size: 13px;
+    font-size: 17px;
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.2s, box-shadow 0.2s;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
     line-height: 1;
     padding: 0;
     color: var(--chat-theme, #2a1f4e);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
+}
+
+.shimeji-chat-settings-toggle {
+    background: #FFCC66;
+    color: #0b0f14;
+    box-shadow: 0 0 0 1px #e3b657;
+}
+
+.shimeji-chat-settings-toggle:hover {
+    background: #e3b657;
+    transform: translateY(-1px);
 }
 
 .shimeji-chat-openmic-toggle:hover,
@@ -203,7 +217,12 @@
 .shimeji-chat-relay-toggle:hover,
 .shimeji-chat-tts-closed-toggle:hover,
 .shimeji-chat-settings-toggle:hover {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 40%, #ffffff);
+    transform: translateY(-1px);
+}
+
+.shimeji-chat-settings-toggle:hover {
+    background: #e3b657;
 }
 
 .shimeji-chat-openmic-toggle.active {
@@ -232,23 +251,25 @@
 }
 
 .shimeji-chat-close {
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border: none;
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
+    background: #FF6666;
     border-radius: 10px;
-    color: var(--chat-theme, #2a1f4e);
-    font-size: 14px;
+    color: #0b0f14;
+    font-size: 16px;
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.2s;
     line-height: 1;
     padding: 0;
+    box-shadow: 0 0 0 1px #e35757;
 }
 
 .shimeji-chat-close:hover {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
+    background: #e35757;
+    transform: translateY(-1px);
 }
 
 .shimeji-chat-controls-panel {
@@ -331,9 +352,9 @@
 }
 
 .shimeji-chat-theme-close {
-    border: 1px solid rgba(42, 31, 78, 0.2);
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--chat-theme, #2a1f4e);
+    border: 1px solid #e35757;
+    background: #FF6666;
+    color: #0b0f14;
     border-radius: 10px;
     width: 26px;
     height: 26px;
@@ -347,8 +368,9 @@
 }
 
 .shimeji-chat-theme-close:hover {
+    background: #e35757;
     transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(42, 31, 78, 0.18);
+    box-shadow: 0 6px 12px rgba(227, 87, 87, 0.35);
 }
 
 .shimeji-chat-theme-row {
@@ -803,7 +825,9 @@
 .chat-style-dark .shimeji-chat-relay-toggle,
 .chat-style-dark .shimeji-chat-tts-closed-toggle,
 .chat-style-dark .shimeji-chat-settings-toggle {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15);
+    color: #e6f6ff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .chat-style-dark .shimeji-chat-openmic-toggle:hover,
@@ -812,7 +836,32 @@
 .chat-style-dark .shimeji-chat-relay-toggle:hover,
 .chat-style-dark .shimeji-chat-tts-closed-toggle:hover,
 .chat-style-dark .shimeji-chat-settings-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.chat-style-dark .shimeji-chat-voice-quick {
+    background: #1159CC;
+    color: #ffffff;
+    box-shadow: 0 0 0 1px #0c47a6;
+}
+
+.chat-style-dark .shimeji-chat-voice-quick:hover {
+    background: #0c47a6;
+}
+
+.chat-style-dark .shimeji-chat-voice-quick.active {
+    background: rgba(34, 197, 94, 0.75);
+    color: #0b0f14;
+}
+
+.chat-style-dark .shimeji-chat-settings-toggle {
+    background: #FFCC66;
+    color: #0b0f14;
+    box-shadow: 0 0 0 1px #e3b657;
+}
+
+.chat-style-dark .shimeji-chat-settings-toggle:hover {
+    background: #e3b657;
 }
 
 .chat-style-dark .shimeji-chat-openmic-toggle.active {
@@ -828,12 +877,13 @@
 }
 
 .chat-style-dark .shimeji-chat-close {
-    background: rgba(255, 255, 255, 0.1);
-    color: #e0dce8;
+    background: #FF6666;
+    color: #0b0f14;
+    box-shadow: 0 0 0 1px #e35757;
 }
 
 .chat-style-dark .shimeji-chat-close:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: #e35757;
 }
 
 .chat-style-dark .shimeji-chat-controls-panel {

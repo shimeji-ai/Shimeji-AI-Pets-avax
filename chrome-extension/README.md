@@ -13,7 +13,7 @@ A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. 
 1. Open Chrome and go to `chrome://extensions`.
 2. Enable **Developer mode** (top-right).
 3. Click **Load unpacked** and select this repository folder.
-4. Open any webpage to see the mascot injected (or open [index.html](index.html) / [popup.html](popup.html) to interact with the extension UI).
+4. Open any webpage to see the mascot injected (or open [popup.html](popup.html) to interact with the extension UI).
 
 ## How it works (high level)
 
@@ -50,16 +50,16 @@ Follow these steps to verify core functionality locally. Each milestone includes
   - Files: See [config.html](config.html) and [config.js](config.js).
 
 - **Milestone 5 — Connect Freighter:**
-  - Steps: Open [index.html](index.html) and click the button to connect Freighter. Follow prompts in the wallet.
+  - Steps: Open the Collection page on the web app and click connect. Follow prompts in the wallet.
   - Expected result: Your public key appears, and the extension receives the connection message.
-  - Files: Connection logic lives in [index.js](index.js) and the message bridge in [dapp_content_script.js](dapp_content_script.js).
+  - Files: Message bridge lives in [dapp_content_script.js](dapp_content_script.js).
 
 ## Architecture Note: Externally Hosted Pages
 
 **Important:** The wallet connection pages are hosted on Vercel (not served from the extension).
 
 ### Hosted on Vercel:
-- `index.html` / `index.js` - Main wallet connection and character selection page
+- Collection page in the web app
 
 ### Why external hosting?
 - Freighter only injects into http/https pages, NOT chrome-extension:// pages
@@ -68,7 +68,7 @@ Follow these steps to verify core functionality locally. Each milestone includes
 
 ### Message Flow:
 ```
-index.js (Vercel) <-> dapp_content_script.js (injected) <-> background.js (extension)
+Collection (web) <-> dapp_content_script.js (injected) <-> background.js (extension)
 ```
 
 ### When updating:

@@ -167,7 +167,10 @@ const securityTitle = document.getElementById("security-title");
 const masterkeyToggle = document.getElementById("masterkey-toggle");
 const masterkeyLabel = document.getElementById("masterkey-label");
 const masterkeyInput = document.getElementById("masterkey-input");
+const masterkeyConfirm = document.getElementById("masterkey-confirm");
 const masterkeyActionBtn = document.getElementById("masterkey-action-btn");
+const masterkeySaveBtn = document.getElementById("masterkey-save-btn");
+const masterkeyChangeBtn = document.getElementById("masterkey-change-btn");
 const masterkeyStatus = document.getElementById("masterkey-status");
 const shimejiLockHint = document.getElementById("shimeji-lock-hint");
 const securityHint = document.getElementById("security-hint");
@@ -175,6 +178,13 @@ const autolockToggle = document.getElementById("autolock-toggle");
 const autolockMinutesInput = document.getElementById("autolock-minutes");
 const autolockLabel = document.getElementById("autolock-label");
 const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
+const autolockRow = document.getElementById("autolock-row");
+const autolockMinutesRow = document.getElementById("autolock-minutes-row");
+const masterkeyConfirmRow = document.getElementById("masterkey-confirm-row");
+const masterkeyActionsRow = document.getElementById("masterkey-actions-row");
+const securityLockBanner = document.getElementById("security-lock-banner");
+const securityLockTitle = document.getElementById("security-lock-title");
+const securityLockText = document.getElementById("security-lock-text");
   const linkPrivacy = document.getElementById("link-privacy");
   const appearanceVisibilityTitle = document.getElementById("appearance-visibility-title");
   const labelEnabledPage = document.getElementById("label-enabled-page");
@@ -183,6 +193,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   const aiStateHint = document.getElementById("ai-state-hint");
 
   const MODEL_OPTIONS = [
+    { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
     { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
     { value: "moonshotai/kimi-k2.5", labelEn: "Kimi K2.5 (disabled)", labelEs: "Kimi K2.5 (deshabilitado)", disabled: true },
     { value: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
@@ -212,10 +223,14 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     return VOICE_PROFILE_POOL[Math.floor(Math.random() * VOICE_PROFILE_POOL.length)];
   }
 
-  let shimejis = [];
-  let selectedShimejiId = null;
-  let nftCharacterIds = new Set();
-  let nftCharacters = [];
+let shimejis = [];
+let selectedShimejiId = null;
+let nftCharacterIds = new Set();
+let nftCharacters = [];
+let lastOpenrouterApiKeyEnc = null;
+let lastOpenrouterApiKeyPlain = "";
+let lastStandardProvider = "openrouter";
+let lastOpenrouterModel = "random";
 
   function ensureShimejiIds(list) {
     const used = new Set();
@@ -391,6 +406,8 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   let masterKeyAutoLockEnabled = true;
   let masterKeyAutoLockMinutes = 30;
   let masterKeyAutoLockTimer = null;
+  let isChangingMasterKey = false;
+  let isEnablingMasterKey = false;
 
   function updateMasterKeyStatus() {
     if (!masterkeyStatus) return;
@@ -432,7 +449,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   }
 
   function applyMasterKeyUiState() {
-    if (masterkeyToggle) masterkeyToggle.checked = masterKeyEnabled;
+    if (masterkeyToggle) masterkeyToggle.checked = masterKeyEnabled || isEnablingMasterKey;
     if (masterkeyInput) masterkeyInput.disabled = false;
     if (masterkeyActionBtn) {
       masterkeyActionBtn.disabled = !masterKeyEnabled;
@@ -440,12 +457,20 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
         ? t("Lock now", "Bloquear ahora")
         : t("Unlock", "Desbloquear");
     }
+    if (masterkeySaveBtn) masterkeySaveBtn.disabled = false;
+    if (masterkeyChangeBtn) masterkeyChangeBtn.disabled = !masterKeyEnabled || !masterKeyUnlocked;
     if (autolockToggle) autolockToggle.checked = masterKeyAutoLockEnabled;
     if (autolockMinutesInput) autolockMinutesInput.value = String(masterKeyAutoLockMinutes);
     updateAutolockLabel();
     updateMasterKeyStatus();
     const configLocked = masterKeyEnabled && !masterKeyUnlocked;
     document.body.classList.toggle("config-locked", configLocked);
+    if (securityLockBanner) securityLockBanner.style.display = configLocked ? "" : "none";
+    if (autolockRow) autolockRow.style.display = masterKeyEnabled ? "" : "none";
+    if (autolockMinutesRow) autolockMinutesRow.style.display = masterKeyEnabled ? "" : "none";
+    if (masterkeyConfirmRow) masterkeyConfirmRow.style.display = (!masterKeyEnabled || isChangingMasterKey || isEnablingMasterKey) ? "" : "none";
+    if (masterkeyActionsRow) masterkeyActionsRow.style.display = (masterKeyEnabled && masterKeyUnlocked) ? "" : "none";
+    if (masterkeyActionBtn) masterkeyActionBtn.style.display = masterKeyEnabled ? "" : "none";
     if (shimejiLockHint) {
       shimejiLockHint.textContent = t(
         "Unlock to edit shimeji configuration.",
@@ -462,6 +487,7 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
       return false;
     }
     masterKeyEnabled = true;
+    isEnablingMasterKey = false;
     masterKeyUnlocked = true;
     setSessionMasterKey(value);
     if (!masterKeySalt) {
@@ -473,6 +499,26 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     scheduleAutoLock();
     await saveShimejis();
     loadShimejis();
+    return true;
+  }
+
+  async function changeMasterKeyWithValue(value) {
+    if (!value) {
+      setMasterKeyStatusMessage(t('Enter a password to update', 'Ingresa una contraseña para actualizar'));
+      return false;
+    }
+    masterKeyEnabled = true;
+    masterKeyUnlocked = true;
+    isEnablingMasterKey = false;
+    setSessionMasterKey(value);
+    const enc = await encryptSecret(value, 'seed', null);
+    masterKeySalt = enc.salt;
+    chrome.storage.local.set({ masterKeyEnabled: true, masterKeySalt });
+    await saveShimejis();
+    loadShimejis();
+    isChangingMasterKey = false;
+    applyMasterKeyUiState();
+    setMasterKeyStatusMessage(t('Password updated', 'Contraseña actualizada'));
     return true;
   }
 
@@ -525,7 +571,15 @@ if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del po
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
+if (masterkeyConfirm) masterkeyConfirm.placeholder = t("Confirm password", "Confirmar contraseña");
 if (masterkeyActionBtn) masterkeyActionBtn.textContent = t("Unlock", "Desbloquear");
+if (masterkeySaveBtn) masterkeySaveBtn.textContent = t("Save", "Guardar");
+if (masterkeyChangeBtn) masterkeyChangeBtn.textContent = t("Change password", "Cambiar contraseña");
+if (securityLockTitle) securityLockTitle.textContent = t("Configuration locked", "Configuración bloqueada");
+if (securityLockText) securityLockText.textContent = t(
+  "Enter your password in Security to unlock.",
+  "Ingresa tu contraseña en Seguridad para desbloquear."
+);
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
 if (shimejiEmptyEl) shimejiEmptyEl.textContent = t(
   "No shimejis active. Press the + button to add one.",
@@ -647,8 +701,8 @@ if (securityHint) securityHint.textContent = t(
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
     const randomPersonality = PERSONALITY_OPTIONS[Math.floor(Math.random() * PERSONALITY_OPTIONS.length)].value;
-    const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled);
-    const randomModel = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[0]).value;
+    const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
+    const randomModel = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
     const randomVoiceProfile = pickRandomVoiceProfile();
     const randomSize = SIZE_OPTIONS_KEYS[Math.floor(Math.random() * SIZE_OPTIONS_KEYS.length)];
     const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
@@ -661,7 +715,8 @@ if (securityHint) securityHint.textContent = t(
       mode: "standard",
       standardProvider: "openrouter",
       openrouterApiKey: "",
-      openrouterModel: randomModel,
+      openrouterModel: "random",
+      openrouterModelResolved: randomModel,
       ollamaUrl: "http://127.0.0.1:11434",
       ollamaModel: "llama3.1",
       openclawGatewayUrl: "ws://127.0.0.1:18789",
@@ -694,55 +749,77 @@ if (securityHint) securityHint.textContent = t(
   }
 
   function migrateLegacy(data) {
+    let migrated = false;
+    const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
+    const pickRandomModel = () => (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
+
     if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
-      return data.shimejis.map((shimeji) => ({
-        ...shimeji,
-        mode: normalizeMode(shimeji.mode),
-        soundEnabled: shimeji.soundEnabled !== false,
-        soundVolume: typeof shimeji.soundVolume === "number" ? shimeji.soundVolume : 0.7,
-        standardProvider: shimeji.standardProvider || "openrouter",
-        ollamaUrl: shimeji.ollamaUrl || "http://127.0.0.1:11434",
-        ollamaModel: shimeji.ollamaModel || "llama3.1",
-        openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
-        openclawGatewayToken: shimeji.openclawGatewayToken || "",
-        personality: shimeji.personality || "cryptid",
-        ttsEnabled: shimeji.ttsEnabled === true,
-        ttsWhenClosed: shimeji.ttsWhenClosed === true,
-        ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
-        ttsVoiceId: shimeji.ttsVoiceId || "",
-        openMicEnabled: !!shimeji.openMicEnabled,
-        relayEnabled: !!shimeji.relayEnabled,
-        animationQuality: shimeji.animationQuality || "full",
-        characterSource: shimeji.characterSource || "free"
-      }));
+      const list = data.shimejis.map((shimeji) => {
+        const needsRandom = !shimeji.openrouterModel || shimeji.openrouterModel === "google/gemini-2.0-flash-001";
+        if (needsRandom) migrated = true;
+        return {
+          ...shimeji,
+          mode: normalizeMode(shimeji.mode),
+          soundEnabled: shimeji.soundEnabled !== false,
+          soundVolume: typeof shimeji.soundVolume === "number" ? shimeji.soundVolume : 0.7,
+          standardProvider: shimeji.standardProvider || "openrouter",
+          openrouterModel: needsRandom ? "random" : shimeji.openrouterModel,
+          openrouterModelResolved: shimeji.openrouterModelResolved
+            || (shimeji.openrouterModel && shimeji.openrouterModel !== "random"
+              ? shimeji.openrouterModel
+              : pickRandomModel()),
+          ollamaUrl: shimeji.ollamaUrl || "http://127.0.0.1:11434",
+          ollamaModel: shimeji.ollamaModel || "llama3.1",
+          openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
+          openclawGatewayToken: shimeji.openclawGatewayToken || "",
+          personality: shimeji.personality || "cryptid",
+          ttsEnabled: shimeji.ttsEnabled === true,
+          ttsWhenClosed: shimeji.ttsWhenClosed === true,
+          ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
+          ttsVoiceId: shimeji.ttsVoiceId || "",
+          openMicEnabled: !!shimeji.openMicEnabled,
+          relayEnabled: !!shimeji.relayEnabled,
+          animationQuality: shimeji.animationQuality || "full",
+          characterSource: shimeji.characterSource || "free"
+        };
+      });
+      return { list, migrated };
     }
 
-    return [{
-      id: "shimeji-1",
-      character: "shimeji",
-      size: "medium",
-      characterSource: "free",
-      mode: normalizeMode(data.chatMode),
-      standardProvider: "openrouter",
-      openrouterApiKey: data.aiApiKey || "",
-      openrouterModel: data.aiModel || MODEL_OPTIONS[0].value,
-      ollamaUrl: "http://127.0.0.1:11434",
-      ollamaModel: "llama3.1",
-      openclawGatewayUrl: data.openclawGatewayUrl || "ws://127.0.0.1:18789",
-      openclawGatewayToken: data.openclawGatewayToken || "",
-      personality: data.aiPersonality || "cryptid",
-      enabled: true,
-      soundEnabled: true,
-      soundVolume: 0.7,
-      ttsEnabled: false,
-      ttsWhenClosed: false,
-      ttsVoiceProfile: pickRandomVoiceProfile(),
-      ttsVoiceId: "",
-      openMicEnabled: false,
-      relayEnabled: false,
-      animationQuality: "full",
-      characterSource: "free"
-    }];
+    if (!data.aiModel || data.aiModel === "google/gemini-2.0-flash-001") {
+      migrated = true;
+    }
+    const fallbackRandom = pickRandomModel();
+    return {
+      migrated,
+      list: [{
+        id: "shimeji-1",
+        character: "shimeji",
+        size: "medium",
+        characterSource: "free",
+        mode: normalizeMode(data.chatMode),
+        standardProvider: "openrouter",
+        openrouterApiKey: data.aiApiKey || "",
+        openrouterModel: "random",
+        openrouterModelResolved: fallbackRandom,
+        ollamaUrl: "http://127.0.0.1:11434",
+        ollamaModel: "llama3.1",
+        openclawGatewayUrl: data.openclawGatewayUrl || "ws://127.0.0.1:18789",
+        openclawGatewayToken: data.openclawGatewayToken || "",
+        personality: data.aiPersonality || "cryptid",
+        enabled: true,
+        soundEnabled: true,
+        soundVolume: 0.7,
+        ttsEnabled: false,
+        ttsWhenClosed: false,
+        ttsVoiceProfile: pickRandomVoiceProfile(),
+        ttsVoiceId: "",
+        openMicEnabled: false,
+        relayEnabled: false,
+        animationQuality: "full",
+        characterSource: "free"
+      }]
+    };
   }
 
     function loadShimejis() {
@@ -754,6 +831,9 @@ if (securityHint) securityHint.textContent = t(
       'chatMode',
       'openclawGatewayUrl',
       'openclawGatewayToken',
+      'lastOpenrouterApiKeyEnc',
+      'lastStandardProvider',
+      'lastOpenrouterModel',
       'masterKeyEnabled',
       'masterKeySalt',
       'masterKeyAutoLockEnabled',
@@ -769,7 +849,12 @@ if (securityHint) securityHint.textContent = t(
       masterKeyUnlocked = !!sessionKey;
       applyMasterKeyUiState();
 
-      shimejis = ensureShimejiIds(migrateLegacy(data));
+      lastOpenrouterApiKeyEnc = data.lastOpenrouterApiKeyEnc || null;
+      lastStandardProvider = data.lastStandardProvider || "openrouter";
+      lastOpenrouterModel = data.lastOpenrouterModel || "random";
+
+      const migration = migrateLegacy(data);
+      shimejis = ensureShimejiIds(migration.list);
       if (!!data.noShimejis) {
         shimejis = [];
       } else if (!Array.isArray(shimejis) || shimejis.length === 0) {
@@ -777,6 +862,31 @@ if (securityHint) securityHint.textContent = t(
       }
       if (!data.ttsEnabledMigrationDone) {
         shimejis = shimejis.map((s) => ({ ...s, ttsEnabled: s.ttsEnabled === true }));
+      }
+      let modelReRolled = false;
+      if (lastOpenrouterModel && lastOpenrouterModel !== "random") {
+        const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
+        const pickRandomModel = (exclude) => {
+          if (!enabledModels.length) return MODEL_OPTIONS[1].value;
+          if (enabledModels.length === 1) return enabledModels[0].value;
+          let pick = enabledModels[Math.floor(Math.random() * enabledModels.length)].value;
+          let guard = 0;
+          while (pick === exclude && guard < 5) {
+            pick = enabledModels[Math.floor(Math.random() * enabledModels.length)].value;
+            guard += 1;
+          }
+          return pick;
+        };
+        shimejis = shimejis.map((s) => {
+          if (s.openrouterModel === "random" && s.openrouterModelResolved === lastOpenrouterModel) {
+            modelReRolled = true;
+            return { ...s, openrouterModelResolved: pickRandomModel(lastOpenrouterModel) };
+          }
+          return s;
+        });
+      }
+      if ((migration.migrated || modelReRolled) && shimejis.length > 0) {
+        saveShimejis();
       }
       if (shimejis.length > 0) {
         const hasAnyActive = shimejis.some((s) => {
@@ -802,6 +912,11 @@ if (securityHint) securityHint.textContent = t(
             } catch {}
           }
         }
+        if (lastOpenrouterApiKeyEnc) {
+          try {
+            lastOpenrouterApiKeyPlain = await decryptSecret(sessionKey, lastOpenrouterApiKeyEnc);
+          } catch {}
+        }
       } else if (!masterKeyEnabled) {
         for (const shimeji of shimejis) {
           if (!shimeji.openrouterApiKey && shimeji.openrouterApiKeyEnc) {
@@ -818,6 +933,11 @@ if (securityHint) securityHint.textContent = t(
               (shimeji.openclawGatewayToken && !shimeji.openclawGatewayTokenEnc)) {
             needsEncrypt = true;
           }
+        }
+        if (lastOpenrouterApiKeyEnc) {
+          try {
+            lastOpenrouterApiKeyPlain = await decryptWithDeviceKey(lastOpenrouterApiKeyEnc);
+          } catch {}
         }
       }
 
@@ -932,7 +1052,8 @@ if (securityHint) securityHint.textContent = t(
     let countOff = 0;
 
     shimejis.forEach((shimeji, index) => {
-      const mode = normalizeMode(shimeji.mode);
+      const isEnabled = shimeji.enabled !== false;
+      const mode = isEnabled ? normalizeMode(shimeji.mode) : "off";
       if (mode === "standard") countStandard += 1;
       if (mode === "agent") countAgent += 1;
       if (mode === "off") countOff += 1;
@@ -1209,7 +1330,11 @@ if (securityHint) securityHint.textContent = t(
       if (opt.disabled) option.disabled = true;
       select.appendChild(option);
     });
-    select.value = value;
+    if (field === "openrouterModel" && (!value || value === "")) {
+      select.value = "random";
+    } else {
+      select.value = value;
+    }
     wrapper.appendChild(select);
     return wrapper;
   }
@@ -1432,6 +1557,13 @@ if (securityHint) securityHint.textContent = t(
     } else if (field === "character") {
       target.character = value;
       target.characterSource = nftCharacterIds.has(value) ? "nft" : "free";
+    } else if (field === "openrouterModel") {
+      target.openrouterModel = value;
+      if (value === "random") {
+        target.openrouterModelResolved = "";
+      } else {
+        target.openrouterModelResolved = value;
+      }
     } else if (field === "ttsVoiceProfile") {
       target.ttsVoiceProfile = value;
       target.ttsVoiceId = "";
@@ -1486,7 +1618,7 @@ if (securityHint) securityHint.textContent = t(
   }
 
   if (addShimejiBtn) {
-    addShimejiBtn.addEventListener("click", () => {
+    addShimejiBtn.addEventListener("click", async () => {
       if (shimejis.length === 0) {
         chrome.storage.local.set({ noShimejis: false });
         chrome.storage.sync.set({ disabledAll: false });
@@ -1499,7 +1631,28 @@ if (securityHint) securityHint.textContent = t(
         newShimeji.openrouterApiKey = donor.openrouterApiKey;
         newShimeji.standardProvider = donor.standardProvider || "openrouter";
         if (donor.openrouterApiKeyEnc) newShimeji.openrouterApiKeyEnc = donor.openrouterApiKeyEnc;
+      } else if (lastOpenrouterApiKeyEnc) {
+        newShimeji.standardProvider = lastStandardProvider || "openrouter";
+        newShimeji.openrouterApiKeyEnc = lastOpenrouterApiKeyEnc;
+        if (lastOpenrouterApiKeyPlain) {
+          newShimeji.openrouterApiKey = lastOpenrouterApiKeyPlain;
+        } else if (masterKeyEnabled && masterKeyUnlocked) {
+          try {
+            const sessionKey = await getSessionMasterKey();
+            if (sessionKey) {
+              newShimeji.openrouterApiKey = await decryptSecret(sessionKey, lastOpenrouterApiKeyEnc);
+            }
+          } catch {}
+        } else if (!masterKeyEnabled) {
+          try {
+            newShimeji.openrouterApiKey = await decryptWithDeviceKey(lastOpenrouterApiKeyEnc);
+          } catch {}
+        }
       }
+      // Always default to random selection for new shimejis
+      newShimeji.openrouterModel = "random";
+      const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
+      newShimeji.openrouterModelResolved = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
       shimejis.push(newShimeji);
       shimejis = ensureShimejiIds(shimejis);
       selectedShimejiId = shimejis[shimejis.length - 1]?.id || null;
@@ -1509,13 +1662,43 @@ if (securityHint) securityHint.textContent = t(
   }
 
   if (shimejiListEl) {
-    shimejiListEl.addEventListener("click", (e) => {
+    shimejiListEl.addEventListener("click", async (e) => {
       const action = e.target?.dataset?.action;
       const card = e.target.closest(".shimeji-card");
       if (!card) return;
       const id = card.dataset.shimejiId;
       if (action === "remove") {
         if (shimejis.length === 1) {
+          const last = shimejis[0];
+          const provider = last.standardProvider || "openrouter";
+          const model = last.openrouterModel || MODEL_OPTIONS[0].value;
+          let keyEnc = last.openrouterApiKeyEnc || null;
+          if (!keyEnc && last.openrouterApiKey) {
+            try {
+              const sessionKey = await getSessionMasterKey();
+              if (masterKeyEnabled && sessionKey) {
+                const enc = await encryptSecret(sessionKey, last.openrouterApiKey, masterKeySalt);
+                masterKeySalt = enc.salt;
+                keyEnc = { data: enc.data, iv: enc.iv, salt: enc.salt };
+              } else {
+                keyEnc = await encryptWithDeviceKey(last.openrouterApiKey);
+              }
+            } catch {}
+          }
+          if (keyEnc) {
+            lastOpenrouterApiKeyEnc = keyEnc;
+          }
+          if (last.openrouterApiKey) {
+            lastOpenrouterApiKeyPlain = last.openrouterApiKey;
+          }
+          lastStandardProvider = provider;
+          lastOpenrouterModel = model;
+          chrome.storage.local.set({
+            lastOpenrouterApiKeyEnc: keyEnc || null,
+            lastStandardProvider: provider,
+            lastOpenrouterModel: model,
+            masterKeySalt
+          });
           shimejis = [];
           selectedShimejiId = null;
           chrome.storage.local.set({ noShimejis: true });
@@ -1663,6 +1846,9 @@ if (securityHint) securityHint.textContent = t(
         }
         masterKeyEnabled = false;
         masterKeyUnlocked = false;
+        isChangingMasterKey = false;
+        isEnablingMasterKey = false;
+        isChangingMasterKey = false;
         await saveShimejis();
         clearSessionMasterKey();
         if (masterKeyAutoLockTimer) {
@@ -1673,17 +1859,13 @@ if (securityHint) securityHint.textContent = t(
         renderShimejis();
         return;
       }
-      let value = masterkeyInput?.value || '';
-      if (!value) {
-        masterkeyToggle.checked = false;
-        setMasterKeyStatusMessage(t('Enter a password to enable protection', 'Ingresa una contraseña para habilitar'));
+      if (!masterKeyEnabled) {
+        isEnablingMasterKey = true;
+        applyMasterKeyUiState();
+        setMasterKeyStatusMessage(t('Set a password and press Save', 'Define una contraseña y presiona Guardar'));
         return;
       }
-      if (masterKeyEnabled) {
-        await tryUnlockMasterKey(value);
-        return;
-      }
-      await enableMasterKeyWithValue(value);
+      applyMasterKeyUiState();
     });
   }
 
@@ -1696,6 +1878,7 @@ if (securityHint) securityHint.textContent = t(
       if (masterKeyUnlocked) {
         clearSessionMasterKey();
         masterKeyUnlocked = false;
+        isChangingMasterKey = false;
         if (masterKeyAutoLockTimer) {
           clearTimeout(masterKeyAutoLockTimer);
           masterKeyAutoLockTimer = null;
@@ -1710,6 +1893,44 @@ if (securityHint) securityHint.textContent = t(
         return;
       }
       await tryUnlockMasterKey(value);
+    });
+  }
+
+  if (masterkeySaveBtn) {
+    masterkeySaveBtn.addEventListener('click', async () => {
+      const value = (masterkeyInput?.value || '').trim();
+      const confirmValue = (masterkeyConfirm?.value || '').trim();
+      if (!value) {
+        setMasterKeyStatusMessage(t('Enter a password to save', 'Ingresa una contraseña para guardar'));
+        return;
+      }
+      if (value !== confirmValue) {
+        setMasterKeyStatusMessage(t('Passwords do not match', 'Las contraseñas no coinciden'));
+        return;
+      }
+      if (!masterKeyEnabled) {
+        masterkeyToggle.checked = true;
+        isEnablingMasterKey = true;
+        await enableMasterKeyWithValue(value);
+        return;
+      }
+      if (masterKeyUnlocked && isChangingMasterKey) {
+        await changeMasterKeyWithValue(value);
+      }
+    });
+  }
+
+  if (masterkeyChangeBtn) {
+    masterkeyChangeBtn.addEventListener('click', () => {
+      if (!masterKeyEnabled || !masterKeyUnlocked) {
+        setMasterKeyStatusMessage(t('Unlock to change password', 'Desbloquea para cambiar la contraseña'));
+        return;
+      }
+      isChangingMasterKey = true;
+      if (masterkeyInput) masterkeyInput.value = "";
+      if (masterkeyConfirm) masterkeyConfirm.value = "";
+      setMasterKeyStatusMessage(t('Enter a new password and press Save', 'Ingresa una nueva contraseña y presiona Guardar'));
+      applyMasterKeyUiState();
     });
   }
 
