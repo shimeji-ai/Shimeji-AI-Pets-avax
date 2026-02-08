@@ -240,6 +240,27 @@ body[data-theme="pink"] .shimeji-card {
   flex: none;
   padding: 5px 8px;
   font-size: 10px;
+  background: rgba(220, 38, 38, 0.16);
+  border: 1px solid rgba(220, 38, 38, 0.6);
+  color: #fecaca;
+}
+
+.remove-btn:hover {
+  background: rgba(220, 38, 38, 0.28);
+  color: #fff;
+}
+
+body[data-theme="kawaii"] .remove-btn,
+body[data-theme="pink"] .remove-btn {
+  background: rgba(220, 38, 38, 0.18);
+  border: 1px solid rgba(220, 38, 38, 0.65);
+  color: #fff0f0;
+}
+
+body[data-theme="kawaii"] .remove-btn:hover,
+body[data-theme="pink"] .remove-btn:hover {
+  background: rgba(220, 38, 38, 0.3);
+  color: #ffffff;
 }
 
 .shimeji-grid {
@@ -887,6 +908,10 @@ body[data-theme="pink"] .toggle-row {
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+
+.shimeji-grid .ai-field.full-width {
+  grid-column: 1 / -1;
 }
 
 .ai-label {

@@ -854,23 +854,9 @@ if (securityHint) securityHint.textContent = t(
       const idText = document.createElement("div");
       idText.className = "shimeji-card-id";
       idText.textContent = shimeji.id;
-      const status = document.createElement("div");
-      status.className = `shimeji-status ${mode}`;
-      status.textContent = mode === "agent"
-        ? t("Agent", "Agente")
-        : mode === "off"
-          ? t("Off", "Apagado")
-          : t("Standard", "Standard");
-      const lockedBadge = document.createElement("div");
-      lockedBadge.className = "shimeji-status locked";
-      lockedBadge.textContent = t("Locked", "Bloqueado");
       titleWrap.appendChild(title);
       titleWrap.appendChild(idText);
       metaWrap.appendChild(titleWrap);
-      metaWrap.appendChild(status);
-      if (masterKeyEnabled && !masterKeyUnlocked) {
-        metaWrap.appendChild(lockedBadge);
-      }
       const removeBtn = document.createElement("button");
       removeBtn.className = "control-btn remove-btn";
       removeBtn.textContent = t("Remove", "Quitar");
@@ -902,11 +888,13 @@ if (securityHint) securityHint.textContent = t(
       ], shimeji.ttsVoiceProfile || "random"));
       grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
       grid.appendChild(renderToggleField("relayEnabled", t("Talk to other shimejis", "Hablar con otros shimejis"), !!shimeji.relayEnabled));
-      grid.appendChild(renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
+      const aiBrainField = renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
         { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
         { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
-      ], mode));
+      ], mode);
+      aiBrainField.classList.add("full-width");
+      grid.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
       standardBlock.className = "shimeji-mode-row";
