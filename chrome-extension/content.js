@@ -318,7 +318,7 @@
         }
     }
 
-    const CHARACTER_KEYS = ['shimeji', 'bunny', 'bunny-hero', 'kitten', 'ghost', 'blob', 'neon', 'glitch', 'panda', 'star'];
+    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
     const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir'];
     const MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',

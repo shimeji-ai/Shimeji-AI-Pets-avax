@@ -188,14 +188,9 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
   const CHARACTER_OPTIONS = [
     { value: "shimeji", labelEn: "Shimeji", labelEs: "Shimeji" },
     { value: "bunny", labelEn: "Bunny", labelEs: "Conejo" },
-    { value: "bunny-hero", labelEn: "Hero Bunny", labelEs: "Conejo Hero" },
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
-    { value: "neon", labelEn: "Neon", labelEs: "Neón" },
-    { value: "glitch", labelEn: "Glitch", labelEs: "Glitch" },
-    { value: "panda", labelEn: "Panda", labelEs: "Panda" },
-    { value: "star", labelEn: "Star", labelEs: "Estrella" },
   ];
 
   const PERSONALITY_OPTIONS = [
