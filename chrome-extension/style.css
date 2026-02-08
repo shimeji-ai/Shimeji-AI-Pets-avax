@@ -95,6 +95,20 @@
     border-top: 8px solid var(--chat-bg, #140f28);
 }
 
+.shimeji-chat-resize-handle {
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    opacity: 0.45;
+    background:
+        linear-gradient(315deg, transparent 55%, color-mix(in srgb, var(--chat-theme, #2a1f4e) 55%, transparent) 55% 65%, transparent 65%) no-repeat,
+        linear-gradient(315deg, transparent 65%, color-mix(in srgb, var(--chat-theme, #2a1f4e) 55%, transparent) 65% 75%, transparent 75%) no-repeat;
+    background-size: 100% 100%;
+}
+
 /* Chat header with close button */
 .shimeji-chat-header {
     display: flex;
@@ -318,7 +332,8 @@
     flex-direction: column;
     gap: 8px;
     min-height: 60px;
-    max-height: 240px;
+    min-height: 0;
+    max-height: none;
 }
 
 .shimeji-chat-messages::-webkit-scrollbar {

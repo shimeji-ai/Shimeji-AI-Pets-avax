@@ -74,7 +74,7 @@
         'spin-head-frame-6': 'spin-head-frame-6.png'
     };
 
-    const ANIMATIONS = {
+    const ANIMATIONS_FULL = {
         idle: [
             { sprite: 'stand-neutral', duration: 1 }
         ],
@@ -135,6 +135,50 @@
             { sprite: 'spin-head-frame-3', duration: 5 },
             { sprite: 'spin-head-frame-6', duration: 5 },
             { sprite: 'sit', duration: 5 }
+        ]
+    };
+    const ANIMATIONS_SIMPLE = {
+        idle: [
+            { sprite: 'stand-neutral', duration: 1 }
+        ],
+        walking: [
+            { sprite: 'stand-neutral', duration: 8 },
+            { sprite: 'walk-step-left', duration: 8 },
+            { sprite: 'stand-neutral', duration: 8 },
+            { sprite: 'walk-step-right', duration: 8 }
+        ],
+        crawling: [
+            { sprite: 'sprawl-lying', duration: 1 }
+        ],
+        falling: [
+            { sprite: 'fall', duration: 1 }
+        ],
+        jumping: [
+            { sprite: 'jump', duration: 1 }
+        ],
+        landing: [
+            { sprite: 'bounce-recover', duration: 6 }
+        ],
+        sitting: [
+            { sprite: 'sit', duration: 1 }
+        ],
+        sittingLookUp: [
+            { sprite: 'sit', duration: 1 }
+        ],
+        sprawled: [
+            { sprite: 'sprawl-lying', duration: 1 }
+        ],
+        climbingWall: [
+            { sprite: 'grab-wall', duration: 1 }
+        ],
+        climbingCeiling: [
+            { sprite: 'grab-ceiling', duration: 1 }
+        ],
+        sittingEdge: [
+            { sprite: 'sit-edge-legs-down', duration: 1 }
+        ],
+        headSpin: [
+            { sprite: 'sit', duration: 1 }
         ]
     };
 
@@ -437,7 +481,8 @@
             ttsVoiceProfile: randomVoiceProfile,
             ttsVoiceId: '',
             openMicEnabled: false,
-            relayEnabled: false
+            relayEnabled: false,
+            animationQuality: 'full'
         };
     }
 
@@ -497,6 +542,7 @@
                 ttsVoiceId: item.ttsVoiceId || '',
                 openMicEnabled: !!item.openMicEnabled,
                 relayEnabled: !!item.relayEnabled,
+                animationQuality: item.animationQuality || 'full',
                 masterKeyEnabled: !!data.masterKeyEnabled
             }));
             list = list.slice(0, MAX_SHIMEJIS);
@@ -517,6 +563,8 @@
         let currentCharacter = config.character || 'shimeji';
         let CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
         let currentSize = config.size || 'medium';
+        let animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+        let animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
         let isDisabled = false;
         let gameLoopTimer = null;
         let spritesLoadedPromise = null;
@@ -565,8 +613,12 @@
         let resizeStartY = 0;
         let resizeStartWidth = 0;
         let resizeStartHeight = 0;
-        let resizeX = false;
-        let resizeY = false;
+        let resizeStartLeft = 0;
+        let resizeStartTop = 0;
+        let resizeLeft = false;
+        let resizeRight = false;
+        let resizeTop = false;
+        let resizeBottom = false;
         let pendingSoundKind = null;
         let soundGestureArmed = false;
         let pendingOnboardingGreeting = false;
@@ -1190,7 +1242,7 @@
         function updateSpriteDisplay() {
             if (!mascotElement || !spritesLoaded) return;
 
-            const animation = ANIMATIONS[mascot.currentAnimation];
+            const animation = animationSet[mascot.currentAnimation];
             if (!animation || animation.length === 0) return;
 
             const frame = animation[mascot.animationFrame % animation.length];
@@ -1671,16 +1723,31 @@
             chatBubbleEl.appendChild(themePanel);
             chatBubbleEl.appendChild(chatMessagesEl);
             chatBubbleEl.appendChild(inputArea);
+            const resizeHandleEl = document.createElement('div');
+            resizeHandleEl.className = 'shimeji-chat-resize-handle';
+            chatBubbleEl.appendChild(resizeHandleEl);
 
             function updateResizeCursor(e) {
                 if (!chatBubbleEl || isResizing) return;
                 const rect = chatBubbleEl.getBoundingClientRect();
+                const nearLeft = e.clientX - rect.left <= RESIZE_EDGE_PX;
                 const nearRight = rect.right - e.clientX <= RESIZE_EDGE_PX;
+                const nearTop = e.clientY - rect.top <= RESIZE_EDGE_PX;
                 const nearBottom = rect.bottom - e.clientY <= RESIZE_EDGE_PX;
-                if (nearRight && nearBottom) {
+                if (nearLeft && nearTop) {
+                    chatBubbleEl.style.cursor = 'nw-resize';
+                } else if (nearRight && nearTop) {
+                    chatBubbleEl.style.cursor = 'ne-resize';
+                } else if (nearLeft && nearBottom) {
+                    chatBubbleEl.style.cursor = 'sw-resize';
+                } else if (nearRight && nearBottom) {
                     chatBubbleEl.style.cursor = 'se-resize';
+                } else if (nearLeft) {
+                    chatBubbleEl.style.cursor = 'w-resize';
                 } else if (nearRight) {
                     chatBubbleEl.style.cursor = 'e-resize';
+                } else if (nearTop) {
+                    chatBubbleEl.style.cursor = 'n-resize';
                 } else if (nearBottom) {
                     chatBubbleEl.style.cursor = 's-resize';
                 } else {
@@ -1693,20 +1760,54 @@
                 const dx = e.clientX - resizeStartX;
                 const dy = e.clientY - resizeStartY;
                 const minW = 220;
-                const maxW = 520;
                 const minH = 160;
-                const maxH = 520;
-                const nextWidth = resizeX ? Math.max(minW, Math.min(maxW, resizeStartWidth + dx)) : resizeStartWidth;
-                const nextHeight = resizeY ? Math.max(minH, Math.min(maxH, resizeStartHeight + dy)) : resizeStartHeight;
+                const viewportW = window.innerWidth;
+                const viewportH = window.innerHeight;
+
+                let nextWidth = resizeStartWidth;
+                let nextHeight = resizeStartHeight;
+                let nextLeft = resizeStartLeft;
+                let nextTop = resizeStartTop;
+
+                if (resizeRight) {
+                    nextWidth = resizeStartWidth + dx;
+                }
+                if (resizeBottom) {
+                    nextHeight = resizeStartHeight + dy;
+                }
+                if (resizeLeft) {
+                    nextWidth = resizeStartWidth - dx;
+                    nextLeft = resizeStartLeft + dx;
+                }
+                if (resizeTop) {
+                    nextHeight = resizeStartHeight - dy;
+                    nextTop = resizeStartTop + dy;
+                }
+
+                nextWidth = Math.max(minW, nextWidth);
+                nextHeight = Math.max(minH, nextHeight);
+
+                const maxLeft = Math.max(0, viewportW - nextWidth);
+                const maxTop = Math.max(0, viewportH - nextHeight);
+                nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+                nextTop = Math.max(0, Math.min(maxTop, nextTop));
+
                 config.chatWidthPx = Math.round(nextWidth);
                 config.chatHeightPx = Math.round(nextHeight);
                 applyChatStyle();
-                updateBubblePosition();
+                if (chatBubbleEl) {
+                    chatBubbleEl.style.left = `${Math.round(nextLeft)}px`;
+                    chatBubbleEl.style.top = `${Math.round(nextTop)}px`;
+                }
             }
 
             function stopResize() {
                 if (!isResizing) return;
                 isResizing = false;
+                resizeLeft = false;
+                resizeRight = false;
+                resizeTop = false;
+                resizeBottom = false;
                 document.removeEventListener('mousemove', onResizeMove);
                 document.removeEventListener('mouseup', stopResize);
                 persistChatSize(config.chatWidthPx || null, config.chatHeightPx || null);
@@ -1717,16 +1818,22 @@
                 const target = e.target;
                 if (target && target.closest && target.closest('input, button, textarea, select, a')) return;
                 const rect = chatBubbleEl.getBoundingClientRect();
+                const nearLeft = e.clientX - rect.left <= RESIZE_EDGE_PX;
                 const nearRight = rect.right - e.clientX <= RESIZE_EDGE_PX;
+                const nearTop = e.clientY - rect.top <= RESIZE_EDGE_PX;
                 const nearBottom = rect.bottom - e.clientY <= RESIZE_EDGE_PX;
-                if (!nearRight && !nearBottom) return;
+                if (!nearLeft && !nearRight && !nearTop && !nearBottom) return;
                 isResizing = true;
-                resizeX = nearRight;
-                resizeY = nearBottom;
+                resizeLeft = nearLeft;
+                resizeRight = nearRight;
+                resizeTop = nearTop;
+                resizeBottom = nearBottom;
                 resizeStartX = e.clientX;
                 resizeStartY = e.clientY;
                 resizeStartWidth = rect.width;
                 resizeStartHeight = rect.height;
+                resizeStartLeft = rect.left;
+                resizeStartTop = rect.top;
                 document.addEventListener('mousemove', onResizeMove);
                 document.addEventListener('mouseup', stopResize);
                 e.stopPropagation();
@@ -2243,7 +2350,7 @@
         }
 
         function getAnimationDuration(name) {
-            const anim = ANIMATIONS[name];
+            const anim = animationSet[name];
             if (!anim || !anim.length) return 0;
             return anim.reduce((sum, frame) => sum + frame.duration, 0) * TICK_MS;
         }
@@ -2328,7 +2435,7 @@
                 }
                 if (mascot.state === State.HEAD_SPIN) {
                     mascot.stateTimer++;
-                    const hsAnim = ANIMATIONS.headSpin;
+                    const hsAnim = animationSet.headSpin;
                     const hsDuration = hsAnim.reduce((sum, f) => sum + f.duration, 0);
                     if (mascot.stateTimer >= hsDuration) {
                         mascot.state = State.SITTING;
@@ -2488,7 +2595,7 @@
 
                 case State.LANDING: {
                     mascot.stateTimer++;
-                    const landingAnim = ANIMATIONS.landing;
+                    const landingAnim = animationSet.landing;
                     const totalLandingDuration = landingAnim.reduce((sum, f) => sum + f.duration, 0);
                     if (mascot.stateTimer >= totalLandingDuration) {
                         mascot.state = State.IDLE;
@@ -2537,7 +2644,7 @@
 
                 case State.HEAD_SPIN: {
                     mascot.stateTimer++;
-                    const hsAnim = ANIMATIONS.headSpin;
+                    const hsAnim = animationSet.headSpin;
                     const hsDuration = hsAnim.reduce((sum, f) => sum + f.duration, 0);
                     if (mascot.stateTimer >= hsDuration) {
                         mascot.state = State.SITTING;
@@ -2628,7 +2735,7 @@
         function updateAnimation() {
             if (mascot.isDragging) return;
 
-            const animation = ANIMATIONS[mascot.currentAnimation];
+            const animation = animationSet[mascot.currentAnimation];
             if (!animation || animation.length === 0) return;
 
             mascot.animationTick++;
@@ -2803,6 +2910,8 @@
             currentSize = config.size || 'medium';
             currentCharacter = config.character || 'shimeji';
             CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
+            animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+            animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
             applyVisibilityState(visibilityState.disabledAll, visibilityState.disabledPages);
 
             if (!isDisabled) {
@@ -2862,6 +2971,7 @@
                 const prevPersonality = config.personality;
                 const prevTtsEnabled = !!config.ttsEnabled;
                 const prevTtsProfile = config.ttsVoiceProfile;
+                const prevAnimationQuality = animationQuality;
                 config = {
                     ...nextConfig,
                     mode: normalizeMode(nextConfig.mode)
@@ -2872,6 +2982,12 @@
                 const charChanged = config.character && config.character !== currentCharacter;
                 const personalityChanged = config.personality !== prevPersonality;
                 const ttsProfileChanged = prevTtsProfile && config.ttsVoiceProfile && prevTtsProfile !== config.ttsVoiceProfile;
+                const nextAnimationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+                if (prevAnimationQuality !== nextAnimationQuality) {
+                    animationQuality = nextAnimationQuality;
+                    animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
+                    updateSpriteDisplay();
+                }
                 if (charChanged) {
                     currentCharacter = config.character;
                     CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
