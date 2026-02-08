@@ -264,6 +264,22 @@ body[data-theme="kawaii"] .neural-outline {
   border: 1px solid rgba(42, 31, 78, 0.2);
 }
 
+body[data-theme="kawaii"] .footer-updates-button {
+  background: linear-gradient(135deg, rgba(120, 216, 255, 0.6), rgba(255, 187, 241, 0.5));
+  border: 1px solid rgba(42, 31, 78, 0.28);
+  color: #2a1f4e;
+  box-shadow:
+    0 12px 30px rgba(42, 31, 78, 0.25),
+    0 0 24px rgba(120, 216, 255, 0.4);
+}
+
+body[data-theme="kawaii"] .footer-updates-button:hover {
+  background: linear-gradient(135deg, rgba(120, 216, 255, 0.75), rgba(255, 187, 241, 0.65));
+  box-shadow:
+    0 14px 34px rgba(42, 31, 78, 0.3),
+    0 0 28px rgba(120, 216, 255, 0.5);
+}
+
 .neural-hero {
   position: relative;
   background: radial-gradient(800px circle at 20% 10%, rgba(134, 240, 255, 0.12), transparent 45%),

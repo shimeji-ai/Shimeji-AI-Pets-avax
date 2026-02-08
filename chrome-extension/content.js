@@ -329,19 +329,37 @@
     const RESIZE_EDGE_PX = 10;
 
     let sharedAudioCtx = null;
+    let audioUnlocked = false;
+    let audioUnlockArmed = false;
+
     function getAudioContext() {
+        if (!audioUnlocked) return null;
         if (!sharedAudioCtx) {
             sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const resume = () => {
-                if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
-                    sharedAudioCtx.resume().catch(() => {});
-                }
-            };
-            ['click', 'keydown', 'touchstart'].forEach(evt => {
-                document.addEventListener(evt, resume, { once: true });
-            });
         }
         return sharedAudioCtx;
+    }
+
+    function ensureAudioContextFromGesture() {
+        if (!audioUnlocked) {
+            audioUnlocked = true;
+        }
+        const ctx = getAudioContext();
+        if (ctx && ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+        return ctx;
+    }
+
+    function armAudioUnlock() {
+        if (audioUnlockArmed) return;
+        audioUnlockArmed = true;
+        const unlock = () => {
+            ensureAudioContextFromGesture();
+        };
+        ['click', 'keydown', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, unlock, { capture: true, once: true });
+        });
     }
 
     const audioBufferCache = {};
@@ -352,6 +370,7 @@
             if (!resp.ok) return null;
             const arrayBuf = await resp.arrayBuffer();
             const ctx = getAudioContext();
+            if (!ctx) return null;
             const decoded = await ctx.decodeAudioData(arrayBuf);
             audioBufferCache[url] = decoded;
             return decoded;
@@ -387,6 +406,9 @@
 
     function synthesizeShimejiSounds(shimejiId) {
         const ctx = getAudioContext();
+        if (!ctx) {
+            return { success: null, error: null };
+        }
         const sr = ctx.sampleRate;
         const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
         const baseFreq = SHIMEJI_NOTE_FREQ[idx % SHIMEJI_NOTE_FREQ.length];
@@ -597,6 +619,7 @@
         let isListening = false;
         let micBtnEl = null;
         let chatThemePanelEl = null;
+        let syncThemeInputsFn = null;
         let openMicBtnEl = null;
         let ttsClosedBtnEl = null;
         let ttsToggleBtnEl = null;
@@ -667,6 +690,7 @@
             if (!buffer) return;
             try {
                 const ctx = getAudioContext();
+                if (!ctx) return;
                 if (ctx.state === 'suspended') return;
                 const source = ctx.createBufferSource();
                 source.buffer = buffer;
@@ -686,8 +710,8 @@
             soundGestureArmed = true;
             const resumeAndPlay = () => {
                 if (!pendingSoundKind) return;
-                const ctx = getAudioContext();
-                ctx.resume().catch(() => {});
+                const ctx = ensureAudioContextFromGesture();
+                if (!ctx) return;
                 if (!soundBuffersLoaded) loadSoundBuffers();
                 playSound(pendingSoundKind);
                 pendingSoundKind = null;
@@ -1624,72 +1648,104 @@
             themePanel.className = 'shimeji-chat-theme-panel';
             chatThemePanelEl = themePanel;
 
-            const themeRow = document.createElement('div');
-            themeRow.className = 'shimeji-chat-theme-row';
-            const themeLabel = document.createElement('span');
-            themeLabel.className = 'shimeji-chat-theme-label';
-            themeLabel.textContent = isSpanishLocale() ? 'Tema' : 'Theme';
-            const themeSelect = document.createElement('select');
-            themeSelect.className = 'shimeji-chat-theme-select';
+            const presetSection = document.createElement('div');
+            presetSection.className = 'shimeji-chat-theme-section';
+            const presetLabel = document.createElement('span');
+            presetLabel.className = 'shimeji-chat-theme-label';
+            presetLabel.textContent = isSpanishLocale() ? 'Temas' : 'Themes';
+            const presetRow = document.createElement('div');
+            presetRow.className = 'shimeji-theme-presets';
+            presetSection.appendChild(presetLabel);
+            presetSection.appendChild(presetRow);
+            themePanel.appendChild(presetSection);
 
-            const customOption = document.createElement('option');
-            customOption.value = 'custom';
-            customOption.textContent = isSpanishLocale() ? 'Personalizado' : 'Custom';
-            themeSelect.appendChild(customOption);
+            const themeButtons = new Map();
+            function createThemeChip(id, label, swatches = []) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'shimeji-theme-chip';
+                btn.dataset.themeId = id;
+                const text = document.createElement('span');
+                text.className = 'shimeji-theme-chip-label';
+                text.textContent = label;
+                const swatchRow = document.createElement('span');
+                swatchRow.className = 'shimeji-theme-chip-swatches';
+                if (swatches.length) {
+                    swatches.forEach((color) => {
+                        const dot = document.createElement('span');
+                        dot.className = 'shimeji-theme-chip-swatch';
+                        dot.style.background = color;
+                        swatchRow.appendChild(dot);
+                    });
+                } else {
+                    const dot = document.createElement('span');
+                    dot.className = 'shimeji-theme-chip-swatch custom';
+                    swatchRow.appendChild(dot);
+                }
+                btn.appendChild(text);
+                btn.appendChild(swatchRow);
+                themeButtons.set(id, btn);
+                presetRow.appendChild(btn);
+                return btn;
+            }
+
+            createThemeChip('custom', isSpanishLocale() ? 'Personalizado' : 'Custom');
             CHAT_THEMES.forEach((theme) => {
-                const opt = document.createElement('option');
-                opt.value = theme.id;
-                opt.textContent = isSpanishLocale() ? (theme.labelEs || theme.labelEn) : (theme.labelEn || theme.labelEs);
-                themeSelect.appendChild(opt);
+                createThemeChip(
+                    theme.id,
+                    isSpanishLocale() ? (theme.labelEs || theme.labelEn) : (theme.labelEn || theme.labelEs),
+                    [theme.theme, theme.bg]
+                );
             });
 
-            const styleSelect = document.createElement('select');
-            styleSelect.className = 'shimeji-chat-theme-style';
+            const styleSection = document.createElement('div');
+            styleSection.className = 'shimeji-chat-theme-section';
+            const styleLabel = document.createElement('span');
+            styleLabel.className = 'shimeji-chat-theme-label';
+            styleLabel.textContent = isSpanishLocale() ? 'Estilo' : 'Style';
+            const styleRow = document.createElement('div');
+            styleRow.className = 'shimeji-theme-style-row';
+            styleSection.appendChild(styleLabel);
+            styleSection.appendChild(styleRow);
+            themePanel.appendChild(styleSection);
+
+            const styleButtons = new Map();
             [
                 { value: 'glass', en: 'Glass', es: 'Vidrio' },
                 { value: 'solid', en: 'Solid', es: 'Sólido' },
                 { value: 'dark', en: 'Dark', es: 'Oscuro' }
             ].forEach((item) => {
-                const opt = document.createElement('option');
-                opt.value = item.value;
-                opt.textContent = isSpanishLocale() ? item.es : item.en;
-                styleSelect.appendChild(opt);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'shimeji-theme-segment';
+                btn.dataset.style = item.value;
+                btn.textContent = isSpanishLocale() ? item.es : item.en;
+                styleButtons.set(item.value, btn);
+                styleRow.appendChild(btn);
             });
 
-            themeRow.appendChild(themeLabel);
-            themeRow.appendChild(themeSelect);
-            themeRow.appendChild(styleSelect);
-            themePanel.appendChild(themeRow);
-
-            const colorRow = document.createElement('div');
-            colorRow.className = 'shimeji-chat-theme-row';
-            const colorLabel = document.createElement('span');
-            colorLabel.className = 'shimeji-chat-theme-label';
-            colorLabel.textContent = isSpanishLocale() ? 'Colores' : 'Colors';
+            const customSection = document.createElement('div');
+            customSection.className = 'shimeji-chat-theme-section shimeji-chat-theme-custom';
+            const customLabel = document.createElement('span');
+            customLabel.className = 'shimeji-chat-theme-label';
+            customLabel.textContent = isSpanishLocale() ? 'Colores' : 'Colors';
+            const customRow = document.createElement('div');
+            customRow.className = 'shimeji-theme-color-row';
             const themeColorInput = document.createElement('input');
             themeColorInput.type = 'color';
             themeColorInput.className = 'shimeji-chat-theme-color';
             const bgColorInput = document.createElement('input');
             bgColorInput.type = 'color';
             bgColorInput.className = 'shimeji-chat-theme-bg';
-            colorRow.appendChild(colorLabel);
-            colorRow.appendChild(themeColorInput);
-            colorRow.appendChild(bgColorInput);
-            themePanel.appendChild(colorRow);
-
-            function resolveThemeSelection() {
-                const found = CHAT_THEMES.find((t) => t.id === themeSelect.value);
-                if (!found) return;
-                themeColorInput.value = found.theme;
-                bgColorInput.value = found.bg;
-                styleSelect.value = found.bubble;
-                updateThemeFromInputs();
-            }
+            customRow.appendChild(themeColorInput);
+            customRow.appendChild(bgColorInput);
+            customSection.appendChild(customLabel);
+            customSection.appendChild(customRow);
+            themePanel.appendChild(customSection);
 
             function updateThemeFromInputs() {
                 config.chatThemeColor = themeColorInput.value;
                 config.chatBgColor = bgColorInput.value;
-                config.chatBubbleStyle = styleSelect.value;
                 applyChatStyle();
                 persistChatStyle(config.chatThemeColor, config.chatBgColor, config.chatBubbleStyle);
             }
@@ -1697,40 +1753,71 @@
             function syncThemeInputs() {
                 themeColorInput.value = config.chatThemeColor || '#2a1f4e';
                 bgColorInput.value = config.chatBgColor || '#ffffff';
-                styleSelect.value = config.chatBubbleStyle || 'glass';
+                updateStyleSelection(config.chatBubbleStyle || 'glass');
                 const match = CHAT_THEMES.find((t) =>
                     t.theme.toLowerCase() === themeColorInput.value.toLowerCase()
                     && t.bg.toLowerCase() === bgColorInput.value.toLowerCase()
-                    && t.bubble === styleSelect.value
+                    && t.bubble === (config.chatBubbleStyle || 'glass')
                 );
-                themeSelect.value = match ? match.id : 'custom';
+                setThemeSelection(match ? match.id : 'custom');
             }
+            syncThemeInputsFn = syncThemeInputs;
 
             themeBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 themePanel.classList.toggle('open');
             });
 
-            themeSelect.addEventListener('change', () => {
-                if (themeSelect.value === 'custom') {
-                    syncThemeInputs();
-                    return;
-                }
-                resolveThemeSelection();
+            function setThemeSelection(id) {
+                themeButtons.forEach((btn, key) => {
+                    btn.classList.toggle('active', key === id);
+                });
+                customSection.style.display = id === 'custom' ? '' : 'none';
+            }
+
+            function updateStyleSelection(style) {
+                config.chatBubbleStyle = style;
+                styleButtons.forEach((btn, key) => {
+                    btn.classList.toggle('active', key === style);
+                });
+            }
+
+            themeButtons.forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.themeId || 'custom';
+                    if (id === 'custom') {
+                        setThemeSelection('custom');
+                        updateThemeFromInputs();
+                        return;
+                    }
+                    const found = CHAT_THEMES.find((t) => t.id === id);
+                    if (!found) return;
+                    themeColorInput.value = found.theme;
+                    bgColorInput.value = found.bg;
+                    updateStyleSelection(found.bubble);
+                    setThemeSelection(id);
+                    updateThemeFromInputs();
+                });
             });
 
-            styleSelect.addEventListener('change', () => {
-                themeSelect.value = 'custom';
-                updateThemeFromInputs();
+            styleButtons.forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const style = btn.dataset.style || 'glass';
+                    updateStyleSelection(style);
+                    setThemeSelection('custom');
+                    updateThemeFromInputs();
+                });
             });
 
             themeColorInput.addEventListener('input', () => {
-                themeSelect.value = 'custom';
+                setThemeSelection('custom');
                 updateThemeFromInputs();
             });
 
             bgColorInput.addEventListener('input', () => {
-                themeSelect.value = 'custom';
+                setThemeSelection('custom');
                 updateThemeFromInputs();
             });
 
@@ -2279,7 +2366,7 @@
                 return;
             }
             // Resume AudioContext on user gesture so Chrome autoplay policy allows later playback
-            getAudioContext();
+            ensureAudioContextFromGesture();
             cancelSpeech();
 
             if (chatInputEl) chatInputEl.value = '';
@@ -2850,6 +2937,7 @@
 
         function startShimeji() {
             if (gameLoopTimer) return;
+            armAudioUnlock();
 
             preloadSprites().then(() => {
                 if (isDisabled) return;
@@ -3065,13 +3153,13 @@
                 updateQuickTtsBtnVisual();
                 updateOpenMicBtnVisual();
                 updateTtsClosedBtnVisual();
-                if (chatThemePanelEl) {
+                if (syncThemeInputsFn) {
+                    syncThemeInputsFn();
+                } else if (chatThemePanelEl) {
                     const colorInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-color');
                     const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
-                    const styleSelect = chatThemePanelEl.querySelector('.shimeji-chat-theme-style');
                     if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
                     if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
-                    if (styleSelect) styleSelect.value = config.chatBubbleStyle || 'glass';
                 }
                 scheduleNoKeyNudge();
             },
