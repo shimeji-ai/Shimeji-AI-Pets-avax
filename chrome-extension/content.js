@@ -324,6 +324,31 @@
         }
     }
 
+    function isExtensionContextValid() {
+        try {
+            return !!(chrome && chrome.runtime && chrome.runtime.id);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function safeStorageLocalGet(keys, callback) {
+        try {
+            if (!isExtensionContextValid()) return;
+            chrome.storage.local.get(keys, (data) => {
+                if (!isExtensionContextValid()) return;
+                callback(data || {});
+            });
+        } catch (e) {}
+    }
+
+    function safeStorageLocalSet(payload) {
+        try {
+            if (!isExtensionContextValid()) return;
+            chrome.storage.local.set(payload);
+        } catch (e) {}
+    }
+
     function isDisabledForCurrentPage(disabledAll, disabledPages) {
         if (disabledAll) return true;
         const pageKey = normalizePageUrl(window.location.href);
@@ -347,11 +372,9 @@
         return sharedAudioCtx;
     }
 
-    function ensureAudioContextFromGesture(evt) {
+    function unlockAudioContextFromGesture(evt) {
         if (!evt || evt.isTrusted === false) return null;
-        if (!audioUnlocked) {
-            audioUnlocked = true;
-        }
+        audioUnlocked = true;
         const ctx = getAudioContext();
         if (ctx && ctx.state === 'suspended') {
             ctx.resume().catch(() => {});
@@ -363,7 +386,7 @@
         if (audioUnlockArmed) return;
         audioUnlockArmed = true;
         const unlock = (evt) => {
-            ensureAudioContextFromGesture(evt);
+            unlockAudioContextFromGesture(evt);
         };
         ['click', 'keydown', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, unlock, { capture: true, once: true });
@@ -796,7 +819,7 @@
             soundGestureArmed = true;
             const resumeAndPlay = (evt) => {
                 if (!pendingSoundKind) return;
-                const ctx = ensureAudioContextFromGesture(evt);
+                const ctx = unlockAudioContextFromGesture(evt);
                 if (!ctx) return;
                 if (!soundBuffersLoaded) loadSoundBuffers();
                 playSound(pendingSoundKind);
@@ -1243,6 +1266,65 @@
             climbSide: 0,
             climbSpeed: 1.5
         };
+
+        let pendingPosSave = null;
+        let posSaveTimer = null;
+        let lastSavedPos = { x: null, y: null };
+
+        function clamp(value, min, max) {
+            return Math.max(min, Math.min(max, value));
+        }
+
+        function applySavedPosition(saved) {
+            if (!saved) return false;
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            const maxX = Math.max(0, window.innerWidth - size);
+            const minY = size;
+            const maxY = window.innerHeight;
+            const rawX = (typeof saved.xPct === 'number' ? saved.xPct : 0.5) * window.innerWidth;
+            const rawY = (typeof saved.yPct === 'number' ? saved.yPct : (size / Math.max(1, window.innerHeight))) * window.innerHeight;
+            mascot.x = clamp(rawX, 0, maxX);
+            mascot.y = clamp(rawY, minY, maxY);
+            mascot.velocityX = 0;
+            mascot.velocityY = 0;
+            mascot.state = State.IDLE;
+            mascot.currentAnimation = 'idle';
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+            mascot.stateTimer = 0;
+            mascot.isDragging = false;
+            mascot.dragPending = false;
+            mascot.isResisting = false;
+            mascot.climbSide = 0;
+            return true;
+        }
+
+        function queuePositionSave() {
+            pendingPosSave = { x: mascot.x, y: mascot.y };
+            if (posSaveTimer) return;
+            posSaveTimer = setTimeout(() => {
+                posSaveTimer = null;
+                if (!pendingPosSave) return;
+                const { x, y } = pendingPosSave;
+                pendingPosSave = null;
+                if (lastSavedPos.x !== null && Math.abs(lastSavedPos.x - x) < 1 && Math.abs(lastSavedPos.y - y) < 1) {
+                    return;
+                }
+                lastSavedPos = { x, y };
+                const xPct = window.innerWidth ? x / window.innerWidth : 0.5;
+                const yPct = window.innerHeight ? y / window.innerHeight : 0.5;
+                safeStorageLocalGet(['shimejiLastPos'], (data) => {
+                    const map = data.shimejiLastPos && typeof data.shimejiLastPos === 'object' ? data.shimejiLastPos : {};
+                    map[shimejiId] = {
+                        xPct: clamp(xPct, 0, 1),
+                        yPct: clamp(yPct, 0, 1),
+                        ts: Date.now()
+                    };
+                    safeStorageLocalSet({ shimejiLastPos: map });
+                });
+            }, 700);
+        }
 
         function buildNoApiKeyMessageElement(includeWarning = false) {
             const msgEl = document.createElement('div');
@@ -3027,6 +3109,7 @@
             mascotElement.style.top = `${drawY}px`;
 
             updateBubblePosition();
+            queuePositionSave();
         }
 
         function gameLoop() {
@@ -3059,23 +3142,29 @@
             if (gameLoopTimer) return;
             armAudioUnlock();
 
-            preloadSprites().then(() => {
-                if (isDisabled) return;
+            chrome.storage.local.get(['shimejiLastPos'], (data) => {
+                const saved = data.shimejiLastPos && data.shimejiLastPos[shimejiId];
+                preloadSprites().then(() => {
+                    if (isDisabled) return;
 
-                resetMascotState();
-                createMascot();
-                createChatBubble();
-                createThinkingBubble();
-                createAlertBubble();
-                loadSoundBuffers();
-                scheduleNoKeyNudge();
+                    const applied = applySavedPosition(saved);
+                    if (!applied) {
+                        resetMascotState();
+                    }
+                    createMascot();
+                    createChatBubble();
+                    createThinkingBubble();
+                    createAlertBubble();
+                    loadSoundBuffers();
+                    scheduleNoKeyNudge();
 
-                gameLoopTimer = setInterval(gameLoop, TICK_MS);
+                    gameLoopTimer = setInterval(gameLoop, TICK_MS);
 
-                setTimeout(() => {
-                    updateSpriteDisplay();
-                    updatePosition();
-                }, 100);
+                    setTimeout(() => {
+                        updateSpriteDisplay();
+                        updatePosition();
+                    }, 100);
+                });
             });
         }
 
@@ -3217,6 +3306,15 @@
             id: shimejiId,
             destroy,
             applyVisibilityState,
+            applyStoredPosition(saved) {
+                if (!saved) return;
+                if (mascot.isDragging || isResizing) return;
+                if (!mascotElement) return;
+                if (applySavedPosition(saved)) {
+                    lastSavedPos = { x: mascot.x, y: mascot.y };
+                    updatePosition();
+                }
+            },
             showOnboardingHint() {
                 if (visibilityState.disabledAll) return;
                 pendingOnboardingGreeting = true;
@@ -3348,6 +3446,17 @@
         });
     }
 
+    function applyPositionsFromStorage() {
+        safeStorageLocalGet(['shimejiLastPos'], (data) => {
+            const map = data.shimejiLastPos && typeof data.shimejiLastPos === 'object' ? data.shimejiLastPos : {};
+            runtimes.forEach((runtime) => {
+                if (typeof runtime.applyStoredPosition === 'function') {
+                    runtime.applyStoredPosition(map[runtime.id]);
+                }
+            });
+        });
+    }
+
     chrome.storage.onChanged.addListener((changes, areaName) => {
         if (areaName === 'sync' && (changes.disabledAll || changes.disabledPages)) {
             chrome.storage.sync.get([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages], (data) => {
@@ -3361,6 +3470,11 @@
             const next = Array.isArray(changes.shimejis.newValue) ? changes.shimejis.newValue : [];
             syncRuntimes(next.slice(0, MAX_SHIMEJIS));
         }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        applyPositionsFromStorage();
     });
 
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

@@ -1099,7 +1099,7 @@ if (securityHint) securityHint.textContent = t(
       activeToggle.appendChild(activeSlider);
       const removeBtn = document.createElement("button");
       removeBtn.className = "control-btn remove-btn";
-      removeBtn.textContent = t("Remove", "Quitar");
+      removeBtn.textContent = "❌";
       removeBtn.dataset.action = "remove";
       headerActions.appendChild(activeToggle);
       headerActions.appendChild(removeBtn);

@@ -234,6 +234,33 @@ export function HelpSection() {
       </ScrollAnimation>
 
       <ScrollAnimation variants={variants}>
+        <div className="max-w-5xl mx-auto mb-20">
+          <div className="neural-card rounded-3xl p-10 text-center">
+            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
+              {isSpanish ? "Aspectos personalizados" : "Custom Looks"}
+            </p>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
+              {isSpanish
+                ? "Desbloqueá apariencias únicas con Shimeji NFTs"
+                : "Unlock unique looks with Shimeji NFTs"}
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+              {isSpanish
+                ? "Conseguí un Shimeji NFT en el Factory para acceder a skins exclusivos y personalizar tu shimeji."
+                : "Grab a Shimeji NFT in the Factory to access exclusive skins and personalize your shimeji."}
+            </p>
+            <div className="flex justify-center">
+              <DownloadButton
+                href="/factory"
+                labelEn="GO TO FACTORY"
+                labelEs="IR AL FACTORY"
+              />
+            </div>
+          </div>
+        </div>
+      </ScrollAnimation>
+
+      <ScrollAnimation variants={variants}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">

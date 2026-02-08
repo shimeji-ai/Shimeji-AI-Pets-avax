@@ -1,4 +1,5 @@
 const MODEL_OPTIONS = [
+  { value: "random", label: "Random", labelEs: "Aleatorio" },
   { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
   { value: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
   { value: "meta-llama/llama-4-maverick", label: "Llama 4 Maverick" },
@@ -84,9 +85,10 @@ function populateModels() {
   MODEL_OPTIONS.forEach((opt) => {
     const option = document.createElement("option");
     option.value = opt.value;
-    option.textContent = opt.label;
+    option.textContent = isSpanish && opt.labelEs ? opt.labelEs : opt.label;
     modelSelect.appendChild(option);
   });
+  modelSelect.value = "random";
 }
 
 function toggleProvider() {
@@ -117,7 +119,7 @@ function getDefaultShimeji(index) {
     mode: "standard",
     standardProvider: "openrouter",
     openrouterApiKey: "",
-    openrouterModel: "google/gemini-2.0-flash-001",
+    openrouterModel: "random",
     ollamaUrl: "http://127.0.0.1:11434",
     ollamaModel: "llama3.1",
     openclawGatewayUrl: "ws://127.0.0.1:18789",
@@ -147,7 +149,11 @@ function loadExistingConfig() {
     if (first.mode && modeSelect) modeSelect.value = first.mode;
     if (first.standardProvider) providerSelect.value = first.standardProvider;
     if (first.openrouterApiKey) openrouterKey.value = first.openrouterApiKey;
-    if (first.openrouterModel) modelSelect.value = first.openrouterModel;
+    if (first.openrouterModel) {
+      modelSelect.value = first.openrouterModel;
+    } else {
+      modelSelect.value = "random";
+    }
     if (first.ollamaUrl) ollamaUrl.value = first.ollamaUrl;
     if (first.ollamaModel) ollamaModel.value = first.ollamaModel;
     if (first.openclawGatewayUrl) openclawUrl.value = first.openclawGatewayUrl;
@@ -170,7 +176,7 @@ function saveConfig() {
     if (mode === "standard") {
       if (provider === "openrouter") {
         first.openrouterApiKey = openrouterKey.value || "";
-        first.openrouterModel = modelSelect.value || "google/gemini-2.0-flash-001";
+        first.openrouterModel = modelSelect.value || "random";
       } else {
         first.ollamaUrl = ollamaUrl.value || "http://127.0.0.1:11434";
         first.ollamaModel = ollamaModel.value || "llama3.1";
