@@ -33,6 +33,7 @@ chrome.runtime.onInstalled.addListener(() => {
     disabledPages: [],
     nftCharacters: []
   });
+  chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

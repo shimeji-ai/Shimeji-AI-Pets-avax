@@ -147,6 +147,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const MAX_SHIMEJIS = 5;
 const shimejiListEl = document.getElementById("shimeji-list");
 const shimejiEmptyEl = document.getElementById("shimeji-empty");
+const onboardingBanner = document.getElementById("onboarding-banner");
+const onboardingTitle = document.getElementById("onboarding-title");
+const onboardingBody = document.getElementById("onboarding-body");
+const onboardingCta = document.getElementById("onboarding-cta");
+const onboardingHint = document.getElementById("onboarding-hint");
+const onboardingClose = document.getElementById("onboarding-close");
   const addShimejiBtn = document.getElementById("add-shimeji-btn");
   const shimejiSelectorEl = document.getElementById("shimeji-selector");
   const shimejiSectionTitle = document.getElementById("shimeji-section-title");
@@ -169,7 +175,6 @@ const autolockToggle = document.getElementById("autolock-toggle");
 const autolockMinutesInput = document.getElementById("autolock-minutes");
 const autolockLabel = document.getElementById("autolock-label");
 const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
-  const linkOpenPortals = document.getElementById("link-open-portals");
   const linkPrivacy = document.getElementById("link-privacy");
   const appearanceVisibilityTitle = document.getElementById("appearance-visibility-title");
   const labelEnabledPage = document.getElementById("label-enabled-page");
@@ -471,28 +476,11 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
     return true;
   }
 
-  async function promptForMasterKey({ confirmNew } = { confirmNew: false }) {
-    const value = window.prompt(
-      t(
-        "Set a password for shimeji settings.",
-        "Define una contraseña para la configuración de shimejis."
-      )
-    );
-    if (!value) return "";
-    if (confirmNew) {
-      const confirmValue = window.prompt(
-        t("Confirm your password.", "Confirma tu contraseña.")
-      );
-      if (confirmValue !== value) {
-        setMasterKeyStatusMessage(t("Passwords do not match", "Las contraseñas no coinciden"));
-        return "";
-      }
-    }
-    return value;
-  }
-
   async function tryUnlockMasterKey(value) {
-    if (!value) return false;
+    if (!value) {
+      setMasterKeyStatusMessage(t('Enter your password to unlock', 'Ingresa tu contraseña para desbloquear'));
+      return false;
+    }
     // If we have encrypted data, verify the key by attempting a decrypt.
     const testPayload = shimejis.find((s) => s.openrouterApiKeyEnc || s.openclawGatewayTokenEnc);
     if (testPayload) {
@@ -514,29 +502,16 @@ const autolockMinutesLabel = document.getElementById("autolock-minutes-label");
 
   async function maybePromptMasterKey() {
     if (!masterKeyEnabled || masterKeyUnlocked) return;
-    const session = await new Promise((resolve) => {
-      chrome.storage.session.get(["masterKeyPrompted"], resolve);
-    });
-    if (session.masterKeyPrompted) return;
-    chrome.storage.session.set({ masterKeyPrompted: true });
-    const value = window.prompt(
-      t(
-        "Enter your password to unlock shimeji settings for this session.",
-        "Ingresa tu contraseña para desbloquear la configuración de shimejis en esta sesión."
-      )
-    );
-    if (!value) {
-      setMasterKeyStatusMessage(t('Configuration locked', 'Configuración bloqueada'));
-      return;
-    }
-    await tryUnlockMasterKey(value);
+    setMasterKeyStatusMessage(t(
+      "Configuration locked. Enter your password to unlock.",
+      "Configuración bloqueada. Ingresa tu contraseña para desbloquear."
+    ));
   }
 
   function setPopupLabels() {
     if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = "+";
-    if (linkOpenPortals) linkOpenPortals.textContent = t("Get more eggs", "Conseguir más huevos");
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
     if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility & Activity", "Visibilidad y actividad");
     if (labelEnabledPage) labelEnabledPage.textContent = t("Show on this page", "Mostrar en esta página");
@@ -560,6 +535,7 @@ if (securityHint) securityHint.textContent = t(
   "Use a password to lock configuration changes. You'll be asked once per browser session.",
   "Usa una contraseña para bloquear cambios. Se pedirá una vez por sesión del navegador."
 );
+    showOnboardingBanner();
   }
 
   const SIZE_OPTIONS_KEYS = ["small", "medium", "big"];
@@ -567,10 +543,105 @@ if (securityHint) securityHint.textContent = t(
     "#2a1f4e", "#1e3a5f", "#4a2040", "#0f4c3a", "#5c2d0e",
     "#3b1260", "#0e3d6b", "#6b1d3a", "#2e4a12", "#4c1a6b"
   ];
+  const CHAT_THEME_PRESETS = [
+    {
+      id: "pastel",
+      labelEn: "Pastel",
+      labelEs: "Pastel",
+      theme: "#3b1a77",
+      bg: "#f0e8ff",
+      bubble: "glass"
+    },
+    {
+      id: "pink",
+      labelEn: "Pink",
+      labelEs: "Rosa",
+      theme: "#7a124b",
+      bg: "#ffd2ea",
+      bubble: "glass"
+    },
+    {
+      id: "neural",
+      labelEn: "Neural",
+      labelEs: "Neural",
+      theme: "#86f0ff",
+      bg: "#0b0d1f",
+      bubble: "dark"
+    },
+    {
+      id: "kawaii",
+      labelEn: "Kawaii",
+      labelEs: "Kawaii",
+      theme: "#5b1456",
+      bg: "#ffd8f0",
+      bubble: "glass"
+    },
+    {
+      id: "lavender",
+      labelEn: "Lavender",
+      labelEs: "Lavanda",
+      theme: "#3a216a",
+      bg: "#e4d8ff",
+      bubble: "glass"
+    },
+    {
+      id: "citrus",
+      labelEn: "Citrus",
+      labelEs: "Cítrico",
+      theme: "#7a3b00",
+      bg: "#ffe2a6",
+      bubble: "solid"
+    },
+    {
+      id: "cyberpunk",
+      labelEn: "Cyberpunk",
+      labelEs: "Cyberpunk",
+      theme: "#19d3ff",
+      bg: "#0a0830",
+      bubble: "dark"
+    },
+    {
+      id: "noir-rose",
+      labelEn: "Noir Rose",
+      labelEs: "Noir Rosa",
+      theme: "#ff5fbf",
+      bg: "#0b0717",
+      bubble: "dark"
+    },
+    {
+      id: "mint",
+      labelEn: "Mint",
+      labelEs: "Menta",
+      theme: "#0f5f54",
+      bg: "#c7fff0",
+      bubble: "glass"
+    },
+    {
+      id: "sunset",
+      labelEn: "Sunset",
+      labelEs: "Atardecer",
+      theme: "#7a2a1a",
+      bg: "#ffd3b8",
+      bubble: "solid"
+    },
+    {
+      id: "ocean",
+      labelEn: "Ocean",
+      labelEs: "Océano",
+      theme: "#103a7a",
+      bg: "#cfe6ff",
+      bubble: "glass"
+    }
+  ];
   const CHAT_THEMES = [
     { id: "pastel", labelEn: "Pastel", labelEs: "Pastel", theme: "#7b5cff", bg: "#fff7fb", bubble: "glass" },
     { id: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", theme: "#ff6cab", bg: "#fff1f9", bubble: "glass" },
-    { id: "cyberpunk", labelEn: "Cyberpunk", labelEs: "Cyberpunk", theme: "#19d3ff", bg: "#0d0b1f", bubble: "dark" }
+    { id: "cyberpunk", labelEn: "Cyberpunk", labelEs: "Cyberpunk", theme: "#19d3ff", bg: "#0d0b1f", bubble: "dark" },
+    { id: "noir-rose", labelEn: "Noir Rose", labelEs: "Noir Rosa", theme: "#ff5fbf", bg: "#0a0a0f", bubble: "dark" },
+    { id: "mint", labelEn: "Mint", labelEs: "Menta", theme: "#21c7a8", bg: "#f1fffb", bubble: "glass" },
+    { id: "sunset", labelEn: "Sunset", labelEs: "Atardecer", theme: "#ff8a4c", bg: "#fff2e6", bubble: "solid" },
+    { id: "ocean", labelEn: "Ocean", labelEs: "Océano", theme: "#2a7de1", bg: "#eaf4ff", bubble: "glass" },
+    { id: "forest", labelEn: "Forest", labelEs: "Bosque", theme: "#2f9e44", bg: "#edf7ef", bubble: "solid" }
   ];
 
   function getDefaultShimeji(index) {
@@ -924,11 +995,6 @@ if (securityHint) securityHint.textContent = t(
           { value: "full", labelEn: "Complete", labelEs: "Completa" }
         ], shimeji.animationQuality || "full"));
       }
-      grid.appendChild(renderSelectField("size", t("Size", "Tamaño"), [
-        { value: "small", labelEn: "Small", labelEs: "Pequeño" },
-        { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
-        { value: "big", labelEn: "Large", labelEs: "Grande" },
-      ], shimeji.size));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), shimeji.soundEnabled !== false));
       grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
@@ -943,6 +1009,11 @@ if (securityHint) securityHint.textContent = t(
       ], shimeji.ttsVoiceProfile || "random"));
       grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
       grid.appendChild(renderToggleField("relayEnabled", t("Talk to other shimejis", "Hablar con otros shimejis"), !!shimeji.relayEnabled));
+      grid.appendChild(renderSelectField("size", t("Size", "Tamaño"), [
+        { value: "small", labelEn: "Small", labelEs: "Pequeño" },
+        { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
+        { value: "big", labelEn: "Large", labelEs: "Grande" },
+      ], shimeji.size));
       const aiBrainField = renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
         { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
         { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
@@ -1039,6 +1110,21 @@ if (securityHint) securityHint.textContent = t(
       const chatStyleGrid = document.createElement("div");
       chatStyleGrid.className = "shimeji-grid chat-style-grid";
 
+      const chatThemeOptions = [
+        { value: "custom", labelEn: "Custom", labelEs: "Personalizado" },
+        ...CHAT_THEME_PRESETS.map((preset) => ({
+          value: preset.id,
+          labelEn: preset.labelEn,
+          labelEs: preset.labelEs
+        }))
+      ];
+      chatStyleGrid.appendChild(renderSelectField(
+        "chatThemePreset",
+        t("Chat Theme", "Tema de chat"),
+        chatThemeOptions,
+        getChatThemePresetId(shimeji)
+      ));
+
       chatStyleGrid.appendChild(renderColorField("chatThemeColor", t("Theme Color", "Color Tema"), shimeji.chatThemeColor || "#2a1f4e"));
       chatStyleGrid.appendChild(renderColorField("chatBgColor", t("Background", "Fondo"), shimeji.chatBgColor || "#ffffff"));
       chatStyleGrid.appendChild(renderSelectField("chatFontSize", t("Font Size", "Tamaño Texto"), [
@@ -1051,11 +1137,6 @@ if (securityHint) securityHint.textContent = t(
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "large", labelEn: "Wide", labelEs: "Ancho" }
       ], shimeji.chatWidth || "medium"));
-      chatStyleGrid.appendChild(renderSelectField("chatBubbleStyle", t("Style", "Estilo"), [
-        { value: "glass", labelEn: "Glass", labelEs: "Vidrio" },
-        { value: "solid", labelEn: "Solid", labelEs: "Sólido" },
-        { value: "dark", labelEn: "Dark", labelEs: "Oscuro" }
-      ], shimeji.chatBubbleStyle || "glass"));
 
       chatStyleBlock.appendChild(chatStyleHeader);
       chatStyleBlock.appendChild(chatStyleGrid);
@@ -1133,9 +1214,21 @@ if (securityHint) securityHint.textContent = t(
     return wrapper;
   }
 
+  function getChatThemePresetId(shimeji) {
+    const theme = (shimeji.chatThemeColor || "").toLowerCase();
+    const bg = (shimeji.chatBgColor || "").toLowerCase();
+    const bubble = shimeji.chatBubbleStyle || "glass";
+    const match = CHAT_THEME_PRESETS.find((preset) =>
+      preset.theme.toLowerCase() === theme
+      && preset.bg.toLowerCase() === bg
+      && preset.bubble === bubble
+    );
+    return match ? match.id : "custom";
+  }
+
   function renderCharacterField(shimeji) {
     const wrapper = document.createElement("div");
-    wrapper.className = "ai-field character-field";
+    wrapper.className = "ai-field character-field full-width";
 
     const label = document.createElement("label");
     label.className = "ai-label";
@@ -1198,9 +1291,10 @@ if (securityHint) securityHint.textContent = t(
     toggleRowWrap.appendChild(ctaInline);
 
     wrapper.appendChild(label);
-    wrapper.appendChild(toggleRowWrap);
+    wrapper.appendChild(toggleRow);
     wrapper.appendChild(freeSelect);
     wrapper.appendChild(nftSelect);
+    wrapper.appendChild(ctaInline);
 
     return wrapper;
   }
@@ -1352,6 +1446,45 @@ if (securityHint) securityHint.textContent = t(
     saveShimejis();
   }
 
+  const onboardingActive = new URLSearchParams(window.location.search || "").get("onboarding") === "1";
+
+  function showOnboardingBanner() {
+    if (!onboardingBanner || !onboardingActive) return;
+    onboardingBanner.classList.add("show");
+    if (onboardingTitle) onboardingTitle.textContent = t("Welcome to Shimeji AI Pets", "Bienvenido a Shimeji AI Pets");
+    if (onboardingBody) {
+      onboardingBody.innerHTML = isSpanishLocale()
+        ? "Configura el <strong>Cerebro AI</strong> del primer shimeji: Proveedor, API key y Modelo."
+        : "Configure the first shimeji <strong>AI Brain</strong>: Provider, API key, and Model.";
+    }
+    if (onboardingCta) onboardingCta.textContent = t("Configure AI Brain", "Configurar Cerebro AI");
+    if (onboardingHint) onboardingHint.textContent = t(
+      "You can add more later with the + button.",
+      "Luego podés agregar más con el botón +."
+    );
+  }
+
+  function attachOnboardingHandlers() {
+    if (!onboardingActive) return;
+    if (onboardingClose) {
+      onboardingClose.addEventListener("click", () => {
+        onboardingBanner?.classList.remove("show");
+      });
+    }
+    if (onboardingCta) {
+      onboardingCta.addEventListener("click", () => {
+        const firstCard = shimejiListEl?.querySelector(".shimeji-card");
+        if (!firstCard) return;
+        firstCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        const aiCore = firstCard.querySelector(".ai-core-panel");
+        if (aiCore) {
+          aiCore.classList.add("ai-core-pulse");
+          setTimeout(() => aiCore.classList.remove("ai-core-pulse"), 1400);
+        }
+      });
+    }
+  }
+
   if (addShimejiBtn) {
     addShimejiBtn.addEventListener("click", () => {
       if (shimejis.length === 0) {
@@ -1431,6 +1564,20 @@ if (securityHint) securityHint.textContent = t(
       const id = card.dataset.shimejiId;
       const field = e.target.dataset.field;
       if (!field) return;
+      if (field === "chatThemePreset") {
+        const presetId = e.target.value;
+        if (presetId === "custom") return;
+        const preset = CHAT_THEME_PRESETS.find((item) => item.id === presetId);
+        if (!preset) return;
+        updateShimeji(id, "chatThemeColor", preset.theme);
+        updateShimeji(id, "chatBgColor", preset.bg);
+        updateShimeji(id, "chatBubbleStyle", preset.bubble);
+        const themeInput = card.querySelector('input[data-field="chatThemeColor"]');
+        const bgInput = card.querySelector('input[data-field="chatBgColor"]');
+        if (themeInput) themeInput.value = preset.theme;
+        if (bgInput) bgInput.value = preset.bg;
+        return;
+      }
       if (e.target.type === "checkbox") {
         updateShimeji(id, field, e.target.checked);
         if (field === "enabled") {
@@ -1454,6 +1601,10 @@ if (securityHint) securityHint.textContent = t(
       }
       if (field === "standardProvider") {
         toggleProviderBlocks(card, e.target.value);
+      }
+      if (field === "chatThemeColor" || field === "chatBgColor") {
+        const presetSelect = card.querySelector('select[data-field="chatThemePreset"]');
+        if (presetSelect) presetSelect.value = "custom";
       }
     });
 
@@ -1482,6 +1633,8 @@ if (securityHint) securityHint.textContent = t(
       renderShimejis();
     });
   }
+
+  attachOnboardingHandlers();
 
   if (wakeAllBtn) {
     wakeAllBtn.addEventListener("click", () => {
@@ -1522,10 +1675,6 @@ if (securityHint) securityHint.textContent = t(
       }
       let value = masterkeyInput?.value || '';
       if (!value) {
-        value = await promptForMasterKey({ confirmNew: true });
-        if (masterkeyInput && value) masterkeyInput.value = value;
-      }
-      if (!value) {
         masterkeyToggle.checked = false;
         setMasterKeyStatusMessage(t('Enter a password to enable protection', 'Ingresa una contraseña para habilitar'));
         return;
@@ -1555,8 +1704,11 @@ if (securityHint) securityHint.textContent = t(
         renderShimejis();
         return;
       }
-      const value = masterkeyInput?.value || '';
-      if (!value) return;
+      const value = (masterkeyInput?.value || '').trim();
+      if (!value) {
+        setMasterKeyStatusMessage(t('Enter your password to unlock', 'Ingresa tu contraseña para desbloquear'));
+        return;
+      }
       await tryUnlockMasterKey(value);
     });
   }

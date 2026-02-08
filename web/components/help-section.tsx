@@ -259,25 +259,27 @@ export function HelpSection() {
             </h2>
           </div>
 
-          <div className="neural-card rounded-3xl p-6 sm:p-8 mb-10 border border-[var(--brand-accent)]/60 bg-[rgba(123,92,255,0.08)] shadow-[0_0_40px_rgba(123,92,255,0.35)]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-[var(--brand-accent)] font-mono mb-2">
-                  {isSpanish ? "Colección" : "Collection"}
-                </p>
-                <h3 className="text-2xl font-semibold text-foreground mb-2">
-                  {isSpanish ? "Apariencias únicas con NFT" : "Unlock Unique Looks"}
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-2xl">
-                  {isSpanish
-                    ? "Para desbloquear apariencias únicas, debes tener un Shimeji NFT en Stellar y habilitarlo en la página de Colección."
-                    : "To unlock unique appearances, you must own a Shimeji NFT on Stellar and enable it in the Collection page."}
-                </p>
+          <div className="neural-card rounded-3xl p-6 sm:p-8 mb-10 border border-[var(--brand-accent)]/70 bg-[radial-gradient(circle_at_top,rgba(134,240,255,0.18),rgba(123,92,255,0.08))] shadow-[0_0_60px_rgba(134,240,255,0.35)]">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center text-[var(--brand-accent)] text-2xl">
+                  ✨
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-[var(--brand-accent)] font-mono mb-2">
+                    {isSpanish ? "Colección" : "Collection"}
+                  </p>
+                  <h3 className="text-2xl font-semibold text-foreground mb-2">
+                    {isSpanish ? "Apariencias únicas con NFT" : "Unlock Unique Looks"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground max-w-2xl">
+                    {isSpanish
+                      ? "Para desbloquear apariencias únicas, debes tener un Shimeji NFT en Stellar y habilitarlo en la página de Colección."
+                      : "To unlock unique appearances, you must own a Shimeji NFT on Stellar and enable it in the Collection page."}
+                  </p>
+                </div>
               </div>
-              <Link
-                href="/collection"
-                className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-foreground border border-[var(--brand-accent)]/70 bg-[var(--brand-accent)]/20 hover:bg-[var(--brand-accent)]/30 transition-colors"
-              >
+              <Link href="/collection" className="neural-button inline-flex items-center gap-2">
                 {isSpanish ? "Ir a Colección" : "Go to Collection"}
               </Link>
             </div>

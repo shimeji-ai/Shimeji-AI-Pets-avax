@@ -60,6 +60,117 @@ body[data-theme="pink"] .popup-header {
   font-weight: 600;
 }
 
+.onboarding-banner {
+  margin: 10px 12px 0;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 140, 255, 0.35);
+  background: linear-gradient(135deg, rgba(120, 240, 255, 0.18), rgba(255, 154, 216, 0.18));
+  box-shadow: 0 12px 28px rgba(12, 18, 32, 0.35);
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding-banner.show {
+  display: flex;
+}
+
+.onboarding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.onboarding-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #eaf2ff;
+}
+
+.onboarding-close {
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #eaf2ff;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.onboarding-body {
+  font-size: 11px;
+  color: rgba(234, 242, 255, 0.9);
+  line-height: 1.5;
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.onboarding-cta {
+  border: none;
+  background: #eaf2ff;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+}
+
+.onboarding-hint {
+  font-size: 10px;
+  color: rgba(234, 242, 255, 0.75);
+}
+
+body[data-theme="kawaii"] .onboarding-banner {
+  border-color: rgba(90, 200, 255, 0.45);
+  background: linear-gradient(135deg, rgba(255, 218, 243, 0.85), rgba(170, 225, 255, 0.7));
+  box-shadow: 0 10px 24px rgba(42, 31, 78, 0.25);
+}
+
+body[data-theme="kawaii"] .onboarding-title,
+body[data-theme="kawaii"] .onboarding-body,
+body[data-theme="kawaii"] .onboarding-hint {
+  color: #2a1f4e;
+}
+
+body[data-theme="kawaii"] .onboarding-close {
+  background: rgba(255, 255, 255, 0.7);
+  color: #2a1f4e;
+}
+
+body[data-theme="kawaii"] .onboarding-cta {
+  background: #2a1f4e;
+  color: #f6f0ff;
+}
+
+body[data-theme="pink"] .onboarding-banner {
+  border-color: rgba(255, 154, 216, 0.5);
+  background: linear-gradient(135deg, rgba(255, 154, 216, 0.25), rgba(255, 214, 238, 0.3));
+}
+
+body[data-theme="pink"] .onboarding-title,
+body[data-theme="pink"] .onboarding-body,
+body[data-theme="pink"] .onboarding-hint {
+  color: #ffe6f2;
+}
+
+body[data-theme="pink"] .onboarding-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffe6f2;
+}
+
 /* Sections */
 section {
   padding: 16px;
@@ -1110,6 +1221,22 @@ body[data-theme="kawaii"] .toggle-checkbox:checked + .toggle-slider {
   overflow: hidden;
 }
 
+.ai-core-pulse {
+  animation: aiCorePulse 1.2s ease;
+}
+
+@keyframes aiCorePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 214, 102, 0.4);
+  }
+  60% {
+    box-shadow: 0 0 0 12px rgba(255, 214, 102, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 214, 102, 0);
+  }
+}
+
 .ai-core-panel::before {
   content: "";
   position: absolute;
@@ -1229,17 +1356,9 @@ body[data-theme="kawaii"] .character-source-btn.active {
   grid-column: 1 / -1;
 }
 
-.character-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.character-toggle-row .character-source-toggle {
-  flex: 1;
-  min-width: 140px;
+.character-select,
+.character-select .ai-select {
+  width: 100%;
 }
 
 .shimeji-nft-cta {
@@ -1264,13 +1383,12 @@ body[data-theme="kawaii"] .character-source-btn.active {
 }
 
 .shimeji-nft-cta.inline {
-  flex: none;
-  padding: 6px 8px;
+  width: 100%;
+  padding: 8px 10px;
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
   white-space: nowrap;
-  max-width: 160px;
   text-align: center;
 }
 
@@ -1283,8 +1401,20 @@ body[data-theme="kawaii"] .character-source-btn.active {
 }
 
 body[data-theme="kawaii"] .shimeji-nft-cta {
-  background: rgba(255, 248, 230, 0.8);
-  color: #7a4b0c;
+  border-color: rgba(90, 200, 255, 0.85);
+  background: rgba(210, 245, 255, 0.85);
+  color: #12405f;
+  box-shadow:
+    0 0 0 1px rgba(90, 200, 255, 0.45),
+    0 0 30px rgba(90, 200, 255, 0.55),
+    0 0 70px rgba(90, 200, 255, 0.35);
+}
+
+body[data-theme="kawaii"] .shimeji-nft-cta:hover {
+  box-shadow:
+    0 0 0 1px rgba(90, 200, 255, 0.6),
+    0 0 42px rgba(90, 200, 255, 0.75),
+    0 0 90px rgba(90, 200, 255, 0.45);
 }
 
 body[data-theme="pink"] .shimeji-nft-cta {

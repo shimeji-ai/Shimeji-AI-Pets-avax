@@ -284,11 +284,11 @@
             : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
     }
 
-    function getLockedMessage() {
-        return isSpanishLocale()
-            ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
-            : 'Keys are protected. Open the popup and unlock the master key.';
-    }
+        function getLockedMessage() {
+            return isSpanishLocale()
+            ? 'Estoy bloqueado. Abre la extensión y desbloquea la contraseña para poder hablar.'
+            : 'I am locked. Open the extension and unlock the password to chat.';
+        }
 
     function normalizeMode(modeValue) {
         if (modeValue === 'disabled') return 'off';
@@ -340,7 +340,8 @@
         return sharedAudioCtx;
     }
 
-    function ensureAudioContextFromGesture() {
+    function ensureAudioContextFromGesture(fromGesture) {
+        if (!fromGesture) return null;
         if (!audioUnlocked) {
             audioUnlocked = true;
         }
@@ -355,7 +356,7 @@
         if (audioUnlockArmed) return;
         audioUnlockArmed = true;
         const unlock = () => {
-            ensureAudioContextFromGesture();
+            ensureAudioContextFromGesture(true);
         };
         ['click', 'keydown', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, unlock, { capture: true, once: true });
@@ -450,24 +451,56 @@
             id: 'pastel',
             labelEn: 'Pastel',
             labelEs: 'Pastel',
-            theme: '#7b5cff',
-            bg: '#fff7fb',
+            theme: '#3b1a77',
+            bg: '#f0e8ff',
             bubble: 'glass'
+        },
+        {
+            id: 'pink',
+            labelEn: 'Pink',
+            labelEs: 'Rosa',
+            theme: '#7a124b',
+            bg: '#ffd2ea',
+            bubble: 'glass'
+        },
+        {
+            id: 'neural',
+            labelEn: 'Neural',
+            labelEs: 'Neural',
+            theme: '#86f0ff',
+            bg: '#0b0d1f',
+            bubble: 'dark'
         },
         {
             id: 'kawaii',
             labelEn: 'Kawaii',
             labelEs: 'Kawaii',
-            theme: '#ff6cab',
-            bg: '#fff1f9',
+            theme: '#5b1456',
+            bg: '#ffd8f0',
             bubble: 'glass'
+        },
+        {
+            id: 'lavender',
+            labelEn: 'Lavender',
+            labelEs: 'Lavanda',
+            theme: '#3a216a',
+            bg: '#e4d8ff',
+            bubble: 'glass'
+        },
+        {
+            id: 'citrus',
+            labelEn: 'Citrus',
+            labelEs: 'Cítrico',
+            theme: '#7a3b00',
+            bg: '#ffe2a6',
+            bubble: 'solid'
         },
         {
             id: 'cyberpunk',
             labelEn: 'Cyberpunk',
             labelEs: 'Cyberpunk',
             theme: '#19d3ff',
-            bg: '#0d0b1f',
+            bg: '#0a0830',
             bubble: 'dark'
         },
         {
@@ -475,40 +508,32 @@
             labelEn: 'Noir Rose',
             labelEs: 'Noir Rosa',
             theme: '#ff5fbf',
-            bg: '#0a0a0f',
+            bg: '#0b0717',
             bubble: 'dark'
         },
         {
             id: 'mint',
             labelEn: 'Mint',
             labelEs: 'Menta',
-            theme: '#21c7a8',
-            bg: '#f1fffb',
+            theme: '#0f5f54',
+            bg: '#c7fff0',
             bubble: 'glass'
         },
         {
             id: 'sunset',
             labelEn: 'Sunset',
             labelEs: 'Atardecer',
-            theme: '#ff8a4c',
-            bg: '#fff2e6',
+            theme: '#7a2a1a',
+            bg: '#ffd3b8',
             bubble: 'solid'
         },
         {
             id: 'ocean',
             labelEn: 'Ocean',
             labelEs: 'Océano',
-            theme: '#2a7de1',
-            bg: '#eaf4ff',
+            theme: '#103a7a',
+            bg: '#cfe6ff',
             bubble: 'glass'
-        },
-        {
-            id: 'forest',
-            labelEn: 'Forest',
-            labelEs: 'Bosque',
-            theme: '#2f9e44',
-            bg: '#edf7ef',
-            bubble: 'solid'
         }
     ];
 
@@ -750,7 +775,7 @@
             soundGestureArmed = true;
             const resumeAndPlay = () => {
                 if (!pendingSoundKind) return;
-                const ctx = ensureAudioContextFromGesture();
+                const ctx = ensureAudioContextFromGesture(true);
                 if (!ctx) return;
                 if (!soundBuffersLoaded) loadSoundBuffers();
                 playSound(pendingSoundKind);
@@ -1646,6 +1671,10 @@
             micLabel.textContent = isSpanishLocale() ? 'Micrófono abierto' : 'Open mic';
             micRow.appendChild(micLabel);
             micRow.appendChild(openMicBtnEl);
+            micRow.addEventListener('click', (e) => {
+                if (e.target && e.target.closest && e.target.closest('button')) return;
+                openMicBtnEl.click();
+            });
             controlsPanel.appendChild(micRow);
 
             const relayRow = document.createElement('div');
@@ -1657,6 +1686,10 @@
                 : 'Talk to other shimejis';
             relayRow.appendChild(relayLabel);
             relayRow.appendChild(relayToggleBtnEl);
+            relayRow.addEventListener('click', (e) => {
+                if (e.target && e.target.closest && e.target.closest('button')) return;
+                relayToggleBtnEl.click();
+            });
             controlsPanel.appendChild(relayRow);
 
             const ttsClosedRow = document.createElement('div');
@@ -1668,6 +1701,10 @@
                 : 'Speak when minimized';
             ttsClosedRow.appendChild(ttsClosedLabel);
             ttsClosedRow.appendChild(ttsClosedBtnEl);
+            ttsClosedRow.addEventListener('click', (e) => {
+                if (e.target && e.target.closest && e.target.closest('button')) return;
+                ttsClosedBtnEl.click();
+            });
             controlsPanel.appendChild(ttsClosedRow);
 
             const themeRowControl = document.createElement('div');
@@ -1677,6 +1714,10 @@
             themeLabelControl.textContent = isSpanishLocale() ? 'Tema' : 'Theme';
             themeRowControl.appendChild(themeLabelControl);
             themeRowControl.appendChild(themeBtnEl);
+            themeRowControl.addEventListener('click', (e) => {
+                if (e.target && e.target.closest && e.target.closest('button')) return;
+                themeBtnEl.click();
+            });
             controlsPanel.appendChild(themeRowControl);
 
             function setControlsPanelOpen(isOpen) {
@@ -1719,30 +1760,26 @@
             themePanel.appendChild(presetSection);
 
             const themeButtons = new Map();
-            function createThemeChip(id, label, swatches = []) {
+            function createThemeChip(id, label, colors) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'shimeji-theme-chip';
+                btn.className = 'shimeji-theme-circle';
                 btn.dataset.themeId = id;
-                const text = document.createElement('span');
-                text.className = 'shimeji-theme-chip-label';
-                text.textContent = label;
-                const swatchRow = document.createElement('span');
-                swatchRow.className = 'shimeji-theme-chip-swatches';
-                if (swatches.length) {
-                    swatches.forEach((color) => {
-                        const dot = document.createElement('span');
-                        dot.className = 'shimeji-theme-chip-swatch';
-                        dot.style.background = color;
-                        swatchRow.appendChild(dot);
-                    });
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+                const outer = document.createElement('span');
+                outer.className = 'shimeji-theme-circle-outer';
+                const inner = document.createElement('span');
+                inner.className = 'shimeji-theme-circle-inner';
+                if (colors && colors.bg && colors.theme) {
+                    outer.style.background = colors.bg;
+                    inner.style.background = colors.theme;
                 } else {
-                    const dot = document.createElement('span');
-                    dot.className = 'shimeji-theme-chip-swatch custom';
-                    swatchRow.appendChild(dot);
+                    outer.classList.add('custom');
+                    inner.classList.add('custom');
                 }
-                btn.appendChild(text);
-                btn.appendChild(swatchRow);
+                outer.appendChild(inner);
+                btn.appendChild(outer);
                 themeButtons.set(id, btn);
                 presetRow.appendChild(btn);
                 return btn;
@@ -1753,34 +1790,8 @@
                 createThemeChip(
                     theme.id,
                     isSpanishLocale() ? (theme.labelEs || theme.labelEn) : (theme.labelEn || theme.labelEs),
-                    [theme.theme, theme.bg]
+                    { theme: theme.theme, bg: theme.bg }
                 );
-            });
-
-            const styleSection = document.createElement('div');
-            styleSection.className = 'shimeji-chat-theme-section';
-            const styleLabel = document.createElement('span');
-            styleLabel.className = 'shimeji-chat-theme-label';
-            styleLabel.textContent = isSpanishLocale() ? 'Estilo' : 'Style';
-            const styleRow = document.createElement('div');
-            styleRow.className = 'shimeji-theme-style-row';
-            styleSection.appendChild(styleLabel);
-            styleSection.appendChild(styleRow);
-            themePanel.appendChild(styleSection);
-
-            const styleButtons = new Map();
-            [
-                { value: 'glass', en: 'Glass', es: 'Vidrio' },
-                { value: 'solid', en: 'Solid', es: 'Sólido' },
-                { value: 'dark', en: 'Dark', es: 'Oscuro' }
-            ].forEach((item) => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'shimeji-theme-segment';
-                btn.dataset.style = item.value;
-                btn.textContent = isSpanishLocale() ? item.es : item.en;
-                styleButtons.set(item.value, btn);
-                styleRow.appendChild(btn);
             });
 
             const customSection = document.createElement('div');
@@ -1847,10 +1858,7 @@
             }
 
             function updateStyleSelection(style) {
-                config.chatBubbleStyle = style;
-                styleButtons.forEach((btn, key) => {
-                    btn.classList.toggle('active', key === style);
-                });
+                config.chatBubbleStyle = style || 'glass';
             }
 
             themeButtons.forEach((btn) => {
@@ -1868,16 +1876,6 @@
                     bgColorInput.value = found.bg;
                     updateStyleSelection(found.bubble);
                     setThemeSelection(id);
-                    updateThemeFromInputs();
-                });
-            });
-
-            styleButtons.forEach((btn) => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const style = btn.dataset.style || 'glass';
-                    updateStyleSelection(style);
-                    setThemeSelection('custom');
                     updateThemeFromInputs();
                 });
             });
@@ -2426,7 +2424,12 @@
             const locked = await isMasterKeyLocked();
             if (locked) {
                 if (chatInputEl) chatInputEl.value = '';
+                appendMessage('user', text);
+                conversationHistory.push({ role: 'user', content: text });
+                saveConversation();
                 appendMessage('ai', getLockedMessage());
+                conversationHistory.push({ role: 'assistant', content: getLockedMessage() });
+                saveConversation();
                 playSound('error');
                 return;
             }
@@ -2437,7 +2440,7 @@
                 return;
             }
             // Resume AudioContext on user gesture so Chrome autoplay policy allows later playback
-            ensureAudioContextFromGesture();
+            ensureAudioContextFromGesture(true);
             cancelSpeech();
 
             if (chatInputEl) chatInputEl.value = '';
