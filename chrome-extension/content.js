@@ -508,6 +508,7 @@
         let isPrimary = !!options.isPrimary;
         let chatWiggleTimer = null;
         let pendingSoundKind = null;
+        let soundGestureArmed = false;
 
         async function loadSoundBuffers() {
             soundBuffersLoaded = false;
@@ -551,16 +552,32 @@
         function scheduleSoundAfterUserGesture(kind) {
             if (!kind) return;
             pendingSoundKind = kind;
+            if (soundGestureArmed) return;
+            soundGestureArmed = true;
             const resumeAndPlay = () => {
                 if (!pendingSoundKind) return;
                 const ctx = getAudioContext();
                 ctx.resume().catch(() => {});
                 playSound(pendingSoundKind);
                 pendingSoundKind = null;
+                soundGestureArmed = false;
             };
             ['click', 'keydown', 'touchstart'].forEach((evt) => {
                 window.addEventListener(evt, resumeAndPlay, { capture: true, once: true });
             });
+        }
+
+        function playSoundOrQueue(kind) {
+            if (!kind) return;
+            const ctx = getAudioContext();
+            ctx.resume().catch(() => {});
+            setTimeout(() => {
+                if (ctx.state === 'suspended') {
+                    scheduleSoundAfterUserGesture(kind);
+                } else {
+                    playSound(kind);
+                }
+            }, 60);
         }
 
         async function persistVoiceId(voiceName) {
@@ -1978,12 +1995,7 @@
                 ensureNoApiKeyNudgeMessage();
                 if (!isChatOpen) {
                     showAlert();
-                    const ctx = getAudioContext();
-                    if (ctx.state === 'suspended') {
-                        scheduleSoundAfterUserGesture('success');
-                    } else {
-                        playSound('success');
-                    }
+                    playSoundOrQueue('success');
                 }
             }, 4000);
         }
