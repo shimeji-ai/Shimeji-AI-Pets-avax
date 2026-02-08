@@ -1074,6 +1074,14 @@ body[data-theme="pink"] .ai-input {
   color: rgba(200, 210, 235, 0.45);
 }
 
+body[data-theme="kawaii"] .ai-input::placeholder {
+  color: rgba(42, 31, 78, 0.6);
+}
+
+body[data-theme="kawaii"] .ai-field.locked .ai-input::placeholder {
+  color: rgba(42, 31, 78, 0.7);
+}
+
 .ai-input:focus {
   border-color: rgba(134, 240, 255, 0.5);
 }
