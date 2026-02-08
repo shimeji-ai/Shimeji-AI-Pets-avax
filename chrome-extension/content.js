@@ -469,6 +469,46 @@
             theme: '#19d3ff',
             bg: '#0d0b1f',
             bubble: 'dark'
+        },
+        {
+            id: 'noir-rose',
+            labelEn: 'Noir Rose',
+            labelEs: 'Noir Rosa',
+            theme: '#ff5fbf',
+            bg: '#0a0a0f',
+            bubble: 'dark'
+        },
+        {
+            id: 'mint',
+            labelEn: 'Mint',
+            labelEs: 'Menta',
+            theme: '#21c7a8',
+            bg: '#f1fffb',
+            bubble: 'glass'
+        },
+        {
+            id: 'sunset',
+            labelEn: 'Sunset',
+            labelEs: 'Atardecer',
+            theme: '#ff8a4c',
+            bg: '#fff2e6',
+            bubble: 'solid'
+        },
+        {
+            id: 'ocean',
+            labelEn: 'Ocean',
+            labelEs: 'Océano',
+            theme: '#2a7de1',
+            bg: '#eaf4ff',
+            bubble: 'glass'
+        },
+        {
+            id: 'forest',
+            labelEn: 'Forest',
+            labelEs: 'Bosque',
+            theme: '#2f9e44',
+            bg: '#edf7ef',
+            bubble: 'solid'
         }
     ];
 
@@ -1639,14 +1679,33 @@
             themeRowControl.appendChild(themeBtnEl);
             controlsPanel.appendChild(themeRowControl);
 
-            settingsBtnEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                controlsPanel.classList.toggle('open');
-            });
+            function setControlsPanelOpen(isOpen) {
+                controlsPanel.classList.toggle('open', isOpen);
+                if (isOpen) {
+                    themePanel.classList.remove('open');
+                }
+            }
 
             const themePanel = document.createElement('div');
             themePanel.className = 'shimeji-chat-theme-panel';
             chatThemePanelEl = themePanel;
+
+            const themeHeader = document.createElement('div');
+            themeHeader.className = 'shimeji-chat-theme-header';
+            const themeHeaderLabel = document.createElement('span');
+            themeHeaderLabel.className = 'shimeji-chat-theme-header-label';
+            themeHeaderLabel.textContent = isSpanishLocale() ? 'Tema de chat' : 'Chat theme';
+            const themeCloseBtn = document.createElement('button');
+            themeCloseBtn.type = 'button';
+            themeCloseBtn.className = 'shimeji-chat-theme-close';
+            themeCloseBtn.textContent = '\u00D7';
+            themeCloseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                themePanel.classList.remove('open');
+            });
+            themeHeader.appendChild(themeHeaderLabel);
+            themeHeader.appendChild(themeCloseBtn);
+            themePanel.appendChild(themeHeader);
 
             const presetSection = document.createElement('div');
             presetSection.className = 'shimeji-chat-theme-section';
@@ -1763,9 +1822,21 @@
             }
             syncThemeInputsFn = syncThemeInputs;
 
+            function setThemePanelOpen(isOpen) {
+                themePanel.classList.toggle('open', isOpen);
+                if (isOpen) {
+                    controlsPanel.classList.remove('open');
+                }
+            }
+
+            settingsBtnEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setControlsPanelOpen(!controlsPanel.classList.contains('open'));
+            });
+
             themeBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
-                themePanel.classList.toggle('open');
+                setThemePanelOpen(!themePanel.classList.contains('open'));
             });
 
             function setThemeSelection(id) {
