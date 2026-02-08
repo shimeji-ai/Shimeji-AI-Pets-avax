@@ -224,8 +224,8 @@
 
     function getNoApiKeyMessage() {
         return isSpanishLocale()
-            ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consíguela en OpenRouter o OpenAI.'
-            : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). OpenAI as a second option.';
+            ? 'Para hablar, necesito una API key de OpenRouter (tiene free trial). Créala y pégala en la configuración de la extensión.'
+            : 'To talk, I need an OpenRouter API key (free trial available). Create it and paste it in the extension settings.';
     }
 
     function getNoCreditsMessage() {
@@ -240,11 +240,20 @@
             : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
     }
 
-    function getLockedMessage() {
-        return isSpanishLocale()
-            ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
-            : 'Keys are protected. Open the popup and unlock the master key.';
-    }
+        function getLockedMessage() {
+            return isSpanishLocale()
+                ? 'Las claves estan protegidas. Abre el popup y desbloquea la clave maestra.'
+                : 'Keys are protected. Open the popup and unlock the master key.';
+        }
+
+        async function isMasterKeyLocked() {
+            if (!config.masterKeyEnabled) return false;
+            return new Promise((resolve) => {
+                chrome.storage.session.get(['masterKey'], (data) => {
+                    resolve(!data.masterKey);
+                });
+            });
+        }
 
     function normalizeMode(modeValue) {
         if (modeValue === 'disabled') return 'off';
@@ -295,9 +304,6 @@
             ['click', 'keydown', 'touchstart'].forEach(evt => {
                 document.addEventListener(evt, resume, { once: true });
             });
-        }
-        if (sharedAudioCtx.state === 'suspended') {
-            sharedAudioCtx.resume().catch(() => {});
         }
         return sharedAudioCtx;
     }
@@ -426,7 +432,8 @@
             'chatMode',
             'openclawGatewayUrl',
             'openclawGatewayToken',
-            'ttsEnabledMigrationDone'
+            'ttsEnabledMigrationDone',
+            'masterKeyEnabled'
         ], (data) => {
             let list = migrateLegacy(data);
             if (!Array.isArray(list) || list.length === 0) {
@@ -445,7 +452,8 @@
                 ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
                 ttsVoiceId: item.ttsVoiceId || '',
                 openMicEnabled: !!item.openMicEnabled,
-                relayEnabled: !!item.relayEnabled
+                relayEnabled: !!item.relayEnabled,
+                masterKeyEnabled: !!data.masterKeyEnabled
             }));
             list = list.slice(0, MAX_SHIMEJIS);
             chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
@@ -509,6 +517,7 @@
         let chatWiggleTimer = null;
         let pendingSoundKind = null;
         let soundGestureArmed = false;
+        let pendingOnboardingGreeting = false;
 
         async function loadSoundBuffers() {
             soundBuffersLoaded = false;
@@ -569,15 +578,11 @@
 
         function playSoundOrQueue(kind) {
             if (!kind) return;
-            const ctx = getAudioContext();
-            ctx.resume().catch(() => {});
-            setTimeout(() => {
-                if (ctx.state === 'suspended') {
-                    scheduleSoundAfterUserGesture(kind);
-                } else {
-                    playSound(kind);
-                }
-            }, 60);
+            if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
+                playSound(kind);
+                return;
+            }
+            scheduleSoundAfterUserGesture(kind);
         }
 
         async function persistVoiceId(voiceName) {
@@ -980,11 +985,11 @@
 
             const isEs = isSpanishLocale();
             const prefix = isEs
-                ? 'Shimeji quiere estar vivo. Para eso necesita tu API key. Recomendado: OpenRouter (tiene version gratuita). Consíguela en '
-                : 'Shimeji wants to be alive. It needs your API key. Recommended: OpenRouter (has a free tier). Get it from ';
+                ? 'Para hablar, necesito tu API key de '
+                : 'To talk, I need your API key from ';
             const suffix = isEs
-                ? '. Luego haz clic en el icono de la extension y configuralo ahí pegando tu API key.'
-                : '. Then click the extension icon and configure it there by pasting your API key.';
+                ? ' (tiene free trial). Luego abre la configuración de la extensión y pégala.'
+                : ' (free trial available). Then open the extension settings and paste it.';
 
             msgEl.appendChild(document.createTextNode(prefix));
 
@@ -1624,6 +1629,11 @@
             alertBubbleEl.id = alertBubbleId;
             alertBubbleEl.className = 'shimeji-alert-bubble';
             alertBubbleEl.textContent = '!';
+            alertBubbleEl.style.cursor = 'pointer';
+            alertBubbleEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!isChatOpen) openChatBubble();
+            });
             document.body.appendChild(alertBubbleEl);
             applyAuxBubbleTheme(alertBubbleEl);
         }
@@ -1658,11 +1668,12 @@
             hasUnreadMessage = false;
             hideAlert();
 
-            if (mascot.state === State.CLIMBING_WALL || mascot.state === State.CLIMBING_CEILING || mascot.state === State.SITTING_EDGE) {
+            if (mascot.state === State.SITTING_EDGE) {
                 mascot.state = State.FALLING;
                 mascot.currentAnimation = 'falling';
                 mascot.velocityY = 0;
-            } else if (mascot.state !== State.FALLING && mascot.state !== State.DRAGGED && mascot.state !== State.JUMPING) {
+            } else if (mascot.state !== State.FALLING && mascot.state !== State.DRAGGED && mascot.state !== State.JUMPING
+                && mascot.state !== State.CLIMBING_WALL && mascot.state !== State.CLIMBING_CEILING) {
                 mascot.state = State.SITTING;
                 mascot.currentAnimation = 'sitting';
                 mascot.direction = 0;
@@ -1671,7 +1682,7 @@
                 mascot.stateTimer = 0;
             }
 
-            loadConversation(() => {
+            loadConversation(async () => {
                 renderConversationHistory();
 
                 const mode = getMode();
@@ -1680,13 +1691,31 @@
                 const hasOpenClawToken = !!(config.openclawGatewayToken || '').trim() || !!config.openclawGatewayTokenEnc;
                 const needsApiKey = mode === 'standard' && provider === 'openrouter' && !hasOpenRouterKey;
                 const needsAgent = mode === 'agent' && !hasOpenClawToken;
-                if (mode === 'off') {
+                const locked = await isMasterKeyLocked();
+                if (locked) {
+                    appendMessage('ai', getLockedMessage());
+                } else if (mode === 'off') {
                     appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
                 } else if (needsApiKey || needsAgent) {
                     ensureNoApiKeyOnboardingMessage();
                 } else {
                     const existing = chatMessagesEl ? chatMessagesEl.querySelector('.shimeji-no-api-key-msg') : null;
                     if (existing) existing.remove();
+                }
+
+                if (pendingOnboardingGreeting) {
+                    pendingOnboardingGreeting = false;
+                    if (needsApiKeyForChat()) {
+                        noKeyNudgeShown = true;
+                        ensureNoApiKeyOnboardingMessage();
+                        playSound('error');
+                    } else {
+                        const msg = isSpanishLocale()
+                            ? 'Hola, soy tu shimeji. Haz clic para hablar conmigo.'
+                            : 'Hi, I am your shimeji. Click me to chat.';
+                        appendMessage('ai', msg);
+                        playSound('success');
+                    }
                 }
 
                 if (chatMetaEl) {
@@ -1894,11 +1923,18 @@
             document.dispatchEvent(relayEvent);
         }
 
-        function sendChatMessageWithText(text, options = {}) {
+        async function sendChatMessageWithText(text, options = {}) {
             clearAutoSendPopup();
             if (!text) return;
 
             const mode = getMode();
+            const locked = await isMasterKeyLocked();
+            if (locked) {
+                if (chatInputEl) chatInputEl.value = '';
+                appendMessage('ai', getLockedMessage());
+                playSound('error');
+                return;
+            }
             if (mode === 'off') {
                 if (chatInputEl) chatInputEl.value = '';
                 appendMessage('ai', isSpanishLocale() ? 'Aun no estoy configurado. Usa el popup para darme vida.' : 'I am not configured yet. Use the popup to bring me to life.');
@@ -1995,7 +2031,7 @@
                 ensureNoApiKeyNudgeMessage();
                 if (!isChatOpen) {
                     showAlert();
-                    playSoundOrQueue('success');
+                    playSoundOrQueue('error');
                 }
             }, 4000);
         }
@@ -2023,11 +2059,11 @@
             }, duration);
         }
 
-        function sendChatMessage() {
+        async function sendChatMessage() {
             if (!chatInputEl) return;
             const text = chatInputEl.value.trim();
             if (!text) return;
-            sendChatMessageWithText(text);
+            await sendChatMessageWithText(text);
         }
 
         function updateState() {
@@ -2590,6 +2626,12 @@
             id: shimejiId,
             destroy,
             applyVisibilityState,
+            showOnboardingHint() {
+                if (visibilityState.disabledAll) return;
+                pendingOnboardingGreeting = true;
+                showAlert();
+                playSoundOrQueue('success');
+            },
             updateConfig(nextConfig) {
                 const prevCharacter = config.character;
                 const prevPersonality = config.personality;
@@ -2685,6 +2727,16 @@
 
             loadShimejiConfigs((configs) => {
                 syncRuntimes(configs);
+                chrome.storage.local.get(['onboardingGreetingShown'], (data) => {
+                    if (data.onboardingGreetingShown) return;
+                    chrome.storage.local.set({ onboardingGreetingShown: true });
+                    setTimeout(() => {
+                        const target = runtimes[0];
+                        if (target && typeof target.showOnboardingHint === 'function') {
+                            target.showOnboardingHint();
+                        }
+                    }, 4000);
+                });
             });
         });
     }
