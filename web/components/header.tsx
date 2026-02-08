@@ -17,6 +17,7 @@ export function Header() {
   const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
   const [isFeaturesHovered, setIsFeaturesHovered] = useState(false);
   const [isFaqHovered, setIsFaqHovered] = useState(false);
+  const [isHelpHovered, setIsHelpHovered] = useState(false);
   const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
   const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
 
@@ -93,6 +94,21 @@ export function Header() {
             </div>
             <div
               className="relative"
+              onMouseEnter={() => setIsHelpHovered(true)}
+              onMouseLeave={() => setIsHelpHovered(false)}
+            >
+              <ScrollLink
+                to="help"
+                smooth={true}
+                duration={1500}
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Ayuda" : "Help"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isHelpHovered} />
+            </div>
+            <div
+              className="relative"
               onMouseEnter={() => setIsMarketplaceHovered(true)}
               onMouseLeave={() => setIsMarketplaceHovered(false)}
             >
@@ -160,6 +176,15 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 FAQ
+              </ScrollLink>
+              <ScrollLink
+                to="help"
+                smooth={true}
+                duration={1500}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Ayuda" : "Help"}
               </ScrollLink>
               <Link
                 href="/factory"

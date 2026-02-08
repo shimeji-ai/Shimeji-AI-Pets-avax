@@ -2,6 +2,7 @@ import { Header } from "@/components/header";
 import { HeroSection } from "@/components/hero-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
+import { HelpSection } from "@/components/help-section";
 import { FAQSection } from "@/components/faq-section";
 import { CtaSection } from "@/components/cta-section";
 import { SubscribeSection } from "@/components/subscribe-section";
@@ -17,6 +18,7 @@ export default function Home() {
       <div className="bg-transparent">
         <HowItWorksSection />
         <FeaturesSection />
+        <HelpSection />
         <SubscribeSection />
         <FAQSection />
         <CtaSection />
