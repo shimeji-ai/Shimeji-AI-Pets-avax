@@ -550,7 +550,10 @@ if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings wit
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
 if (masterkeyActionBtn) masterkeyActionBtn.textContent = t("Unlock", "Desbloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
-if (shimejiEmptyEl) shimejiEmptyEl.textContent = t("No shimejis active. Add one to start.", "No hay shimejis activos. Agregá uno para empezar.");
+if (shimejiEmptyEl) shimejiEmptyEl.textContent = t(
+  "No shimejis active. Press the + button to add one.",
+  "No hay shimejis activos. Apretá el botón + para agregar uno."
+);
 if (securityHint) securityHint.textContent = t(
   "Use a password to lock configuration changes. You'll be asked once per browser session.",
   "Usa una contraseña para bloquear cambios. Se pedirá una vez por sesión del navegador."
@@ -833,8 +836,8 @@ if (securityHint) securityHint.textContent = t(
       if (shimejis.length === 0) {
         shimejiEmptyEl.style.display = "";
         shimejiEmptyEl.textContent = t(
-          "No shimejis active. Add one to start.",
-          "No hay shimejis activos. Agregá uno para empezar."
+          "No shimejis active. Press the + button to add one.",
+          "No hay shimejis activos. Apretá el botón + para agregar uno."
         );
       } else {
         shimejiEmptyEl.style.display = "none";
@@ -910,29 +913,6 @@ if (securityHint) securityHint.textContent = t(
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
       ], mode);
       aiBrainField.classList.add("full-width", "ai-core-field");
-      const aiBrainLabel = aiBrainField.querySelector(".ai-label");
-      const aiBrainSelect = aiBrainField.querySelector(".ai-select");
-      const aiBrainHead = document.createElement("div");
-      aiBrainHead.className = "ai-core-head";
-      const quickTtsBtn = document.createElement("button");
-      quickTtsBtn.type = "button";
-      quickTtsBtn.className = "tts-quick-toggle";
-      quickTtsBtn.dataset.action = "quick-tts";
-      quickTtsBtn.dataset.shimejiId = shimeji.id;
-      const ttsEnabled = !!shimeji.ttsEnabled;
-      quickTtsBtn.classList.toggle("active", ttsEnabled);
-      quickTtsBtn.textContent = ttsEnabled
-        ? t("🔊 Voice", "🔊 Voz")
-        : t("🔇 Voice", "🔇 Voz");
-      if (aiBrainLabel) {
-        aiBrainHead.appendChild(aiBrainLabel);
-      }
-      aiBrainHead.appendChild(quickTtsBtn);
-      if (aiBrainSelect) {
-        aiBrainField.insertBefore(aiBrainHead, aiBrainSelect);
-      } else {
-        aiBrainField.appendChild(aiBrainHead);
-      }
       grid.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
@@ -1311,21 +1291,6 @@ if (securityHint) securityHint.textContent = t(
         } else if (input) {
           input.type = "password";
           e.target.textContent = t("Show", "Mostrar");
-        }
-      } else if (action === "quick-tts") {
-        const target = shimejis.find((s) => s.id === id);
-        if (!target) return;
-        const nextValue = !target.ttsEnabled;
-        updateShimeji(id, "ttsEnabled", nextValue);
-        e.target.classList.toggle("active", nextValue);
-        e.target.textContent = nextValue
-          ? t("🔊 Voice", "🔊 Voz")
-          : t("🔇 Voice", "🔇 Voz");
-        const ttsToggle = card.querySelector('[data-field="ttsEnabled"]');
-        if (ttsToggle) {
-          ttsToggle.checked = nextValue;
-          const label = ttsToggle.closest(".toggle-row")?.querySelector(".toggle-label");
-          if (label) label.textContent = nextValue ? t("On", "Activo") : t("Off", "Apagado");
         }
       }
     });

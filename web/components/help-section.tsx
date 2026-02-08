@@ -167,13 +167,6 @@ const configReference = [
     contentEn: "Changes only the popup look (not the on-page shimeji).",
     contentEs: "Cambia solo el look del popup (no del shimeji en la página).",
   },
-  {
-    emoji: "✨",
-    titleEn: "Collection & Unique Looks",
-    titleEs: "Colección y apariencias únicas",
-    contentEn: "To unlock unique appearances, you must own a Shimeji NFT on Stellar and enable it in the Collection page.",
-    contentEs: "Para desbloquear apariencias únicas, debes tener un Shimeji NFT en Stellar y habilitarlo en la página de Colección.",
-  },
 ];
 
 export function HelpSection() {
@@ -266,9 +259,41 @@ export function HelpSection() {
             </h2>
           </div>
 
+          <div className="neural-card rounded-3xl p-6 sm:p-8 mb-10 border border-[var(--brand-accent)]/60 bg-[rgba(123,92,255,0.08)] shadow-[0_0_40px_rgba(123,92,255,0.35)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--brand-accent)] font-mono mb-2">
+                  {isSpanish ? "Colección" : "Collection"}
+                </p>
+                <h3 className="text-2xl font-semibold text-foreground mb-2">
+                  {isSpanish ? "Apariencias únicas con NFT" : "Unlock Unique Looks"}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-2xl">
+                  {isSpanish
+                    ? "Para desbloquear apariencias únicas, debes tener un Shimeji NFT en Stellar y habilitarlo en la página de Colección."
+                    : "To unlock unique appearances, you must own a Shimeji NFT on Stellar and enable it in the Collection page."}
+                </p>
+              </div>
+              <Link
+                href="/collection"
+                className="inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-foreground border border-[var(--brand-accent)]/70 bg-[var(--brand-accent)]/20 hover:bg-[var(--brand-accent)]/30 transition-colors"
+              >
+                {isSpanish ? "Ir a Colección" : "Go to Collection"}
+              </Link>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             {configReference.map((item, index) => (
-              <div key={index} className="neural-card rounded-2xl p-6">
+              <div
+                key={index}
+                className={[
+                  "neural-card rounded-2xl p-6",
+                  item.highlight
+                    ? "ring-1 ring-[var(--brand-accent)]/60 shadow-[0_0_28px_rgba(123,92,255,0.3)]"
+                    : ""
+                ].join(" ").trim()}
+              >
                 <div className="flex items-start gap-4">
                   <div className="text-2xl" aria-hidden="true">
                     {item.emoji}

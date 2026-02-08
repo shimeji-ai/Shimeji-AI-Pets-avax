@@ -282,6 +282,7 @@
 
     const fontSizeMap = { small: '11px', medium: '13px', large: '15px' };
     const widthMap = { small: '220px', medium: '280px', large: '360px' };
+    const RESIZE_EDGE_PX = 10;
 
     let sharedAudioCtx = null;
     function getAudioContext() {
@@ -559,6 +560,13 @@
         let noKeyNudgeShown = false;
         let isPrimary = !!options.isPrimary;
         let chatWiggleTimer = null;
+        let isResizing = false;
+        let resizeStartX = 0;
+        let resizeStartY = 0;
+        let resizeStartWidth = 0;
+        let resizeStartHeight = 0;
+        let resizeX = false;
+        let resizeY = false;
         let pendingSoundKind = null;
         let soundGestureArmed = false;
         let pendingOnboardingGreeting = false;
@@ -686,6 +694,18 @@
                         chatBubbleStyle: bubbleStyle
                     };
                 });
+                chrome.storage.local.set({ shimejis: updated });
+            });
+        }
+
+        function persistChatSize(widthPx, heightPx) {
+            chrome.storage.local.get(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? {
+                    ...s,
+                    chatWidthPx: widthPx,
+                    chatHeightPx: heightPx
+                } : s);
                 chrome.storage.local.set({ shimejis: updated });
             });
         }
@@ -1652,7 +1672,75 @@
             chatBubbleEl.appendChild(chatMessagesEl);
             chatBubbleEl.appendChild(inputArea);
 
-            chatBubbleEl.addEventListener('mousedown', (e) => e.stopPropagation());
+            function updateResizeCursor(e) {
+                if (!chatBubbleEl || isResizing) return;
+                const rect = chatBubbleEl.getBoundingClientRect();
+                const nearRight = rect.right - e.clientX <= RESIZE_EDGE_PX;
+                const nearBottom = rect.bottom - e.clientY <= RESIZE_EDGE_PX;
+                if (nearRight && nearBottom) {
+                    chatBubbleEl.style.cursor = 'se-resize';
+                } else if (nearRight) {
+                    chatBubbleEl.style.cursor = 'e-resize';
+                } else if (nearBottom) {
+                    chatBubbleEl.style.cursor = 's-resize';
+                } else {
+                    chatBubbleEl.style.cursor = '';
+                }
+            }
+
+            function onResizeMove(e) {
+                if (!isResizing || !chatBubbleEl) return;
+                const dx = e.clientX - resizeStartX;
+                const dy = e.clientY - resizeStartY;
+                const minW = 220;
+                const maxW = 520;
+                const minH = 160;
+                const maxH = 520;
+                const nextWidth = resizeX ? Math.max(minW, Math.min(maxW, resizeStartWidth + dx)) : resizeStartWidth;
+                const nextHeight = resizeY ? Math.max(minH, Math.min(maxH, resizeStartHeight + dy)) : resizeStartHeight;
+                config.chatWidthPx = Math.round(nextWidth);
+                config.chatHeightPx = Math.round(nextHeight);
+                applyChatStyle();
+                updateBubblePosition();
+            }
+
+            function stopResize() {
+                if (!isResizing) return;
+                isResizing = false;
+                document.removeEventListener('mousemove', onResizeMove);
+                document.removeEventListener('mouseup', stopResize);
+                persistChatSize(config.chatWidthPx || null, config.chatHeightPx || null);
+            }
+
+            function onResizeStart(e) {
+                if (!chatBubbleEl) return;
+                const target = e.target;
+                if (target && target.closest && target.closest('input, button, textarea, select, a')) return;
+                const rect = chatBubbleEl.getBoundingClientRect();
+                const nearRight = rect.right - e.clientX <= RESIZE_EDGE_PX;
+                const nearBottom = rect.bottom - e.clientY <= RESIZE_EDGE_PX;
+                if (!nearRight && !nearBottom) return;
+                isResizing = true;
+                resizeX = nearRight;
+                resizeY = nearBottom;
+                resizeStartX = e.clientX;
+                resizeStartY = e.clientY;
+                resizeStartWidth = rect.width;
+                resizeStartHeight = rect.height;
+                document.addEventListener('mousemove', onResizeMove);
+                document.addEventListener('mouseup', stopResize);
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
+            chatBubbleEl.addEventListener('mousemove', updateResizeCursor);
+            chatBubbleEl.addEventListener('mouseleave', () => {
+                if (!isResizing && chatBubbleEl) chatBubbleEl.style.cursor = '';
+            });
+            chatBubbleEl.addEventListener('mousedown', (e) => {
+                onResizeStart(e);
+                e.stopPropagation();
+            });
             chatBubbleEl.addEventListener('touchstart', (e) => e.stopPropagation());
 
             syncThemeInputs();
@@ -1669,7 +1757,16 @@
             el.style.setProperty('--chat-theme', config.chatThemeColor || '#2a1f4e');
             el.style.setProperty('--chat-bg', config.chatBgColor || '#ffffff');
             el.style.setProperty('--chat-font-size', fontSizeMap[config.chatFontSize] || '13px');
-            el.style.setProperty('--chat-width', widthMap[config.chatWidth] || '280px');
+            if (config.chatWidthPx) {
+                el.style.setProperty('--chat-width', `${config.chatWidthPx}px`);
+            } else {
+                el.style.setProperty('--chat-width', widthMap[config.chatWidth] || '280px');
+            }
+            if (config.chatHeightPx) {
+                el.style.setProperty('--chat-height', `${config.chatHeightPx}px`);
+            } else {
+                el.style.removeProperty('--chat-height');
+            }
             el.classList.remove('chat-style-glass', 'chat-style-solid', 'chat-style-dark');
             el.classList.add('chat-style-' + (config.chatBubbleStyle || 'glass'));
             applyAuxBubbleTheme(thinkingBubbleEl);
@@ -1812,7 +1909,7 @@
                             chatMetaEl.textContent = `ollama · ${model}`;
                         } else {
                             const model = config.openrouterModel || 'google/gemini-2.0-flash-001';
-                            chatMetaEl.textContent = `openrouter · ${model}`;
+                            chatMetaEl.textContent = model;
                         }
                     }
                 }

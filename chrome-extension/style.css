@@ -10,7 +10,10 @@
     position: fixed;
     z-index: 100000;
     width: var(--chat-width, 280px);
-    max-height: 360px;
+    height: var(--chat-height, auto);
+    max-height: var(--chat-height, 360px);
+    min-width: 220px;
+    min-height: 160px;
     border-radius: 16px;
     border: 1px solid rgba(42, 31, 78, 0.12);
     box-shadow: 0 8px 32px rgba(42, 31, 78, 0.18);
@@ -106,6 +109,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex: 1;
+    min-width: 0;
 }
 
 .shimeji-chat-header span {
@@ -127,22 +132,24 @@
 .shimeji-chat-header-btns {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     flex-shrink: 0;
+    margin-left: 8px;
 }
 
 .shimeji-chat-voice-quick {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
     border: none;
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
     color: var(--chat-theme, #2a1f4e);
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1;
     cursor: pointer;
     display: grid;
     place-items: center;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
 }
 
 .shimeji-chat-voice-quick:hover {
@@ -150,8 +157,9 @@
 }
 
 .shimeji-chat-voice-quick.active {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    color: #ffffff;
 }
 
 .shimeji-chat-openmic-toggle,
@@ -159,19 +167,19 @@
 .shimeji-chat-theme-toggle,
 .shimeji-chat-relay-toggle,
 .shimeji-chat-settings-toggle {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
-    border-radius: 50%;
-    font-size: 11px;
+    border-radius: 10px;
+    font-size: 13px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     transition: background 0.2s, box-shadow 0.2s;
     line-height: 1;
     padding: 0;
+    color: var(--chat-theme, #2a1f4e);
 }
 
 .shimeji-chat-openmic-toggle:hover,
@@ -183,28 +191,29 @@
 }
 
 .shimeji-chat-openmic-toggle.active {
-    background: rgba(220, 38, 38, 0.2);
-    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.35);
+    background: rgba(220, 38, 38, 0.3);
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.45);
+    color: #ffffff;
     animation: shimejiMicPulse 1.4s ease-in-out infinite;
 }
 
 .shimeji-chat-relay-toggle.active {
-    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    color: #ffffff;
 }
 
 .shimeji-chat-close {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
-    border-radius: 50%;
+    border-radius: 10px;
     color: var(--chat-theme, #2a1f4e);
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    place-items: center;
     transition: background 0.2s;
     line-height: 1;
     padding: 0;
@@ -218,14 +227,25 @@
     display: none;
     flex-direction: column;
     gap: 6px;
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(42, 31, 78, 0.08);
-    background: color-mix(in srgb, var(--chat-bg, #ffffff) 90%, transparent);
-    flex-shrink: 0;
+    padding: 8px;
+    border: 1px solid rgba(42, 31, 78, 0.08);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--chat-bg, #ffffff) 94%, transparent);
+    box-shadow: 0 10px 22px rgba(42, 31, 78, 0.18);
+    position: absolute;
+    top: 46px;
+    right: 10px;
+    width: 200px;
+    z-index: 1;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
 }
 
 .shimeji-chat-controls-panel.open {
     display: flex;
+    opacity: 1;
+    transform: translateY(0) scale(1);
 }
 
 .shimeji-chat-control-row {
@@ -677,8 +697,9 @@
 }
 
 .chat-style-dark .shimeji-chat-controls-panel {
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--chat-bg, #140f28) 90%, transparent);
+    border-color: rgba(224, 220, 232, 0.08);
+    background: color-mix(in srgb, var(--chat-bg, #140f28) 95%, transparent);
+    box-shadow: 0 10px 22px rgba(8, 6, 18, 0.5);
 }
 
 .chat-style-dark .shimeji-chat-control-label {
