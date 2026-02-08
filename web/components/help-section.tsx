@@ -180,22 +180,6 @@ export function HelpSection() {
   return (
     <section id="help" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
-        <div className="max-w-3xl mx-auto text-center mb-20">
-          <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-            {isSpanish ? "Guía" : "Guide"}
-          </p>
-          <h1 className="text-4xl sm:text-5xl font-semibold text-foreground tracking-tight mb-4">
-            {isSpanish ? "Ayuda y Configuración" : "Help & Setup"}
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {isSpanish
-              ? "Una guía simple para conectar proveedores y entender cada ajuste."
-              : "A simple guide to connect providers and understand every setting."}
-          </p>
-        </div>
-      </ScrollAnimation>
-
-      <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto mb-20">
           <div className="text-center mb-12">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
