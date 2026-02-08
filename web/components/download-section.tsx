@@ -17,7 +17,7 @@ export function DownloadSection() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
             <Download className="w-8 h-8" />
           </div>
-          <h2 className="text-5xl font-semibold mb-4">Download Shimeji.dev</h2>
+          <h2 className="text-5xl font-semibold mb-4">Download Shimeji AI Pets</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Install the extension and get an AI pet in your browser.
             Chat with it, let it react to your browsing, or connect it to
