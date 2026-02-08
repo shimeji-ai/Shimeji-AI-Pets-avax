@@ -15,7 +15,7 @@ export default function FactoryPage() {
   const [isReserving, setIsReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
   const [reserveError, setReserveError] = useState("");
-  const { isConnected, publicKey } = useFreighter();
+  const { isConnected, publicKey, isAvailable } = useFreighter();
 
   useEffect(() => {
     setMounted(true);
@@ -183,7 +183,29 @@ export default function FactoryPage() {
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                Connect your Freighter wallet to reserve an egg.
+                {isAvailable ? (
+                  isSpanish
+                    ? "Conecta tu wallet Freighter para reservar un huevo."
+                    : "Connect your Freighter wallet to reserve an egg."
+                ) : (
+                  isSpanish ? (
+                    <>
+                      No detectamos Freighter.{" "}
+                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                        Instalá Freighter
+                      </a>{" "}
+                      para continuar.
+                    </>
+                  ) : (
+                    <>
+                      Freighter not detected.{" "}
+                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                        Install Freighter
+                      </a>{" "}
+                      to continue.
+                    </>
+                  )
+                )}
               </p>
               <FreighterConnectButton />
             </div>

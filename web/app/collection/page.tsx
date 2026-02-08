@@ -45,7 +45,7 @@ export default function CollectionPage() {
   const [extensionDetected, setExtensionDetected] = useState<boolean | null>(null);
   const [nftCharacters, setNftCharacters] = useState<NftCharacter[]>([]);
   const [loadingNfts, setLoadingNfts] = useState(false);
-  const { isConnected, publicKey } = useFreighter();
+  const { isConnected, publicKey, isAvailable } = useFreighter();
   const { isSpanish } = useLanguage();
 
   useEffect(() => {
@@ -128,9 +128,29 @@ export default function CollectionPage() {
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                {isSpanish
-                  ? "Conecta tu wallet Freighter para ver tu colección de shimejis NFT."
-                  : "Connect your Freighter wallet to view your NFT shimeji collection."}
+                {isAvailable ? (
+                  isSpanish
+                    ? "Conecta tu wallet Freighter para ver tu colección de shimejis NFT."
+                    : "Connect your Freighter wallet to view your NFT shimeji collection."
+                ) : (
+                  isSpanish ? (
+                    <>
+                      No detectamos Freighter.{" "}
+                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                        Instalá Freighter
+                      </a>{" "}
+                      para continuar.
+                    </>
+                  ) : (
+                    <>
+                      Freighter not detected.{" "}
+                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                        Install Freighter
+                      </a>{" "}
+                      to continue.
+                    </>
+                  )
+                )}
               </p>
               <FreighterConnectButton />
             </div>

@@ -885,12 +885,31 @@ if (securityHint) securityHint.textContent = t(
       titleWrap.appendChild(title);
       titleWrap.appendChild(idText);
       metaWrap.appendChild(titleWrap);
+      const headerActions = document.createElement("div");
+      headerActions.className = "shimeji-card-actions";
+      const activeToggle = document.createElement("label");
+      activeToggle.className = "toggle-row mini-toggle header-active-toggle";
+      const activeLabel = document.createElement("span");
+      activeLabel.className = "toggle-label";
+      activeLabel.textContent = shimeji.enabled !== false ? t("Active", "Activo") : t("Off", "Apagado");
+      const activeInput = document.createElement("input");
+      activeInput.type = "checkbox";
+      activeInput.className = "toggle-checkbox";
+      activeInput.dataset.field = "enabled";
+      activeInput.checked = shimeji.enabled !== false;
+      const activeSlider = document.createElement("span");
+      activeSlider.className = "toggle-slider";
+      activeToggle.appendChild(activeLabel);
+      activeToggle.appendChild(activeInput);
+      activeToggle.appendChild(activeSlider);
       const removeBtn = document.createElement("button");
       removeBtn.className = "control-btn remove-btn";
       removeBtn.textContent = t("Remove", "Quitar");
       removeBtn.dataset.action = "remove";
+      headerActions.appendChild(activeToggle);
+      headerActions.appendChild(removeBtn);
       header.appendChild(metaWrap);
-      header.appendChild(removeBtn);
+      header.appendChild(headerActions);
 
       const grid = document.createElement("div");
       grid.className = "shimeji-grid";
@@ -928,10 +947,12 @@ if (securityHint) securityHint.textContent = t(
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
       ], mode);
       aiBrainField.classList.add("full-width", "ai-core-field");
-      grid.appendChild(aiBrainField);
+      const aiCorePanel = document.createElement("div");
+      aiCorePanel.className = "ai-core-panel";
+      aiCorePanel.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
-      standardBlock.className = "shimeji-mode-row ai-core-panel";
+      standardBlock.className = "shimeji-mode-row";
       standardBlock.dataset.mode = "standard";
       standardBlock.appendChild(renderSelectField("standardProvider", t("Provider", "Proveedor"), [
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
@@ -978,7 +999,7 @@ if (securityHint) securityHint.textContent = t(
       standardBlock.appendChild(ollamaBlock);
 
       const agentBlock = document.createElement("div");
-      agentBlock.className = "shimeji-mode-row ai-core-panel";
+      agentBlock.className = "shimeji-mode-row";
       agentBlock.dataset.mode = "agent";
       agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
       const openclawHint = document.createElement("div");
@@ -997,6 +1018,8 @@ if (securityHint) securityHint.textContent = t(
         if (toggle) toggle.disabled = true;
       }
       agentBlock.appendChild(openclawTokenInput);
+      aiCorePanel.appendChild(standardBlock);
+      aiCorePanel.appendChild(agentBlock);
 
       // Chat Style collapsible section
       const chatStyleBlock = document.createElement("div");
@@ -1037,8 +1060,7 @@ if (securityHint) securityHint.textContent = t(
 
       card.appendChild(header);
       card.appendChild(grid);
-      card.appendChild(standardBlock);
-      card.appendChild(agentBlock);
+      card.appendChild(aiCorePanel);
       card.appendChild(chatStyleBlock);
       shimejiListEl.appendChild(card);
 
