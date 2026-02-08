@@ -94,10 +94,10 @@ export function EmailSubscribeModal({
         onClick={handleClose}
       />
 
-      <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+      <div className="relative max-w-md w-full p-6 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-200 border border-white/10 bg-[#0b0f14] text-foreground">
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -105,9 +105,9 @@ export function EmailSubscribeModal({
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/10 border border-white/10 mb-4 text-[var(--brand-accent)]">
             {isSuccess ? (
-              <CheckCircle className="w-6 h-6 text-white" />
+              <CheckCircle className="w-6 h-6 text-[var(--brand-accent)]" />
             ) : (
-              <Mail className="w-6 h-6 text-white" />
+              <Mail className="w-6 h-6 text-[var(--brand-accent)]" />
             )}
           </div>
           <h2 className="text-2xl font-bold text-foreground">{title}</h2>
@@ -115,10 +115,10 @@ export function EmailSubscribeModal({
         </div>
 
         {isSuccess ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-            <Mail className="w-8 h-8 text-green-500 mx-auto mb-2" />
-            <p className="font-semibold text-green-700">Check your inbox!</p>
-            <p className="text-sm text-green-600 mt-1">
+          <div className="rounded-xl p-4 text-center bg-[rgba(134,240,255,0.08)] border border-[rgba(134,240,255,0.3)]">
+            <Mail className="w-8 h-8 text-[var(--brand-accent)] mx-auto mb-2" />
+            <p className="font-semibold text-foreground">Check your inbox!</p>
+            <p className="text-sm text-muted-foreground mt-1">
               We sent you a confirmation email. Click the link to complete your subscription.
             </p>
           </div>
@@ -133,7 +133,7 @@ export function EmailSubscribeModal({
                   setError("");
                 }}
                 placeholder="Enter your email"
-                className="w-full px-4 py-3 rounded-xl bg-[#0b0f14] border border-white/10 focus:border-[var(--brand-accent)] focus:outline-none text-foreground placeholder:text-muted-foreground"
+                className="w-full px-4 py-3 rounded-xl bg-[#0f141b] border border-white/10 focus:border-[var(--brand-accent)] focus:outline-none text-foreground placeholder:text-muted-foreground"
                 disabled={isSubmitting}
               />
               {error && (
