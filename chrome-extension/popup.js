@@ -596,7 +596,7 @@ if (securityHint) securityHint.textContent = t(
       chatFontSize: "medium",
       chatWidth: "medium",
       chatBubbleStyle: preset?.bubble || "glass",
-      ttsEnabled: true,
+      ttsEnabled: false,
       ttsVoiceProfile: randomVoiceProfile,
       ttsVoiceId: "",
       openMicEnabled: false,
@@ -625,7 +625,7 @@ if (securityHint) securityHint.textContent = t(
         openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
         openclawGatewayToken: shimeji.openclawGatewayToken || "",
         personality: shimeji.personality || "cryptid",
-        ttsEnabled: shimeji.ttsEnabled !== false,
+        ttsEnabled: shimeji.ttsEnabled === true,
         ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
         ttsVoiceId: shimeji.ttsVoiceId || "",
         openMicEnabled: !!shimeji.openMicEnabled,
@@ -649,7 +649,7 @@ if (securityHint) securityHint.textContent = t(
       enabled: true,
       soundEnabled: true,
       soundVolume: 0.7,
-      ttsEnabled: true,
+      ttsEnabled: false,
       ttsVoiceProfile: pickRandomVoiceProfile(),
       ttsVoiceId: "",
       openMicEnabled: false,
@@ -685,7 +685,7 @@ if (securityHint) securityHint.textContent = t(
         shimejis = [getDefaultShimeji(0)];
       }
       if (!data.ttsEnabledMigrationDone) {
-        shimejis = shimejis.map((s) => ({ ...s, ttsEnabled: true }));
+        shimejis = shimejis.map((s) => ({ ...s, ttsEnabled: s.ttsEnabled === true }));
       }
       if (shimejis.length > 0) {
         const hasAnyActive = shimejis.some((s) => {
@@ -894,6 +894,29 @@ if (securityHint) securityHint.textContent = t(
         { value: "off", labelEn: "Off", labelEs: "Apagado" },
       ], mode);
       aiBrainField.classList.add("full-width", "ai-core-field");
+      const aiBrainLabel = aiBrainField.querySelector(".ai-label");
+      const aiBrainSelect = aiBrainField.querySelector(".ai-select");
+      const aiBrainHead = document.createElement("div");
+      aiBrainHead.className = "ai-core-head";
+      const quickTtsBtn = document.createElement("button");
+      quickTtsBtn.type = "button";
+      quickTtsBtn.className = "tts-quick-toggle";
+      quickTtsBtn.dataset.action = "quick-tts";
+      quickTtsBtn.dataset.shimejiId = shimeji.id;
+      const ttsEnabled = !!shimeji.ttsEnabled;
+      quickTtsBtn.classList.toggle("active", ttsEnabled);
+      quickTtsBtn.textContent = ttsEnabled
+        ? t("🔊 Voice", "🔊 Voz")
+        : t("🔇 Voice", "🔇 Voz");
+      if (aiBrainLabel) {
+        aiBrainHead.appendChild(aiBrainLabel);
+      }
+      aiBrainHead.appendChild(quickTtsBtn);
+      if (aiBrainSelect) {
+        aiBrainField.insertBefore(aiBrainHead, aiBrainSelect);
+      } else {
+        aiBrainField.appendChild(aiBrainHead);
+      }
       grid.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
@@ -1262,6 +1285,21 @@ if (securityHint) securityHint.textContent = t(
         } else if (input) {
           input.type = "password";
           e.target.textContent = t("Show", "Mostrar");
+        }
+      } else if (action === "quick-tts") {
+        const target = shimejis.find((s) => s.id === id);
+        if (!target) return;
+        const nextValue = !target.ttsEnabled;
+        updateShimeji(id, "ttsEnabled", nextValue);
+        e.target.classList.toggle("active", nextValue);
+        e.target.textContent = nextValue
+          ? t("🔊 Voice", "🔊 Voz")
+          : t("🔇 Voice", "🔇 Voz");
+        const ttsToggle = card.querySelector('[data-field="ttsEnabled"]');
+        if (ttsToggle) {
+          ttsToggle.checked = nextValue;
+          const label = ttsToggle.closest(".toggle-row")?.querySelector(".toggle-label");
+          if (label) label.textContent = nextValue ? t("On", "Activo") : t("Off", "Apagado");
         }
       }
     });

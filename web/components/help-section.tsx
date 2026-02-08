@@ -1,11 +1,5 @@
 "use client";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
 import Link from "next/link";
@@ -69,90 +63,105 @@ const providers = [
 
 const configReference = [
   {
+    emoji: "🎭",
     titleEn: "Character",
     titleEs: "Personaje",
     contentEn: "Choose which shimeji appears on screen. Each character has its own animations.",
     contentEs: "Elegí qué shimeji aparece en pantalla. Cada personaje tiene sus propias animaciones.",
   },
   {
+    emoji: "📏",
     titleEn: "Size",
     titleEs: "Tamaño",
     contentEn: "Controls how big the shimeji looks on your screen.",
     contentEs: "Controla qué tan grande se ve el shimeji en tu pantalla.",
   },
   {
+    emoji: "✅",
     titleEn: "Active",
     titleEs: "Activo",
     contentEn: "Turns this shimeji on or off everywhere.",
     contentEs: "Prende o apaga este shimeji en todas las páginas.",
   },
   {
+    emoji: "💬",
     titleEn: "Personality",
     titleEs: "Personalidad",
     contentEn: "Sets the tone of voice and behavior for chats.",
     contentEs: "Define el tono y el comportamiento al chatear.",
   },
   {
+    emoji: "🧠",
     titleEn: "AI Brain",
     titleEs: "Cerebro AI",
     contentEn: "Standard uses OpenRouter or Ollama. Agent uses OpenClaw tools.",
     contentEs: "Standard usa OpenRouter u Ollama. Agent usa herramientas de OpenClaw.",
   },
   {
+    emoji: "🧩",
     titleEn: "Provider",
     titleEs: "Proveedor",
     contentEn: "Choose OpenRouter (cloud) or Ollama (local) for Standard mode.",
     contentEs: "Elegí OpenRouter (nube) u Ollama (local) en modo Standard.",
   },
   {
+    emoji: "🔑",
     titleEn: "API Key",
     titleEs: "API Key",
     contentEn: "Paste your OpenRouter key here so the shimeji can speak.",
     contentEs: "Pegá tu key de OpenRouter para que el shimeji pueda hablar.",
   },
   {
+    emoji: "🧪",
     titleEn: "Model",
     titleEs: "Modelo",
     contentEn: "Pick the model for chat. OpenRouter lists many; Ollama needs the exact name.",
     contentEs: "Elegí el modelo de chat. OpenRouter lista muchos; Ollama necesita el nombre exacto.",
   },
   {
+    emoji: "🔊",
     titleEn: "Sound & Volume",
     titleEs: "Sonido y Volumen",
     contentEn: "Notification sound and its loudness.",
     contentEs: "Sonido de notificación y su volumen.",
   },
   {
+    emoji: "🗣️",
     titleEn: "Read Aloud",
     titleEs: "Leer en voz alta",
     contentEn: "Turns on text-to-speech so replies are spoken.",
     contentEs: "Activa la lectura en voz alta de las respuestas.",
   },
   {
+    emoji: "🎙️",
     titleEn: "Open Mic",
     titleEs: "Micrófono abierto",
     contentEn: "Hands-free mode: listens and replies when you speak.",
     contentEs: "Modo manos libres: escucha y responde cuando hablás.",
   },
   {
+    emoji: "🔁",
     titleEn: "Relay",
     titleEs: "Relay",
     contentEn: "Lets shimejis pass messages between each other.",
     contentEs: "Permite que los shimejis se pasen mensajes entre sí.",
   },
   {
+    emoji: "🎨",
     titleEn: "Chat Style",
     titleEs: "Estilo de chat",
     contentEn: "Theme color, background style, font size, and width of the bubble.",
     contentEs: "Color del tema, estilo de fondo, tamaño de fuente y ancho de burbuja.",
   },
   {
+    emoji: "🔒",
     titleEn: "Security",
     titleEs: "Seguridad",
     contentEn: "Use a Master Key to encrypt your keys and lock the popup.",
     contentEs: "Usá una Master Key para encriptar tus keys y bloquear el popup.",
   },
   {
+    emoji: "🧿",
     titleEn: "Theme",
     titleEs: "Tema",
     contentEn: "Changes only the popup look (not the on-page shimeji).",
@@ -250,22 +259,25 @@ export function HelpSection() {
             </h2>
           </div>
 
-          <Accordion type="single" collapsible className="w-full space-y-3">
+          <div className="grid gap-4 md:grid-cols-2">
             {configReference.map((item, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="neural-card rounded-2xl px-6"
-              >
-                <AccordionTrigger className="text-foreground text-left">
-                  {isSpanish ? item.titleEs : item.titleEn}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {isSpanish ? item.contentEs : item.contentEn}
-                </AccordionContent>
-              </AccordionItem>
+              <div key={index} className="neural-card rounded-2xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="text-2xl" aria-hidden="true">
+                    {item.emoji}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      {isSpanish ? item.titleEs : item.titleEn}
+                    </h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {isSpanish ? item.contentEs : item.contentEn}
+                    </p>
+                  </div>
+                </div>
+              </div>
             ))}
-          </Accordion>
+          </div>
         </div>
       </ScrollAnimation>
     </section>

@@ -988,6 +988,59 @@ body[data-theme="pink"] .toggle-row {
   box-shadow: 0 0 0 1px rgba(134, 240, 255, 0.08);
 }
 
+.ai-core-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tts-quick-toggle {
+  border: 1px solid rgba(120, 140, 255, 0.35);
+  background: rgba(18, 24, 36, 0.85);
+  color: rgba(230, 233, 242, 0.85);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tts-quick-toggle:hover {
+  background: rgba(30, 40, 60, 0.95);
+  color: #f5f7ff;
+}
+
+.tts-quick-toggle.active {
+  background: rgba(91, 123, 255, 0.9);
+  color: #08111f;
+  border-color: transparent;
+}
+
+body[data-theme="kawaii"] .tts-quick-toggle {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(42, 31, 78, 0.25);
+  color: #2a1f4e;
+}
+
+body[data-theme="kawaii"] .tts-quick-toggle.active {
+  background: #2a1f4e;
+  color: #ffffff;
+}
+
+body[data-theme="pink"] .tts-quick-toggle {
+  background: rgba(42, 20, 34, 0.8);
+  border-color: rgba(255, 154, 216, 0.4);
+  color: rgba(255, 230, 242, 0.9);
+}
+
+body[data-theme="pink"] .tts-quick-toggle.active {
+  background: #ff9ad8;
+  color: #240d1b;
+}
+
 .ai-controls {
   display: flex;
   flex-direction: column;

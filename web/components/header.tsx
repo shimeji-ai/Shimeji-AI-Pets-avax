@@ -17,7 +17,6 @@ export function Header() {
   const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
   const [isFeaturesHovered, setIsFeaturesHovered] = useState(false);
   const [isFaqHovered, setIsFaqHovered] = useState(false);
-  const [isHelpHovered, setIsHelpHovered] = useState(false);
   const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
   const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
 
@@ -92,21 +91,12 @@ export function Header() {
               </ScrollLink>
               <SparkleAnimation isHovering={isFaqHovered} />
             </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsHelpHovered(true)}
-              onMouseLeave={() => setIsHelpHovered(false)}
+            <Link
+              href="/help"
+              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
-              <ScrollLink
-                to="help"
-                smooth={true}
-                duration={1500}
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {isSpanish ? "Ayuda" : "Help"}
-              </ScrollLink>
-              <SparkleAnimation isHovering={isHelpHovered} />
-            </div>
+              {isSpanish ? "Ayuda" : "Help"}
+            </Link>
             <div
               className="relative"
               onMouseEnter={() => setIsMarketplaceHovered(true)}
@@ -177,15 +167,13 @@ export function Header() {
               >
                 FAQ
               </ScrollLink>
-              <ScrollLink
-                to="help"
-                smooth={true}
-                duration={1500}
+              <Link
+                href="/help"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Ayuda" : "Help"}
-              </ScrollLink>
+              </Link>
               <Link
                 href="/factory"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
