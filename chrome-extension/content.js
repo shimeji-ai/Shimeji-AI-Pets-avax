@@ -1789,18 +1789,12 @@
                     chatBubbleEl.style.cursor = 'nw-resize';
                 } else if (nearRight && nearTop) {
                     chatBubbleEl.style.cursor = 'ne-resize';
-                } else if (nearLeft && nearBottom) {
-                    chatBubbleEl.style.cursor = 'sw-resize';
-                } else if (nearRight && nearBottom) {
-                    chatBubbleEl.style.cursor = 'se-resize';
                 } else if (nearLeft) {
                     chatBubbleEl.style.cursor = 'w-resize';
                 } else if (nearRight) {
                     chatBubbleEl.style.cursor = 'e-resize';
                 } else if (nearTop) {
                     chatBubbleEl.style.cursor = 'n-resize';
-                } else if (nearBottom) {
-                    chatBubbleEl.style.cursor = 's-resize';
                 } else {
                     chatBubbleEl.style.cursor = '';
                 }
@@ -1873,12 +1867,12 @@
                 const nearRight = rect.right - e.clientX <= RESIZE_EDGE_PX;
                 const nearTop = e.clientY - rect.top <= RESIZE_EDGE_PX;
                 const nearBottom = rect.bottom - e.clientY <= RESIZE_EDGE_PX;
-                if (!nearLeft && !nearRight && !nearTop && !nearBottom) return;
+                if (!nearLeft && !nearRight && !nearTop) return;
                 isResizing = true;
                 resizeLeft = nearLeft;
                 resizeRight = nearRight;
                 resizeTop = nearTop;
-                resizeBottom = nearBottom;
+                resizeBottom = false;
                 resizeStartX = e.clientX;
                 resizeStartY = e.clientY;
                 resizeStartWidth = rect.width;
@@ -2159,8 +2153,7 @@
             const mascotCenterX = mascot.x + size / 2;
 
             if (chatBubbleEl && isChatOpen) {
-                const widthVal = widthMap[config.chatWidth] || '280px';
-                const bubbleWidth = parseInt(widthVal, 10);
+                const bubbleWidth = config.chatWidthPx ? Number(config.chatWidthPx) : parseInt(widthMap[config.chatWidth] || '280px', 10);
                 const bubbleHeight = chatBubbleEl.offsetHeight || 200;
                 let left = mascotCenterX - bubbleWidth / 2;
                 let top = mascotTopY - bubbleHeight - 12;
