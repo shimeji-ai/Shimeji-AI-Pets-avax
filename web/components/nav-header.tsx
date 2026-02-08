@@ -63,6 +63,12 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             >
               {isSpanish ? "Colección" : "Collection"}
             </Link>
+            <Link
+              href="/help"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+            >
+              {isSpanish ? "Ayuda" : "Help"}
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -115,6 +121,13 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Descargar" : "Download"}
+              </Link>
+              <Link
+                href="/help"
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Ayuda" : "Help"}
               </Link>
               <div className="pt-2">
                 <LanguageSwitcher />

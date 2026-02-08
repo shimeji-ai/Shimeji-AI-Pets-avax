@@ -145,7 +145,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- AI Chat Settings ---
   // --- Shimeji Configurator ---
   const MAX_SHIMEJIS = 5;
-  const shimejiListEl = document.getElementById("shimeji-list");
+const shimejiListEl = document.getElementById("shimeji-list");
+const shimejiEmptyEl = document.getElementById("shimeji-empty");
   const addShimejiBtn = document.getElementById("add-shimeji-btn");
   const shimejiSelectorEl = document.getElementById("shimeji-selector");
   const shimejiSectionTitle = document.getElementById("shimeji-section-title");
@@ -549,6 +550,7 @@ if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings wit
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
 if (masterkeyActionBtn) masterkeyActionBtn.textContent = t("Unlock", "Desbloquear");
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
+if (shimejiEmptyEl) shimejiEmptyEl.textContent = t("No shimejis active. Add one to start.", "No hay shimejis activos. Agregá uno para empezar.");
 if (securityHint) securityHint.textContent = t(
   "Use a password to lock configuration changes. You'll be asked once per browser session.",
   "Usa una contraseña para bloquear cambios. Se pedirá una vez por sesión del navegador."
@@ -670,7 +672,8 @@ if (securityHint) securityHint.textContent = t(
       'masterKeySalt',
       'masterKeyAutoLockEnabled',
       'masterKeyAutoLockMinutes',
-      'ttsEnabledMigrationDone'
+      'ttsEnabledMigrationDone',
+      'noShimejis'
     ], async (data) => {
       masterKeyEnabled = !!data.masterKeyEnabled;
       masterKeySalt = data.masterKeySalt || null;
@@ -681,7 +684,9 @@ if (securityHint) securityHint.textContent = t(
       applyMasterKeyUiState();
 
       shimejis = ensureShimejiIds(migrateLegacy(data));
-      if (!Array.isArray(shimejis) || shimejis.length === 0) {
+      if (!!data.noShimejis) {
+        shimejis = [];
+      } else if (!Array.isArray(shimejis) || shimejis.length === 0) {
         shimejis = [getDefaultShimeji(0)];
       }
       if (!data.ttsEnabledMigrationDone) {
@@ -824,6 +829,17 @@ if (securityHint) securityHint.textContent = t(
     if (!selectedShimejiId || !shimejis.find((s) => s.id === selectedShimejiId)) {
       selectedShimejiId = shimejis[0]?.id || null;
     }
+    if (shimejiEmptyEl) {
+      if (shimejis.length === 0) {
+        shimejiEmptyEl.style.display = "";
+        shimejiEmptyEl.textContent = t(
+          "No shimejis active. Add one to start.",
+          "No hay shimejis activos. Agregá uno para empezar."
+        );
+      } else {
+        shimejiEmptyEl.style.display = "none";
+      }
+    }
 
     let countStandard = 0;
     let countAgent = 0;
@@ -875,7 +891,7 @@ if (securityHint) securityHint.textContent = t(
       ], shimeji.size));
       grid.appendChild(renderToggleField("enabled", t("Active", "Activo"), shimeji.enabled !== false));
       grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
-      grid.appendChild(renderToggleField("soundEnabled", t("Sound", "Sonido"), shimeji.soundEnabled !== false));
+      grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), shimeji.soundEnabled !== false));
       grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
       grid.appendChild(renderToggleField("ttsEnabled", t("Read Aloud", "Leer en voz alta"), !!shimeji.ttsEnabled));
       grid.appendChild(renderSelectField("ttsVoiceProfile", t("Voice", "Voz"), [
@@ -1242,6 +1258,10 @@ if (securityHint) securityHint.textContent = t(
 
   if (addShimejiBtn) {
     addShimejiBtn.addEventListener("click", () => {
+      if (shimejis.length === 0) {
+        chrome.storage.local.set({ noShimejis: false });
+        chrome.storage.sync.set({ disabledAll: false });
+      }
       if (shimejis.length >= MAX_SHIMEJIS) return;
       const newShimeji = getDefaultShimeji(shimejis.length);
       // Copy API key and provider settings from an existing shimeji
@@ -1266,11 +1286,17 @@ if (securityHint) securityHint.textContent = t(
       if (!card) return;
       const id = card.dataset.shimejiId;
       if (action === "remove") {
+        if (shimejis.length === 1) {
+          shimejis = [];
+          selectedShimejiId = null;
+          chrome.storage.local.set({ noShimejis: true });
+          chrome.storage.sync.set({ disabledAll: true });
+          saveShimejis();
+          renderShimejis();
+          return;
+        }
         const removeIndex = shimejis.findIndex((s) => s.id === id);
         shimejis = shimejis.filter((s) => s.id !== id);
-        if (shimejis.length === 0) {
-          shimejis = [getDefaultShimeji(0)];
-        }
         if (selectedShimejiId === id) {
           const next = shimejis[removeIndex] || shimejis[removeIndex - 1] || shimejis[0];
           selectedShimejiId = next ? next.id : null;

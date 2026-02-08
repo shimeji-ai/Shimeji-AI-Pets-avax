@@ -236,6 +236,27 @@ body[data-theme="pink"] .shimeji-card {
   color: rgba(200, 210, 235, 0.6);
 }
 
+.shimeji-empty {
+  display: none;
+  padding: 10px 12px;
+  margin: 6px 0 12px;
+  border-radius: 12px;
+  border: 1px dashed rgba(120, 140, 255, 0.35);
+  color: rgba(200, 210, 235, 0.75);
+  font-size: 12px;
+  text-align: center;
+}
+
+body[data-theme="kawaii"] .shimeji-empty {
+  border-color: rgba(42, 31, 78, 0.2);
+  color: rgba(42, 31, 78, 0.7);
+}
+
+body[data-theme="pink"] .shimeji-empty {
+  border-color: rgba(255, 154, 216, 0.4);
+  color: rgba(255, 230, 242, 0.8);
+}
+
 .remove-btn {
   flex: none;
   padding: 5px 8px;

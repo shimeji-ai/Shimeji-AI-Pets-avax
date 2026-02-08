@@ -473,10 +473,13 @@
             'openclawGatewayUrl',
             'openclawGatewayToken',
             'ttsEnabledMigrationDone',
-            'masterKeyEnabled'
+            'masterKeyEnabled',
+            'noShimejis'
         ], (data) => {
             let list = migrateLegacy(data);
-            if (!Array.isArray(list) || list.length === 0) {
+            if (!!data.noShimejis) {
+                list = [];
+            } else if (!Array.isArray(list) || list.length === 0) {
                 list = [getDefaultShimeji(0)];
             }
             const needsTtsMigration = !data.ttsEnabledMigrationDone;

@@ -119,11 +119,11 @@ const configReference = [
     contentEs: "Elegí el modelo de chat. OpenRouter lista muchos; Ollama necesita el nombre exacto.",
   },
   {
-    emoji: "🔊",
-    titleEn: "Sound & Volume",
-    titleEs: "Sonido y Volumen",
-    contentEn: "Notification sound and its loudness.",
-    contentEs: "Sonido de notificación y su volumen.",
+    emoji: "🔔",
+    titleEn: "Notifications & Volume",
+    titleEs: "Notificaciones y Volumen",
+    contentEn: "Notification sounds and their volume.",
+    contentEs: "Notificaciones y su volumen.",
   },
   {
     emoji: "🗣️",
@@ -166,6 +166,13 @@ const configReference = [
     titleEs: "Tema",
     contentEn: "Changes only the popup look (not the on-page shimeji).",
     contentEs: "Cambia solo el look del popup (no del shimeji en la página).",
+  },
+  {
+    emoji: "✨",
+    titleEn: "Collection & Unique Looks",
+    titleEs: "Colección y apariencias únicas",
+    contentEn: "To unlock unique appearances, you must own a Shimeji NFT on Stellar and enable it in the Collection page.",
+    contentEs: "Para desbloquear apariencias únicas, debes tener un Shimeji NFT en Stellar y habilitarlo en la página de Colección.",
   },
 ];
 
