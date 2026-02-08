@@ -1016,6 +1016,13 @@ if (securityHint) securityHint.textContent = t(
       toggleProviderBlocks(card, shimeji.standardProvider || "openrouter");
     });
 
+    if (wakeAllBtn && sleepAllBtn) {
+      const allOff = countOff === shimejis.length;
+      const allOn = countOff === 0;
+      wakeAllBtn.classList.toggle("selected", allOn);
+      sleepAllBtn.classList.toggle("selected", allOff);
+    }
+
     if (shimejiSelectorEl) {
       shimejiSelectorEl.innerHTML = "";
       for (let i = 0; i < MAX_SHIMEJIS; i += 1) {
