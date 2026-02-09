@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Block,
   Hash,
@@ -14,15 +14,7 @@ import { decodeTransactionData } from "~~/utils/scaffold-eth";
 
 const BLOCKS_PER_PAGE = 20;
 
-export const testClient = createTestClient({
-  chain: hardhat,
-  mode: "hardhat",
-  transport: webSocket("ws://127.0.0.1:8545"),
-})
-  .extend(publicActions)
-  .extend(walletActions);
-
-export const useFetchBlocks = () => {
+export const useFetchBlocks = (enabled = false) => {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [transactionReceipts, setTransactionReceipts] = useState<{
     [key: string]: TransactionReceipt;
@@ -31,7 +23,19 @@ export const useFetchBlocks = () => {
   const [totalBlocks, setTotalBlocks] = useState(0n);
   const [error, setError] = useState<Error | null>(null);
 
+  const testClient = useMemo(() => {
+    if (!enabled) return null;
+    return createTestClient({
+      chain: hardhat,
+      mode: "hardhat",
+      transport: webSocket("ws://127.0.0.1:8545"),
+    })
+      .extend(publicActions)
+      .extend(walletActions);
+  }, [enabled]);
+
   const fetchBlocks = useCallback(async () => {
+    if (!enabled || !testClient) return;
     setError(null);
 
     try {
@@ -77,13 +81,15 @@ export const useFetchBlocks = () => {
     } catch (err) {
       setError(err instanceof Error ? err : new Error("An error occurred."));
     }
-  }, [currentPage]);
+  }, [currentPage, enabled, testClient]);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchBlocks();
   }, [fetchBlocks]);
 
   useEffect(() => {
+    if (!enabled || !testClient) return;
     const handleNewBlock = async (newBlock: any) => {
       try {
         if (currentPage === 0) {
@@ -120,7 +126,7 @@ export const useFetchBlocks = () => {
     };
 
     return testClient.watchBlocks({ onBlock: handleNewBlock, includeTransactions: true });
-  }, [currentPage]);
+  }, [currentPage, enabled, testClient]);
 
   return {
     blocks,

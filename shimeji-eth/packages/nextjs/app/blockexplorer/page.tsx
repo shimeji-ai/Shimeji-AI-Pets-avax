@@ -9,22 +9,23 @@ import { useTargetNetwork } from "~~/hooks/scaffold-eth/useTargetNetwork";
 import { notification } from "~~/utils/scaffold-eth";
 
 const BlockExplorer: NextPage = () => {
-  const { blocks, transactionReceipts, currentPage, totalBlocks, setCurrentPage, error } = useFetchBlocks();
   const { targetNetwork } = useTargetNetwork();
+  const isHardhatNetwork = targetNetwork.id === hardhat.id;
+  const { blocks, transactionReceipts, currentPage, totalBlocks, setCurrentPage, error } = useFetchBlocks(isHardhatNetwork);
   const [isLocalNetwork, setIsLocalNetwork] = useState(true);
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
-    if (targetNetwork.id !== hardhat.id) {
+    if (!isHardhatNetwork) {
       setIsLocalNetwork(false);
     }
-  }, [targetNetwork.id]);
+  }, [isHardhatNetwork]);
 
   useEffect(() => {
-    if (targetNetwork.id === hardhat.id && error) {
+    if (isHardhatNetwork && error) {
       setHasError(true);
     }
-  }, [targetNetwork.id, error]);
+  }, [error, isHardhatNetwork]);
 
   useEffect(() => {
     if (!isLocalNetwork) {
