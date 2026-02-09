@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
 import { UpdatesSubscribePopup } from "./updates-subscribe-popup";
-import { Github, MessageCircle, Twitter } from "lucide-react";
+import { Github, Twitter } from "lucide-react";
 
 export function Footer() {
   const { isSpanish } = useLanguage();
@@ -36,15 +36,6 @@ export function Footer() {
                 >
                   <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
                     <Twitter className="w-5 h-5" />
-                  </span>
-                </Link>
-                <Link
-                  href="#"
-                  className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
-                  aria-label="Discord"
-                >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
-                    <MessageCircle className="w-5 h-5" />
                   </span>
                 </Link>
                 <Link
@@ -89,16 +80,6 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="https://x.com/ShimejiAIPets"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    X / Twitter
-                  </Link>
-                </li>
-                <li>
-                  <Link
                     href="/download"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -111,16 +92,6 @@ export function Footer() {
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Privacidad" : "Privacy"}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="https://github.com/luloxi/Shimeji-AI-Pets"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    GitHub
                   </Link>
                 </li>
               </ul>
