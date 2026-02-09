@@ -1,12 +1,32 @@
-import { Header } from "~~/components/header";
-import { HeroSection } from "~~/components/hero-section";
-import { HowItWorksSection } from "~~/components/how-it-works-section";
-import { FeaturesSection } from "~~/components/features-section";
-import { FAQSection } from "~~/components/faq-section";
-import { CtaSection } from "~~/components/cta-section";
-import { SubscribeSection } from "~~/components/subscribe-section";
-import { Footer } from "~~/components/footer";
-import { GiveawayWidget } from "~~/components/giveaway-widget";
+import dynamic from "next/dynamic";
+
+const Header = dynamic(() => import("~~/components/header"), { ssr: false });
+const HeroSection = dynamic(() => import("~~/components/hero-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[420px]" />,
+});
+const HowItWorksSection = dynamic(() => import("~~/components/how-it-works-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[360px]" />,
+});
+const FeaturesSection = dynamic(() => import("~~/components/features-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[360px]" />,
+});
+const SubscribeSection = dynamic(() => import("~~/components/subscribe-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[260px]" />,
+});
+const FAQSection = dynamic(() => import("~~/components/faq-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[260px]" />,
+});
+const CtaSection = dynamic(() => import("~~/components/cta-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[220px]" />,
+});
+const Footer = dynamic(() => import("~~/components/footer"), { ssr: false });
+const GiveawayWidget = dynamic(() => import("~~/components/giveaway-widget"), { ssr: false });
 
 export default function Home() {
   return (

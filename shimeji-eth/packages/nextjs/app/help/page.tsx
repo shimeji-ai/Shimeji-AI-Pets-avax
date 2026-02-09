@@ -1,6 +1,11 @@
-import { HelpSection } from "~~/components/help-section";
-import { Footer } from "~~/components/footer";
-import { NavHeader } from "~~/components/nav-header";
+import dynamic from "next/dynamic";
+
+const NavHeader = dynamic(() => import("~~/components/nav-header"), { ssr: false });
+const HelpSection = dynamic(() => import("~~/components/help-section"), {
+  ssr: false,
+  loading: () => <div className="min-h-[320px]" />,
+});
+const Footer = dynamic(() => import("~~/components/footer"), { ssr: false });
 
 export default function HelpPage() {
   return (
