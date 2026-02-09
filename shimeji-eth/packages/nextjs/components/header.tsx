@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Link as ScrollLink } from "react-scroll";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -51,14 +50,12 @@ export function Header() {
               onMouseEnter={() => setIsGetStartedHovered(true)}
               onMouseLeave={() => setIsGetStartedHovered(false)}
             >
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={1500}
+              <a
+                href="#get-started"
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
+              </a>
               <SparkleAnimation isHovering={isGetStartedHovered} />
             </div>
             <div
@@ -66,14 +63,12 @@ export function Header() {
               onMouseEnter={() => setIsFeaturesHovered(true)}
               onMouseLeave={() => setIsFeaturesHovered(false)}
             >
-              <ScrollLink
-                to="features"
-                smooth={true}
-                duration={1500}
+              <a
+                href="#features"
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
+              </a>
               <SparkleAnimation isHovering={isFeaturesHovered} />
             </div>
             <div
@@ -81,14 +76,12 @@ export function Header() {
               onMouseEnter={() => setIsFaqHovered(true)}
               onMouseLeave={() => setIsFaqHovered(false)}
             >
-              <ScrollLink
-                to="faq"
-                smooth={true}
-                duration={1500}
+              <a
+                href="#faq"
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 FAQ
-              </ScrollLink>
+              </a>
               <SparkleAnimation isHovering={isFaqHovered} />
             </div>
             <Link
@@ -142,33 +135,27 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden px-6 pb-6 border-t border-border">
             <nav className="flex flex-col gap-4 pt-4">
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={1500}
+              <a
+                href="#get-started"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
-              <ScrollLink
-                to="features"
-                smooth={true}
-                duration={1500}
+              </a>
+              <a
+                href="#features"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
-              <ScrollLink
-                to="faq"
-                smooth={true}
-                duration={1500}
+              </a>
+              <a
+                href="#faq"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 FAQ
-              </ScrollLink>
+              </a>
               <Link
                 href="/help"
                 prefetch={false}

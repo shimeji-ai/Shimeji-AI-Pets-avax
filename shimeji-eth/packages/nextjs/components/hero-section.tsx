@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "~~/components/ui/button";
 import { ArrowRight, Wand2 } from "lucide-react";
 import { ShimejiCharacter } from "./shimeji-character";
-import { Link as ScrollLink } from "react-scroll";
 import { SparkleAnimation } from "./sparkle-animation";
 import { useLanguage } from "./language-provider";
 
@@ -42,7 +41,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsHowItWorksHovered(true)}
                 onMouseLeave={() => setIsHowItWorksHovered(false)}
               >
-                <ScrollLink to="how-it-works" smooth={true} duration={300}>
+                <a href="#how-it-works">
                   <Button
                     size="lg"
                     className="neural-button rounded-full hover:cursor-pointer px-8 gap-2 text-base"
@@ -50,7 +49,7 @@ export function HeroSection() {
                     {isSpanish ? "Cómo funciona" : "How it works"}
                     <ArrowRight className="w-4 h-4" />
                   </Button>
-                </ScrollLink>
+                </a>
                 <SparkleAnimation isHovering={isHowItWorksHovered} />
               </div>
               <div
@@ -58,7 +57,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsViewCollectionHovered(true)}
                 onMouseLeave={() => setIsViewCollectionHovered(false)}
               >
-                <Link href="/factory">
+                <Link href="/factory" prefetch={false}>
                   <Button
                     size="lg"
                     className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"

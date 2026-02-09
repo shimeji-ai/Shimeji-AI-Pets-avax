@@ -183,6 +183,7 @@
   }
   html {
     scroll-padding-top: 96px;
+    scroll-behavior: smooth;
   }
   section[id],
   #feedback-form-section {
