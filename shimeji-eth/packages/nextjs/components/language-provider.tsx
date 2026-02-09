@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type Language = "en" | "es";
 
@@ -18,9 +11,7 @@ type LanguageContextValue = {
   isSpanish: boolean;
 };
 
-const LanguageContext = createContext<LanguageContextValue | undefined>(
-  undefined
-);
+const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("en");
@@ -28,10 +19,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const detectedLanguage =
-      typeof navigator !== "undefined" &&
-      navigator.language.toLowerCase().startsWith("es")
-        ? "es"
-        : "en";
+      typeof navigator !== "undefined" && navigator.language.toLowerCase().startsWith("es") ? "es" : "en";
     setBrowserLanguage(detectedLanguage);
 
     const savedLanguage = localStorage.getItem("shimeji-language");
@@ -54,12 +42,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       setLanguage,
       isSpanish: language === "es",
     }),
-    [language, browserLanguage]
+    [language, browserLanguage],
   );
 
-  return (
-    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
-  );
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {

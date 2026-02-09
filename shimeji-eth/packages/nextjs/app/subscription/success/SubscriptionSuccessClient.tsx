@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "~~/components/ui/button";
 import { CheckCircle, Home } from "lucide-react";
 import { useLanguage } from "~~/components/language-provider";
+import { Button } from "~~/components/ui/button";
 
 type SubscriptionSuccessClientProps = {
   searchParams: { type?: string; already?: string };
@@ -29,8 +29,8 @@ export default function SubscriptionSuccessClient({ searchParams }: Subscription
     ? (isSpanish ? typeMessagesEs[searchParams.type] : typeMessagesEn[searchParams.type]) ||
       (isSpanish ? "novedades" : "updates")
     : isSpanish
-    ? "novedades"
-    : "updates";
+      ? "novedades"
+      : "updates";
 
   return (
     <main className="min-h-screen neural-shell flex items-center justify-center p-4">
@@ -45,8 +45,8 @@ export default function SubscriptionSuccessClient({ searchParams }: Subscription
               ? "¡Ya estaba confirmado!"
               : "Already Confirmed!"
             : isSpanish
-            ? "¡Suscripción confirmada!"
-            : "You're Subscribed!"}
+              ? "¡Suscripción confirmada!"
+              : "You're Subscribed!"}
         </h1>
 
         <p className="text-muted-foreground mb-6">
@@ -55,8 +55,8 @@ export default function SubscriptionSuccessClient({ searchParams }: Subscription
               ? `Tu email ya estaba confirmado. Vas a recibir ${message} de Shimeji AI Pets.`
               : `Your email was already confirmed. You'll receive ${message} from Shimeji AI Pets.`
             : isSpanish
-            ? `¡Gracias por confirmar! Ahora vas a recibir ${message} de Shimeji AI Pets.`
-            : `Thanks for confirming! You'll now receive ${message} from Shimeji AI Pets.`}
+              ? `¡Gracias por confirmar! Ahora vas a recibir ${message} de Shimeji AI Pets.`
+              : `Thanks for confirming! You'll now receive ${message} from Shimeji AI Pets.`}
         </p>
 
         <Link href="/">

@@ -1,9 +1,9 @@
 "use client";
 
-import { ScrollAnimation } from "./scroll-animation";
-import { useLanguage } from "./language-provider";
 import Link from "next/link";
 import DownloadButton from "./download-button";
+import { useLanguage } from "./language-provider";
+import { ScrollAnimation } from "./scroll-animation";
 
 const providers = [
   {
@@ -22,7 +22,11 @@ const providers = [
       "Popup de la extensión → Standard → OpenRouter.",
       "Pegá la key y elegí un modelo.",
     ],
-    link: { href: "https://openrouter.ai/settings/keys", labelEn: "Get OpenRouter keys", labelEs: "Conseguir keys de OpenRouter" },
+    link: {
+      href: "https://openrouter.ai/settings/keys",
+      labelEn: "Get OpenRouter keys",
+      labelEs: "Conseguir keys de OpenRouter",
+    },
   },
   {
     id: "ollama",
@@ -48,11 +52,7 @@ const providers = [
     titleEs: "OpenClaw (Agente)",
     descriptionEn: "Tool-augmented agent mode with a gateway.",
     descriptionEs: "Modo agente con herramientas vía gateway.",
-    stepsEn: [
-      "Run your OpenClaw gateway.",
-      "Copy the WebSocket URL + token.",
-      "Popup → AI Agent → paste URL + token.",
-    ],
+    stepsEn: ["Run your OpenClaw gateway.", "Copy the WebSocket URL + token.", "Popup → AI Agent → paste URL + token."],
     stepsEs: [
       "Corré tu gateway de OpenClaw.",
       "Copiá la URL WebSocket + token.",
@@ -191,16 +191,14 @@ export function HelpSection() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {providers.map((provider) => (
+            {providers.map(provider => (
               <div key={provider.id} className="neural-card rounded-3xl p-8">
                 <div className="flex items-center justify-between mb-6">
                   <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">
                     {provider.id}
                   </span>
                   <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
-                    {isSpanish
-                      ? `${provider.stepsEs.length} pasos`
-                      : `${provider.stepsEn.length} steps`}
+                    {isSpanish ? `${provider.stepsEs.length} pasos` : `${provider.stepsEn.length} steps`}
                   </span>
                 </div>
                 <h3 className="text-2xl font-semibold text-foreground mb-3">
@@ -210,7 +208,7 @@ export function HelpSection() {
                   {isSpanish ? provider.descriptionEs : provider.descriptionEn}
                 </p>
                 <div className="flex flex-col gap-3 text-sm text-foreground/80">
-                  {(isSpanish ? provider.stepsEs : provider.stepsEn).map((item) => (
+                  {(isSpanish ? provider.stepsEs : provider.stepsEn).map(item => (
                     <span key={item} className="flex gap-3">
                       <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
                       <span>{item}</span>
@@ -240,9 +238,7 @@ export function HelpSection() {
               {isSpanish ? "Aspectos personalizados" : "Custom Looks"}
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish
-                ? "Desbloqueá apariencias únicas con Shimeji NFTs"
-                : "Unlock unique looks with Shimeji NFTs"}
+              {isSpanish ? "Desbloqueá apariencias únicas con Shimeji NFTs" : "Unlock unique looks with Shimeji NFTs"}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish
@@ -250,11 +246,7 @@ export function HelpSection() {
                 : "Grab a Shimeji NFT in the Factory to access exclusive skins and personalize your shimeji."}
             </p>
             <div className="flex justify-center">
-              <DownloadButton
-                href="/factory"
-                labelEn="GO TO FACTORY"
-                labelEs="IR AL FACTORY"
-              />
+              <DownloadButton href="/factory" labelEn="GO TO FACTORY" labelEs="IR AL FACTORY" />
             </div>
           </div>
         </div>
@@ -277,10 +269,10 @@ export function HelpSection() {
                 key={index}
                 className={[
                   "neural-card rounded-2xl p-6",
-                  item.highlight
-                    ? "ring-1 ring-[var(--brand-accent)]/60 shadow-[0_0_28px_rgba(123,92,255,0.3)]"
-                    : ""
-                ].join(" ").trim()}
+                  item.highlight ? "ring-1 ring-[var(--brand-accent)]/60 shadow-[0_0_28px_rgba(123,92,255,0.3)]" : "",
+                ]
+                  .join(" ")
+                  .trim()}
               >
                 <div className="flex items-start gap-4">
                   <div className="text-2xl" aria-hidden="true">

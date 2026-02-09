@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "~~/components/ui/accordion";
-import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
+import { ScrollAnimation } from "./scroll-animation";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~~/components/ui/accordion";
 
 const faqs = [
   {
@@ -32,8 +27,7 @@ const faqs = [
   },
   {
     question: "Can I run local models?",
-    answer:
-      "Yes. Choose Ollama in Standard mode and point it to your local Ollama URL and model.",
+    answer: "Yes. Choose Ollama in Standard mode and point it to your local Ollama URL and model.",
   },
   {
     question: "Is the Chrome extension free?",
@@ -82,9 +76,9 @@ export function FAQSection() {
                         ? "¿Qué es el modo Standard?"
                         : index === 2
                           ? "¿Qué es el modo AI Agent?"
-                        : index === 3
-                          ? "¿Necesito una API key?"
-                        : index === 4
+                          : index === 3
+                            ? "¿Necesito una API key?"
+                            : index === 4
                               ? "¿Puedo usar modelos locales?"
                               : index === 5
                                 ? "¿La extensión de Chrome es gratis?"
@@ -99,9 +93,9 @@ export function FAQSection() {
                         ? "El modo Standard es chat de texto con IA. Elegís una personalidad y usás OpenRouter o Ollama."
                         : index === 2
                           ? "El modo AI Agent conecta tu shimeji a un gateway OpenClaw. Esto le da acceso a herramientas online y onchain más allá del chat de texto."
-                        : index === 3
+                          : index === 3
                             ? "Para el modo Standard podés usar OpenRouter (API key) u Ollama local. Para el modo AI Agent necesitás un gateway OpenClaw corriendo."
-                        : index === 4
+                            : index === 4
                               ? "Sí. Elegís Ollama en Standard y apuntás a tu URL local y modelo."
                               : index === 5
                                 ? "Sí. La extensión es gratuita e incluye una mascota por defecto con chat IA. Los shimejis personalizados se piden como huevos en Factory."

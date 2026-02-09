@@ -25,40 +25,24 @@ export async function POST(request: NextRequest) {
     const twitterUsername = body.twitterUsername?.trim() || "";
 
     if (feedback.length < 8) {
-      return NextResponse.json(
-        { error: "Please provide a bit more feedback." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Please provide a bit more feedback." }, { status: 400 });
     }
 
     if (feedback.length > 1500) {
-      return NextResponse.json(
-        { error: "Feedback is too long." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Feedback is too long." }, { status: 400 });
     }
 
     if (twitterUsername && !TWITTER_USERNAME_REGEX.test(twitterUsername)) {
-      return NextResponse.json(
-        { error: "Invalid X username format." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid X username format." }, { status: 400 });
     }
 
     const resend = getResend();
     if (!resend) {
-      return NextResponse.json(
-        { error: "Email service not configured." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Email service not configured." }, { status: 500 });
     }
 
-    const normalizedTwitterUsername = twitterUsername
-      ? twitterUsername.replace(/^@/, "").toLowerCase()
-      : "";
-    const senderLabel = normalizedTwitterUsername
-      ? `@${normalizedTwitterUsername}`
-      : "Anonymous";
+    const normalizedTwitterUsername = twitterUsername ? twitterUsername.replace(/^@/, "").toLowerCase() : "";
+    const senderLabel = normalizedTwitterUsername ? `@${normalizedTwitterUsername}` : "Anonymous";
     const safeFeedback = escapeHtml(feedback);
     const safeTwitter = escapeHtml(senderLabel);
 
@@ -77,18 +61,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Resend feedback error:", error);
-      return NextResponse.json(
-        { error: "Failed to send feedback." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to send feedback." }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Feedback API error:", error);
-    return NextResponse.json(
-      { error: "Failed to process feedback." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to process feedback." }, { status: 500 });
   }
 }

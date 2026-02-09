@@ -7,10 +7,8 @@ const steps = [
     id: "openrouter",
     titleEn: "OpenRouter (Recommended)",
     titleEs: "OpenRouter (Recomendado)",
-    descriptionEn:
-      "Get an API key to let your shimeji speak. Paste it in the extension popup.",
-    descriptionEs:
-      "Consigue una API key para que tu shimeji hable. Pegala en el popup de la extensión.",
+    descriptionEn: "Get an API key to let your shimeji speak. Paste it in the extension popup.",
+    descriptionEs: "Consigue una API key para que tu shimeji hable. Pegala en el popup de la extensión.",
     bulletsEn: [
       "Create an OpenRouter account and generate an API key.",
       "Open the extension popup → Standard → OpenRouter → paste the key.",
@@ -26,10 +24,8 @@ const steps = [
     id: "openclaw",
     titleEn: "OpenClaw Agent",
     titleEs: "Agente OpenClaw",
-    descriptionEn:
-      "Use your OpenClaw gateway for real actions online and onchain.",
-    descriptionEs:
-      "Usa tu gateway de OpenClaw para acciones reales online y onchain.",
+    descriptionEn: "Use your OpenClaw gateway for real actions online and onchain.",
+    descriptionEs: "Usa tu gateway de OpenClaw para acciones reales online y onchain.",
     bulletsEn: [
       "Run OpenClaw locally or on your server.",
       "Copy the WebSocket URL + gateway token.",
@@ -45,10 +41,8 @@ const steps = [
     id: "ollama",
     titleEn: "Ollama Local",
     titleEs: "Ollama Local",
-    descriptionEn:
-      "Run models on your machine and keep everything local.",
-    descriptionEs:
-      "Corre modelos en tu máquina y mantené todo local.",
+    descriptionEn: "Run models on your machine and keep everything local.",
+    descriptionEs: "Corre modelos en tu máquina y mantené todo local.",
     bulletsEn: [
       "Install Ollama and pull a model (e.g. llama3.1).",
       "Popup → Standard → Provider: Ollama.",
@@ -73,9 +67,7 @@ export function SetupSection() {
             {isSpanish ? "Configuración" : "Configuration"}
           </p>
           <h2 className="text-4xl sm:text-5xl font-semibold text-foreground">
-            {isSpanish
-              ? "Conecta tu stack de IA en minutos"
-              : "Connect your AI stack in minutes"}
+            {isSpanish ? "Conecta tu stack de IA en minutos" : "Connect your AI stack in minutes"}
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             {isSpanish
@@ -85,24 +77,18 @@ export function SetupSection() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {steps.map((step) => (
+          {steps.map(step => (
             <div key={step.id} className="neural-card rounded-3xl p-8">
               <div className="flex items-center justify-between mb-6">
-                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">
-                  {step.id}
-                </span>
+                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">{step.id}</span>
                 <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
                   {isSpanish ? "3 pasos" : "3 steps"}
                 </span>
               </div>
-              <h3 className="text-2xl font-semibold text-foreground mb-3">
-                {isSpanish ? step.titleEs : step.titleEn}
-              </h3>
-              <p className="text-muted-foreground mb-6">
-                {isSpanish ? step.descriptionEs : step.descriptionEn}
-              </p>
+              <h3 className="text-2xl font-semibold text-foreground mb-3">{isSpanish ? step.titleEs : step.titleEn}</h3>
+              <p className="text-muted-foreground mb-6">{isSpanish ? step.descriptionEs : step.descriptionEn}</p>
               <div className="flex flex-col gap-3 text-sm text-foreground/80">
-                {(isSpanish ? step.bulletsEs : step.bulletsEn).map((item) => (
+                {(isSpanish ? step.bulletsEs : step.bulletsEn).map(item => (
                   <span key={item} className="flex gap-3">
                     <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
                     <span>{item}</span>

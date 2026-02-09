@@ -1,9 +1,9 @@
 "use client";
 
-import { Download, MessageSquare, Bot, Sparkles } from "lucide-react";
-import { ScrollAnimation } from "./scroll-animation";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
+import { ScrollAnimation } from "./scroll-animation";
+import { Bot, Download, MessageSquare, Sparkles } from "lucide-react";
 
 const steps = [
   {
@@ -20,7 +20,8 @@ const steps = [
     titleEn: "Add an API Key",
     titleEs: "Agrega una API key",
     descriptionEn: "Get an OpenRouter key and paste it in the popup. You can also use Ollama for local models.",
-    descriptionEs: "Consigue una key de OpenRouter y pegala en el popup. También podés usar Ollama para modelos locales.",
+    descriptionEs:
+      "Consigue una key de OpenRouter y pegala en el popup. También podés usar Ollama para modelos locales.",
   },
   {
     icon: Bot,
@@ -28,7 +29,8 @@ const steps = [
     titleEn: "Chat & Enable Agent Mode",
     titleEs: "Chatea y activa el modo agente",
     descriptionEn: "Click your shimeji to chat. Switch to AI Agent mode with OpenClaw for online and onchain actions.",
-    descriptionEs: "Hace clic en tu shimeji para chatear. Cambia al modo AI Agent con OpenClaw para acciones online y onchain.",
+    descriptionEs:
+      "Hace clic en tu shimeji para chatear. Cambia al modo AI Agent con OpenClaw para acciones online y onchain.",
   },
   {
     icon: Sparkles,
@@ -36,7 +38,8 @@ const steps = [
     titleEn: "Commission a Custom Shimeji",
     titleEs: "Encarga un shimeji único",
     descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
-    descriptionEs: "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano con sprites únicos.",
+    descriptionEs:
+      "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano con sprites únicos.",
   },
 ];
 
@@ -61,7 +64,7 @@ export function HowItWorksSection() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {steps.map((step) => (
+            {steps.map(step => (
               <div
                 key={step.step}
                 className="group relative neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
@@ -70,65 +73,47 @@ export function HowItWorksSection() {
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-[var(--brand-accent)]">
                     <step.icon className="w-6 h-6" />
                   </div>
-                  <span className="text-5xl font-semibold text-white/10 transition-colors font-mono">
-                    {step.step}
-                  </span>
+                  <span className="text-5xl font-semibold text-white/10 transition-colors font-mono">{step.step}</span>
                 </div>
 
-                <h3 className="text-xl font-bold text-foreground mb-3">
-                  {isSpanish ? step.titleEs : step.titleEn}
-                </h3>
+                <h3 className="text-xl font-bold text-foreground mb-3">{isSpanish ? step.titleEs : step.titleEn}</h3>
                 <p className="text-muted-foreground leading-relaxed">
                   {step.step === "01" ? (
                     isSpanish ? (
                       <>
-                        <Link
-                          href="/download"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
+                        <Link href="/download" className="font-semibold underline decoration-2 underline-offset-2">
                           Descarga la extensión de Chrome
                         </Link>{" "}
                         y tu shimeji aparecerá en cada página que visites.
                       </>
                     ) : (
                       <>
-                        <Link
-                          href="/download"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
+                        <Link href="/download" className="font-semibold underline decoration-2 underline-offset-2">
                           Download the Chrome extension
                         </Link>{" "}
                         and your shimeji will appear on every page you visit.
                       </>
                     )
-                  ) : (
-                    step.step === "04" ? (
-                      isSpanish ? (
-                        <>
-                          <Link
-                            href="/factory"
-                            className="font-semibold underline decoration-2 underline-offset-2"
-                          >
-                            Compra un huevo en Factory
-                          </Link>
-                          , define una intención y recibe una mascota hecha a mano
-                          con sprites únicos.
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href="/factory"
-                            className="font-semibold underline decoration-2 underline-offset-2"
-                          >
-                            Buy an egg in the Factory
-                          </Link>
-                          , set an intention, and receive a handcrafted pet with
-                          unique sprites.
-                        </>
-                      )
+                  ) : step.step === "04" ? (
+                    isSpanish ? (
+                      <>
+                        <Link href="/factory" className="font-semibold underline decoration-2 underline-offset-2">
+                          Compra un huevo en Factory
+                        </Link>
+                        , define una intención y recibe una mascota hecha a mano con sprites únicos.
+                      </>
                     ) : (
-                      isSpanish ? step.descriptionEs : step.descriptionEn
+                      <>
+                        <Link href="/factory" className="font-semibold underline decoration-2 underline-offset-2">
+                          Buy an egg in the Factory
+                        </Link>
+                        , set an intention, and receive a handcrafted pet with unique sprites.
+                      </>
                     )
+                  ) : isSpanish ? (
+                    step.descriptionEs
+                  ) : (
+                    step.descriptionEn
                   )}
                 </p>
               </div>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import ViewCollectionButton from "./viewcollection-button";
-import { ScrollAnimation } from "./scroll-animation";
+import Image from "next/image";
 import { useLanguage } from "./language-provider";
+import { ScrollAnimation } from "./scroll-animation";
+import ViewCollectionButton from "./viewcollection-button";
 
 const characters = [
   {
@@ -86,7 +87,7 @@ export function CharactersSection() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {characters.map((character) => (
+            {characters.map(character => (
               <div
                 key={character.id}
                 className="group bg-card rounded-3xl p-5 border border-border hover:shadow-xl transition-all duration-300 cursor-pointer"
@@ -94,19 +95,19 @@ export function CharactersSection() {
                 onMouseLeave={() => setHoveredId(null)}
               >
                 <div className="relative aspect-square mb-5 bg-secondary/50 rounded-2xl overflow-hidden">
-                  <img
+                  <Image
                     src={character.image || "/placeholder.svg"}
                     alt={character.name}
-                    className={`w-full h-full object-cover transition-transform duration-500 ${
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className={`object-cover transition-transform duration-500 ${
                       hoveredId === character.id ? "scale-110" : ""
                     }`}
                   />
                 </div>
 
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-bold text-foreground">
-                    {character.name}
-                  </h3>
+                  <h3 className="text-lg font-bold text-foreground">{character.name}</h3>
                   <span
                     className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                       rarityStyles[character.rarity].bg
@@ -117,11 +118,8 @@ export function CharactersSection() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {character.traits.map((trait) => (
-                    <span
-                      key={trait}
-                      className="text-xs px-2.5 py-1 bg-muted text-muted-foreground rounded-full"
-                    >
+                  {character.traits.map(trait => (
+                    <span key={trait} className="text-xs px-2.5 py-1 bg-muted text-muted-foreground rounded-full">
                       {traitLabel[trait] || trait}
                     </span>
                   ))}

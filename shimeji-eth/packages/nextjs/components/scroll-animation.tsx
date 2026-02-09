@@ -1,18 +1,15 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion, useAnimation } from "framer-motion";
 import { useInView } from "react-intersection-observer";
-import { useEffect } from "react";
 
 interface ScrollAnimationProps {
   children: React.ReactNode;
   variants: any;
 }
 
-export function ScrollAnimation({
-  children,
-  variants,
-}: ScrollAnimationProps) {
+export function ScrollAnimation({ children, variants }: ScrollAnimationProps) {
   const controls = useAnimation();
   const [ref, inView] = useInView({
     threshold: 0.2,
@@ -28,12 +25,7 @@ export function ScrollAnimation({
   }, [controls, inView]);
 
   return (
-    <motion.div
-      ref={ref}
-      initial="hidden"
-      animate={controls}
-      variants={variants}
-    >
+    <motion.div ref={ref} initial="hidden" animate={controls} variants={variants}>
       {children}
     </motion.div>
   );

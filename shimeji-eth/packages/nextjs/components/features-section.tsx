@@ -1,16 +1,15 @@
 "use client";
 
-import { MessageSquare, Bot, Sparkles, Palette, ArrowLeftRight } from "lucide-react";
-import { ScrollAnimation } from "./scroll-animation";
-import { ProjectFeedbackBox } from "./project-feedback-box";
 import { useLanguage } from "./language-provider";
+import { ProjectFeedbackBox } from "./project-feedback-box";
+import { ScrollAnimation } from "./scroll-animation";
+import { ArrowLeftRight, Bot, MessageSquare, Palette, Sparkles } from "lucide-react";
 
 const features = [
   {
     icon: MessageSquare,
     title: "AI Chat with Personality",
-    description:
-      "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
+    description: "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
   },
   {
     icon: Bot,
@@ -21,20 +20,17 @@ const features = [
   {
     icon: Sparkles,
     title: "Multi Shimeji",
-    description:
-      "Run up to five pets at once, each with its own personality and brain.",
+    description: "Run up to five pets at once, each with its own personality and brain.",
   },
   {
     icon: Palette,
     title: "Handcrafted Sprites",
-    description:
-      "Commission a custom shimeji through the Factory. Each egg is hand-animated with unique art.",
+    description: "Commission a custom shimeji through the Factory. Each egg is hand-animated with unique art.",
   },
   {
     icon: ArrowLeftRight,
     title: "Ethereum Wallet Integration",
-    description:
-      "Connect your Ethereum wallet to reserve eggs and handle payments onchain.",
+    description: "Connect your Ethereum wallet to reserve eggs and handle payments onchain.",
   },
 ];
 
@@ -64,7 +60,7 @@ export function FeaturesSection() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((feature) => (
+            {features.map(feature => (
               <div
                 key={feature.title}
                 className="group neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"

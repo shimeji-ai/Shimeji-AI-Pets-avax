@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getResend } from "~~/lib/resend";
 
-const EGG_REQUEST_TO_EMAIL =
-  process.env.EGG_REQUEST_TO_EMAIL || "dev.shimeji@gmail.com";
+const EGG_REQUEST_TO_EMAIL = process.env.EGG_REQUEST_TO_EMAIL || "dev.shimeji@gmail.com";
 
 interface EggRequestPayload {
   email?: string;
@@ -27,25 +26,16 @@ export async function POST(request: NextRequest) {
     const intention = (body.intention || "").trim();
 
     if (!email || !email.includes("@")) {
-      return NextResponse.json(
-        { error: "Please provide a valid email." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Please provide a valid email." }, { status: 400 });
     }
 
     if (!wallet) {
-      return NextResponse.json(
-        { error: "Wallet is required." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Wallet is required." }, { status: 400 });
     }
 
     const resend = getResend();
     if (!resend) {
-      return NextResponse.json(
-        { error: "Email service not configured." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Email service not configured." }, { status: 500 });
     }
 
     const safeEmail = escapeHtml(email);
@@ -68,18 +58,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Resend egg request error:", error);
-      return NextResponse.json(
-        { error: "Failed to send request." },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: "Failed to send request." }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Egg request API error:", error);
-    return NextResponse.json(
-      { error: "Failed to process request." },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to process request." }, { status: 500 });
   }
 }

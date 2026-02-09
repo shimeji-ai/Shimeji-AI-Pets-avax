@@ -2,7 +2,9 @@
 @import "tw-animate-css";
 
 @plugin "daisyui" {
-  themes: light, dark --prefersdark;
+  themes:
+    light,
+    dark --prefersdark;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -197,17 +199,17 @@
       linear-gradient(180deg, rgba(7, 9, 13, 1), rgba(11, 15, 20, 1));
     background-attachment: fixed;
   }
-body[data-theme="pink"] {
-  background-image:
-    radial-gradient(1200px circle at 10% -10%, rgba(255, 154, 216, 0.18), transparent 45%),
-    radial-gradient(900px circle at 90% 10%, rgba(255, 202, 235, 0.14), transparent 50%),
-    linear-gradient(180deg, rgba(23, 9, 16, 1), rgba(27, 11, 21, 1));
-}
+  body[data-theme="pink"] {
+    background-image:
+      radial-gradient(1200px circle at 10% -10%, rgba(255, 154, 216, 0.18), transparent 45%),
+      radial-gradient(900px circle at 90% 10%, rgba(255, 202, 235, 0.14), transparent 50%),
+      linear-gradient(180deg, rgba(23, 9, 16, 1), rgba(27, 11, 21, 1));
+  }
   body[data-theme="kawaii"] {
     background-image:
       radial-gradient(1200px circle at 10% -10%, rgba(255, 183, 255, 0.22), transparent 45%),
       radial-gradient(900px circle at 90% 10%, rgba(112, 164, 222, 0.2), transparent 50%),
-      linear-gradient(180deg, #F6FB8E, #FFB7FF 45%, #70A4DE);
+      linear-gradient(180deg, #f6fb8e, #ffb7ff 45%, #70a4de);
     color: #2a1f4e;
   }
 }
@@ -287,16 +289,19 @@ body[data-theme="kawaii"] .footer-updates-button:hover {
 
 .neural-hero {
   position: relative;
-  background: radial-gradient(800px circle at 20% 10%, rgba(134, 240, 255, 0.12), transparent 45%),
+  background:
+    radial-gradient(800px circle at 20% 10%, rgba(134, 240, 255, 0.12), transparent 45%),
     radial-gradient(700px circle at 80% 20%, rgba(120, 132, 255, 0.12), transparent 55%);
 }
 
 body[data-theme="pink"] .neural-hero {
-  background: radial-gradient(800px circle at 20% 10%, rgba(255, 154, 216, 0.16), transparent 45%),
+  background:
+    radial-gradient(800px circle at 20% 10%, rgba(255, 154, 216, 0.16), transparent 45%),
     radial-gradient(700px circle at 80% 20%, rgba(255, 202, 235, 0.12), transparent 55%);
 }
 body[data-theme="kawaii"] .neural-hero {
-  background: radial-gradient(800px circle at 20% 10%, rgba(255, 183, 255, 0.2), transparent 45%),
+  background:
+    radial-gradient(800px circle at 20% 10%, rgba(255, 183, 255, 0.2), transparent 45%),
     radial-gradient(700px circle at 80% 20%, rgba(112, 164, 222, 0.18), transparent 55%);
 }
 
@@ -480,13 +485,9 @@ body[data-theme="kawaii"] .text-muted-foreground\/80 {
   transition: 0.5s;
   animation: gradient_301 5s ease infinite;
   border: double 4px transparent;
-  background-image: linear-gradient(#0b0f14, #0b0f14),
-    linear-gradient(
-      120deg,
-      rgba(134, 240, 255, 0.6),
-      rgba(255, 255, 255, 0.15) 40%,
-      rgba(134, 240, 255, 0.6) 100%
-    );
+  background-image:
+    linear-gradient(#0b0f14, #0b0f14),
+    linear-gradient(120deg, rgba(134, 240, 255, 0.6), rgba(255, 255, 255, 0.15) 40%, rgba(134, 240, 255, 0.6) 100%);
   background-origin: border-box;
   background-clip: content-box, border-box;
 }

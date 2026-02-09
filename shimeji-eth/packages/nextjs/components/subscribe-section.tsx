@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "~~/components/ui/button";
-import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
+import { useLanguage } from "./language-provider";
 import { ScrollAnimation } from "./scroll-animation";
 import { Bell, Mail } from "lucide-react";
-import { useLanguage } from "./language-provider";
+import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
+import { Button } from "~~/components/ui/button";
 
 export function SubscribeSection() {
   const { isSpanish } = useLanguage();
@@ -38,10 +38,7 @@ export function SubscribeSection() {
                 </p>
               </div>
               <div className="flex-shrink-0">
-                <Button
-                  onClick={() => setIsModalOpen(true)}
-                  className="neural-button rounded-xl px-6 py-6 text-lg"
-                >
+                <Button onClick={() => setIsModalOpen(true)} className="neural-button rounded-xl px-6 py-6 text-lg">
                   <Bell className="w-5 h-5 mr-2" />
                   {isSpanish ? "Suscribirme" : "Subscribe"}
                 </Button>
@@ -57,9 +54,7 @@ export function SubscribeSection() {
         type="updates"
         title={isSpanish ? "Mantente al día" : "Stay in the Loop"}
         subtitle={
-          isSpanish
-            ? "Recibe avisos sobre nuevas funciones y shimejis"
-            : "Get notified about new features and shimejis"
+          isSpanish ? "Recibe avisos sobre nuevas funciones y shimejis" : "Get notified about new features and shimejis"
         }
         buttonText={isSpanish ? "Suscribirme" : "Subscribe"}
       />

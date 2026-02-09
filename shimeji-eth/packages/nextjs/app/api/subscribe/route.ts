@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getResend } from "~~/lib/resend";
-import {
-  getConfirmationEmailHtml,
-  getConfirmationEmailText,
-} from "~~/lib/email-templates";
 import { createHmac } from "crypto";
+import { getConfirmationEmailHtml, getConfirmationEmailText } from "~~/lib/email-templates";
+import { getResend } from "~~/lib/resend";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,32 +37,19 @@ export async function POST(request: NextRequest) {
 
     // Validate email
     if (!email || !EMAIL_REGEX.test(email)) {
-      return NextResponse.json(
-        { error: "Please enter a valid email address" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Please enter a valid email address" }, { status: 400 });
     }
 
     // Validate type
-    const validTypes: SubscriptionType[] = [
-      "updates",
-      "shimeji_request",
-      "collection_request",
-    ];
+    const validTypes: SubscriptionType[] = ["updates", "shimeji_request", "collection_request"];
     if (!type || !validTypes.includes(type)) {
-      return NextResponse.json(
-        { error: "Invalid subscription type" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid subscription type" }, { status: 400 });
     }
 
     // Get Resend client
     const resend = getResend();
     if (!resend) {
-      return NextResponse.json(
-        { error: "Email service not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -89,10 +73,7 @@ export async function POST(request: NextRequest) {
 
     if (emailError) {
       console.error("Resend error:", emailError);
-      return NextResponse.json(
-        { error: "Failed to send confirmation email" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to send confirmation email" }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -102,9 +83,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Subscribe error:", error);
-    return NextResponse.json(
-      { error: "Failed to process subscription" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to process subscription" }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useLanguage } from "./language-provider";
 
 export function GiveawayWidget() {
@@ -62,10 +62,7 @@ export function GiveawayWidget() {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed bottom-4 right-4 z-[60] flex items-end gap-2"
-    >
+    <div ref={containerRef} className="fixed bottom-4 right-4 z-[60] flex items-end gap-2">
       <div
         id="giveaway-panel"
         className={`origin-right overflow-hidden transition-all duration-300 ease-out ${
@@ -100,9 +97,7 @@ export function GiveawayWidget() {
               >
                 @ShimejiFactory
               </Link>
-              {isSpanish
-                ? " y deja feedback para participar."
-                : " and leave feedback to enter."}
+              {isSpanish ? " y deja feedback para participar." : " and leave feedback to enter."}
             </p>
             <button
               type="button"

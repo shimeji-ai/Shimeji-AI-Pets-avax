@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { NavHeader } from "~~/components/nav-header";
-import { Footer } from "~~/components/footer";
-import { WalletConnectButton } from "~~/components/wallet-connect-button";
-import { useLanguage } from "~~/components/language-provider";
-import { Wallet, Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
+import { Footer } from "~~/components/footer";
+import { useLanguage } from "~~/components/language-provider";
+import { NavHeader } from "~~/components/nav-header";
+import { WalletConnectButton } from "~~/components/wallet-connect-button";
 
 type NftCharacter = {
   id: string;
@@ -87,7 +87,9 @@ export default function CollectionClient() {
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">{isSpanish ? "Colección NFT" : "NFT Collection"}</h1>
+              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
+                {isSpanish ? "Colección NFT" : "NFT Collection"}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 {isSpanish
                   ? "Gestiona tus shimejis NFT conectando tu wallet de Ethereum."
@@ -109,7 +111,10 @@ export default function CollectionClient() {
                   ? "Instala la extensión Shimeji AI Pets para gestionar tu colección NFT."
                   : "Install the Shimeji AI Pets extension to manage your NFT collection."}
               </p>
-              <a href="/download" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold neural-button">
+              <a
+                href="/download"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold neural-button"
+              >
                 {isSpanish ? "Descargar Extensión" : "Download Extension"}
               </a>
             </div>
@@ -127,7 +132,9 @@ export default function CollectionClient() {
             <div className="neural-card rounded-2xl p-6 mb-10">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">{isSpanish ? "Tus Shimejis NFT" : "Your NFT Shimejis"}</h2>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {isSpanish ? "Tus Shimejis NFT" : "Your NFT Shimejis"}
+                  </h2>
                   <p className="text-sm text-muted-foreground">
                     {isSpanish
                       ? `Conectado como ${address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet"}`
@@ -139,19 +146,31 @@ export default function CollectionClient() {
               {loadingNfts ? (
                 <div className="text-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">{isSpanish ? "Cargando colección..." : "Loading collection..."}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {isSpanish ? "Cargando colección..." : "Loading collection..."}
+                  </p>
                 </div>
               ) : nftCharacters.length === 0 ? (
                 <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
                   <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      className="text-muted-foreground"
+                    >
                       <rect x="3" y="3" width="7" height="7" rx="1" />
                       <rect x="14" y="3" width="7" height="7" rx="1" />
                       <rect x="3" y="14" width="7" height="7" rx="1" />
                       <rect x="14" y="14" width="7" height="7" rx="1" />
                     </svg>
                   </div>
-                  <p className="text-muted-foreground text-sm mb-2">{isSpanish ? "No se encontraron shimejis NFT." : "No NFT shimejis found."}</p>
+                  <p className="text-muted-foreground text-sm mb-2">
+                    {isSpanish ? "No se encontraron shimejis NFT." : "No NFT shimejis found."}
+                  </p>
                   <p className="text-xs text-muted-foreground/70">
                     {isSpanish ? "La integración NFT estará disponible pronto." : "NFT integration coming soon!"}
                   </p>

@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { Twitter, MessageCircle, Github } from "lucide-react";
 import Image from "next/image";
-import { UpdatesSubscribePopup } from "./updates-subscribe-popup";
+import Link from "next/link";
 import { useLanguage } from "./language-provider";
+import { UpdatesSubscribePopup } from "./updates-subscribe-popup";
+import { Github, MessageCircle, Twitter } from "lucide-react";
 
 export function Footer() {
   const { isSpanish } = useLanguage();
@@ -17,16 +17,9 @@ export function Footer() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
-                  <Image
-                    src="/logo.png"
-                    alt="Shimeji Logo"
-                    width={36}
-                    height={36}
-                  />
+                  <Image src="/logo.png" alt="Shimeji Logo" width={36} height={36} />
                 </div>
-                <span className="text-lg font-semibold text-foreground">
-                  Shimeji AI Pets
-                </span>
+                <span className="text-lg font-semibold text-foreground">Shimeji AI Pets</span>
               </div>
               <p className="text-muted-foreground text-sm max-w-xs mb-6 leading-relaxed">
                 {isSpanish
@@ -79,15 +72,10 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4 text-sm text-foreground">
-                {isSpanish ? "Navegación" : "Navigate"}
-              </h3>
+              <h3 className="font-semibold mb-4 text-sm text-foreground">{isSpanish ? "Navegación" : "Navigate"}</h3>
               <ul className="space-y-3">
                 <li>
-                  <Link
-                    href="/"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     {isSpanish ? "Inicio" : "Home"}
                   </Link>
                 </li>

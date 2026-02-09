@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "~~/components/ui/button";
-import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
 import { Bell, Sparkles } from "lucide-react";
+import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
 import { useLanguage } from "~~/components/language-provider";
+import { Button } from "~~/components/ui/button";
 
 export function CollectionRequestForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,10 +25,7 @@ export function CollectionRequestForm() {
               ? "Pronto vas a poder pedir rasgos y comportamientos personalizados para nuevos shimejis. Suscribite para enterarte cuando se active."
               : "Soon you'll be able to request custom traits and behaviors for new shimejis. Subscribe to get notified when this feature launches!"}
           </p>
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className="neural-button rounded-xl px-6"
-          >
+          <Button onClick={() => setIsModalOpen(true)} className="neural-button rounded-xl px-6">
             <Bell className="w-4 h-4 mr-2" />
             {isSpanish ? "Avisame cuando esté disponible" : "Notify Me When Available"}
           </Button>
@@ -40,7 +37,11 @@ export function CollectionRequestForm() {
         onClose={() => setIsModalOpen(false)}
         type="collection_request"
         title={isSpanish ? "¡Próximamente!" : "Coming Soon!"}
-        subtitle={isSpanish ? "Te avisamos cuando abran los pedidos personalizados" : "We'll notify you when custom requests open"}
+        subtitle={
+          isSpanish
+            ? "Te avisamos cuando abran los pedidos personalizados"
+            : "We'll notify you when custom requests open"
+        }
         buttonText={isSpanish ? "Avisame" : "Notify Me"}
       />
     </div>

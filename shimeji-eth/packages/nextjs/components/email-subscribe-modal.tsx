@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "~~/components/ui/button";
-import { X, Mail, Loader2, CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2, Mail, X } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "~~/components/language-provider";
+import { Button } from "~~/components/ui/button";
 
 type SubscriptionType = "updates" | "shimeji_request" | "collection_request";
 
@@ -75,8 +75,7 @@ export function EmailSubscribeModal({
       toast.success(data.message || t("Successfully subscribed!", "¡Suscripción exitosa!"));
       onSuccess?.();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("Failed to subscribe", "No se pudo suscribir");
+      const message = err instanceof Error ? err.message : t("Failed to subscribe", "No se pudo suscribir");
       setError(message);
       toast.error(message);
     } finally {
@@ -95,10 +94,7 @@ export function EmailSubscribeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={handleClose}
-      />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
       <div className="relative max-w-md w-full p-6 rounded-3xl shadow-2xl animate-in fade-in zoom-in duration-200 border border-white/10 bg-[#0b0f14] text-foreground">
         <button
@@ -123,13 +119,11 @@ export function EmailSubscribeModal({
         {isSuccess ? (
           <div className="rounded-xl p-4 text-center bg-[rgba(134,240,255,0.08)] border border-[rgba(134,240,255,0.3)]">
             <Mail className="w-8 h-8 text-[var(--brand-accent)] mx-auto mb-2" />
-            <p className="font-semibold text-foreground">
-              {t("Check your inbox!", "Revisá tu correo")}
-            </p>
+            <p className="font-semibold text-foreground">{t("Check your inbox!", "Revisá tu correo")}</p>
             <p className="text-sm text-muted-foreground mt-1">
               {t(
                 "We sent you a confirmation email. Click the link to complete your subscription.",
-                "Te enviamos un email de confirmación. Hacé clic en el link para completar tu suscripción."
+                "Te enviamos un email de confirmación. Hacé clic en el link para completar tu suscripción.",
               )}
             </p>
           </div>
@@ -139,7 +133,7 @@ export function EmailSubscribeModal({
               <input
                 type="email"
                 value={email}
-                onChange={(e) => {
+                onChange={e => {
                   setEmail(e.target.value);
                   setError("");
                 }}
@@ -147,9 +141,7 @@ export function EmailSubscribeModal({
                 className="w-full px-4 py-3 rounded-xl bg-[#0f141b] border border-white/10 focus:border-[var(--brand-accent)] focus:outline-none text-foreground placeholder:text-muted-foreground"
                 disabled={isSubmitting}
               />
-              {error && (
-                <p className="text-sm text-red-500 mt-1.5 pl-1">{error}</p>
-              )}
+              {error && <p className="text-sm text-red-500 mt-1.5 pl-1">{error}</p>}
             </div>
 
             <Button
@@ -170,7 +162,7 @@ export function EmailSubscribeModal({
             <p className="text-xs text-center text-muted-foreground">
               {t(
                 "We respect your privacy. Unsubscribe at any time.",
-                "Respetamos tu privacidad. Podés darte de baja cuando quieras."
+                "Respetamos tu privacidad. Podés darte de baja cuando quieras.",
               )}
             </p>
           </form>

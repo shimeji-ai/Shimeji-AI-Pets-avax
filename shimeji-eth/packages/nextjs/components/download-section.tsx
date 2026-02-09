@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "~~/components/ui/button";
+import { Bell, Download, Smartphone } from "lucide-react";
 import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
-import { Download, Bell, Smartphone } from "lucide-react";
 import { useLanguage } from "~~/components/language-provider";
+import { Button } from "~~/components/ui/button";
 
 type Platform = "android" | "ios" | null;
 
@@ -30,9 +30,7 @@ export function DownloadSection() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="neural-card rounded-2xl p-8 text-center">
-            <h3 className="text-2xl font-semibold mb-4">
-              {isSpanish ? "Extensión de Chrome" : "Chrome Extension"}
-            </h3>
+            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Extensión de Chrome" : "Chrome Extension"}</h3>
             <div className="text-left mb-4">
               <p className="mb-2 text-muted-foreground">
                 {isSpanish ? "Seguí estos pasos para instalar:" : "Follow these steps to install:"}
@@ -61,10 +59,7 @@ export function DownloadSection() {
                   : "Android app coming soon! Get notified when it launches on the Google Play Store."}
               </p>
             </div>
-            <Button
-              onClick={() => setNotifyPlatform("android")}
-              className="neural-button"
-            >
+            <Button onClick={() => setNotifyPlatform("android")} className="neural-button">
               <Bell className="w-4 h-4 mr-2" />
               {isSpanish ? "Avisame" : "Notify Me"}
             </Button>
@@ -81,10 +76,7 @@ export function DownloadSection() {
                   : "iOS app coming soon! Get notified when it launches on the Apple App Store."}
               </p>
             </div>
-            <Button
-              onClick={() => setNotifyPlatform("ios")}
-              className="neural-button"
-            >
+            <Button onClick={() => setNotifyPlatform("ios")} className="neural-button">
               <Bell className="w-4 h-4 mr-2" />
               {isSpanish ? "Avisame" : "Notify Me"}
             </Button>
@@ -97,7 +89,11 @@ export function DownloadSection() {
         onClose={() => setNotifyPlatform(null)}
         type="updates"
         title={isSpanish ? "¡App de Android próximamente!" : "Android App Coming Soon!"}
-        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de Android" : "We'll notify you when the Android app is available"}
+        subtitle={
+          isSpanish
+            ? "Te avisamos cuando esté disponible la app de Android"
+            : "We'll notify you when the Android app is available"
+        }
         buttonText={isSpanish ? "Avisame" : "Notify Me"}
         metadata={{ platform: "android" }}
       />
@@ -107,7 +103,11 @@ export function DownloadSection() {
         onClose={() => setNotifyPlatform(null)}
         type="updates"
         title={isSpanish ? "¡App de iOS próximamente!" : "iOS App Coming Soon!"}
-        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de iOS" : "We'll notify you when the iOS app is available"}
+        subtitle={
+          isSpanish
+            ? "Te avisamos cuando esté disponible la app de iOS"
+            : "We'll notify you when the iOS app is available"
+        }
         buttonText={isSpanish ? "Avisame" : "Notify Me"}
         metadata={{ platform: "ios" }}
       />

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getResend } from "~~/lib/resend";
 import { createHmac } from "crypto";
+import { getResend } from "~~/lib/resend";
 
 // Token expires after 24 hours
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -50,25 +50,19 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
 
   if (!token) {
-    return NextResponse.redirect(
-      new URL("/subscription/error?reason=missing-token", request.url)
-    );
+    return NextResponse.redirect(new URL("/subscription/error?reason=missing-token", request.url));
   }
 
   // Verify and decode the token
   const tokenData = verifyAndDecodeToken(token);
 
   if (!tokenData) {
-    return NextResponse.redirect(
-      new URL("/subscription/error?reason=invalid-token", request.url)
-    );
+    return NextResponse.redirect(new URL("/subscription/error?reason=invalid-token", request.url));
   }
 
   const resend = getResend();
   if (!resend) {
-    return NextResponse.redirect(
-      new URL("/subscription/error?reason=service-error", request.url)
-    );
+    return NextResponse.redirect(new URL("/subscription/error?reason=service-error", request.url));
   }
 
   // Get the audience ID for this subscription type
@@ -83,9 +77,7 @@ export async function GET(request: NextRequest) {
   // If no audience ID configured, log warning but still confirm subscription
   if (!audienceId) {
     console.warn(`No audience ID configured for type: ${tokenData.type} - skipping audience add`);
-    return NextResponse.redirect(
-      new URL(`/subscription/success?type=${tokenData.type}`, request.url)
-    );
+    return NextResponse.redirect(new URL(`/subscription/success?type=${tokenData.type}`, request.url));
   }
 
   try {
@@ -98,31 +90,28 @@ export async function GET(request: NextRequest) {
     });
 
     if (error) {
+      const errorName = String(error.name || "");
+      const errorMessage = typeof error.message === "string" ? error.message : "";
       // Check if contact already exists
-      if (error.name === 'contact_already_exists' || (error.statusCode === 409 && error.message.includes('already exists'))) {
-        console.log('Contact already exists, redirecting to success.');
-        return NextResponse.redirect(
-          new URL(`/subscription/success?type=${tokenData.type}&already=true`, request.url)
-        );
+      if (
+        errorName === "contact_already_exists" ||
+        (error.statusCode === 409 && errorMessage.includes("already exists"))
+      ) {
+        console.log("Contact already exists, redirecting to success.");
+        return NextResponse.redirect(new URL(`/subscription/success?type=${tokenData.type}&already=true`, request.url));
       }
-      
+
       console.error("Resend contact create error:", error);
       // Still show success for demo - contact confirmed even if audience add failed
-      return NextResponse.redirect(
-        new URL(`/subscription/success?type=${tokenData.type}`, request.url)
-      );
+      return NextResponse.redirect(new URL(`/subscription/success?type=${tokenData.type}`, request.url));
     }
 
     console.log("Successfully added contact:", data);
 
-    return NextResponse.redirect(
-      new URL(`/subscription/success?type=${tokenData.type}`, request.url)
-    );
+    return NextResponse.redirect(new URL(`/subscription/success?type=${tokenData.type}`, request.url));
   } catch (error: unknown) {
     console.error("Full error object when adding contact:", JSON.stringify(error, null, 2));
     // Still show success for demo - contact confirmed even if audience add failed
-    return NextResponse.redirect(
-      new URL(`/subscription/success?type=${tokenData.type}`, request.url)
-    );
+    return NextResponse.redirect(new URL(`/subscription/success?type=${tokenData.type}`, request.url));
   }
 }

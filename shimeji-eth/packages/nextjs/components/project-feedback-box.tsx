@@ -1,9 +1,9 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Button } from "~~/components/ui/button";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
+import { Button } from "~~/components/ui/button";
 
 const TWITTER_USERNAME_REGEX = /^@?[A-Za-z0-9_]{1,15}$/;
 
@@ -38,10 +38,7 @@ export function ProjectFeedbackBox() {
       return;
     }
 
-    if (
-      cleanTwitterUsername &&
-      !TWITTER_USERNAME_REGEX.test(cleanTwitterUsername)
-    ) {
+    if (cleanTwitterUsername && !TWITTER_USERNAME_REGEX.test(cleanTwitterUsername)) {
       setStatus({
         type: "error",
         message: isSpanish
@@ -73,9 +70,7 @@ export function ProjectFeedbackBox() {
           type: "error",
           message:
             payload.error ||
-            (isSpanish
-              ? "No se pudo enviar el feedback ahora."
-              : "Could not send feedback right now."),
+            (isSpanish ? "No se pudo enviar el feedback ahora." : "Could not send feedback right now."),
         });
         return;
       }
@@ -84,17 +79,13 @@ export function ProjectFeedbackBox() {
       setTwitterUsername("");
       setStatus({
         type: "success",
-        message: isSpanish
-          ? "¡Gracias! Tu feedback fue enviado."
-          : "Thanks! Your feedback was sent.",
+        message: isSpanish ? "¡Gracias! Tu feedback fue enviado." : "Thanks! Your feedback was sent.",
       });
     } catch (error) {
       console.error("Feedback submit error:", error);
       setStatus({
         type: "error",
-        message: isSpanish
-          ? "No se pudo enviar el feedback ahora."
-          : "Could not send feedback right now.",
+        message: isSpanish ? "No se pudo enviar el feedback ahora." : "Could not send feedback right now.",
       });
     } finally {
       setIsSubmitting(false);
@@ -105,9 +96,7 @@ export function ProjectFeedbackBox() {
     <div id="feedback-form-section" className="mt-10 md:mt-12">
       <div className="neural-card rounded-3xl p-6 md:p-8 border border-white/10">
         <h3 className="text-2xl font-bold text-foreground mb-2">
-          {isSpanish
-            ? "¿Qué te parece este proyecto?"
-            : "What do you think about this project?"}
+          {isSpanish ? "¿Qué te parece este proyecto?" : "What do you think about this project?"}
         </h3>
         <p className="text-muted-foreground mb-5">
           {isSpanish
@@ -127,7 +116,7 @@ export function ProjectFeedbackBox() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <textarea
             value={feedback}
-            onChange={(event) => setFeedback(event.target.value)}
+            onChange={event => setFeedback(event.target.value)}
             placeholder={isSpanish ? "Comparte tu opinión..." : "Share your thoughts..."}
             className="w-full min-h-28 rounded-2xl border border-white/10 bg-[#0b0f14] p-4 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             maxLength={1500}
@@ -137,11 +126,9 @@ export function ProjectFeedbackBox() {
           <input
             type="text"
             value={twitterUsername}
-            onChange={(event) => setTwitterUsername(event.target.value)}
+            onChange={event => setTwitterUsername(event.target.value)}
             placeholder={
-              isSpanish
-                ? "Usuario de X (opcional) ej: @tuusuario"
-                : "X username (optional) e.g. @yourhandle"
+              isSpanish ? "Usuario de X (opcional) ej: @tuusuario" : "X username (optional) e.g. @yourhandle"
             }
             className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
           />
@@ -152,11 +139,7 @@ export function ProjectFeedbackBox() {
                 ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @ShimejiFactory en X."
                 : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @ShimejiFactory on X."}
             </p>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="neural-button rounded-xl px-6"
-            >
+            <Button type="submit" disabled={isSubmitting} className="neural-button rounded-xl px-6">
               {isSubmitting
                 ? isSpanish
                   ? "Enviando..."
@@ -169,11 +152,7 @@ export function ProjectFeedbackBox() {
         </form>
 
         {status.message ? (
-          <p
-            className={`mt-4 text-sm ${
-              status.type === "success" ? "text-green-700" : "text-red-700"
-            }`}
-          >
+          <p className={`mt-4 text-sm ${status.type === "success" ? "text-green-700" : "text-red-700"}`}>
             {status.message}
           </p>
         ) : null}

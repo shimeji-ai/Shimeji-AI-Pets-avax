@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "~~/components/ui/button";
-import { ArrowRight, Wand2 } from "lucide-react";
+import { useLanguage } from "./language-provider";
 import { ShimejiCharacter } from "./shimeji-character";
 import { SparkleAnimation } from "./sparkle-animation";
-import { useLanguage } from "./language-provider";
+import { ArrowRight, Wand2 } from "lucide-react";
+import { Button } from "~~/components/ui/button";
 
 export function HeroSection() {
   const { isSpanish } = useLanguage();
@@ -31,7 +31,8 @@ export function HeroSection() {
                   {isSpanish
                     ? "Un mascota digital que vive en tu navegador. Chatea desde cualquier pestaña, recibe avisos y conecta tu agente para que haga cosas online y onchain por vos."
                     : "A digital pet that lives in your browser. Chat from any tab, get gentle nudges, or connect your agent to handle online and onchain tasks for you."}
-                </p>              </div>
+                </p>{" "}
+              </div>
             </div>
 
             {/* CTA */}
@@ -42,10 +43,7 @@ export function HeroSection() {
                 onMouseLeave={() => setIsHowItWorksHovered(false)}
               >
                 <a href="#how-it-works">
-                  <Button
-                    size="lg"
-                    className="neural-button rounded-full hover:cursor-pointer px-8 gap-2 text-base"
-                  >
+                  <Button size="lg" className="neural-button rounded-full hover:cursor-pointer px-8 gap-2 text-base">
                     {isSpanish ? "Cómo funciona" : "How it works"}
                     <ArrowRight className="w-4 h-4" />
                   </Button>

@@ -15,26 +15,17 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: "Invalid file type. Allowed: PNG, JPEG, GIF, WebP" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid file type. Allowed: PNG, JPEG, GIF, WebP" }, { status: 400 });
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "File too large. Maximum size is 5MB" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "File too large. Maximum size is 5MB" }, { status: 400 });
     }
 
     const pinataJwt = process.env.PINATA_JWT;
     if (!pinataJwt) {
-      return NextResponse.json(
-        { error: "Pinata not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Pinata not configured" }, { status: 500 });
     }
 
     // Create form data for Pinata
@@ -54,24 +45,18 @@ export async function POST(request: NextRequest) {
     pinataFormData.append("pinataMetadata", metadata);
 
     // Upload to Pinata
-    const pinataResponse = await fetch(
-      "https://api.pinata.cloud/pinning/pinFileToIPFS",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${pinataJwt}`,
-        },
-        body: pinataFormData,
-      }
-    );
+    const pinataResponse = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pinataJwt}`,
+      },
+      body: pinataFormData,
+    });
 
     if (!pinataResponse.ok) {
       const error = await pinataResponse.text();
       console.error("Pinata error:", error);
-      return NextResponse.json(
-        { error: "Failed to upload to IPFS" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to upload to IPFS" }, { status: 500 });
     }
 
     const pinataData = await pinataResponse.json();
@@ -83,9 +68,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to process upload" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to process upload" }, { status: 500 });
   }
 }

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { SparkleAnimation } from "./sparkle-animation";
 import DownloadButton from "./download-button";
-import { LanguageSwitcher } from "./language-switcher";
 import { useLanguage } from "./language-provider";
+import { LanguageSwitcher } from "./language-switcher";
+import { SparkleAnimation } from "./sparkle-animation";
 import { WalletConnectButton } from "./wallet-connect-button";
+import { Menu, X } from "lucide-react";
 
 interface NavHeaderProps {
   showConnectButton?: boolean;
@@ -30,16 +30,9 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
           >
             <Link href="/" className="flex items-center gap-3" prefetch={false}>
               <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
-                <Image
-                  src="/logo.png"
-                  alt="Shimeji Logo"
-                  width={36}
-                  height={36}
-                />
+                <Image src="/logo.png" alt="Shimeji Logo" width={36} height={36} />
               </div>
-              <span className="text-lg font-semibold text-foreground tracking-tight">
-                Shimeji AI Pets
-              </span>
+              <span className="text-lg font-semibold text-foreground tracking-tight">Shimeji AI Pets</span>
             </Link>
             <SparkleAnimation isHovering={isLogoHovered} />
           </div>
@@ -86,11 +79,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Toggle menu"
             >
-              {isMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>

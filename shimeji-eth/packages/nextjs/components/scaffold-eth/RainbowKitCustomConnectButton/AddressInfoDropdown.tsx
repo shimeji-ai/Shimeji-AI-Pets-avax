@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { NetworkOptions } from "./NetworkOptions";
+import { Balance } from "@scaffold-ui/components";
 import { getAddress } from "viem";
 import { Address } from "viem";
 import { useAccount, useDisconnect } from "wagmi";
@@ -13,7 +14,6 @@ import {
   EyeIcon,
   QrCodeIcon,
 } from "@heroicons/react/24/outline";
-import { Balance } from "@scaffold-ui/components";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { useCopyToClipboard, useOutsideClick } from "~~/hooks/scaffold-eth";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { NavHeader } from "~~/components/nav-header";
-import { Footer } from "~~/components/footer";
-import { WalletConnectButton } from "~~/components/wallet-connect-button";
-import { useLanguage } from "~~/components/language-provider";
-import { Button } from "~~/components/ui/button";
-import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle, Loader2, Sparkles, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
+import { Footer } from "~~/components/footer";
+import { useLanguage } from "~~/components/language-provider";
+import { NavHeader } from "~~/components/nav-header";
+import { Button } from "~~/components/ui/button";
+import { WalletConnectButton } from "~~/components/wallet-connect-button";
 
 export default function FactoryClient() {
   const [mounted, setMounted] = useState(false);
@@ -27,11 +28,15 @@ export default function FactoryClient() {
   const handleReserve = async () => {
     setReserveError("");
     if (!email.trim()) {
-      setReserveError(isSpanish ? "Ingresa un email para poder contactarte." : "Please enter an email so we can contact you.");
+      setReserveError(
+        isSpanish ? "Ingresa un email para poder contactarte." : "Please enter an email so we can contact you.",
+      );
       return;
     }
     if (!address) {
-      setReserveError(isSpanish ? "Conecta tu wallet para reservar un huevo." : "Connect your wallet to reserve an egg.");
+      setReserveError(
+        isSpanish ? "Conecta tu wallet para reservar un huevo." : "Connect your wallet to reserve an egg.",
+      );
       return;
     }
     setIsReserving(true);
@@ -53,7 +58,9 @@ export default function FactoryClient() {
       }
       setReserved(true);
     } catch (error) {
-      setReserveError(error instanceof Error ? error.message : t("Could not submit request.", "No se pudo enviar la solicitud."));
+      setReserveError(
+        error instanceof Error ? error.message : t("Could not submit request.", "No se pudo enviar la solicitud."),
+      );
     } finally {
       setIsReserving(false);
     }
@@ -74,7 +81,7 @@ export default function FactoryClient() {
               <p className="text-sm text-muted-foreground">
                 {t(
                   "Buy an egg, set an intention, and your pet will arrive ready to chat and accompany you.",
-                  "Comprá un huevo, definí una intención y tu mascota llegará lista para chatear y acompañarte."
+                  "Comprá un huevo, definí una intención y tu mascota llegará lista para chatear y acompañarte.",
                 )}
               </p>
             </div>
@@ -91,26 +98,36 @@ export default function FactoryClient() {
                 <div className="flex-1">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-32 h-32 shrink-0 flex items-start justify-start self-start">
-                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-28 h-28 object-contain" />
+                      <Image
+                        src="/egg-sit.png"
+                        alt={t("Egg", "Huevo")}
+                        width={112}
+                        height={112}
+                        className="w-28 h-28 object-contain"
+                      />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold mb-1">{t("Custom Handcrafted Egg", "Huevo artesanal personalizado")}</h3>
+                      <h3 className="text-xl font-semibold mb-1">
+                        {t("Custom Handcrafted Egg", "Huevo artesanal personalizado")}
+                      </h3>
                       <p className="text-sm text-muted-foreground">
                         {t(
                           "You are buying an egg. It opens a few days after purchase. Your intention shapes its art direction and personality. We'll email you when your shimeji is ready, and it will appear in the extension with full AI chat support.",
-                          "Estás comprando un huevo. Se abre unos días después de la compra. Tu intención define su dirección artística y personalidad. Te avisamos por email cuando tu shimeji esté listo, y aparecerá en la extensión con chat AI completo."
+                          "Estás comprando un huevo. Se abre unos días después de la compra. Tu intención define su dirección artística y personalidad. Te avisamos por email cuando tu shimeji esté listo, y aparecerá en la extensión con chat AI completo.",
                         )}
                       </p>
                     </div>
                   </div>
 
-                  <label className="block text-sm font-semibold text-foreground mb-2">{t("Intention for this egg", "Intención para este huevo")}</label>
+                  <label className="block text-sm font-semibold text-foreground mb-2">
+                    {t("Intention for this egg", "Intención para este huevo")}
+                  </label>
                   <textarea
                     value={intent}
                     onChange={event => setIntent(event.target.value)}
                     placeholder={t(
                       "e.g. Glow like a tiny lantern, hum soft chimes, blink in warm pastel pulses",
-                      "ej. Que brille como una luciérnaga, emita campanitas suaves, parpadee en pulsos pastel"
+                      "ej. Que brille como una luciérnaga, emita campanitas suaves, parpadee en pulsos pastel",
                     )}
                     className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
                     maxLength={240}
@@ -120,7 +137,9 @@ export default function FactoryClient() {
                     <span>{intent.length}/240</span>
                   </div>
 
-                  <label className="block text-sm font-semibold text-foreground mt-4 mb-2">{t("Contact email", "Email de contacto")}</label>
+                  <label className="block text-sm font-semibold text-foreground mt-4 mb-2">
+                    {t("Contact email", "Email de contacto")}
+                  </label>
                   <input
                     type="email"
                     value={email}
@@ -135,7 +154,8 @@ export default function FactoryClient() {
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                     <h3 className="text-lg font-semibold mb-2">{t("Checkout", "Pago")}</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {t("Connected as", "Conectado como")} {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet"}.
+                      {t("Connected as", "Conectado como")}{" "}
+                      {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "Wallet"}.
                     </p>
                     <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
                       <span>{t("Egg price", "Precio del huevo")}</span>
@@ -156,7 +176,11 @@ export default function FactoryClient() {
                       </p>
                     </div>
                   ) : (
-                    <Button onClick={handleReserve} disabled={isReserving} className="mt-4 w-full neural-button rounded-xl py-6">
+                    <Button
+                      onClick={handleReserve}
+                      disabled={isReserving}
+                      className="mt-4 w-full neural-button rounded-xl py-6"
+                    >
                       {isReserving ? (
                         <span className="inline-flex items-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin" /> {t("Reserving...", "Reservando...")}
@@ -174,7 +198,9 @@ export default function FactoryClient() {
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                {isSpanish ? "Conecta tu wallet de Ethereum para reservar un huevo." : "Connect your Ethereum wallet to reserve an egg."}
+                {isSpanish
+                  ? "Conecta tu wallet de Ethereum para reservar un huevo."
+                  : "Connect your Ethereum wallet to reserve an egg."}
               </p>
               <WalletConnectButton />
             </div>

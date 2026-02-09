@@ -13,9 +13,7 @@ export default function PrivacyPage() {
             {isSpanish ? "Política de Privacidad" : "Privacy Policy"}
           </h1>
           <p className="text-muted-foreground mb-8">
-            {isSpanish
-              ? "Última actualización: 7 de febrero de 2026."
-              : "Last updated: February 7, 2026."}
+            {isSpanish ? "Última actualización: 7 de febrero de 2026." : "Last updated: February 7, 2026."}
           </p>
 
           <div className="space-y-6 text-sm leading-relaxed text-muted-foreground">
@@ -26,9 +24,7 @@ export default function PrivacyPage() {
             </p>
 
             <div>
-              <h2 className="text-foreground font-semibold mb-2">
-                {isSpanish ? "Datos que se usan" : "Data We Use"}
-              </h2>
+              <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Datos que se usan" : "Data We Use"}</h2>
               <ul className="list-disc pl-5 space-y-2">
                 <li>
                   {isSpanish
@@ -60,9 +56,7 @@ export default function PrivacyPage() {
             </div>
 
             <div>
-              <h2 className="text-foreground font-semibold mb-2">
-                {isSpanish ? "Almacenamiento" : "Storage"}
-              </h2>
+              <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Almacenamiento" : "Storage"}</h2>
               <p>
                 {isSpanish
                   ? "Las configuraciones y claves se guardan en el almacenamiento local de tu navegador. Puedes habilitar una clave maestra para protegerlas con cifrado adicional."
@@ -71,9 +65,7 @@ export default function PrivacyPage() {
             </div>
 
             <div>
-              <h2 className="text-foreground font-semibold mb-2">
-                {isSpanish ? "Compartir datos" : "Data Sharing"}
-              </h2>
+              <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Compartir datos" : "Data Sharing"}</h2>
               <p>
                 {isSpanish
                   ? "No vendemos tus datos. Solo se comparten con los proveedores que tú configuras para que el Shimeji responda."
@@ -82,9 +74,7 @@ export default function PrivacyPage() {
             </div>
 
             <div>
-              <h2 className="text-foreground font-semibold mb-2">
-                {isSpanish ? "Contacto" : "Contact"}
-              </h2>
+              <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Contacto" : "Contact"}</h2>
               <p>
                 {isSpanish
                   ? "Si tienes preguntas, contáctanos en X/Twitter @ShimejiFactory."

@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "~~/components/ui/button";
 import { AlertCircle, Home } from "lucide-react";
 import { useLanguage } from "~~/components/language-provider";
+import { Button } from "~~/components/ui/button";
 
 type SubscriptionErrorClientProps = {
   searchParams: { reason?: string };
@@ -19,7 +19,8 @@ export default function SubscriptionErrorClient({ searchParams }: SubscriptionEr
     },
     "invalid-token": {
       title: "Link Not Found",
-      message: "This confirmation link is invalid or has already been used. If you need to subscribe again, please visit our website.",
+      message:
+        "This confirmation link is invalid or has already been used. If you need to subscribe again, please visit our website.",
     },
     "expired-token": {
       title: "Link Expired",
@@ -60,7 +61,9 @@ export default function SubscriptionErrorClient({ searchParams }: SubscriptionEr
 
   const error = (isSpanish ? errorMessagesEs : errorMessagesEn)[searchParams?.reason || ""] || {
     title: isSpanish ? "Algo salió mal" : "Something Went Wrong",
-    message: isSpanish ? "Ocurrió un error inesperado. Probá de nuevo." : "An unexpected error occurred. Please try again.",
+    message: isSpanish
+      ? "Ocurrió un error inesperado. Probá de nuevo."
+      : "An unexpected error occurred. Please try again.",
   };
 
   return (

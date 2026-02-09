@@ -11,9 +11,7 @@ export function LanguageSwitcher() {
         type="button"
         onClick={() => setLanguage("en")}
         className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
-          language === "en"
-            ? "bg-white/10 text-foreground"
-            : "text-muted-foreground hover:bg-white/10"
+          language === "en" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:bg-white/10"
         }`}
       >
         EN
@@ -22,9 +20,7 @@ export function LanguageSwitcher() {
         type="button"
         onClick={() => setLanguage("es")}
         className={`rounded-lg px-2 py-1 text-xs font-bold transition-colors ${
-          language === "es"
-            ? "bg-white/10 text-foreground"
-            : "text-muted-foreground hover:bg-white/10"
+          language === "es" ? "bg-white/10 text-foreground" : "text-muted-foreground hover:bg-white/10"
         }`}
         title={browserLanguage === "es" ? "Detected browser language: Spanish" : "Detected browser language: English"}
       >

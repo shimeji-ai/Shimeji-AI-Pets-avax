@@ -3,10 +3,7 @@ interface ConfirmationEmailProps {
   type: string;
 }
 
-export function getConfirmationEmailHtml({
-  confirmationUrl,
-  type,
-}: ConfirmationEmailProps): string {
+export function getConfirmationEmailHtml({ confirmationUrl, type }: ConfirmationEmailProps): string {
   const typeMessages: Record<string, string> = {
     updates: "project updates and new features",
     shimeji_request: "shimeji availability notifications",
@@ -89,10 +86,7 @@ export function getConfirmationEmailHtml({
 `;
 }
 
-export function getConfirmationEmailText({
-  confirmationUrl,
-  type,
-}: ConfirmationEmailProps): string {
+export function getConfirmationEmailText({ confirmationUrl, type }: ConfirmationEmailProps): string {
   const typeMessages: Record<string, string> = {
     updates: "project updates and new features",
     shimeji_request: "shimeji availability notifications",

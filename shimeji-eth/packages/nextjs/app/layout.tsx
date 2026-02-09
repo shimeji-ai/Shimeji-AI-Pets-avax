@@ -1,9 +1,9 @@
 import type React from "react";
-import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono, Nunito, Roboto, Space_Grotesk } from "next/font/google";
 import "@rainbow-me/rainbowkit/styles.css";
 import "@scaffold-ui/components/styles.css";
-import { Space_Grotesk, JetBrains_Mono, Nunito, Roboto } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import type { Metadata, Viewport } from "next";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { ThemeProvider } from "~~/components/ThemeProvider";
 import { LanguageProvider } from "~~/components/language-provider";
