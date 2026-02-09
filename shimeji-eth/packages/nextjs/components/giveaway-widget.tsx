@@ -82,44 +82,44 @@ export function GiveawayWidget() {
             >
               ×
             </button>
-            <div className="flex items-center gap-3">
-              <div className="relative h-12 w-12 shrink-0">
-                <Image
-                  src="/GIVEAWAY2.png"
-                  alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
-                  fill
-                  sizes="48px"
-                  className="object-contain drop-shadow"
-                />
-              </div>
-              <div>
+            <div className="flex items-stretch gap-3">
+              <div className="min-w-0">
                 <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
                   {isSpanish ? "Giveaway Shimeji" : "Shimeji Giveaway"}
                 </p>
                 <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
                   {isSpanish ? "Gana 1 comisión personalizada." : "Win 1 custom commission."}
                 </p>
+                <p className="mt-1 text-xs md:text-sm leading-snug text-white/90 break-words">
+                  {isSpanish ? "Sigue a " : "Follow "}
+                  <Link
+                    href="https://x.com/ShimejiFactory"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
+                  >
+                    @ShimejiFactory
+                  </Link>
+                  {isSpanish ? " y deja feedback para participar." : " and leave feedback to enter."}
+                </p>
+                <button
+                  type="button"
+                  onClick={goToFeedback}
+                  className="mt-3 h-8 rounded-lg px-3 text-xs font-bold neural-button"
+                >
+                  {isSpanish ? "Ir al formulario" : "Go to feedback form"}
+                </button>
+              </div>
+              <div className="relative w-20 shrink-0">
+                <Image
+                  src="/GIVEAWAY2.png"
+                  alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
+                  fill
+                  sizes="80px"
+                  className="object-contain object-right drop-shadow"
+                />
               </div>
             </div>
-            <p className="mt-1 text-xs md:text-sm leading-snug text-white/90 break-words">
-              {isSpanish ? "Sigue a " : "Follow "}
-              <Link
-                href="https://x.com/ShimejiFactory"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
-              >
-                @ShimejiFactory
-              </Link>
-              {isSpanish ? " y deja feedback para participar." : " and leave feedback to enter."}
-            </p>
-            <button
-              type="button"
-              onClick={goToFeedback}
-              className="mt-3 h-8 rounded-lg px-3 text-xs font-bold neural-button"
-            >
-              {isSpanish ? "Ir al formulario" : "Go to feedback form"}
-            </button>
           </div>
         </div>
       </div>
