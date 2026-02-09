@@ -1,14 +1,17 @@
 "use client";
 
+import { Footer } from "@/components/footer";
 import { useLanguage } from "@/components/language-provider";
+import { NavHeader } from "@/components/nav-header";
 
 export default function PrivacyPage() {
   const { isSpanish } = useLanguage();
 
   return (
-    <main className="bg-[#0b0f14] text-foreground">
-      <section className="max-w-4xl mx-auto px-6 py-16">
-        <div className="neural-card p-10 md:p-12">
+    <main className="min-h-screen overflow-x-hidden neural-shell">
+      <NavHeader />
+      <section className="max-w-4xl mx-auto px-6 py-16 text-foreground">
+        <div className="neural-card p-10 md:p-12 bg-[#0b0f14]">
           <h1 className="text-3xl md:text-4xl font-semibold mb-4">
             {isSpanish ? "Política de Privacidad" : "Privacy Policy"}
           </h1>
@@ -94,6 +97,7 @@ export default function PrivacyPage() {
           </div>
         </div>
       </section>
+      <Footer />
     </main>
   );
 }
