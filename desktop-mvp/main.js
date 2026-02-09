@@ -9,7 +9,9 @@ const store = new Store({
     enabled: true,
     character: 'shimeji',
     size: 'medium',
-    behavior: 'wander'
+    behavior: 'wander',
+    openrouterApiKey: '',
+    openrouterModel: 'google/gemini-2.0-flash-001'
   }
 });
 
@@ -152,7 +154,7 @@ ipcMain.handle('list-characters', () => {
 
 ipcMain.on('update-config', (event, nextConfig) => {
   if (!nextConfig || typeof nextConfig !== 'object') return;
-  const allowed = ['enabled', 'character', 'size', 'behavior'];
+  const allowed = ['enabled', 'character', 'size', 'behavior', 'openrouterApiKey', 'openrouterModel'];
   for (const key of allowed) {
     if (key in nextConfig) {
       store.set(key, nextConfig[key]);
@@ -160,6 +162,50 @@ ipcMain.on('update-config', (event, nextConfig) => {
   }
   sendConfigUpdate();
   updateTrayMenu();
+});
+
+ipcMain.handle('test-openrouter', async (event, payload) => {
+  const prompt = (payload && payload.prompt) ? String(payload.prompt) : 'Say hello in Spanish.';
+  const apiKey = store.get('openrouterApiKey');
+  const model = store.get('openrouterModel') || 'google/gemini-2.0-flash-001';
+
+  if (!apiKey) {
+    return { ok: false, error: 'API key missing.' };
+  }
+
+  try {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://shimeji.dev',
+        'X-Title': 'Shimeji Desktop MVP'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 128,
+        temperature: 0.7
+      })
+    });
+
+    if (resp.status === 401) {
+      return { ok: false, error: 'Invalid API key.' };
+    }
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return { ok: false, error: `API error (${resp.status}) ${text.slice(0, 160)}` };
+    }
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content || '';
+    if (!content) {
+      return { ok: false, error: 'No response content.' };
+    }
+    return { ok: true, content };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'Network error.' };
+  }
 });
 
 ipcMain.on('open-settings', () => {

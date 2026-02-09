@@ -5,10 +5,33 @@
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --dir",
+    "dist": "electron-builder"
   },
   "dependencies": {
-    "electron": "^30.0.0",
     "electron-store": "^9.0.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "dev.shimeji.desktop",
+    "productName": "Shimeji Desktop MVP",
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "Shimeji-Desktop-MVP-Portable-${version}.exe"
+    }
   }
 }

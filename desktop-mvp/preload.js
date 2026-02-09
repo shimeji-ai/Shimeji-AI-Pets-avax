@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   onConfigUpdated: (handler) => ipcRenderer.on('config-updated', (_, data) => handler(data)),
   getCharactersDir: () => ipcRenderer.invoke('get-characters-dir'),
   listCharacters: () => ipcRenderer.invoke('list-characters'),
+  testOpenRouter: (payload) => ipcRenderer.invoke('test-openrouter', payload),
   openSettings: () => ipcRenderer.send('open-settings')
 });
