@@ -183,13 +183,17 @@
   * {
     @apply border-border outline-ring/50;
   }
-  html {
-    scroll-padding-top: 96px;
-    scroll-behavior: smooth;
+  :root {
+    --header-offset: 30px;
   }
-  section[id],
-  #feedback-form-section {
-    scroll-margin-top: 96px;
+  @media (min-width: 640px) {
+    :root {
+      --header-offset: 32px;
+    }
+  }
+  html {
+    scroll-padding-top: var(--header-offset);
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-background text-foreground;

@@ -49,10 +49,7 @@ export function FAQSection() {
   };
 
   return (
-    <section
-      id="faq"
-      className="py-20 px-4 sm:px-6 lg:px-8 scroll-mt-[110px] sm:scroll-mt-[128px]"
-    >
+    <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
