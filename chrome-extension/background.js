@@ -110,6 +110,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     sendResponse({ status: 'Permissions revoked' });
     return true;
+  } else if (request.type === 'masterKeyStatus') {
+    getSessionMasterKey().then((sessionKey) => {
+      chrome.storage.local.get(['masterKeyEnabled'], (data) => {
+        const enabled = !!data.masterKeyEnabled;
+        sendResponse({ locked: enabled ? !sessionKey : false });
+      });
+    }).catch(() => {
+      sendResponse({ locked: true });
+    });
+    return true;
   } else if (request.type === 'setCharacter') {
     console.log('[Background] Received setCharacter message:', request.payload);
     chrome.storage.sync.set({ character: request.payload.character }, () => {

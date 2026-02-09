@@ -878,8 +878,15 @@
         async function isMasterKeyLocked() {
             if (!config.masterKeyEnabled) return false;
             return new Promise((resolve) => {
-                safeStorageSessionGet(['masterKey'], (data) => {
-                    resolve(!data.masterKey);
+                safeRuntimeSendMessage({ type: 'masterKeyStatus' }, (resp) => {
+                    const runtimeError = safeRuntimeLastError();
+                    if (!runtimeError && resp && typeof resp.locked === 'boolean') {
+                        resolve(resp.locked);
+                        return;
+                    }
+                    safeStorageSessionGet(['masterKey'], (data) => {
+                        resolve(!data.masterKey);
+                    });
                 });
             });
         }
@@ -2543,7 +2550,7 @@
                 alertBubbleEl.textContent = '!';
                 return;
             }
-            alertBubbleEl.textContent = pendingUnreadCount > 9 ? '9+' : String(pendingUnreadCount);
+            alertBubbleEl.textContent = pendingUnreadCount > 9 ? '9+!' : `${pendingUnreadCount}!`;
         }
 
         function createInlineThinking() {

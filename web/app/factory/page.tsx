@@ -96,9 +96,12 @@ export default function FactoryPage() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
-                      {t("Egg", "Huevo")}
-                      </div>
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center text-foreground">
+                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-8 h-8 object-contain" />
+                      <span className="text-[10px] font-semibold leading-none mt-1">
+                        {t("Egg", "Huevo")}
+                      </span>
+                    </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
                         {t("Custom Handcrafted Egg", "Huevo artesanal personalizado")}
@@ -119,8 +122,8 @@ export default function FactoryPage() {
                     value={intent}
                     onChange={(event) => setIntent(event.target.value)}
                     placeholder={t(
-                      "e.g. Help me focus while I code, remind me to take breaks",
-                      "ej. Ayudame a concentrarme mientras codeo, recordame tomar descansos"
+                      "e.g. Glow like a tiny lantern, hum soft chimes, blink in warm pastel pulses",
+                      "ej. Que brille como una luciérnaga, emita campanitas suaves, parpadee en pulsos pastel"
                     )}
                     className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
                     maxLength={240}
