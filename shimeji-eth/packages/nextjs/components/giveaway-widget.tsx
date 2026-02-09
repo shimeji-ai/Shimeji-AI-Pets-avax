@@ -93,12 +93,12 @@ export function GiveawayWidget() {
                 <p className="mt-1 text-xs md:text-sm leading-snug text-white/90 break-words">
                   {isSpanish ? "Sigue a " : "Follow "}
                   <Link
-                    href="https://x.com/ShimejiFactory"
+                    href="https://x.com/ShimejiAIPets"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-bold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
                   >
-                    @ShimejiFactory
+                    @ShimejiAIPets
                   </Link>
                   {isSpanish ? " y deja feedback para participar." : " and leave feedback to enter."}
                 </p>

@@ -77,8 +77,8 @@ export default function PrivacyPage() {
               <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Contacto" : "Contact"}</h2>
               <p>
                 {isSpanish
-                  ? "Si tienes preguntas, contáctanos en X/Twitter @ShimejiFactory."
-                  : "If you have questions, contact us on X/Twitter @ShimejiFactory."}
+                  ? "Si tienes preguntas, contáctanos en X/Twitter @ShimejiAIPets."
+                  : "If you have questions, contact us on X/Twitter @ShimejiAIPets."}
               </p>
             </div>
           </div>
