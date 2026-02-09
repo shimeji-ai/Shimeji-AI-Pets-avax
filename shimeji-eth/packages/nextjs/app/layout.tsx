@@ -5,7 +5,6 @@ import "@scaffold-ui/components/styles.css";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
-import { ThemeProvider } from "~~/components/ThemeProvider";
 import { LanguageProvider } from "~~/components/language-provider";
 import "~~/styles/globals.css";
 
@@ -75,11 +74,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <ThemeProvider attribute="class" enableSystem>
-          <ScaffoldEthAppWithProviders>
-            <LanguageProvider>{children}</LanguageProvider>
-          </ScaffoldEthAppWithProviders>
-        </ThemeProvider>
+        <ScaffoldEthAppWithProviders>
+          <LanguageProvider>{children}</LanguageProvider>
+        </ScaffoldEthAppWithProviders>
         <Analytics />
       </body>
     </html>
