@@ -163,6 +163,7 @@ const onboardingClose = document.getElementById("onboarding-close");
   const sleepAllBtn = document.getElementById("sleep-all-btn");
 const popupThemeLabel = document.getElementById("popup-theme-label");
 const popupThemeSelect = document.getElementById("popup-theme-select");
+const popupLanguageSelect = document.getElementById("popup-language-select");
 const securityTitle = document.getElementById("security-title");
 const masterkeyToggle = document.getElementById("masterkey-toggle");
 const masterkeyLabel = document.getElementById("masterkey-label");
@@ -231,6 +232,49 @@ let lastOpenrouterApiKeyEnc = null;
 let lastOpenrouterApiKeyPlain = "";
 let lastStandardProvider = "openrouter";
 let lastOpenrouterModel = "random";
+let previewIntervals = [];
+
+const BUILTIN_NFT_CHARACTERS = [
+  { id: "egg", name: "Egg" }
+];
+
+const PREVIEW_FRAMES = [
+  "stand-neutral.png",
+  "walk-step-left.png",
+  "stand-neutral.png",
+  "walk-step-right.png"
+];
+
+function getPreviewSizePx(sizeKey) {
+  if (sizeKey === "small") return 48;
+  if (sizeKey === "big") return 86;
+  return 68;
+}
+
+function buildShimejiPreview(shimeji) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "shimeji-preview";
+
+  const sprite = document.createElement("div");
+  sprite.className = "shimeji-preview-sprite";
+  const sizePx = getPreviewSizePx(shimeji.size);
+  sprite.style.width = `${sizePx}px`;
+  sprite.style.height = `${sizePx}px`;
+
+  const character = shimeji.character || "shimeji";
+  const base = chrome.runtime.getURL(`characters/${character}/`);
+  let frameIndex = 0;
+  sprite.style.backgroundImage = `url('${base}${PREVIEW_FRAMES[frameIndex]}')`;
+  wrapper.appendChild(sprite);
+
+  const interval = setInterval(() => {
+    frameIndex = (frameIndex + 1) % PREVIEW_FRAMES.length;
+    sprite.style.backgroundImage = `url('${base}${PREVIEW_FRAMES[frameIndex]}')`;
+  }, 220);
+  previewIntervals.push(interval);
+
+  return wrapper;
+}
 
   function ensureShimejiIds(list) {
     const used = new Set();
@@ -250,9 +294,17 @@ let lastOpenrouterModel = "random";
     });
   }
 
-  function isSpanishLocale() {
+  let uiLanguage = null;
+
+  function detectBrowserLanguage() {
     const locale = (navigator.language || '').toLowerCase();
-    return locale.startsWith('es');
+    return locale.startsWith('es') ? 'es' : 'en';
+  }
+
+  function isSpanishLocale() {
+    if (uiLanguage === 'es') return true;
+    if (uiLanguage === 'en') return false;
+    return detectBrowserLanguage() === 'es';
   }
 
   function t(en, es) {
@@ -286,15 +338,36 @@ let lastOpenrouterModel = "random";
     });
   }
 
-  function initPopupTheme() {
-    chrome.storage.local.get(["popupTheme"], (data) => {
-      const theme = data.popupTheme || "random";
-      populatePopupThemeSelect(theme);
-      applyTheme(theme === "random" ? getRandomTheme() : theme);
+  function populateLanguageSelect(value) {
+    if (!popupLanguageSelect) return;
+    const options = [
+      { value: "en", labelEn: "English", labelEs: "Inglés" },
+      { value: "es", labelEn: "Spanish", labelEs: "Español" }
+    ];
+    popupLanguageSelect.innerHTML = "";
+    options.forEach((opt) => {
+      const option = document.createElement("option");
+      option.value = opt.value;
+      option.textContent = isSpanishLocale() ? opt.labelEs : opt.labelEn;
+      if (opt.value === value) option.selected = true;
+      popupLanguageSelect.appendChild(option);
     });
   }
 
-  initPopupTheme();
+  function initPopupThemeAndLanguage() {
+    chrome.storage.local.get(["popupTheme", "shimejiLanguage"], (data) => {
+      const theme = data.popupTheme || "random";
+      uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
+      chrome.storage.local.set({ shimejiLanguage: uiLanguage });
+      populatePopupThemeSelect(theme);
+      populateLanguageSelect(uiLanguage);
+      applyTheme(theme === "random" ? getRandomTheme() : theme);
+      setPopupLabels();
+      loadShimejis();
+      renderNftSection();
+    });
+  }
+
 
   async function deriveKeyFromMaster(masterKey, saltBase64) {
     const enc = new TextEncoder();
@@ -1030,6 +1103,8 @@ if (securityHint) securityHint.textContent = t(
 
   function renderShimejis() {
     if (!shimejiListEl) return;
+    previewIntervals.forEach((id) => clearInterval(id));
+    previewIntervals = [];
     shimejiListEl.innerHTML = "";
 
     if (!selectedShimejiId || !shimejis.find((s) => s.id === selectedShimejiId)) {
@@ -1105,6 +1180,8 @@ if (securityHint) securityHint.textContent = t(
       headerActions.appendChild(removeBtn);
       header.appendChild(metaWrap);
       header.appendChild(headerActions);
+
+      const preview = buildShimejiPreview(shimeji);
 
       const grid = document.createElement("div");
       grid.className = "shimeji-grid";
@@ -1200,7 +1277,14 @@ if (securityHint) securityHint.textContent = t(
       openclawHint.className = "helper-text";
       openclawHint.textContent = t("OpenClaw needs a WebSocket URL + gateway token.", "OpenClaw necesita un WebSocket + token del gateway.");
       agentBlock.appendChild(openclawHint);
-      const openclawTokenInput = renderInputField("openclawGatewayToken", t("OpenClaw Token", "Token OpenClaw"), shimeji.openclawGatewayToken, "password", t("Enter gateway token", "Token del gateway"), "ai-core-field");
+      const openclawTokenInput = renderInputField(
+        "openclawGatewayToken",
+        t("Gateway Auth Token", "Token de auth del gateway"),
+        shimeji.openclawGatewayToken,
+        "password",
+        t("Enter gateway auth token", "Ingresá el token de auth del gateway"),
+        "ai-core-field"
+      );
       if (masterKeyEnabled && !masterKeyUnlocked) {
         openclawTokenInput.classList.add("locked");
         const input = openclawTokenInput.querySelector("input");
@@ -1263,6 +1347,7 @@ if (securityHint) securityHint.textContent = t(
       chatStyleBlock.appendChild(chatStyleGrid);
 
       card.appendChild(header);
+      card.appendChild(preview);
       card.appendChild(grid);
       card.appendChild(aiCorePanel);
       card.appendChild(chatStyleBlock);
@@ -1963,11 +2048,19 @@ if (securityHint) securityHint.textContent = t(
 
     chrome.storage.sync.get(['nftCharacters'], (data) => {
       const nfts = data.nftCharacters || [];
-      nftCharacters = Array.isArray(nfts) ? nfts : [];
+      const synced = Array.isArray(nfts) ? nfts : [];
+      const mergedMap = new Map();
+      BUILTIN_NFT_CHARACTERS.forEach((item) => {
+        if (item?.id) mergedMap.set(item.id, item);
+      });
+      synced.forEach((item) => {
+        if (item?.id) mergedMap.set(item.id, item);
+      });
+      nftCharacters = Array.from(mergedMap.values());
       nftCharacterIds = new Set(nftCharacters.map((nft) => nft.id).filter(Boolean));
       nftListEl.innerHTML = "";
 
-      if (nfts.length === 0) {
+      if (nftCharacters.length === 0) {
         if (nftHint) nftHint.textContent = "";
         const empty = document.createElement("div");
         empty.className = "nft-empty-state";
@@ -1981,11 +2074,11 @@ if (securityHint) securityHint.textContent = t(
       }
 
       if (nftHint) nftHint.textContent = t(
-        `${nfts.length} NFT character${nfts.length === 1 ? '' : 's'}`,
-        `${nfts.length} personaje${nfts.length === 1 ? '' : 's'} NFT`
+        `${nftCharacters.length} NFT character${nftCharacters.length === 1 ? '' : 's'}`,
+        `${nftCharacters.length} personaje${nftCharacters.length === 1 ? '' : 's'} NFT`
       );
 
-      nfts.forEach((nft) => {
+      nftCharacters.forEach((nft) => {
         const card = document.createElement("div");
         card.className = "nft-card";
         const preview = document.createElement("div");
@@ -2006,15 +2099,26 @@ if (securityHint) securityHint.textContent = t(
     });
   }
 
-  setPopupLabels();
-  loadShimejis();
-  renderNftSection();
+  initPopupThemeAndLanguage();
 
   if (popupThemeSelect) {
     popupThemeSelect.addEventListener("change", () => {
       const value = popupThemeSelect.value || "random";
       chrome.storage.local.set({ popupTheme: value });
       applyTheme(value === "random" ? getRandomTheme() : value);
+    });
+  }
+
+  if (popupLanguageSelect) {
+    popupLanguageSelect.addEventListener("change", () => {
+      const value = popupLanguageSelect.value || "en";
+      uiLanguage = value;
+      chrome.storage.local.set({ shimejiLanguage: value });
+      populatePopupThemeSelect(popupThemeSelect?.value || "random");
+      populateLanguageSelect(value);
+      setPopupLabels();
+      renderNftSection();
+      renderShimejis();
     });
   }
 

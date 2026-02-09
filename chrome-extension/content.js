@@ -219,7 +219,7 @@
     };
     const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
 
-    const SHIMEJI_PITCH_FACTORS = [0.9, 0.96, 1.02, 1.08, 1.14];
+    const SHIMEJI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
 
     function getShimejiPitchFactor(shimejiId) {
         const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
@@ -263,9 +263,17 @@
         return found || pool[0];
     }
 
-    function isSpanishLocale() {
+    let uiLanguage = null;
+
+    function detectBrowserLanguage() {
         const locale = (navigator.language || '').toLowerCase();
-        return locale.startsWith('es');
+        return locale.startsWith('es') ? 'es' : 'en';
+    }
+
+    function isSpanishLocale() {
+        if (uiLanguage === 'es') return true;
+        if (uiLanguage === 'en') return false;
+        return detectBrowserLanguage() === 'es';
     }
 
     let lastCursorY = null;
@@ -332,21 +340,80 @@
         }
     }
 
+    let extensionInvalidated = false;
+
+    function safeRuntimeGetURL(path) {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return null;
+            return chrome.runtime.getURL(path);
+        } catch (e) {
+            extensionInvalidated = true;
+            return null;
+        }
+    }
+
+    function safeRuntimeSendMessage(message, callback) {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return;
+            chrome.runtime.sendMessage(message, callback);
+        } catch (e) {
+            extensionInvalidated = true;
+        }
+    }
+
+    function safeRuntimeLastError() {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return null;
+            return chrome.runtime ? chrome.runtime.lastError : null;
+        } catch (e) {
+            extensionInvalidated = true;
+            return null;
+        }
+    }
+
     function safeStorageLocalGet(keys, callback) {
         try {
-            if (!isExtensionContextValid()) return;
+            if (extensionInvalidated || !isExtensionContextValid()) return;
             chrome.storage.local.get(keys, (data) => {
-                if (!isExtensionContextValid()) return;
+                if (extensionInvalidated || !isExtensionContextValid()) return;
                 callback(data || {});
             });
-        } catch (e) {}
+        } catch (e) {
+            extensionInvalidated = true;
+        }
     }
 
     function safeStorageLocalSet(payload) {
         try {
-            if (!isExtensionContextValid()) return;
+            if (extensionInvalidated || !isExtensionContextValid()) return;
             chrome.storage.local.set(payload);
-        } catch (e) {}
+        } catch (e) {
+            extensionInvalidated = true;
+        }
+    }
+
+    function safeStorageSyncGet(keys, callback) {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return;
+            chrome.storage.sync.get(keys, (data) => {
+                if (extensionInvalidated || !isExtensionContextValid()) return;
+                callback(data || {});
+            });
+        } catch (e) {
+            extensionInvalidated = true;
+        }
+    }
+
+    function safeStorageSessionGet(keys, callback) {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return;
+            chrome.storage.session.get(keys, (data) => {
+                if (extensionInvalidated || !isExtensionContextValid()) return;
+                callback(data || {});
+            });
+        } catch (e) {
+            extensionInvalidated = true;
+        }
     }
 
     function isDisabledForCurrentPage(disabledAll, disabledPages) {
@@ -372,8 +439,15 @@
         return sharedAudioCtx;
     }
 
+    function isUserGestureActive(evt) {
+        if (!evt || evt.isTrusted === false) return false;
+        const ua = navigator.userActivation;
+        if (ua && !ua.isActive && !ua.hasBeenActive) return false;
+        return true;
+    }
+
     function unlockAudioContextFromGesture(evt) {
-        if (!evt || evt.isTrusted === false) return null;
+        if (!isUserGestureActive(evt)) return null;
         audioUnlocked = true;
         const ctx = getAudioContext();
         if (ctx && ctx.state === 'suspended') {
@@ -386,7 +460,8 @@
         if (audioUnlockArmed) return;
         audioUnlockArmed = true;
         const unlock = (evt) => {
-            unlockAudioContextFromGesture(evt);
+            if (!isUserGestureActive(evt)) return;
+            audioUnlocked = true;
         };
         ['click', 'keydown', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, unlock, { capture: true, once: true });
@@ -395,6 +470,7 @@
 
     const audioBufferCache = {};
     async function loadAudioBuffer(url) {
+        if (!url) return null;
         if (audioBufferCache[url]) return audioBufferCache[url];
         try {
             const resp = await fetch(url);
@@ -458,7 +534,6 @@
         const errorData = errorBuf.getChannelData(0);
         errorData.set(note1, 0);
         errorData.set(note2, note1.length + gapLen);
-
         return { success: successBuf, error: errorBuf };
     }
 
@@ -631,7 +706,7 @@
     }
 
     function loadShimejiConfigs(callback) {
-        chrome.storage.local.get([
+        safeStorageLocalGet([
             'shimejis',
             'aiModel',
             'aiApiKey',
@@ -677,7 +752,7 @@
                 };
             });
             list = list.slice(0, MAX_SHIMEJIS);
-            chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
+            safeStorageLocalSet({ shimejis: list, ttsEnabledMigrationDone: true });
             callback(list);
         });
     }
@@ -692,7 +767,7 @@
         const conversationKey = `conversationHistory.${elementSuffix}`;
 
         let currentCharacter = config.character || 'shimeji';
-        let CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
+        let CHARACTER_BASE = safeRuntimeGetURL('characters/' + currentCharacter + '/') || '';
         let currentSize = config.size || 'medium';
         let animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
         let animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
@@ -701,6 +776,7 @@
         let spritesLoadedPromise = null;
         const spriteImages = {};
         let spritesLoaded = false;
+        const supportedAnimations = new Set();
         let startDelayTimer = null;
         const startDelayMs = options.startDelayMs || 0;
 
@@ -759,7 +835,7 @@
         async function isMasterKeyLocked() {
             if (!config.masterKeyEnabled) return false;
             return new Promise((resolve) => {
-                chrome.storage.session.get(['masterKey'], (data) => {
+                safeStorageSessionGet(['masterKey'], (data) => {
                     resolve(!data.masterKey);
                 });
             });
@@ -769,8 +845,8 @@
             if (!sharedAudioCtx) return;
             soundBuffersLoaded = false;
             const defaultUrls = {
-                success: chrome.runtime.getURL('assets/shimeji-success.wav'),
-                error: chrome.runtime.getURL('assets/shimeji-error.wav')
+                success: safeRuntimeGetURL('assets/shimeji-success.wav'),
+                error: safeRuntimeGetURL('assets/shimeji-error.wav')
             };
             for (const kind of ['success', 'error']) {
                 soundBuffers[kind] = await loadAudioBuffer(defaultUrls[kind]);
@@ -844,47 +920,47 @@
         async function persistVoiceId(voiceName) {
             if (!voiceName || voiceName === config.ttsVoiceId) return;
             config.ttsVoiceId = voiceName;
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsVoiceId: voiceName } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistTtsEnabled(enabled) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsEnabled: enabled } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistOpenMicEnabled(enabled) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? { ...s, openMicEnabled: enabled } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistRelayEnabled(enabled) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? { ...s, relayEnabled: enabled } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistTtsWhenClosed(enabled) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsWhenClosed: enabled } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistChatStyle(themeColor, bgColor, bubbleStyle) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => {
                     if (s.id !== shimejiId) return s;
@@ -895,19 +971,19 @@
                         chatBubbleStyle: bubbleStyle
                     };
                 });
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
         function persistChatSize(widthPx, heightPx) {
-            chrome.storage.local.get(['shimejis'], (data) => {
+            safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => s.id === shimejiId ? {
                     ...s,
                     chatWidthPx: widthPx,
                     chatHeightPx: heightPx
                 } : s);
-                chrome.storage.local.set({ shimejis: updated });
+                safeStorageLocalSet({ shimejis: updated });
             });
         }
 
@@ -1220,24 +1296,34 @@
         });
 
         document.addEventListener('shimeji-relay', (e) => {
-            if (!e.detail || e.detail.sourceId === shimejiId) return;
-            if (config.enabled === false) return;
-            const mode = getMode();
-            if (mode === 'off') return;
-            const raw = (e.detail.text || '').trim();
-            if (!raw) return;
-            const prefix = isSpanishLocale()
-                ? 'Esto es lo que dijo tu mascota shimeji AI pet: '
-                : 'This is what your shimeji AI pet said: ';
-            sendChatMessageWithText(prefix + raw, { isRelay: true });
+            try {
+                if (extensionInvalidated || !isExtensionContextValid()) return;
+                if (!e.detail || e.detail.sourceId === shimejiId) return;
+                if (config.enabled === false) return;
+                const mode = getMode();
+                if (mode === 'off') return;
+                const raw = (e.detail.text || '').trim();
+                if (!raw) return;
+                const prefix = isSpanishLocale()
+                    ? 'Esto es lo que dijo tu mascota shimeji AI pet: '
+                    : 'This is what your shimeji AI pet said: ';
+                sendChatMessageWithText(prefix + raw, { isRelay: true });
+            } catch (e) {
+                extensionInvalidated = true;
+            }
         });
 
         // Listen for voice broadcast from open mic (send transcript to all open chats)
         document.addEventListener('shimeji-voice-broadcast', (e) => {
-            if (!isChatOpen || !chatInputEl || !e.detail || !e.detail.transcript) return;
-            if (isThinking) return; // already processing a message
-            chatInputEl.value = e.detail.transcript;
-            sendChatMessage();
+            try {
+                if (extensionInvalidated || !isExtensionContextValid()) return;
+                if (!isChatOpen || !chatInputEl || !e.detail || !e.detail.transcript) return;
+                if (isThinking) return; // already processing a message
+                chatInputEl.value = e.detail.transcript;
+                sendChatMessage();
+            } catch (e) {
+                extensionInvalidated = true;
+            }
         });
 
         const mascot = {
@@ -1392,6 +1478,10 @@
         function preloadSprites() {
             if (spritesLoadedPromise) return spritesLoadedPromise;
 
+            Object.keys(spriteImages).forEach((key) => {
+                delete spriteImages[key];
+            });
+
             const promises = Object.entries(SPRITES).map(([key, filename]) => {
                 return new Promise((resolve) => {
                     const img = new Image();
@@ -1400,7 +1490,6 @@
                         resolve();
                     };
                     img.onerror = () => {
-                        console.warn(`Failed to load sprite: ${filename}`);
                         resolve();
                     };
                     img.src = CHARACTER_BASE + filename;
@@ -1455,10 +1544,34 @@
             mascotElement.style.backgroundImage = `url('${spritePath}')`;
         }
 
+        function buildFilteredAnimationSet(baseSet) {
+            const filteredSet = {};
+            supportedAnimations.clear();
+            Object.keys(baseSet || {}).forEach((key) => {
+                const frames = baseSet[key] || [];
+                const filtered = frames.filter((frame) => SPRITES[frame.sprite] && spriteImages[frame.sprite]);
+                if (filtered.length) {
+                    filteredSet[key] = filtered;
+                    supportedAnimations.add(key);
+                } else {
+                    filteredSet[key] = [{ sprite: 'stand-neutral', duration: 1 }];
+                }
+            });
+            return filteredSet;
+        }
+
+        function getFilteredAnimation(name) {
+            const animation = animationSet[name];
+            if (!animation || animation.length === 0) {
+                return [{ sprite: 'stand-neutral', duration: 1 }];
+            }
+            return animation;
+        }
+
         function updateSpriteDisplay() {
             if (!mascotElement || !spritesLoaded) return;
 
-            const animation = animationSet[mascot.currentAnimation];
+            const animation = getFilteredAnimation(mascot.currentAnimation);
             if (!animation || animation.length === 0) return;
 
             const frame = animation[mascot.animationFrame % animation.length];
@@ -1481,20 +1594,28 @@
         const DRAG_THRESHOLD = 5;
 
         function setupDragListeners() {
-            mascotElement.addEventListener('mousedown', onMouseDown);
+            mascotElement.addEventListener('pointerdown', onPointerDown);
             mascotElement.addEventListener('touchstart', onTouchStart, { passive: false });
 
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+            document.addEventListener('pointercancel', onPointerUp);
             document.addEventListener('touchmove', onTouchMove, { passive: false });
             document.addEventListener('touchend', onTouchEnd);
         }
 
-        function onMouseDown(e) {
+        function clampDragPosition(size) {
+            mascot.x = Math.max(-size * 0.5, Math.min(mascot.x, window.innerWidth - size * 0.5));
+            mascot.y = Math.max(size * 0.5, Math.min(mascot.y, window.innerHeight + size * 0.5));
+        }
+
+        function onPointerDown(e) {
+            if (e.pointerType === 'touch') return; // handled by touch listeners
             e.preventDefault();
             mascot.dragPending = true;
             mascot.dragStartX = e.clientX;
             mascot.dragStartY = e.clientY;
+            mascot._dragPointerId = e.pointerId;
 
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
@@ -1509,6 +1630,11 @@
 
             if (isChatOpen) closeChatBubble();
 
+            // Capture pointer so drag survives cursor leaving the window
+            if (mascot._dragPointerId != null && mascotElement.setPointerCapture) {
+                try { mascotElement.setPointerCapture(mascot._dragPointerId); } catch (_) {}
+            }
+
             mascot.prevDragX = mascot.x;
             mascot.prevDragY = mascot.y;
             mascot.smoothedVelocityX = 0;
@@ -1520,7 +1646,8 @@
             mascotElement.style.cursor = 'grabbing';
         }
 
-        function onMouseMove(e) {
+        function onPointerMove(e) {
+            if (e.pointerType === 'touch') return;
             if (mascot.dragPending) {
                 const dx = e.clientX - mascot.dragStartX;
                 const dy = e.clientY - mascot.dragStartY;
@@ -1535,10 +1662,17 @@
             const size = SPRITE_SIZE * scale;
             mascot.x = e.clientX - mascot.dragOffsetX;
             mascot.y = e.clientY - mascot.dragOffsetY + size;
+            clampDragPosition(size);
             updatePosition();
         }
 
-        function onMouseUp() {
+        function onPointerUp(e) {
+            if (e.pointerType === 'touch') return;
+            if (mascot._dragPointerId != null && mascotElement.releasePointerCapture) {
+                try { mascotElement.releasePointerCapture(mascot._dragPointerId); } catch (_) {}
+            }
+            mascot._dragPointerId = null;
+
             if (mascot.dragPending) {
                 mascot.dragPending = false;
                 handleMascotClick();
@@ -1581,6 +1715,7 @@
             const size = SPRITE_SIZE * scale;
             mascot.x = touch.clientX - mascot.dragOffsetX;
             mascot.y = touch.clientY - mascot.dragOffsetY + size;
+            clampDragPosition(size);
             updatePosition();
         }
 
@@ -1645,15 +1780,40 @@
                 return;
             }
 
+            const hasSprite = (key) => !!(SPRITES[key] && spriteImages[key]);
             const sv = mascot.smoothedVelocityX;
             if (sv > 8) {
-                setSprite('dragged-tilt-left-heavy');
+                if (hasSprite('dragged-tilt-left-heavy')) {
+                    setSprite('dragged-tilt-left-heavy');
+                } else if (hasSprite('dragged-tilt-left')) {
+                    setSprite('dragged-tilt-left');
+                } else {
+                    setSprite('stand-neutral');
+                }
             } else if (sv > 2) {
-                setSprite('dragged-tilt-left');
+                if (hasSprite('dragged-tilt-left')) {
+                    setSprite('dragged-tilt-left');
+                } else if (hasSprite('dragged-tilt-left-heavy')) {
+                    setSprite('dragged-tilt-left-heavy');
+                } else {
+                    setSprite('stand-neutral');
+                }
             } else if (sv < -8) {
-                setSprite('dragged-tilt-right-heavy');
+                if (hasSprite('dragged-tilt-right-heavy')) {
+                    setSprite('dragged-tilt-right-heavy');
+                } else if (hasSprite('dragged-tilt-right')) {
+                    setSprite('dragged-tilt-right');
+                } else {
+                    setSprite('stand-neutral');
+                }
             } else if (sv < -2) {
-                setSprite('dragged-tilt-right');
+                if (hasSprite('dragged-tilt-right')) {
+                    setSprite('dragged-tilt-right');
+                } else if (hasSprite('dragged-tilt-right-heavy')) {
+                    setSprite('dragged-tilt-right-heavy');
+                } else {
+                    setSprite('stand-neutral');
+                }
             } else {
                 setSprite('stand-neutral');
             }
@@ -2010,7 +2170,10 @@
             chatInputEl.type = 'text';
             chatInputEl.placeholder = isSpanishLocale() ? 'Di algo...' : 'Say something...';
             chatInputEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') safeSendChatMessage();
+                if (e.key === 'Enter') {
+                    unlockAudioContextFromGesture(e);
+                    safeSendChatMessage();
+                }
             });
             chatInputEl.addEventListener('mousedown', (e) => e.stopPropagation());
             chatInputEl.addEventListener('touchstart', (e) => e.stopPropagation());
@@ -2020,6 +2183,7 @@
             sendBtn.textContent = '\u25B6';
             sendBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                unlockAudioContextFromGesture(e);
                 safeSendChatMessage();
             });
 
@@ -2028,6 +2192,7 @@
             micBtnEl.textContent = '\uD83C\uDF99';
             micBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
+                unlockAudioContextFromGesture(e);
                 toggleVoiceInput();
             });
 
@@ -2376,10 +2541,10 @@
                     if (!config.openrouterModelResolved) {
                         const resolved = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
                         config.openrouterModelResolved = resolved;
-                        chrome.storage.local.get(['shimejis'], (data) => {
+                        safeStorageLocalGet(['shimejis'], (data) => {
                             const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                             const updated = list.map((s) => s.id === shimejiId ? { ...s, openrouterModelResolved: resolved } : s);
-                            chrome.storage.local.set({ shimejis: updated });
+                            safeStorageLocalSet({ shimejis: updated });
                         });
                     }
                     model = config.openrouterModelResolved || MODEL_KEYS_ENABLED[0];
@@ -2477,11 +2642,11 @@
         }
 
         function saveConversation() {
-            chrome.storage.local.set({ [conversationKey]: conversationHistory });
+            safeStorageLocalSet({ [conversationKey]: conversationHistory });
         }
 
         function loadConversation(callback) {
-            chrome.storage.local.get([conversationKey], (data) => {
+            safeStorageLocalGet([conversationKey], (data) => {
                 conversationHistory = Array.isArray(data[conversationKey]) ? data[conversationKey] : [];
                 const lastAssistant = [...conversationHistory].reverse().find((msg) => msg.role === 'assistant');
                 lastAssistantText = lastAssistant ? lastAssistant.content : '';
@@ -2525,6 +2690,19 @@
             if (!text) return '⚠️';
             const trimmed = text.trim();
             return trimmed.endsWith('⚠️') ? trimmed : `${trimmed} ⚠️`;
+        }
+
+        function extractResponseText(response) {
+            if (!response) return '';
+            if (typeof response === 'string') return response;
+            if (typeof response.content === 'string') return response.content;
+            if (typeof response.text === 'string') return response.text;
+            if (typeof response.message === 'string') return response.message;
+            if (response.content && typeof response.content.text === 'string') return response.content.text;
+            if (Array.isArray(response.content)) {
+                return response.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+            }
+            return '';
         }
 
         function handleMascotClick() {
@@ -2578,11 +2756,12 @@
 
             showThinking();
 
-            chrome.runtime.sendMessage(
+            safeRuntimeSendMessage(
                 { type: 'aiChat', messages: conversationHistory, shimejiId },
                 (response) => {
                     hideThinking();
-                    if (chrome.runtime.lastError) {
+                    const runtimeError = safeRuntimeLastError();
+                    if (runtimeError) {
                         appendMessage('ai', addWarning(isSpanishLocale()
                             ? 'No pude comunicarme con la extensión. Recarga la página.'
                             : 'Could not reach extension. Try reloading the page.'));
@@ -2621,16 +2800,17 @@
                         }
                         return;
                     }
-                    if (response && response.content) {
-                        conversationHistory.push({ role: 'assistant', content: response.content });
+                    const responseText = extractResponseText(response);
+                    if (responseText) {
+                        conversationHistory.push({ role: 'assistant', content: responseText });
                         saveConversation();
-                        appendMessage('ai', response.content);
+                        appendMessage('ai', responseText);
                         if (!(isChatOpen && config.ttsEnabled) && !( !isChatOpen && config.ttsEnabled && config.ttsWhenClosed)) {
                             playSoundOrQueue('success');
                         }
                         if (isChatOpen) {
                             const openMicAfter = config.openMicEnabled && isChatOpen;
-                            enqueueSpeech(response.content, openMicAfter ? () => {
+                            enqueueSpeech(responseText, openMicAfter ? () => {
                                 if (!isChatOpen || !config.openMicEnabled || isListening) return;
                                 startVoiceInput();
                             } : null);
@@ -2643,17 +2823,22 @@
                         } else {
                             if (config.ttsEnabled && config.ttsWhenClosed) {
                                 pendingSpeechText = null;
-                                enqueueSpeech(response.content);
+                                enqueueSpeech(responseText);
                             } else {
-                                pendingSpeechText = response.content;
+                                pendingSpeechText = responseText;
                             }
                         }
                         if (config.relayEnabled && !options.isRelay) {
-                            dispatchRelay(response.content);
+                            dispatchRelay(responseText);
                         }
                         if (!isChatOpen) {
                             showAlert();
                         }
+                    } else if (response && !response.error) {
+                        appendMessage('ai', addWarning(isSpanishLocale()
+                            ? 'No llegó una respuesta válida del agente.'
+                            : 'No valid response received from the agent.'));
+                        playSoundOrQueue('error');
                     }
                 }
             );
@@ -2752,17 +2937,17 @@
                 if (mascot.state === State.SITTING) {
                     mascot.stateTimer++;
                     if (!chatWiggleTimer) {
-                        if (lastCursorY !== null && lastCursorY < window.innerHeight / 2) {
+                        if (supportedAnimations.has('sittingLookUp') && lastCursorY !== null && lastCursorY < window.innerHeight / 2) {
                             mascot.currentAnimation = 'sittingLookUp';
                         } else if (mascot.currentAnimation !== 'sittingEdge') {
                             mascot.currentAnimation = 'sitting';
                         }
                     }
-                    if (mascot.stateTimer > 70 && Math.random() < 0.02) {
+                    if (supportedAnimations.has('sittingEdge') && mascot.stateTimer > 70 && Math.random() < 0.02) {
                         startChatLegWiggle();
                         mascot.stateTimer = 0;
                     }
-                    if (mascot.stateTimer > 90 && Math.random() < 0.02) {
+                    if (supportedAnimations.has('headSpin') && mascot.stateTimer > 90 && Math.random() < 0.02) {
                         mascot.state = State.HEAD_SPIN;
                         mascot.currentAnimation = 'headSpin';
                         mascot.stateTimer = 0;
@@ -2810,21 +2995,21 @@
                         } else if (roll < 0.70) {
                             mascot.state = State.SITTING;
                             mascot.currentAnimation = 'sitting';
-                        } else if (roll < 0.78) {
+                        } else if (roll < 0.78 && supportedAnimations.has('crawling')) {
                             mascot.state = State.CRAWLING;
                             mascot.currentAnimation = 'crawling';
                             mascot.direction = Math.random() > 0.5 ? 1 : -1;
                             mascot.facingRight = mascot.direction > 0;
-                        } else if (roll < 0.80) {
+                        } else if (roll < 0.80 && supportedAnimations.has('jumping')) {
                             mascot.state = State.JUMPING;
                             mascot.currentAnimation = 'jumping';
                             mascot.velocityY = -14;
                             mascot.velocityX = (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random() * 2);
                             mascot.facingRight = mascot.velocityX > 0;
-                        } else if (roll < 0.90) {
+                        } else if (roll < 0.90 && supportedAnimations.has('headSpin')) {
                             mascot.state = State.HEAD_SPIN;
                             mascot.currentAnimation = 'headSpin';
-                        } else {
+                        } else if (supportedAnimations.has('sprawled')) {
                             mascot.state = State.SPRAWLED;
                             mascot.currentAnimation = 'sprawled';
                         }
@@ -2854,7 +3039,7 @@
                     mascot.x += PHYSICS.walkSpeed * mascot.direction;
                     if (mascot.x <= leftBound) {
                         mascot.x = leftBound;
-                        if (Math.random() < 0.4) {
+                        if (supportedAnimations.has('climbingWall') && Math.random() < 0.4) {
                             mascot.state = State.CLIMBING_WALL;
                             mascot.currentAnimation = 'climbingWall';
                             mascot.climbSide = -1;
@@ -2868,7 +3053,7 @@
                         mascot.facingRight = true;
                     } else if (mascot.x >= rightBound) {
                         mascot.x = rightBound;
-                        if (Math.random() < 0.4) {
+                        if (supportedAnimations.has('climbingWall') && Math.random() < 0.4) {
                             mascot.state = State.CLIMBING_WALL;
                             mascot.currentAnimation = 'climbingWall';
                             mascot.climbSide = 1;
@@ -2947,12 +3132,12 @@
 
                 case State.SITTING:
                     mascot.stateTimer++;
-                    if (lastCursorY !== null && lastCursorY < window.innerHeight / 2) {
+                    if (supportedAnimations.has('sittingLookUp') && lastCursorY !== null && lastCursorY < window.innerHeight / 2) {
                         mascot.currentAnimation = 'sittingLookUp';
                     } else {
                         mascot.currentAnimation = 'sitting';
                     }
-                    if (mascot.stateTimer > 100 && Math.random() < 0.01) {
+                    if (supportedAnimations.has('headSpin') && mascot.stateTimer > 100 && Math.random() < 0.01) {
                         mascot.state = State.HEAD_SPIN;
                         mascot.currentAnimation = 'headSpin';
                         mascot.stateTimer = 0;
@@ -3003,9 +3188,19 @@
                         mascot.x = rightBound;
                     }
                     if (mascot.y <= size) {
-                        mascot.y = size;
-                        mascot.state = State.CLIMBING_CEILING;
-                        mascot.currentAnimation = 'climbingCeiling';
+                        if (supportedAnimations.has('climbingCeiling')) {
+                            mascot.y = size;
+                            mascot.state = State.CLIMBING_CEILING;
+                            mascot.currentAnimation = 'climbingCeiling';
+                            mascot.stateTimer = 0;
+                            mascot.animationFrame = 0;
+                            mascot.animationTick = 0;
+                            break;
+                        }
+                        // No ceiling sprites — fall instead
+                        mascot.state = State.FALLING;
+                        mascot.currentAnimation = 'falling';
+                        mascot.velocityY = 0;
                         mascot.stateTimer = 0;
                         mascot.animationFrame = 0;
                         mascot.animationTick = 0;
@@ -3032,7 +3227,7 @@
                     mascot.facingRight = mascot.direction > 0;
                     if (mascot.x <= leftBound) { mascot.x = leftBound; mascot.direction = 1; mascot.facingRight = true; }
                     if (mascot.x >= rightBound) { mascot.x = rightBound; mascot.direction = -1; mascot.facingRight = false; }
-                    if (mascot.stateTimer > 75 && Math.random() < 0.01) {
+                    if (supportedAnimations.has('sittingEdge') && mascot.stateTimer > 75 && Math.random() < 0.01) {
                         mascot.state = State.SITTING_EDGE;
                         mascot.currentAnimation = 'sittingEdge';
                         mascot.stateTimer = 0;
@@ -3073,6 +3268,11 @@
         function updateAnimation() {
             if (mascot.isDragging) return;
 
+            if (!animationSet[mascot.currentAnimation]) {
+                mascot.currentAnimation = 'idle';
+                mascot.animationTick = 0;
+                mascot.animationFrame = 0;
+            }
             const animation = animationSet[mascot.currentAnimation];
             if (!animation || animation.length === 0) return;
 
@@ -3142,15 +3342,16 @@
             if (gameLoopTimer) return;
             armAudioUnlock();
 
-            chrome.storage.local.get(['shimejiLastPos'], (data) => {
+            safeStorageLocalGet(['shimejiLastPos'], (data) => {
                 const saved = data.shimejiLastPos && data.shimejiLastPos[shimejiId];
-                preloadSprites().then(() => {
-                    if (isDisabled) return;
+            preloadSprites().then(() => {
+                if (isDisabled) return;
 
-                    const applied = applySavedPosition(saved);
-                    if (!applied) {
-                        resetMascotState();
-                    }
+                animationSet = buildFilteredAnimationSet(animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL);
+                const applied = applySavedPosition(saved);
+                if (!applied) {
+                    resetMascotState();
+                }
                     createMascot();
                     createChatBubble();
                     createThinkingBubble();
@@ -3192,8 +3393,9 @@
             mascot.dragPending = false;
             mascot.isResisting = false;
 
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            document.removeEventListener('pointercancel', onPointerUp);
             document.removeEventListener('touchmove', onTouchMove);
             document.removeEventListener('touchend', onTouchEnd);
 
@@ -3255,8 +3457,12 @@
         function init() {
             currentSize = config.size || 'medium';
             currentCharacter = config.character || 'shimeji';
-            CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
-            animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+            CHARACTER_BASE = safeRuntimeGetURL('characters/' + currentCharacter + '/') || CHARACTER_BASE;
+            if (currentCharacter === 'egg') {
+                animationQuality = 'simple';
+            } else {
+                animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+            }
             animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
             applyVisibilityState(visibilityState.disabledAll, visibilityState.disabledPages);
 
@@ -3284,8 +3490,9 @@
                 clearTimeout(chatWiggleTimer);
                 chatWiggleTimer = null;
             }
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            document.removeEventListener('pointercancel', onPointerUp);
             document.removeEventListener('touchmove', onTouchMove);
             document.removeEventListener('touchend', onTouchEnd);
             if (chatBubbleEl) { chatBubbleEl.remove(); chatBubbleEl = null; }
@@ -3338,18 +3545,26 @@
                 const charChanged = config.character && config.character !== currentCharacter;
                 const personalityChanged = config.personality !== prevPersonality;
                 const ttsProfileChanged = prevTtsProfile && config.ttsVoiceProfile && prevTtsProfile !== config.ttsVoiceProfile;
-                const nextAnimationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
+                const nextAnimationQuality = (config.character === 'egg')
+                    ? 'simple'
+                    : (config.animationQuality === 'simple' ? 'simple' : 'full');
                 if (prevAnimationQuality !== nextAnimationQuality) {
                     animationQuality = nextAnimationQuality;
                     animationSet = animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL;
+                    if (spritesLoaded) {
+                        animationSet = buildFilteredAnimationSet(animationSet);
+                    }
                     updateSpriteDisplay();
                 }
                 if (charChanged) {
                     currentCharacter = config.character;
-                    CHARACTER_BASE = chrome.runtime.getURL('characters/' + currentCharacter + '/');
+                    CHARACTER_BASE = safeRuntimeGetURL('characters/' + currentCharacter + '/') || CHARACTER_BASE;
                     spritesLoaded = false;
                     spritesLoadedPromise = null;
-                    preloadSprites().then(updateSpriteDisplay);
+                    preloadSprites().then(() => {
+                        animationSet = buildFilteredAnimationSet(animationQuality === 'simple' ? ANIMATIONS_SIMPLE : ANIMATIONS_FULL);
+                        updateSpriteDisplay();
+                    });
                 }
                 if (charChanged || personalityChanged) {
                     invalidateSoundBuffers();
@@ -3426,15 +3641,20 @@
     }
 
     function initManager() {
-        chrome.storage.sync.get([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages], (syncData) => {
+        safeStorageSyncGet([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages], (syncData) => {
             visibilityState.disabledAll = !!syncData[STORAGE_KEYS.disabledAll];
             visibilityState.disabledPages = syncData[STORAGE_KEYS.disabledPages] || [];
 
+            safeStorageLocalGet(['shimejiLanguage'], (data) => {
+                uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
+                safeStorageLocalSet({ shimejiLanguage: uiLanguage });
+            });
+
             loadShimejiConfigs((configs) => {
                 syncRuntimes(configs);
-                chrome.storage.local.get(['onboardingGreetingShown'], (data) => {
+                safeStorageLocalGet(['onboardingGreetingShown'], (data) => {
                     if (data.onboardingGreetingShown) return;
-                    chrome.storage.local.set({ onboardingGreetingShown: true });
+                    safeStorageLocalSet({ onboardingGreetingShown: true });
                     setTimeout(() => {
                         const target = runtimes[0];
                         if (target && typeof target.showOnboardingHint === 'function') {
@@ -3457,36 +3677,69 @@
         });
     }
 
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === 'sync' && (changes.disabledAll || changes.disabledPages)) {
-            chrome.storage.sync.get([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages], (data) => {
-                visibilityState.disabledAll = !!data[STORAGE_KEYS.disabledAll];
-                visibilityState.disabledPages = data[STORAGE_KEYS.disabledPages] || [];
-                runtimes.forEach((runtime) => runtime.applyVisibilityState(visibilityState.disabledAll, visibilityState.disabledPages));
+    try {
+        if (isExtensionContextValid()) {
+    try {
+        if (isExtensionContextValid()) {
+            chrome.storage.onChanged.addListener((changes, areaName) => {
+            if (extensionInvalidated || !isExtensionContextValid()) return;
+            if (areaName === 'sync' && (changes.disabledAll || changes.disabledPages)) {
+                safeStorageSyncGet([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages], (data) => {
+                    visibilityState.disabledAll = !!data[STORAGE_KEYS.disabledAll];
+                    visibilityState.disabledPages = data[STORAGE_KEYS.disabledPages] || [];
+                    runtimes.forEach((runtime) => runtime.applyVisibilityState(visibilityState.disabledAll, visibilityState.disabledPages));
+                });
+            }
+
+                if (areaName === 'local' && changes.shimejis) {
+                    const next = Array.isArray(changes.shimejis.newValue) ? changes.shimejis.newValue : [];
+                    syncRuntimes(next.slice(0, MAX_SHIMEJIS));
+                }
+
+            if (areaName === 'local' && changes.shimejiLanguage) {
+                const nextLang = changes.shimejiLanguage.newValue;
+                if (nextLang === 'es' || nextLang === 'en') {
+                    uiLanguage = nextLang;
+                }
+            }
             });
         }
-
-        if (areaName === 'local' && changes.shimejis) {
-            const next = Array.isArray(changes.shimejis.newValue) ? changes.shimejis.newValue : [];
-            syncRuntimes(next.slice(0, MAX_SHIMEJIS));
+    } catch (e) {
+        extensionInvalidated = true;
+    }
         }
-    });
+    } catch (e) {
+        extensionInvalidated = true;
+    }
 
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') return;
         applyPositionsFromStorage();
     });
 
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        if (message.action === 'refreshShimejis') {
-            loadShimejiConfigs((configs) => {
-                syncRuntimes(configs);
+    try {
+        if (isExtensionContextValid()) {
+    try {
+        if (isExtensionContextValid()) {
+            chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (extensionInvalidated || !isExtensionContextValid()) return false;
+            if (message.action === 'refreshShimejis') {
+                loadShimejiConfigs((configs) => {
+                    syncRuntimes(configs);
+                });
+                sendResponse({ ok: true });
+                return true;
+            }
+            return false;
             });
-            sendResponse({ ok: true });
-            return true;
         }
-        return false;
-    });
+    } catch (e) {
+        extensionInvalidated = true;
+    }
+        }
+    } catch (e) {
+        extensionInvalidated = true;
+    }
 
     window.__shimejiCleanup = function() {
         runtimes.forEach((runtime) => runtime.destroy());

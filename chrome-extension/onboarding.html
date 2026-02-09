@@ -9,7 +9,16 @@
 <body>
   <main class="onboarding-shell">
     <header class="onboarding-hero">
-      <div class="onboarding-logo">Shimeji AI Pets</div>
+      <div class="onboarding-top-row">
+        <div class="onboarding-logo">Shimeji AI Pets</div>
+        <div class="onboarding-lang">
+          <label id="lang-label" for="lang-select">Language</label>
+          <select id="lang-select">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
       <h1 id="onboarding-title">Welcome! Let's bring your first shimeji to life.</h1>
       <p id="onboarding-subtitle">Configure the AI Brain and start chatting in seconds.</p>
     </header>
@@ -68,14 +77,14 @@
           <input id="openclaw-url" type="text" placeholder="ws://127.0.0.1:18789" />
         </div>
         <div class="field">
-          <label id="openclaw-token-label">OpenClaw Token</label>
+          <label id="openclaw-token-label">Gateway Auth Token</label>
           <input id="openclaw-token" type="password" placeholder="Enter gateway token" />
         </div>
         <p class="hint" id="openclaw-hint">OpenClaw needs a WebSocket URL + gateway token.</p>
       </div>
 
       <div class="actions">
-        <button id="save-btn" class="primary">Save & Open Settings</button>
+        <button id="save-btn" class="primary">Save</button>
         <button id="skip-btn" class="secondary">Skip for now</button>
       </div>
       <p class="footnote" id="add-more-hint">You can add more shimejis later with the + button.</p>

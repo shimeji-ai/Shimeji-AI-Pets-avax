@@ -1,24 +1,33 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Home } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
-export default async function SubscriptionSuccessPage({
+export default function SubscriptionSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; already?: string }>;
+  searchParams: { type?: string; already?: string };
 }) {
-  const params = await searchParams;
-  const already = params.already === "true";
+  const { isSpanish } = useLanguage();
+  const already = searchParams?.already === "true";
 
-  const typeMessages: Record<string, string> = {
+  const typeMessagesEn: Record<string, string> = {
     updates: "project updates and new features",
     shimeji_request: "shimeji availability notifications",
     collection_request: "new collection announcements",
   };
 
-  const message = params.type
-    ? typeMessages[params.type] || "updates"
-    : "updates";
+  const typeMessagesEs: Record<string, string> = {
+    updates: "novedades del proyecto y nuevas funciones",
+    shimeji_request: "avisos de disponibilidad de shimejis",
+    collection_request: "anuncios de nuevas colecciones",
+  };
+
+  const message = searchParams?.type
+    ? (isSpanish ? typeMessagesEs[searchParams.type] : typeMessagesEn[searchParams.type]) || (isSpanish ? "novedades" : "updates")
+    : (isSpanish ? "novedades" : "updates");
 
   return (
     <main className="min-h-screen neural-shell flex items-center justify-center p-4">
@@ -28,19 +37,25 @@ export default async function SubscriptionSuccessPage({
         </div>
 
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          {already ? "Already Confirmed!" : "You're Subscribed!"}
+          {already
+            ? (isSpanish ? "¡Ya estaba confirmado!" : "Already Confirmed!")
+            : (isSpanish ? "¡Suscripción confirmada!" : "You're Subscribed!")}
         </h1>
 
         <p className="text-muted-foreground mb-6">
           {already
-            ? `Your email was already confirmed. You'll receive ${message} from Shimeji AI Pets.`
-            : `Thanks for confirming! You'll now receive ${message} from Shimeji AI Pets.`}
+            ? (isSpanish
+              ? `Tu email ya estaba confirmado. Vas a recibir ${message} de Shimeji AI Pets.`
+              : `Your email was already confirmed. You'll receive ${message} from Shimeji AI Pets.`)
+            : (isSpanish
+              ? `¡Gracias por confirmar! Ahora vas a recibir ${message} de Shimeji AI Pets.`
+              : `Thanks for confirming! You'll now receive ${message} from Shimeji AI Pets.`)}
         </p>
 
         <Link href="/">
           <Button className="neural-button rounded-xl px-6">
             <Home className="w-4 h-4 mr-2" />
-            Back to Home
+            {isSpanish ? "Volver al inicio" : "Back to Home"}
           </Button>
         </Link>
       </div>

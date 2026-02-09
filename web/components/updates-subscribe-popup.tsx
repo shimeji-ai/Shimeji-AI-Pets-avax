@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmailSubscribeModal } from "@/components/email-subscribe-modal";
 import { Bell } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 interface UpdatesSubscribePopupProps {
   buttonClassName?: string;
@@ -15,6 +16,7 @@ export function UpdatesSubscribePopup({
   buttonVariant = "default",
 }: UpdatesSubscribePopupProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isSpanish } = useLanguage();
 
   return (
     <>
@@ -24,16 +26,16 @@ export function UpdatesSubscribePopup({
         className={buttonClassName}
       >
         <Bell className="w-4 h-4 mr-2" />
-        Subscribe for Updates
+        {isSpanish ? "Suscribirme a novedades" : "Subscribe for Updates"}
       </Button>
 
       <EmailSubscribeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         type="updates"
-        title="Stay in the Loop"
-        subtitle="Get notified about new features and shimejis"
-        buttonText="Subscribe"
+        title={isSpanish ? "Enterate de todo" : "Stay in the Loop"}
+        subtitle={isSpanish ? "Recibí avisos de nuevas funciones y shimejis" : "Get notified about new features and shimejis"}
+        buttonText={isSpanish ? "Suscribirme" : "Subscribe"}
       />
     </>
   );

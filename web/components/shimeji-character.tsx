@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLanguage } from "./language-provider";
 
 export function ShimejiCharacter() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isJumping, setIsJumping] = useState(false);
+  const { isSpanish } = useLanguage();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -33,7 +35,7 @@ export function ShimejiCharacter() {
         {/* Main character image */}
         <img
           src="/mascota-shimeji-2.png"
-          alt="Shimeji_2 mascot character"
+          alt={isSpanish ? "Personaje mascota Shimeji_2" : "Shimeji_2 mascot character"}
           className="w-60 h-60 sm:w-72 sm:h-72 lg:w-80 lg:h-80 object-contain drop-shadow-2xl"
         />
 

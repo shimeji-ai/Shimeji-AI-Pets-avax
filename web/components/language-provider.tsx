@@ -37,6 +37,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const savedLanguage = localStorage.getItem("shimeji-language");
     if (savedLanguage === "en" || savedLanguage === "es") {
       setLanguageState(savedLanguage);
+    } else {
+      setLanguageState(detectedLanguage);
     }
   }, []);
 

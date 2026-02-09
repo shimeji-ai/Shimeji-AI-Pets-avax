@@ -1,15 +1,18 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Home } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
-export default async function SubscriptionErrorPage({
+export default function SubscriptionErrorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string }>;
+  searchParams: { reason?: string };
 }) {
-  const params = await searchParams;
+  const { isSpanish } = useLanguage();
 
-  const errorMessages: Record<string, { title: string; message: string }> = {
+  const errorMessagesEn: Record<string, { title: string; message: string }> = {
     "missing-token": {
       title: "Invalid Link",
       message: "The confirmation link appears to be incomplete. Please try clicking the link from your email again.",
@@ -32,9 +35,32 @@ export default async function SubscriptionErrorPage({
     },
   };
 
-  const error = errorMessages[params.reason || ""] || {
-    title: "Something Went Wrong",
-    message: "An unexpected error occurred. Please try again.",
+  const errorMessagesEs: Record<string, { title: string; message: string }> = {
+    "missing-token": {
+      title: "Link inválido",
+      message: "El link de confirmación está incompleto. Probá abrir el link desde tu email otra vez.",
+    },
+    "invalid-token": {
+      title: "Link no encontrado",
+      message: "Este link es inválido o ya fue usado. Si necesitás suscribirte de nuevo, visitá nuestro sitio.",
+    },
+    "expired-token": {
+      title: "Link expirado",
+      message: "Este link expiró. Suscribite de nuevo para recibir un nuevo email de confirmación.",
+    },
+    "service-error": {
+      title: "Servicio no disponible",
+      message: "Tuvimos un problema procesando tu solicitud. Intentá más tarde.",
+    },
+    "update-failed": {
+      title: "Algo salió mal",
+      message: "No pudimos confirmar tu suscripción. Probá de nuevo o contactanos si el problema persiste.",
+    },
+  };
+
+  const error = (isSpanish ? errorMessagesEs : errorMessagesEn)[searchParams?.reason || ""] || {
+    title: isSpanish ? "Algo salió mal" : "Something Went Wrong",
+    message: isSpanish ? "Ocurrió un error inesperado. Probá de nuevo." : "An unexpected error occurred. Please try again.",
   };
 
   return (
@@ -53,7 +79,7 @@ export default async function SubscriptionErrorPage({
         <Link href="/">
           <Button className="neural-button rounded-xl px-6">
             <Home className="w-4 h-4 mr-2" />
-            Back to Home
+            {isSpanish ? "Volver al inicio" : "Back to Home"}
           </Button>
         </Link>
       </div>

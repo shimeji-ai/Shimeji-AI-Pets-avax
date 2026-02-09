@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shimeji AI Pets",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "Animated AI pets for your browser. Chat with a shimeji or connect your own agent.",
   "permissions": ["storage"],
   "action": {
@@ -28,10 +28,8 @@
     },
     {
       "matches": [
-        "https://chrome-extension-stellar-shimeji-fa.vercel.app/*",
         "https://shimeji.dev/*",
-        "https://www.shimeji.dev/*",
-        "http://localhost:3000/*"
+        "https://www.shimeji.dev/*"
       ],
       "js": ["dapp_content_script.js"],
       "run_at": "document_idle"

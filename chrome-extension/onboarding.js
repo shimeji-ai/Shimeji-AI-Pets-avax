@@ -21,14 +21,21 @@ const openclawUrl = document.getElementById("openclaw-url");
 const openclawToken = document.getElementById("openclaw-token");
 const saveBtn = document.getElementById("save-btn");
 const skipBtn = document.getElementById("skip-btn");
+const langSelect = document.getElementById("lang-select");
 
-const isSpanish = (navigator.language || "").toLowerCase().startsWith("es");
+let language = "en";
+
+function detectBrowserLanguage() {
+  return (navigator.language || "").toLowerCase().startsWith("es") ? "es" : "en";
+}
 
 function t(en, es) {
-  return isSpanish ? es : en;
+  return language === "es" ? es : en;
 }
 
 function setLabels() {
+  const langLabel = document.getElementById("lang-label");
+  if (langLabel) langLabel.textContent = t("Language", "Idioma");
   document.getElementById("onboarding-title").textContent = t(
     "Welcome! Let's bring your first shimeji to life.",
     "Bienvenido! Demos vida a tu primer shimeji."
@@ -65,14 +72,14 @@ function setLabels() {
     "Usa un servidor Ollama local para mantener todo en tu dispositivo."
   );
   document.getElementById("openclaw-url-label").textContent = t("Gateway URL", "Gateway URL");
-  document.getElementById("openclaw-token-label").textContent = t("OpenClaw Token", "Token OpenClaw");
+  document.getElementById("openclaw-token-label").textContent = t("Gateway Auth Token", "Token de auth del gateway");
   openclawUrl.placeholder = "ws://127.0.0.1:18789";
   openclawToken.placeholder = t("Enter gateway token", "Token del gateway");
   document.getElementById("openclaw-hint").textContent = t(
     "OpenClaw needs a WebSocket URL + gateway token.",
     "OpenClaw necesita un WebSocket + token del gateway."
   );
-  saveBtn.textContent = t("Save & Open Settings", "Guardar y abrir configuración");
+  saveBtn.textContent = t("Save", "Guardar");
   skipBtn.textContent = t("Skip for now", "Omitir por ahora");
   document.getElementById("add-more-hint").textContent = t(
     "You can add more shimejis later with the + button.",
@@ -80,15 +87,15 @@ function setLabels() {
   );
 }
 
-function populateModels() {
+function populateModels(selectedValue) {
   modelSelect.innerHTML = "";
   MODEL_OPTIONS.forEach((opt) => {
     const option = document.createElement("option");
     option.value = opt.value;
-    option.textContent = isSpanish && opt.labelEs ? opt.labelEs : opt.label;
+    option.textContent = language === "es" && opt.labelEs ? opt.labelEs : opt.label;
     modelSelect.appendChild(option);
   });
-  modelSelect.value = "random";
+  modelSelect.value = selectedValue || modelSelect.value || "random";
 }
 
 function toggleProvider() {
@@ -195,10 +202,23 @@ function skipOnboarding() {
   window.location.href = chrome.runtime.getURL("onboarding-success.html");
 }
 
-setLabels();
-populateModels();
-toggleMode();
-loadExistingConfig();
+function initOnboardingLanguage() {
+  chrome.storage.local.get(["shimejiLanguage"], (data) => {
+    if (data.shimejiLanguage === "es" || data.shimejiLanguage === "en") {
+      language = data.shimejiLanguage;
+    } else {
+      language = detectBrowserLanguage();
+      chrome.storage.local.set({ shimejiLanguage: language });
+    }
+    if (langSelect) langSelect.value = language;
+    setLabels();
+    populateModels("random");
+    toggleMode();
+    loadExistingConfig();
+  });
+}
+
+initOnboardingLanguage();
 
 providerSelect.addEventListener("change", () => {
   toggleProvider();
@@ -207,3 +227,12 @@ providerSelect.addEventListener("change", () => {
 if (modeSelect) modeSelect.addEventListener("change", toggleMode);
 saveBtn.addEventListener("click", saveConfig);
 skipBtn.addEventListener("click", skipOnboarding);
+if (langSelect) {
+  langSelect.addEventListener("change", () => {
+    const value = langSelect.value === "es" ? "es" : "en";
+    language = value;
+    chrome.storage.local.set({ shimejiLanguage: value });
+    setLabels();
+    populateModels(modelSelect.value || "random");
+  });
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ViewCollectionButton from "./viewcollection-button";
 import { ScrollAnimation } from "./scroll-animation";
+import { useLanguage } from "./language-provider";
 
 const characters = [
   {
@@ -44,6 +45,25 @@ const rarityStyles: Record<string, { bg: string; text: string }> = {
 
 export function CharactersSection() {
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const { isSpanish } = useLanguage();
+
+  const rarityLabel: Record<string, string> = {
+    Common: isSpanish ? "Común" : "Common",
+    Rare: isSpanish ? "Raro" : "Rare",
+    Epic: isSpanish ? "Épico" : "Epic",
+    Legendary: isSpanish ? "Legendario" : "Legendary",
+  };
+
+  const traitLabel: Record<string, string> = {
+    Playful: isSpanish ? "Juguetón" : "Playful",
+    Bouncy: isSpanish ? "Saltarín" : "Bouncy",
+    Sparkly: isSpanish ? "Brillante" : "Sparkly",
+    Magical: isSpanish ? "Mágico" : "Magical",
+    Sleepy: isSpanish ? "Dormilón" : "Sleepy",
+    Fluffy: isSpanish ? "Esponjoso" : "Fluffy",
+    Mystical: isSpanish ? "Místico" : "Mystical",
+    Wise: isSpanish ? "Sabio" : "Wise",
+  };
 
   const variants = {
     hidden: { opacity: 0, x: -50 },
@@ -56,11 +76,12 @@ export function CharactersSection() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-20">
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight text-balance">
-              Meet the Characters
+              {isSpanish ? "Conocé a los personajes" : "Meet the Characters"}
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
-              Each egg can reveal a unique shimeji with its own personality and
-              animations
+              {isSpanish
+                ? "Cada huevo puede revelar un shimeji único con su propia personalidad y animaciones."
+                : "Each egg can reveal a unique shimeji with its own personality and animations"}
             </p>
           </div>
 
@@ -91,7 +112,7 @@ export function CharactersSection() {
                       rarityStyles[character.rarity].bg
                     } ${rarityStyles[character.rarity].text}`}
                   >
-                    {character.rarity}
+                    {rarityLabel[character.rarity] || character.rarity}
                   </span>
                 </div>
 
@@ -101,7 +122,7 @@ export function CharactersSection() {
                       key={trait}
                       className="text-xs px-2.5 py-1 bg-muted text-muted-foreground rounded-full"
                     >
-                      {trait}
+                      {traitLabel[trait] || trait}
                     </span>
                   ))}
                 </div>

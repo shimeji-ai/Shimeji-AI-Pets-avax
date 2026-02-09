@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmailSubscribeModal } from "@/components/email-subscribe-modal";
 import { Bell, Sparkles } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 export function CollectionRequestForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { isSpanish } = useLanguage();
 
   return (
     <div className="neural-card rounded-2xl p-6">
@@ -15,17 +17,20 @@ export function CollectionRequestForm() {
           <Sparkles className="w-6 h-6 text-white" />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold mb-2">Custom Shimeji Requests</h2>
+          <h2 className="text-xl font-bold mb-2">
+            {isSpanish ? "Pedidos de Shimeji personalizados" : "Custom Shimeji Requests"}
+          </h2>
           <p className="text-gray-700 text-sm mb-4">
-            Soon you&apos;ll be able to request custom traits and behaviors for new
-            shimejis. Subscribe to get notified when this feature launches!
+            {isSpanish
+              ? "Pronto vas a poder pedir rasgos y comportamientos personalizados para nuevos shimejis. Suscribite para enterarte cuando se active."
+              : "Soon you'll be able to request custom traits and behaviors for new shimejis. Subscribe to get notified when this feature launches!"}
           </p>
           <Button
             onClick={() => setIsModalOpen(true)}
             className="neural-button rounded-xl px-6"
           >
             <Bell className="w-4 h-4 mr-2" />
-            Notify Me When Available
+            {isSpanish ? "Avisame cuando esté disponible" : "Notify Me When Available"}
           </Button>
         </div>
       </div>
@@ -34,9 +39,9 @@ export function CollectionRequestForm() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         type="collection_request"
-        title="Coming Soon!"
-        subtitle="We'll notify you when custom requests open"
-        buttonText="Notify Me"
+        title={isSpanish ? "¡Próximamente!" : "Coming Soon!"}
+        subtitle={isSpanish ? "Te avisamos cuando abran los pedidos personalizados" : "We'll notify you when custom requests open"}
+        buttonText={isSpanish ? "Avisame" : "Notify Me"}
       />
     </div>
   );

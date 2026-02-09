@@ -2,12 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import { useFreighter } from "@/components/freighter-provider";
+import { useLanguage } from "@/components/language-provider";
 
 function shortenKey(key: string) {
   return `${key.slice(0, 6)}...${key.slice(-4)}`;
 }
 
 export function FreighterConnectButton() {
+  const { isSpanish } = useLanguage();
   const {
     isAvailable,
     isDetecting,
@@ -20,6 +22,14 @@ export function FreighterConnectButton() {
     disconnect,
   } = useFreighter();
 
+  const localizeError = (value: string) => {
+    if (!isSpanish) return value;
+    if (value === "Freighter wallet not detected.") return "No se detectó la wallet Freighter.";
+    if (value === "Unable to read Freighter connection.") return "No se pudo leer la conexión de Freighter.";
+    if (value === "Connection request was rejected or failed.") return "La solicitud de conexión fue rechazada o falló.";
+    return value;
+  };
+
   // While still detecting, show a connect button (not "Install")
   // so users don't see a flash of "Install Freighter" on every load
   if (!isAvailable && !isDetecting) {
@@ -29,7 +39,7 @@ export function FreighterConnectButton() {
         className="neural-button rounded-xl px-4"
       >
         <a href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-          Install Freighter
+          {isSpanish ? "Instalar Freighter" : "Install Freighter"}
         </a>
       </Button>
     );
@@ -43,12 +53,12 @@ export function FreighterConnectButton() {
         disabled={isConnecting || isDetecting}
       >
         {isDetecting
-          ? "Detecting wallet..."
+          ? (isSpanish ? "Detectando wallet..." : "Detecting wallet...")
           : isConnecting
-            ? "Connecting..."
+            ? (isSpanish ? "Conectando..." : "Connecting...")
             : isConnected
-              ? "Disconnect"
-              : "Connect Freighter"}
+              ? (isSpanish ? "Desconectar" : "Disconnect")
+              : (isSpanish ? "Conectar Freighter" : "Connect Freighter")}
       </Button>
       {isConnected && publicKey && (
         <div className="hidden xl:flex flex-col text-xs text-muted-foreground">
@@ -57,7 +67,9 @@ export function FreighterConnectButton() {
         </div>
       )}
       {error && (
-        <span className="hidden xl:inline text-xs text-red-600">{error}</span>
+        <span className="hidden xl:inline text-xs text-red-600">
+          {localizeError(error)}
+        </span>
       )}
     </div>
   );

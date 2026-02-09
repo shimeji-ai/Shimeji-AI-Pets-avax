@@ -107,7 +107,7 @@ export default function CollectionPage() {
           {!mounted ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4" />
-              <p className="text-muted-foreground">Loading...</p>
+              <p className="text-muted-foreground">{isSpanish ? "Cargando..." : "Loading..."}</p>
             </div>
           ) : extensionDetected === false ? (
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">

@@ -18,6 +18,7 @@ export default function FactoryPage() {
   const [reserveError, setReserveError] = useState("");
   const { isSpanish } = useLanguage();
   const { isConnected, publicKey, isAvailable } = useFreighter();
+  const t = (en: string, es: string) => (isSpanish ? es : en);
 
   useEffect(() => {
     setMounted(true);
@@ -52,11 +53,11 @@ export default function FactoryPage() {
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        throw new Error(payload.error || "Could not submit request.");
+        throw new Error(payload.error || t("Could not submit request.", "No se pudo enviar la solicitud."));
       }
       setReserved(true);
     } catch (error) {
-      setReserveError(error instanceof Error ? error.message : "Could not submit request.");
+      setReserveError(error instanceof Error ? error.message : t("Could not submit request.", "No se pudo enviar la solicitud."));
     } finally {
       setIsReserving(false);
     }
@@ -77,8 +78,10 @@ export default function FactoryPage() {
                 Shimeji AI Pets
               </h1>
               <p className="text-sm text-muted-foreground">
-                Buy an egg, set an intention, and your pet will arrive ready to
-                chat and accompany you.
+                {t(
+                  "Buy an egg, set an intention, and your pet will arrive ready to chat and accompany you.",
+                  "Comprá un huevo, definí una intención y tu mascota llegará lista para chatear y acompañarte."
+                )}
               </p>
             </div>
           </div>
@@ -86,53 +89,55 @@ export default function FactoryPage() {
           {!mounted ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
-              <p className="text-muted-foreground">Loading...</p>
+              <p className="text-muted-foreground">{t("Loading...", "Cargando...")}</p>
             </div>
           ) : isConnected ? (
             <div className="neural-card rounded-2xl p-6 mb-10">
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
-                      Egg
-                    </div>
+                      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-foreground font-semibold">
+                      {t("Egg", "Huevo")}
+                      </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
-                        Custom Handcrafted Egg
+                        {t("Custom Handcrafted Egg", "Huevo artesanal personalizado")}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        You are buying an egg. It opens a few days after
-                        purchase. Your intention shapes its art direction and
-                        personality. We&apos;ll email you when your shimeji is
-                        ready, and it will appear in the extension with full AI
-                        chat support.
+                        {t(
+                          "You are buying an egg. It opens a few days after purchase. Your intention shapes its art direction and personality. We'll email you when your shimeji is ready, and it will appear in the extension with full AI chat support.",
+                          "Estás comprando un huevo. Se abre unos días después de la compra. Tu intención define su dirección artística y personalidad. Te avisamos por email cuando tu shimeji esté listo, y aparecerá en la extensión con chat AI completo."
+                        )}
                       </p>
                     </div>
                   </div>
 
                   <label className="block text-sm font-semibold text-foreground mb-2">
-                    Intention for this egg
+                    {t("Intention for this egg", "Intención para este huevo")}
                   </label>
                   <textarea
                     value={intent}
                     onChange={(event) => setIntent(event.target.value)}
-                    placeholder="e.g. Help me focus while I code, remind me to take breaks"
+                    placeholder={t(
+                      "e.g. Help me focus while I code, remind me to take breaks",
+                      "ej. Ayudame a concentrarme mientras codeo, recordame tomar descansos"
+                    )}
                     className="w-full min-h-[110px] rounded-xl border border-white/10 bg-[#0b0f14] p-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
                     maxLength={240}
                   />
                   <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                    <span>Max 240 characters</span>
+                    <span>{t("Max 240 characters", "Máximo 240 caracteres")}</span>
                     <span>{intent.length}/240</span>
                   </div>
 
                   <label className="block text-sm font-semibold text-foreground mt-4 mb-2">
-                    Contact email
+                    {t("Contact email", "Email de contacto")}
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@email.com"
+                    placeholder={t("you@email.com", "tu@email.com")}
                     className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
                     required
                   />
@@ -140,16 +145,19 @@ export default function FactoryPage() {
 
                 <div className="w-full lg:w-[280px]">
                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <h3 className="text-lg font-semibold mb-2">Checkout</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {t("Checkout", "Pago")}
+                    </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Connected as {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
+                      {t("Connected as", "Conectado como")}{" "}
+                      {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
                     </p>
                     <div className="flex items-center justify-between py-2 border-b border-white/10 text-sm">
-                      <span>Egg price</span>
-                      <span className="font-semibold">Coming soon</span>
+                      <span>{t("Egg price", "Precio del huevo")}</span>
+                      <span className="font-semibold">{t("Coming soon", "Próximamente")}</span>
                     </div>
                     <div className="flex items-center justify-between py-2 text-sm">
-                      <span>Network</span>
+                      <span>{t("Network", "Red")}</span>
                       <span className="font-semibold">Stellar</span>
                     </div>
                   </div>
@@ -158,10 +166,10 @@ export default function FactoryPage() {
                     <div className="mt-4 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
                       <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
                       <p className="text-sm font-semibold text-foreground">
-                        Egg reserved!
+                        {t("Egg reserved!", "¡Huevo reservado!")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        We&apos;ll reach out when payments go live.
+                        {t("We'll reach out when payments go live.", "Te avisamos cuando los pagos estén disponibles.")}
                       </p>
                     </div>
                   ) : (
@@ -172,10 +180,10 @@ export default function FactoryPage() {
                     >
                       {isReserving ? (
                         <span className="inline-flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" /> Reserving...
+                          <Loader2 className="w-4 h-4 animate-spin" /> {t("Reserving...", "Reservando...")}
                         </span>
                       ) : (
-                        "Reserve Egg"
+                        t("Reserve Egg", "Reservar huevo")
                       )}
                     </Button>
                   )}

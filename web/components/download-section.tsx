@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmailSubscribeModal } from "@/components/email-subscribe-modal";
 import { Download, Bell, Smartphone } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 
 type Platform = "android" | "ios" | null;
 
 export function DownloadSection() {
   const [notifyPlatform, setNotifyPlatform] = useState<Platform>(null);
+  const { isSpanish } = useLanguage();
 
   return (
     <section id="download" className="py-20">
@@ -17,25 +19,33 @@ export function DownloadSection() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
             <Download className="w-8 h-8" />
           </div>
-          <h2 className="text-5xl font-semibold mb-4">Download Shimeji AI Pets</h2>
+          <h2 className="text-5xl font-semibold mb-4">
+            {isSpanish ? "Descargar Shimeji AI Pets" : "Download Shimeji AI Pets"}
+          </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Install the extension and get an AI pet in your browser.
-            Chat with it, let it react to your browsing, or connect it to
-            onchain tools.
+            {isSpanish
+              ? "Instalá la extensión y tené una mascota AI en tu navegador. Chateá con ella, dejá que reaccione a tu navegación o conectala a herramientas onchain."
+              : "Install the extension and get an AI pet in your browser. Chat with it, let it react to your browsing, or connect it to onchain tools."}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="neural-card rounded-2xl p-8 text-center">
-            <h3 className="text-2xl font-semibold mb-4">Chrome Extension</h3>
+            <h3 className="text-2xl font-semibold mb-4">
+              {isSpanish ? "Extensión de Chrome" : "Chrome Extension"}
+            </h3>
             <div className="text-left mb-4">
-              <p className="mb-2 text-muted-foreground">Follow these steps to install:</p>
+              <p className="mb-2 text-muted-foreground">
+                {isSpanish ? "Seguí estos pasos para instalar:" : "Follow these steps to install:"}
+              </p>
               <div className="text-sm text-muted-foreground">
-                Click download, unzip, then open `chrome://extensions` and load the folder.
+                {isSpanish
+                  ? "Descargá, descomprimí, luego abrí `chrome://extensions` y cargá la carpeta."
+                  : "Click download, unzip, then open `chrome://extensions` and load the folder."}
               </div>
             </div>
             <Button asChild className="neural-button">
               <a href="/shimeji-chrome-extension.zip" download>
-                Download Extension
+                {isSpanish ? "Descargar Extensión" : "Download Extension"}
               </a>
             </Button>
           </div>
@@ -46,8 +56,9 @@ export function DownloadSection() {
                 <Smartphone className="w-6 h-6" />
               </div>
               <p className="text-muted-foreground mb-4">
-                Android app coming soon! Get notified when it launches on the
-                Google Play Store.
+                {isSpanish
+                  ? "¡App de Android próximamente! Te avisamos cuando salga en Google Play."
+                  : "Android app coming soon! Get notified when it launches on the Google Play Store."}
               </p>
             </div>
             <Button
@@ -55,7 +66,7 @@ export function DownloadSection() {
               className="neural-button"
             >
               <Bell className="w-4 h-4 mr-2" />
-              Notify Me
+              {isSpanish ? "Avisame" : "Notify Me"}
             </Button>
           </div>
           <div className="neural-card rounded-2xl p-8 text-center flex flex-col">
@@ -65,8 +76,9 @@ export function DownloadSection() {
                 <Smartphone className="w-6 h-6" />
               </div>
               <p className="text-muted-foreground mb-4">
-                iOS app coming soon! Get notified when it launches on the Apple
-                App Store.
+                {isSpanish
+                  ? "¡App de iOS próximamente! Te avisamos cuando salga en App Store."
+                  : "iOS app coming soon! Get notified when it launches on the Apple App Store."}
               </p>
             </div>
             <Button
@@ -74,7 +86,7 @@ export function DownloadSection() {
               className="neural-button"
             >
               <Bell className="w-4 h-4 mr-2" />
-              Notify Me
+              {isSpanish ? "Avisame" : "Notify Me"}
             </Button>
           </div>
         </div>
@@ -84,9 +96,9 @@ export function DownloadSection() {
         isOpen={notifyPlatform === "android"}
         onClose={() => setNotifyPlatform(null)}
         type="updates"
-        title="Android App Coming Soon!"
-        subtitle="We'll notify you when the Android app is available"
-        buttonText="Notify Me"
+        title={isSpanish ? "¡App de Android próximamente!" : "Android App Coming Soon!"}
+        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de Android" : "We'll notify you when the Android app is available"}
+        buttonText={isSpanish ? "Avisame" : "Notify Me"}
         metadata={{ platform: "android" }}
       />
 
@@ -94,9 +106,9 @@ export function DownloadSection() {
         isOpen={notifyPlatform === "ios"}
         onClose={() => setNotifyPlatform(null)}
         type="updates"
-        title="iOS App Coming Soon!"
-        subtitle="We'll notify you when the iOS app is available"
-        buttonText="Notify Me"
+        title={isSpanish ? "¡App de iOS próximamente!" : "iOS App Coming Soon!"}
+        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de iOS" : "We'll notify you when the iOS app is available"}
+        buttonText={isSpanish ? "Avisame" : "Notify Me"}
         metadata={{ platform: "ios" }}
       />
     </section>

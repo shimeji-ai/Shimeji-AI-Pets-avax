@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Mail, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useLanguage } from "@/components/language-provider";
 
 type SubscriptionType = "updates" | "shimeji_request" | "collection_request";
 
@@ -26,7 +27,7 @@ export function EmailSubscribeModal({
   type,
   title,
   subtitle,
-  buttonText = "Subscribe",
+  buttonText,
   metadata = {},
   onSuccess,
 }: EmailSubscribeModalProps) {
@@ -34,6 +35,9 @@ export function EmailSubscribeModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
+  const { isSpanish } = useLanguage();
+
+  const t = (en: string, es: string) => (isSpanish ? es : en);
 
   if (!isOpen) return null;
 
@@ -42,7 +46,7 @@ export function EmailSubscribeModal({
     setError("");
 
     if (!email || !EMAIL_REGEX.test(email)) {
-      setError("Please enter a valid email address");
+      setError(t("Please enter a valid email address", "Ingresa un email válido"));
       return;
     }
 
@@ -64,15 +68,15 @@ export function EmailSubscribeModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to subscribe");
+        throw new Error(data.error || t("Failed to subscribe", "No se pudo suscribir"));
       }
 
       setIsSuccess(true);
-      toast.success(data.message || "Successfully subscribed!");
+      toast.success(data.message || t("Successfully subscribed!", "¡Suscripción exitosa!"));
       onSuccess?.();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to subscribe";
+        err instanceof Error ? err.message : t("Failed to subscribe", "No se pudo suscribir");
       setError(message);
       toast.error(message);
     } finally {
@@ -86,6 +90,8 @@ export function EmailSubscribeModal({
     setIsSuccess(false);
     onClose();
   };
+
+  const resolvedButtonText = buttonText ?? t("Subscribe", "Suscribirme");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -117,9 +123,14 @@ export function EmailSubscribeModal({
         {isSuccess ? (
           <div className="rounded-xl p-4 text-center bg-[rgba(134,240,255,0.08)] border border-[rgba(134,240,255,0.3)]">
             <Mail className="w-8 h-8 text-[var(--brand-accent)] mx-auto mb-2" />
-            <p className="font-semibold text-foreground">Check your inbox!</p>
+            <p className="font-semibold text-foreground">
+              {t("Check your inbox!", "Revisá tu correo")}
+            </p>
             <p className="text-sm text-muted-foreground mt-1">
-              We sent you a confirmation email. Click the link to complete your subscription.
+              {t(
+                "We sent you a confirmation email. Click the link to complete your subscription.",
+                "Te enviamos un email de confirmación. Hacé clic en el link para completar tu suscripción."
+              )}
             </p>
           </div>
         ) : (
@@ -132,7 +143,7 @@ export function EmailSubscribeModal({
                   setEmail(e.target.value);
                   setError("");
                 }}
-                placeholder="Enter your email"
+                placeholder={t("Enter your email", "Ingresá tu email")}
                 className="w-full px-4 py-3 rounded-xl bg-[#0f141b] border border-white/10 focus:border-[var(--brand-accent)] focus:outline-none text-foreground placeholder:text-muted-foreground"
                 disabled={isSubmitting}
               />
@@ -149,15 +160,18 @@ export function EmailSubscribeModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Subscribing...
+                  {t("Subscribing...", "Suscribiendo...")}
                 </>
               ) : (
-                buttonText
+                resolvedButtonText
               )}
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              We respect your privacy. Unsubscribe at any time.
+              {t(
+                "We respect your privacy. Unsubscribe at any time.",
+                "Respetamos tu privacidad. Podés darte de baja cuando quieras."
+              )}
             </p>
           </form>
         )}

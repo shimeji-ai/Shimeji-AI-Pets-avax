@@ -34,18 +34,43 @@ body {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
 }
 
+.onboarding-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .onboarding-logo {
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(134, 240, 255, 0.8);
-  margin-bottom: 8px;
+}
+
+.onboarding-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.onboarding-lang label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.onboarding-lang select {
+  min-width: 110px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 h1 {
   font-size: 24px;
-  margin: 0 0 8px;
+  margin: 8px 0 8px;
 }
 
 p {

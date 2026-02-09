@@ -317,6 +317,30 @@ body[data-theme="pink"] .shimeji-card {
   gap: 8px;
 }
 
+.shimeji-preview {
+  margin: 10px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  padding: 6px 0;
+  background: transparent;
+  border: none;
+}
+
+body[data-theme="pink"] .shimeji-preview,
+body[data-theme="kawaii"] .shimeji-preview {
+  background: transparent;
+  border: none;
+}
+
+.shimeji-preview-sprite {
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+
 .shimeji-card-actions {
   display: flex;
   align-items: center;

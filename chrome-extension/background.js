@@ -705,6 +705,7 @@ async function callOpenClaw(gatewayUrl, token, messages) {
     let responseText = '';
     let authenticated = false;
     let reqIdCounter = 0;
+    let idleTimer = null;
 
     const timeout = setTimeout(() => {
       if (!settled) {
@@ -718,6 +719,10 @@ async function callOpenClaw(gatewayUrl, token, messages) {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
       if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       resolve(result);
     }
@@ -726,12 +731,46 @@ async function callOpenClaw(gatewayUrl, token, messages) {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
       if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       reject(err);
     }
 
     function nextId() {
       return 'shimeji-' + (++reqIdCounter);
+    }
+
+    function extractPayloadText(payload) {
+      if (!payload) return '';
+      if (typeof payload === 'string') return payload;
+      if (typeof payload.content === 'string') return payload.content;
+      if (typeof payload.text === 'string') return payload.text;
+      if (payload.delta) {
+        if (typeof payload.delta.content === 'string') return payload.delta.content;
+        if (typeof payload.delta.text === 'string') return payload.delta.text;
+      }
+      if (payload.message) {
+        const msg = payload.message;
+        if (typeof msg.content === 'string') return msg.content;
+        if (Array.isArray(msg.content)) {
+          return msg.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+        }
+      }
+      if (Array.isArray(payload.content)) {
+        return payload.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+      }
+      return '';
+    }
+
+    function bumpIdleFinish() {
+      if (!responseText) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        finish(responseText || '(no response)');
+      }, 3500);
     }
 
     try {
@@ -797,27 +836,33 @@ async function callOpenClaw(gatewayUrl, token, messages) {
       }
 
       // Step 3: Collect streamed agent response events
-      if (data.type === 'event' && data.event === 'agent') {
+      if (data.type === 'event') {
         const p = data.payload || {};
-        // Accumulate text deltas
-        if (p.delta?.content) {
-          responseText += p.delta.content;
-        } else if (p.type === 'text' && p.content) {
-          responseText += p.content;
-        } else if (p.type === 'message' && p.content) {
-          responseText += p.content;
+        const text = extractPayloadText(p);
+        if (text) {
+          responseText += text;
+          bumpIdleFinish();
         }
-        // Check for completion
         if (p.status === 'completed' || p.status === 'ok' || p.type === 'done' || p.done) {
-          finish(responseText || '(no response)');
+          finish(responseText || text || '(no response)');
         }
-        return;
+        if (data.event === 'agent' || data.event?.startsWith('chat.') || data.event === 'message') {
+          return;
+        }
       }
 
-      // Handle final agent response (res frame with runId)
-      if (data.type === 'res' && authenticated && data.ok === true && data.payload?.runId) {
-        // This is the initial ack — agent run started, wait for events
-        return;
+      // Handle final agent response (res frame)
+      if (data.type === 'res' && authenticated && data.ok === true) {
+        if (data.payload?.runId) {
+          // This is the initial ack — agent run started, wait for events
+          return;
+        }
+        const text = extractPayloadText(data.payload);
+        if (text) {
+          responseText += text;
+          finish(responseText);
+          return;
+        }
       }
 
       // Handle agent error response

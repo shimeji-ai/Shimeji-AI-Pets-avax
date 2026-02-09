@@ -22,7 +22,7 @@ const providers = [
       "Popup de la extensión → Standard → OpenRouter.",
       "Pegá la key y elegí un modelo.",
     ],
-    link: { href: "https://openrouter.ai/settings/keys", label: "OpenRouter Keys" },
+    link: { href: "https://openrouter.ai/settings/keys", labelEn: "Get OpenRouter keys", labelEs: "Conseguir keys de OpenRouter" },
   },
   {
     id: "ollama",
@@ -40,7 +40,7 @@ const providers = [
       "Popup → Standard → Provider: Ollama.",
       "Configurá `Ollama URL` y el nombre del modelo.",
     ],
-    link: { href: "https://ollama.com", label: "Ollama" },
+    link: { href: "https://ollama.com", labelEn: "Download Ollama", labelEs: "Descargar Ollama" },
   },
   {
     id: "openclaw",
@@ -58,7 +58,7 @@ const providers = [
       "Copiá la URL WebSocket + token.",
       "Popup → AI Agent → pegá URL + token.",
     ],
-    link: { href: "https://openclaw.ai", label: "OpenClaw" },
+    link: { href: "https://openclaw.ai", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
   },
 ];
 
@@ -224,7 +224,7 @@ export function HelpSection() {
                     rel="noopener noreferrer"
                     className="text-[var(--brand-accent)] hover:text-white transition-colors"
                   >
-                    {provider.link.label}
+                    {isSpanish ? provider.link.labelEs : provider.link.labelEn}
                   </Link>
                 </div>
               </div>
