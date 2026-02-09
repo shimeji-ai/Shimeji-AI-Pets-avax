@@ -66,18 +66,24 @@ export const AddressInfoDropdown = ({
           </span>
           <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0" />
         </summary>
-        <ul className="dropdown-content menu z-2 p-2 mt-2 shadow-center shadow-accent bg-base-200 rounded-box gap-1">
+        <ul className="dropdown-content menu z-2 p-2 mt-2 shadow-center shadow-accent bg-card text-card-foreground border border-border rounded-box gap-1">
           <li className="px-3 py-2">
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div
+              className="flex items-center justify-between gap-3 text-xs"
+              onClick={event => event.stopPropagation()}
+              onMouseDown={event => event.stopPropagation()}
+            >
               <span className="text-muted-foreground">Balance</span>
-              <Balance
-                address={address}
-                style={{
-                  minHeight: "0",
-                  height: "auto",
-                  fontSize: "0.85em",
-                }}
-              />
+              <span className="text-foreground">
+                <Balance
+                  address={address}
+                  style={{
+                    minHeight: "0",
+                    height: "auto",
+                    fontSize: "0.85em",
+                  }}
+                />
+              </span>
             </div>
             {chainName ? (
               <div className="flex items-center justify-between gap-3 text-xs mt-1">
