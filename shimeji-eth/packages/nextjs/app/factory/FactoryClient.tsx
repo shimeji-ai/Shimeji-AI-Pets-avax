@@ -90,8 +90,8 @@ export default function FactoryClient() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-14 h-14 flex items-center justify-center">
-                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-12 h-12 object-contain" />
+                    <div className="w-40 h-40 flex items-center justify-center">
+                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-36 h-36 object-contain" />
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-1">{t("Custom Handcrafted Egg", "Huevo artesanal personalizado")}</h3>
