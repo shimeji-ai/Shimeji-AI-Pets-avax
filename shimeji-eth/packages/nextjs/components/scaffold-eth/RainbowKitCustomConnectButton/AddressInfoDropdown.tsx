@@ -13,6 +13,7 @@ import {
   EyeIcon,
   QrCodeIcon,
 } from "@heroicons/react/24/outline";
+import { Balance } from "@scaffold-ui/components";
 import { BlockieAvatar } from "~~/components/scaffold-eth";
 import { useCopyToClipboard, useOutsideClick } from "~~/hooks/scaffold-eth";
 import { getTargetNetworks } from "~~/utils/scaffold-eth";
@@ -27,6 +28,8 @@ type AddressInfoDropdownProps = {
   blockExplorerAddressLink: string | undefined;
   displayName: string;
   ensAvatar?: string;
+  networkColor?: string;
+  chainName?: string;
 };
 
 export const AddressInfoDropdown = ({
@@ -34,6 +37,8 @@ export const AddressInfoDropdown = ({
   ensAvatar,
   displayName,
   blockExplorerAddressLink,
+  networkColor,
+  chainName,
 }: AddressInfoDropdownProps) => {
   const { disconnect } = useDisconnect();
   const { connector } = useAccount();
@@ -62,6 +67,26 @@ export const AddressInfoDropdown = ({
           <ChevronDownIcon className="h-6 w-4 ml-2 sm:ml-0" />
         </summary>
         <ul className="dropdown-content menu z-2 p-2 mt-2 shadow-center shadow-accent bg-base-200 rounded-box gap-1">
+          <li className="px-3 py-2">
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted-foreground">Balance</span>
+              <Balance
+                address={address}
+                style={{
+                  minHeight: "0",
+                  height: "auto",
+                  fontSize: "0.85em",
+                }}
+              />
+            </div>
+            {chainName ? (
+              <div className="flex items-center justify-between gap-3 text-xs mt-1">
+                <span className="text-muted-foreground">Network</span>
+                <span style={{ color: networkColor }}>{chainName}</span>
+              </div>
+            ) : null}
+          </li>
+          <li className="divider my-0" />
           <NetworkOptions hidden={!selectingNetwork} />
           <li className={selectingNetwork ? "hidden" : ""}>
             <div
