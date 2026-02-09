@@ -42,7 +42,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsHowItWorksHovered(true)}
                 onMouseLeave={() => setIsHowItWorksHovered(false)}
               >
-                <a href="#how-it-works">
+                <a href="#get-started">
                   <Button size="lg" className="neural-button rounded-full hover:cursor-pointer px-8 gap-2 text-base">
                     {isSpanish ? "Cómo funciona" : "How it works"}
                     <ArrowRight className="w-4 h-4" />

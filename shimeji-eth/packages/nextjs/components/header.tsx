@@ -77,13 +77,6 @@ export function Header() {
               </a>
               <SparkleAnimation isHovering={isFaqHovered} />
             </div>
-            <Link
-              href="/help"
-              prefetch={false}
-              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-            >
-              {isSpanish ? "Ayuda" : "Help"}
-            </Link>
             <div
               className="relative"
               onMouseEnter={() => setIsMarketplaceHovered(true)}
@@ -98,6 +91,13 @@ export function Header() {
               </Link>
               <SparkleAnimation isHovering={isMarketplaceHovered} />
             </div>
+            <Link
+              href="/help"
+              prefetch={false}
+              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+            >
+              {isSpanish ? "Ayuda" : "Help"}
+            </Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -142,20 +142,20 @@ export function Header() {
                 FAQ
               </a>
               <Link
-                href="/help"
-                prefetch={false}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Ayuda" : "Help"}
-              </Link>
-              <Link
                 href="/factory"
                 prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Fábrica" : "Factory"}
+              </Link>
+              <Link
+                href="/help"
+                prefetch={false}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Ayuda" : "Help"}
               </Link>
               <div className="pt-2">
                 <LanguageSwitcher />
