@@ -652,3 +652,11 @@ body[data-theme="kawaii"] .text-muted-foreground\/80 {
     box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
   }
 }
+
+.wallet-connect .btn-primary {
+  box-shadow: 0 0 18px color-mix(in oklch, oklch(var(--p)) 55%, transparent);
+}
+
+.wallet-connect .btn-secondary {
+  box-shadow: 0 0 18px color-mix(in oklch, oklch(var(--s)) 55%, transparent);
+}
