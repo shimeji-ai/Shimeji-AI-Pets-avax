@@ -688,14 +688,6 @@ if (securityHint) securityHint.textContent = t(
       bubble: "glass"
     },
     {
-      id: "neural",
-      labelEn: "Neural",
-      labelEs: "Neural",
-      theme: "#86f0ff",
-      bg: "#0b0d1f",
-      bubble: "dark"
-    },
-    {
       id: "kawaii",
       labelEn: "Kawaii",
       labelEs: "Kawaii",
@@ -704,20 +696,28 @@ if (securityHint) securityHint.textContent = t(
       bubble: "glass"
     },
     {
-      id: "lavender",
-      labelEn: "Lavender",
-      labelEs: "Lavanda",
-      theme: "#3a216a",
-      bg: "#e4d8ff",
+      id: "mint",
+      labelEn: "Mint",
+      labelEs: "Menta",
+      theme: "#0f5f54",
+      bg: "#c7fff0",
       bubble: "glass"
     },
     {
-      id: "citrus",
-      labelEn: "Citrus",
-      labelEs: "Cítrico",
-      theme: "#7a3b00",
-      bg: "#ffe2a6",
-      bubble: "solid"
+      id: "ocean",
+      labelEn: "Ocean",
+      labelEs: "Océano",
+      theme: "#103a7a",
+      bg: "#cfe6ff",
+      bubble: "glass"
+    },
+    {
+      id: "neural",
+      labelEn: "Neural",
+      labelEs: "Neural",
+      theme: "#86f0ff",
+      bg: "#0b0d1f",
+      bubble: "dark"
     },
     {
       id: "cyberpunk",
@@ -736,40 +736,23 @@ if (securityHint) securityHint.textContent = t(
       bubble: "dark"
     },
     {
-      id: "mint",
-      labelEn: "Mint",
-      labelEs: "Menta",
-      theme: "#0f5f54",
-      bg: "#c7fff0",
-      bubble: "glass"
+      id: "midnight",
+      labelEn: "Midnight",
+      labelEs: "Medianoche",
+      theme: "#7aa7ff",
+      bg: "#0b1220",
+      bubble: "dark"
     },
     {
-      id: "sunset",
-      labelEn: "Sunset",
-      labelEs: "Atardecer",
-      theme: "#7a2a1a",
-      bg: "#ffd3b8",
-      bubble: "solid"
-    },
-    {
-      id: "ocean",
-      labelEn: "Ocean",
-      labelEs: "Océano",
-      theme: "#103a7a",
-      bg: "#cfe6ff",
-      bubble: "glass"
+      id: "ember",
+      labelEn: "Ember",
+      labelEs: "Brasas",
+      theme: "#ff8b3d",
+      bg: "#1a0c08",
+      bubble: "dark"
     }
   ];
-  const CHAT_THEMES = [
-    { id: "pastel", labelEn: "Pastel", labelEs: "Pastel", theme: "#7b5cff", bg: "#fff7fb", bubble: "glass" },
-    { id: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", theme: "#ff6cab", bg: "#fff1f9", bubble: "glass" },
-    { id: "cyberpunk", labelEn: "Cyberpunk", labelEs: "Cyberpunk", theme: "#19d3ff", bg: "#0d0b1f", bubble: "dark" },
-    { id: "noir-rose", labelEn: "Noir Rose", labelEs: "Noir Rosa", theme: "#ff5fbf", bg: "#0a0a0f", bubble: "dark" },
-    { id: "mint", labelEn: "Mint", labelEs: "Menta", theme: "#21c7a8", bg: "#f1fffb", bubble: "glass" },
-    { id: "sunset", labelEn: "Sunset", labelEs: "Atardecer", theme: "#ff8a4c", bg: "#fff2e6", bubble: "solid" },
-    { id: "ocean", labelEn: "Ocean", labelEs: "Océano", theme: "#2a7de1", bg: "#eaf4ff", bubble: "glass" },
-    { id: "forest", labelEn: "Forest", labelEs: "Bosque", theme: "#2f9e44", bg: "#edf7ef", bubble: "solid" }
-  ];
+  const CHAT_THEMES = CHAT_THEME_PRESETS;
 
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
@@ -803,8 +786,8 @@ if (securityHint) securityHint.textContent = t(
       chatFontSize: "medium",
       chatWidth: "medium",
       chatBubbleStyle: preset?.bubble || "glass",
+      chatThemePreset: "random",
       ttsEnabled: false,
-      ttsWhenClosed: false,
       ttsVoiceProfile: randomVoiceProfile,
       ttsVoiceId: "",
       openMicEnabled: false,
@@ -847,7 +830,6 @@ if (securityHint) securityHint.textContent = t(
           openclawGatewayToken: shimeji.openclawGatewayToken || "",
           personality: shimeji.personality || "cryptid",
           ttsEnabled: shimeji.ttsEnabled === true,
-          ttsWhenClosed: shimeji.ttsWhenClosed === true,
           ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
           ttsVoiceId: shimeji.ttsVoiceId || "",
           openMicEnabled: !!shimeji.openMicEnabled,
@@ -884,7 +866,6 @@ if (securityHint) securityHint.textContent = t(
         soundEnabled: true,
         soundVolume: 0.7,
         ttsEnabled: false,
-        ttsWhenClosed: false,
         ttsVoiceProfile: pickRandomVoiceProfile(),
         ttsVoiceId: "",
         openMicEnabled: false,
@@ -1317,18 +1298,82 @@ if (securityHint) securityHint.textContent = t(
 
       const chatThemeOptions = [
         { value: "custom", labelEn: "Custom", labelEs: "Personalizado" },
+        { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
         ...CHAT_THEME_PRESETS.map((preset) => ({
           value: preset.id,
           labelEn: preset.labelEn,
           labelEs: preset.labelEs
         }))
       ];
-      chatStyleGrid.appendChild(renderSelectField(
+      const chatThemeSelect = renderSelectField(
         "chatThemePreset",
         t("Chat Theme", "Tema de chat"),
         chatThemeOptions,
         getChatThemePresetId(shimeji)
-      ));
+      );
+      chatStyleGrid.appendChild(chatThemeSelect);
+
+      const themeRow = document.createElement("div");
+      themeRow.className = "popup-theme-presets";
+      const themeButtons = new Map();
+      function createThemeChip(id, label, colors) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "popup-theme-circle";
+        btn.dataset.themeId = id;
+        btn.title = label;
+        btn.setAttribute("aria-label", label);
+        const outer = document.createElement("span");
+        outer.className = "popup-theme-circle-outer";
+        const inner = document.createElement("span");
+        inner.className = "popup-theme-circle-inner";
+        if (colors && colors.bg && colors.theme) {
+          outer.style.background = colors.bg;
+          inner.style.background = colors.theme;
+        } else {
+          outer.classList.add("custom");
+          inner.classList.add("custom");
+        }
+        if (id === "custom") {
+          inner.textContent = "🎨";
+          inner.classList.add("emoji");
+        }
+        if (id === "random") {
+          inner.textContent = "🎲";
+          inner.classList.add("emoji");
+        }
+        outer.appendChild(inner);
+        btn.appendChild(outer);
+        themeButtons.set(id, btn);
+        themeRow.appendChild(btn);
+        return btn;
+      }
+
+      createThemeChip("custom", t("🎨 Custom", "🎨 Personalizado"));
+      createThemeChip("random", t("🎲 Random", "🎲 Aleatorio"), { theme: "#111827", bg: "#f8fafc" });
+      CHAT_THEME_PRESETS.forEach((preset) => {
+        createThemeChip(
+          preset.id,
+          t(preset.labelEn, preset.labelEs),
+          { theme: preset.theme, bg: preset.bg }
+        );
+      });
+
+      themeRow.addEventListener("click", (e) => {
+        const btn = e.target.closest(".popup-theme-circle");
+        if (!btn) return;
+        const presetId = btn.dataset.themeId || "custom";
+        const select = chatThemeSelect.querySelector('select[data-field="chatThemePreset"]');
+        if (select) {
+          select.value = presetId;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        themeButtons.forEach((b, key) => b.classList.toggle("active", key === presetId));
+      });
+
+      const initialPreset = getChatThemePresetId(shimeji);
+      themeButtons.forEach((b, key) => b.classList.toggle("active", key === initialPreset));
+      chatStyleGrid.appendChild(themeRow);
 
       chatStyleGrid.appendChild(renderColorField("chatThemeColor", t("Theme Color", "Color Tema"), shimeji.chatThemeColor || "#2a1f4e"));
       chatStyleGrid.appendChild(renderColorField("chatBgColor", t("Background", "Fondo"), shimeji.chatBgColor || "#ffffff"));
@@ -1425,6 +1470,8 @@ if (securityHint) securityHint.textContent = t(
   }
 
   function getChatThemePresetId(shimeji) {
+    if (shimeji.chatThemePreset === "random") return "random";
+    if (shimeji.chatThemePreset === "custom") return "custom";
     const theme = (shimeji.chatThemeColor || "").toLowerCase();
     const bg = (shimeji.chatBgColor || "").toLowerCase();
     const bubble = shimeji.chatBubbleStyle || "glass";
@@ -1834,9 +1881,26 @@ if (securityHint) securityHint.textContent = t(
       if (!field) return;
       if (field === "chatThemePreset") {
         const presetId = e.target.value;
-        if (presetId === "custom") return;
+        if (presetId === "custom") {
+          updateShimeji(id, "chatThemePreset", "custom");
+          return;
+        }
+        if (presetId === "random") {
+          const preset = CHAT_THEME_PRESETS[Math.floor(Math.random() * CHAT_THEME_PRESETS.length)];
+          if (!preset) return;
+          updateShimeji(id, "chatThemePreset", "random");
+          updateShimeji(id, "chatThemeColor", preset.theme);
+          updateShimeji(id, "chatBgColor", preset.bg);
+          updateShimeji(id, "chatBubbleStyle", preset.bubble);
+          const themeInput = card.querySelector('input[data-field="chatThemeColor"]');
+          const bgInput = card.querySelector('input[data-field="chatBgColor"]');
+          if (themeInput) themeInput.value = preset.theme;
+          if (bgInput) bgInput.value = preset.bg;
+          return;
+        }
         const preset = CHAT_THEME_PRESETS.find((item) => item.id === presetId);
         if (!preset) return;
+        updateShimeji(id, "chatThemePreset", presetId);
         updateShimeji(id, "chatThemeColor", preset.theme);
         updateShimeji(id, "chatBgColor", preset.bg);
         updateShimeji(id, "chatBubbleStyle", preset.bubble);
@@ -1873,6 +1937,7 @@ if (securityHint) securityHint.textContent = t(
       if (field === "chatThemeColor" || field === "chatBgColor") {
         const presetSelect = card.querySelector('select[data-field="chatThemePreset"]');
         if (presetSelect) presetSelect.value = "custom";
+        updateShimeji(id, "chatThemePreset", "custom");
       }
     });
 

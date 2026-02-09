@@ -355,9 +355,22 @@
     function safeRuntimeSendMessage(message, callback) {
         try {
             if (extensionInvalidated || !isExtensionContextValid()) return;
-            chrome.runtime.sendMessage(message, callback);
+            const result = chrome.runtime.sendMessage(message, callback);
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
         } catch (e) {
             extensionInvalidated = true;
+        }
+    }
+
+    function safeRuntimeConnect(name) {
+        try {
+            if (extensionInvalidated || !isExtensionContextValid()) return null;
+            return chrome.runtime.connect({ name });
+        } catch (e) {
+            extensionInvalidated = true;
+            return null;
         }
     }
 
@@ -374,10 +387,13 @@
     function safeStorageLocalGet(keys, callback) {
         try {
             if (extensionInvalidated || !isExtensionContextValid()) return;
-            chrome.storage.local.get(keys, (data) => {
+            const result = chrome.storage.local.get(keys, (data) => {
                 if (extensionInvalidated || !isExtensionContextValid()) return;
                 callback(data || {});
             });
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
         } catch (e) {
             extensionInvalidated = true;
         }
@@ -386,7 +402,10 @@
     function safeStorageLocalSet(payload) {
         try {
             if (extensionInvalidated || !isExtensionContextValid()) return;
-            chrome.storage.local.set(payload);
+            const result = chrome.storage.local.set(payload);
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
         } catch (e) {
             extensionInvalidated = true;
         }
@@ -395,10 +414,13 @@
     function safeStorageSyncGet(keys, callback) {
         try {
             if (extensionInvalidated || !isExtensionContextValid()) return;
-            chrome.storage.sync.get(keys, (data) => {
+            const result = chrome.storage.sync.get(keys, (data) => {
                 if (extensionInvalidated || !isExtensionContextValid()) return;
                 callback(data || {});
             });
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
         } catch (e) {
             extensionInvalidated = true;
         }
@@ -407,10 +429,13 @@
     function safeStorageSessionGet(keys, callback) {
         try {
             if (extensionInvalidated || !isExtensionContextValid()) return;
-            chrome.storage.session.get(keys, (data) => {
+            const result = chrome.storage.session.get(keys, (data) => {
                 if (extensionInvalidated || !isExtensionContextValid()) return;
                 callback(data || {});
             });
+            if (result && typeof result.catch === 'function') {
+                result.catch(() => {});
+            }
         } catch (e) {
             extensionInvalidated = true;
         }
@@ -569,14 +594,6 @@
             bubble: 'glass'
         },
         {
-            id: 'neural',
-            labelEn: 'Neural',
-            labelEs: 'Neural',
-            theme: '#86f0ff',
-            bg: '#0b0d1f',
-            bubble: 'dark'
-        },
-        {
             id: 'kawaii',
             labelEn: 'Kawaii',
             labelEs: 'Kawaii',
@@ -585,20 +602,28 @@
             bubble: 'glass'
         },
         {
-            id: 'lavender',
-            labelEn: 'Lavender',
-            labelEs: 'Lavanda',
-            theme: '#3a216a',
-            bg: '#e4d8ff',
+            id: 'mint',
+            labelEn: 'Mint',
+            labelEs: 'Menta',
+            theme: '#0f5f54',
+            bg: '#c7fff0',
             bubble: 'glass'
         },
         {
-            id: 'citrus',
-            labelEn: 'Citrus',
-            labelEs: 'Cítrico',
-            theme: '#7a3b00',
-            bg: '#ffe2a6',
-            bubble: 'solid'
+            id: 'ocean',
+            labelEn: 'Ocean',
+            labelEs: 'Océano',
+            theme: '#103a7a',
+            bg: '#cfe6ff',
+            bubble: 'glass'
+        },
+        {
+            id: 'neural',
+            labelEn: 'Neural',
+            labelEs: 'Neural',
+            theme: '#86f0ff',
+            bg: '#0b0d1f',
+            bubble: 'dark'
         },
         {
             id: 'cyberpunk',
@@ -617,30 +642,26 @@
             bubble: 'dark'
         },
         {
-            id: 'mint',
-            labelEn: 'Mint',
-            labelEs: 'Menta',
-            theme: '#0f5f54',
-            bg: '#c7fff0',
-            bubble: 'glass'
+            id: 'midnight',
+            labelEn: 'Midnight',
+            labelEs: 'Medianoche',
+            theme: '#7aa7ff',
+            bg: '#0b1220',
+            bubble: 'dark'
         },
         {
-            id: 'sunset',
-            labelEn: 'Sunset',
-            labelEs: 'Atardecer',
-            theme: '#7a2a1a',
-            bg: '#ffd3b8',
-            bubble: 'solid'
-        },
-        {
-            id: 'ocean',
-            labelEn: 'Ocean',
-            labelEs: 'Océano',
-            theme: '#103a7a',
-            bg: '#cfe6ff',
-            bubble: 'glass'
+            id: 'ember',
+            labelEn: 'Ember',
+            labelEs: 'Brasas',
+            theme: '#ff8b3d',
+            bg: '#1a0c08',
+            bubble: 'dark'
         }
     ];
+
+    function pickRandomChatTheme() {
+        return CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
+    }
 
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
@@ -649,7 +670,7 @@
         const randomVoiceProfile = pickRandomTtsProfile();
         const randomSize = SIZE_KEYS[Math.floor(Math.random() * SIZE_KEYS.length)];
         const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
-        const preset = CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
+            const preset = pickRandomChatTheme();
         return {
             id: `shimeji-${index + 1}`,
             character: randomChar,
@@ -671,8 +692,8 @@
             chatWidth: 'medium',
             chatHeightPx: 320,
             chatBubbleStyle: preset?.bubble || 'glass',
+            chatThemePreset: 'random',
             ttsEnabled: false,
-            ttsWhenClosed: false,
             ttsVoiceProfile: randomVoiceProfile,
             ttsVoiceId: '',
             openMicEnabled: false,
@@ -742,7 +763,6 @@
                     ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
                     ollamaModel: item.ollamaModel || 'llama3.1',
                     ttsEnabled: needsTtsMigration ? item.ttsEnabled === true : item.ttsEnabled === true,
-                    ttsWhenClosed: item.ttsWhenClosed === true,
                     ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
                     ttsVoiceId: item.ttsVoiceId || '',
                     openMicEnabled: !!item.openMicEnabled,
@@ -764,6 +784,7 @@
         const chatBubbleId = `shimeji-chat-bubble-${elementSuffix}`;
         const thinkingBubbleId = `shimeji-thinking-bubble-${elementSuffix}`;
         const alertBubbleId = `shimeji-alert-bubble-${elementSuffix}`;
+        const micCountdownBubbleId = `shimeji-mic-countdown-${elementSuffix}`;
         const conversationKey = `conversationHistory.${elementSuffix}`;
 
         let currentCharacter = config.character || 'shimeji';
@@ -784,6 +805,7 @@
         let chatBubbleEl = null;
         let thinkingBubbleEl = null;
         let alertBubbleEl = null;
+        let micCountdownBubbleEl = null;
         let inlineThinkingEl = null;
         let chatMessagesEl = null;
         let chatInputEl = null;
@@ -794,9 +816,30 @@
         let isChatOpen = false;
         let isThinking = false;
         let hasUnreadMessage = false;
+        let pendingUnreadCount = 0;
         let pendingSpeechText = null;
         let soundBuffers = { success: null, error: null };
         let soundBuffersLoaded = false;
+        const chatOpenKey = `shimejiChatOpen.${elementSuffix}`;
+
+        function getChatOpenState() {
+            try {
+                return window.sessionStorage?.getItem(chatOpenKey) === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function setChatOpenState(value) {
+            try {
+                if (!window.sessionStorage) return;
+                if (value) {
+                    window.sessionStorage.setItem(chatOpenKey, '1');
+                } else {
+                    window.sessionStorage.removeItem(chatOpenKey);
+                }
+            } catch (e) {}
+        }
 
         let recognition = null;
         let isListening = false;
@@ -804,13 +847,13 @@
         let chatThemePanelEl = null;
         let syncThemeInputsFn = null;
         let openMicBtnEl = null;
-        let ttsClosedBtnEl = null;
         let ttsToggleBtnEl = null;
         let quickTtsBtnEl = null;
         let relayToggleBtnEl = null;
         let micAutoSendEl = null;
         let micAutoSendTimer = null;
         let micAutoSendInterval = null;
+        let micDraftText = '';
         let micAutoSendSeconds = 0;
         let autoSendArmed = false;
         let noKeyNudgeTimer = null;
@@ -951,15 +994,7 @@
             });
         }
 
-        function persistTtsWhenClosed(enabled) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsWhenClosed: enabled } : s);
-                safeStorageLocalSet({ shimejis: updated });
-            });
-        }
-
-        function persistChatStyle(themeColor, bgColor, bubbleStyle) {
+        function persistChatStyle(themeColor, bgColor, bubbleStyle, presetId) {
             safeStorageLocalGet(['shimejis'], (data) => {
                 const list = Array.isArray(data.shimejis) ? data.shimejis : [];
                 const updated = list.map((s) => {
@@ -968,9 +1003,18 @@
                         ...s,
                         chatThemeColor: themeColor,
                         chatBgColor: bgColor,
-                        chatBubbleStyle: bubbleStyle
+                        chatBubbleStyle: bubbleStyle,
+                        chatThemePreset: presetId || s.chatThemePreset || 'custom'
                     };
                 });
+                safeStorageLocalSet({ shimejis: updated });
+            });
+        }
+
+        function persistChatFontSize(sizeKey) {
+            safeStorageLocalGet(['shimejis'], (data) => {
+                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+                const updated = list.map((s) => s.id === shimejiId ? { ...s, chatFontSize: sizeKey } : s);
                 safeStorageLocalSet({ shimejis: updated });
             });
         }
@@ -1018,14 +1062,6 @@
             relayToggleBtnEl.title = config.relayEnabled
                 ? (isSpanishLocale() ? 'Hablar con otros shimejis: activado' : 'Talk to other shimejis: on')
                 : (isSpanishLocale() ? 'Hablar con otros shimejis: apagado' : 'Talk to other shimejis: off');
-        }
-
-        function updateTtsClosedBtnVisual() {
-            if (!ttsClosedBtnEl) return;
-            ttsClosedBtnEl.classList.toggle('active', !!config.ttsWhenClosed);
-            ttsClosedBtnEl.title = config.ttsWhenClosed
-                ? (isSpanishLocale() ? 'Hablar con chat minimizado: activado' : 'Speak while minimized: on')
-                : (isSpanishLocale() ? 'Hablar con chat minimizado: apagado' : 'Speak while minimized: off');
         }
 
         async function ensureVoiceForTts() {
@@ -1137,10 +1173,31 @@
                 micAutoSendEl.remove();
                 micAutoSendEl = null;
             }
+            if (micCountdownBubbleEl) {
+                micCountdownBubbleEl.classList.remove('visible');
+            }
         }
 
         function showAutoSendPopup() {
-            if (!micBtnEl || !chatBubbleEl) return;
+            if (!micBtnEl || !chatBubbleEl || !isChatOpen) {
+                clearAutoSendPopup();
+                micAutoSendSeconds = 3;
+                if (!micCountdownBubbleEl) createMicCountdownBubble();
+                updateMicCountdownBubbleText(micAutoSendSeconds);
+                if (micCountdownBubbleEl) {
+                    micCountdownBubbleEl.classList.add('visible');
+                    updateBubblePosition();
+                }
+                micAutoSendInterval = setInterval(() => {
+                    micAutoSendSeconds -= 1;
+                    updateMicCountdownBubbleText(micAutoSendSeconds);
+                }, 1000);
+                micAutoSendTimer = setTimeout(() => {
+                    clearAutoSendPopup();
+                    safeSendChatMessage();
+                }, micAutoSendSeconds * 1000);
+                return;
+            }
             clearAutoSendPopup();
             const isEs = isSpanishLocale();
             micAutoSendSeconds = 3;
@@ -1175,6 +1232,7 @@
             micAutoSendInterval = setInterval(() => {
                 micAutoSendSeconds -= 1;
                 if (countdownEl) countdownEl.textContent = `${micAutoSendSeconds}`;
+                updateMicCountdownBubbleText(micAutoSendSeconds);
             }, 1000);
 
             micAutoSendTimer = setTimeout(() => {
@@ -1197,29 +1255,46 @@
                 } catch (e) {}
             }
             clearAutoSendPopup();
+            micDraftText = '';
             // Cancel any ongoing TTS before starting mic
             cancelSpeech();
             if (recognition) {
                 try { recognition.abort(); } catch (e) {}
             }
             recognition = new SpeechRecognition();
-            recognition.continuous = false;
+            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = isSpanishLocale() ? 'es' : 'en';
 
             recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                if (chatInputEl) chatInputEl.value = transcript;
-                if (event.results[0].isFinal) {
-                    stopVoiceInput();
-                    if (config.openMicEnabled) {
-                        // Broadcast to all shimejis with open chat
-                        document.dispatchEvent(new CustomEvent('shimeji-voice-broadcast', {
-                            detail: { transcript }
-                        }));
+                let interim = '';
+                let hasFinal = false;
+
+                // Any new speech should cancel countdown until we hit the next silence.
+                if (micAutoSendTimer || micAutoSendInterval || autoSendArmed) {
+                    clearAutoSendPopup();
+                }
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    const text = result && result[0] ? result[0].transcript : '';
+                    if (!text) continue;
+                    if (result.isFinal) {
+                        micDraftText += text;
+                        hasFinal = true;
                     } else {
-                        autoSendArmed = true;
+                        interim += text;
                     }
+                }
+
+                const displayText = (micDraftText + interim).trim();
+                if (chatInputEl) {
+                    chatInputEl.value = displayText;
+                }
+
+                if (hasFinal) {
+                    autoSendArmed = true;
+                    showAutoSendPopup();
                 }
             };
 
@@ -1229,14 +1304,15 @@
                 if (window.__shimejiActiveRecognition === shimejiId) {
                     window.__shimejiActiveRecognition = null;
                 }
-                if (autoSendArmed && chatInputEl && chatInputEl.value.trim()) {
+                const draft = (chatInputEl ? chatInputEl.value : micDraftText || '').trim();
+                if (autoSendArmed && draft) {
                     showAutoSendPopup();
                 } else {
                     autoSendArmed = false;
                     // Open mic: auto-restart if still enabled and not sending/thinking
-                    if (config.openMicEnabled && isChatOpen && !isListening && !isThinking) {
+                    if (config.openMicEnabled && !isListening && !isThinking) {
                         setTimeout(() => {
-                            if (config.openMicEnabled && isChatOpen && !isListening && !isThinking) startVoiceInput();
+                            if (config.openMicEnabled && !isListening && !isThinking) startVoiceInput();
                         }, 300);
                     }
                 }
@@ -1251,10 +1327,10 @@
                 autoSendArmed = false;
                 if (event.error === 'not-allowed') {
                     appendErrorMessage(isSpanishLocale() ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.' : 'Microphone permission denied. Enable it in browser settings.');
-                } else if (config.openMicEnabled && isChatOpen && event.error !== 'aborted') {
+                } else if (config.openMicEnabled && event.error !== 'aborted') {
                     // Open mic: retry on non-fatal errors (e.g. no-speech timeout)
                     setTimeout(() => {
-                        if (config.openMicEnabled && isChatOpen && !isListening) startVoiceInput();
+                        if (config.openMicEnabled && !isListening) startVoiceInput();
                     }, 500);
                 }
             };
@@ -1273,6 +1349,8 @@
             if (recognition) {
                 try { recognition.stop(); } catch (e) {}
             }
+            clearAutoSendPopup();
+            micDraftText = '';
             isListening = false;
             if (micBtnEl) micBtnEl.classList.remove('listening');
             if (window.__shimejiActiveRecognition === shimejiId) {
@@ -1828,6 +1906,7 @@
             chatBubbleEl = document.createElement('div');
             chatBubbleEl.id = chatBubbleId;
             chatBubbleEl.className = 'shimeji-chat-bubble';
+            setChatBubbleFront(chatBubbleEl);
 
             const header = document.createElement('div');
             header.className = 'shimeji-chat-header';
@@ -1853,9 +1932,9 @@
                 if (!config.ttsEnabled) {
                     cancelSpeech();
                 } else if (lastAssistantText) {
-                    const openMicAfter = config.openMicEnabled && isChatOpen;
+                    const openMicAfter = config.openMicEnabled;
                     enqueueSpeech(lastAssistantText, openMicAfter ? () => {
-                        if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                        if (!config.openMicEnabled || isListening) return;
                         startVoiceInput();
                     } : null);
                 }
@@ -1886,22 +1965,6 @@
                     if (!isListening) startVoiceInput();
                 } else {
                     stopVoiceInput();
-                }
-            });
-
-            ttsClosedBtnEl = document.createElement('button');
-            ttsClosedBtnEl.className = 'shimeji-chat-tts-closed-toggle';
-            ttsClosedBtnEl.textContent = '💤';
-            updateTtsClosedBtnVisual();
-            ttsClosedBtnEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                config.ttsWhenClosed = !config.ttsWhenClosed;
-                updateTtsClosedBtnVisual();
-                persistTtsWhenClosed(config.ttsWhenClosed);
-                if (config.ttsWhenClosed && config.ttsEnabled && !isChatOpen && pendingSpeechText) {
-                    const text = pendingSpeechText;
-                    pendingSpeechText = null;
-                    enqueueSpeech(text);
                 }
             });
 
@@ -1962,21 +2025,6 @@
             });
             controlsPanel.appendChild(relayRow);
 
-            const ttsClosedRow = document.createElement('div');
-            ttsClosedRow.className = 'shimeji-chat-control-row';
-            const ttsClosedLabel = document.createElement('span');
-            ttsClosedLabel.className = 'shimeji-chat-control-label';
-            ttsClosedLabel.textContent = isSpanishLocale()
-                ? 'Hablar con chat minimizado'
-                : 'Speak when minimized';
-            ttsClosedRow.appendChild(ttsClosedLabel);
-            ttsClosedRow.appendChild(ttsClosedBtnEl);
-            ttsClosedRow.addEventListener('click', (e) => {
-                if (e.target && e.target.closest && e.target.closest('button')) return;
-                ttsClosedBtnEl.click();
-            });
-            controlsPanel.appendChild(ttsClosedRow);
-
             const themeRowControl = document.createElement('div');
             themeRowControl.className = 'shimeji-chat-control-row';
             const themeLabelControl = document.createElement('span');
@@ -1989,6 +2037,34 @@
                 themeBtnEl.click();
             });
             controlsPanel.appendChild(themeRowControl);
+
+            const fontRow = document.createElement('div');
+            fontRow.className = 'shimeji-chat-control-row';
+            const fontLabel = document.createElement('span');
+            fontLabel.className = 'shimeji-chat-control-label';
+            fontLabel.textContent = isSpanishLocale() ? 'Tamaño de texto' : 'Text size';
+            const fontSelect = document.createElement('select');
+            fontSelect.className = 'shimeji-chat-font-select';
+            const fontOptions = [
+                { value: 'small', label: isSpanishLocale() ? 'Pequeño' : 'Small' },
+                { value: 'medium', label: isSpanishLocale() ? 'Medio' : 'Medium' },
+                { value: 'large', label: isSpanishLocale() ? 'Grande' : 'Large' }
+            ];
+            fontOptions.forEach((opt) => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt.value;
+                optionEl.textContent = opt.label;
+                fontSelect.appendChild(optionEl);
+            });
+            fontSelect.value = config.chatFontSize || 'medium';
+            fontSelect.addEventListener('change', () => {
+                config.chatFontSize = fontSelect.value;
+                applyChatStyle();
+                persistChatFontSize(config.chatFontSize);
+            });
+            fontRow.appendChild(fontLabel);
+            fontRow.appendChild(fontSelect);
+            controlsPanel.appendChild(fontRow);
 
             function setControlsPanelOpen(isOpen) {
                 controlsPanel.classList.toggle('open', isOpen);
@@ -2048,6 +2124,14 @@
                     outer.classList.add('custom');
                     inner.classList.add('custom');
                 }
+                if (id === 'custom') {
+                    inner.textContent = '🎨';
+                    inner.classList.add('emoji');
+                }
+                if (id === 'random') {
+                    inner.textContent = '🎲';
+                    inner.classList.add('emoji');
+                }
                 outer.appendChild(inner);
                 btn.appendChild(outer);
                 themeButtons.set(id, btn);
@@ -2055,7 +2139,8 @@
                 return btn;
             }
 
-            createThemeChip('custom', isSpanishLocale() ? 'Personalizado' : 'Custom');
+            createThemeChip('custom', (isSpanishLocale() ? '🎨 Personalizado' : '🎨 Custom'));
+            createThemeChip('random', (isSpanishLocale() ? '🎲 Aleatorio' : '🎲 Random'), { theme: '#111827', bg: '#f8fafc' });
             CHAT_THEMES.forEach((theme) => {
                 createThemeChip(
                     theme.id,
@@ -2083,17 +2168,32 @@
             customSection.appendChild(customRow);
             themePanel.appendChild(customSection);
 
+            function applyThemePresetSelection(presetId, preset) {
+                if (!preset) return;
+                config.chatThemePreset = presetId;
+                config.chatThemeColor = preset.theme;
+                config.chatBgColor = preset.bg;
+                updateStyleSelection(preset.bubble);
+                applyChatStyle();
+                persistChatStyle(config.chatThemeColor, config.chatBgColor, config.chatBubbleStyle, presetId);
+            }
+
             function updateThemeFromInputs() {
+                config.chatThemePreset = 'custom';
                 config.chatThemeColor = themeColorInput.value;
                 config.chatBgColor = bgColorInput.value;
                 applyChatStyle();
-                persistChatStyle(config.chatThemeColor, config.chatBgColor, config.chatBubbleStyle);
+                persistChatStyle(config.chatThemeColor, config.chatBgColor, config.chatBubbleStyle, 'custom');
             }
 
             function syncThemeInputs() {
                 themeColorInput.value = config.chatThemeColor || '#2a1f4e';
                 bgColorInput.value = config.chatBgColor || '#ffffff';
                 updateStyleSelection(config.chatBubbleStyle || 'glass');
+                if (config.chatThemePreset === 'random') {
+                    setThemeSelection('random');
+                    return;
+                }
                 const match = CHAT_THEMES.find((t) =>
                     t.theme.toLowerCase() === themeColorInput.value.toLowerCase()
                     && t.bg.toLowerCase() === bgColorInput.value.toLowerCase()
@@ -2140,13 +2240,21 @@
                         updateThemeFromInputs();
                         return;
                     }
+                    if (id === 'random') {
+                        const preset = pickRandomChatTheme();
+                        if (!preset) return;
+                        themeColorInput.value = preset.theme;
+                        bgColorInput.value = preset.bg;
+                        applyThemePresetSelection('random', preset);
+                        setThemeSelection('random');
+                        return;
+                    }
                     const found = CHAT_THEMES.find((t) => t.id === id);
                     if (!found) return;
                     themeColorInput.value = found.theme;
                     bgColorInput.value = found.bg;
-                    updateStyleSelection(found.bubble);
+                    applyThemePresetSelection(id, found);
                     setThemeSelection(id);
-                    updateThemeFromInputs();
                 });
             });
 
@@ -2162,9 +2270,19 @@
 
             chatMessagesEl = document.createElement('div');
             chatMessagesEl.className = 'shimeji-chat-messages';
+            const closePanels = () => {
+                if (chatControlsPanelEl && chatControlsPanelEl.classList.contains('open')) {
+                    chatControlsPanelEl.classList.remove('open');
+                }
+                if (chatThemePanelEl && chatThemePanelEl.classList.contains('open')) {
+                    chatThemePanelEl.classList.remove('open');
+                }
+            };
+            chatMessagesEl.addEventListener('click', closePanels);
 
             const inputArea = document.createElement('div');
             inputArea.className = 'shimeji-chat-input-area';
+            inputArea.addEventListener('click', closePanels);
             chatInputEl = document.createElement('input');
             chatInputEl.className = 'shimeji-chat-input';
             chatInputEl.type = 'text';
@@ -2174,6 +2292,9 @@
                     unlockAudioContextFromGesture(e);
                     safeSendChatMessage();
                 }
+            });
+            chatInputEl.addEventListener('focus', () => {
+                setChatBubbleFront(chatBubbleEl);
             });
             chatInputEl.addEventListener('mousedown', (e) => e.stopPropagation());
             chatInputEl.addEventListener('touchstart', (e) => e.stopPropagation());
@@ -2208,6 +2329,12 @@
             const resizeHandleEl = document.createElement('div');
             resizeHandleEl.className = 'shimeji-chat-resize-handle';
             chatBubbleEl.appendChild(resizeHandleEl);
+
+            const bringToFront = () => {
+                setChatBubbleFront(chatBubbleEl);
+            };
+            chatBubbleEl.addEventListener('mousedown', bringToFront);
+            chatBubbleEl.addEventListener('touchstart', bringToFront, { passive: true });
 
             function updateResizeCursor(e) {
                 if (!chatBubbleEl || isResizing) return;
@@ -2395,6 +2522,30 @@
             applyAuxBubbleTheme(alertBubbleEl);
         }
 
+        function createMicCountdownBubble() {
+            if (micCountdownBubbleEl) return;
+            micCountdownBubbleEl = document.createElement('div');
+            micCountdownBubbleEl.id = micCountdownBubbleId;
+            micCountdownBubbleEl.className = 'shimeji-mic-countdown';
+            micCountdownBubbleEl.textContent = '3s';
+            document.body.appendChild(micCountdownBubbleEl);
+            applyAuxBubbleTheme(micCountdownBubbleEl);
+        }
+
+        function updateMicCountdownBubbleText(seconds) {
+            if (!micCountdownBubbleEl) return;
+            micCountdownBubbleEl.textContent = `${Math.max(0, seconds)}s`;
+        }
+
+        function updateAlertBubbleText() {
+            if (!alertBubbleEl) return;
+            if (!pendingUnreadCount) {
+                alertBubbleEl.textContent = '!';
+                return;
+            }
+            alertBubbleEl.textContent = pendingUnreadCount > 9 ? '9+' : String(pendingUnreadCount);
+        }
+
         function createInlineThinking() {
             if (inlineThinkingEl) return;
             inlineThinkingEl = document.createElement('div');
@@ -2416,15 +2567,31 @@
             return normalizeMode(config.mode);
         }
 
+        function setChatBubbleFront(target) {
+            if (!target) return;
+            const bubbles = document.querySelectorAll('.shimeji-chat-bubble');
+            bubbles.forEach((bubble) => {
+                bubble.classList.remove('chat-front');
+                bubble.style.zIndex = '100000';
+            });
+            target.classList.add('chat-front');
+            target.style.zIndex = '100050';
+        }
+
         function openChatBubble() {
             if (isDisabled) return;
             if (!chatBubbleEl) createChatBubble();
             isChatOpen = true;
             chatBubbleEl.classList.add('visible');
+            setChatBubbleFront(chatBubbleEl);
             updateBubblePosition();
+            setChatOpenState(true);
+            if (micCountdownBubbleEl) micCountdownBubbleEl.classList.remove('visible');
 
             hasUnreadMessage = false;
+            pendingUnreadCount = 0;
             hideAlert();
+            updateAlertBubbleText();
 
             if (mascot.state === State.SITTING_EDGE) {
                 mascot.state = State.FALLING;
@@ -2438,6 +2605,18 @@
                 mascot.animationFrame = 0;
                 mascot.animationTick = 0;
                 mascot.stateTimer = 0;
+                mascot.velocityX = 0;
+                mascot.velocityY = 0;
+            } else if (mascot.state === State.FALLING) {
+                mascot.state = State.SITTING;
+                mascot.currentAnimation = 'sitting';
+                mascot.direction = 0;
+                mascot.animationFrame = 0;
+                mascot.animationTick = 0;
+                mascot.stateTimer = 0;
+                mascot.velocityX = 0;
+                mascot.velocityY = 0;
+                mascot.y = window.innerHeight;
             }
 
             loadConversation(async () => {
@@ -2491,9 +2670,9 @@
                         const text = pendingSpeechText;
                         pendingSpeechText = null;
                         if (config.ttsEnabled) {
-                            const openMicAfter = config.openMicEnabled && isChatOpen;
+                            const openMicAfter = config.openMicEnabled;
                             enqueueSpeech(text, openMicAfter ? () => {
-                                if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                                if (!config.openMicEnabled || isListening) return;
                                 startVoiceInput();
                             } : null);
                         }
@@ -2503,14 +2682,30 @@
         }
 
         function closeChatBubble() {
-            stopVoiceInput();
+            if (!config.openMicEnabled) {
+                stopVoiceInput();
+            }
             cancelSpeech();
-            clearAutoSendPopup();
+            if (micAutoSendTimer && config.openMicEnabled) {
+                if (micAutoSendEl) {
+                    micAutoSendEl.remove();
+                    micAutoSendEl = null;
+                }
+                if (!micCountdownBubbleEl) createMicCountdownBubble();
+                updateMicCountdownBubbleText(micAutoSendSeconds);
+                if (micCountdownBubbleEl) {
+                    micCountdownBubbleEl.classList.add('visible');
+                    updateBubblePosition();
+                }
+            } else {
+                clearAutoSendPopup();
+            }
             isChatOpen = false;
             if (chatBubbleEl) chatBubbleEl.classList.remove('visible');
             if (chatControlsPanelEl) chatControlsPanelEl.classList.remove('open');
             if (chatThemePanelEl) chatThemePanelEl.classList.remove('open');
             removeInlineThinking();
+            setChatOpenState(false);
 
             if (mascot.state === State.SITTING || mascot.state === State.HEAD_SPIN || mascot.state === State.SPRAWLED) {
                 mascot.state = State.IDLE;
@@ -2588,12 +2783,16 @@
         function showAlert() {
             if (!alertBubbleEl) createAlertBubble();
             hasUnreadMessage = true;
+            pendingUnreadCount += 1;
+            updateAlertBubbleText();
             alertBubbleEl.classList.add('visible');
             updateBubblePosition();
         }
 
         function hideAlert() {
             hasUnreadMessage = false;
+            pendingUnreadCount = 0;
+            updateAlertBubbleText();
             if (alertBubbleEl) alertBubbleEl.classList.remove('visible');
         }
 
@@ -2628,10 +2827,29 @@
                 thinkingBubbleEl.style.top = `${top}px`;
             }
 
+            if (micCountdownBubbleEl && micCountdownBubbleEl.classList.contains('visible') && !isChatOpen) {
+                const countdownWidth = micCountdownBubbleEl.offsetWidth || 44;
+                let left = mascotCenterX - countdownWidth / 2;
+                let top = mascotTopY - 60;
+
+                left = Math.max(8, Math.min(left, window.innerWidth - countdownWidth - 8));
+                if (top < 8) top = 8;
+
+                micCountdownBubbleEl.style.left = `${left}px`;
+                micCountdownBubbleEl.style.top = `${top}px`;
+            }
+
             if (alertBubbleEl && hasUnreadMessage && !isChatOpen) {
                 const alertWidth = alertBubbleEl.offsetWidth || 28;
                 let left = mascotCenterX - alertWidth / 2;
                 let top = mascotTopY - 36;
+                if (thinkingBubbleEl && isThinking) {
+                    const thinkingHeight = thinkingBubbleEl.offsetHeight || 32;
+                    top = mascotTopY - 36 - (thinkingHeight + 10);
+                } else if (micCountdownBubbleEl && micCountdownBubbleEl.classList.contains('visible')) {
+                    const countdownHeight = micCountdownBubbleEl.offsetHeight || 34;
+                    top = mascotTopY - 60 - (countdownHeight + 10);
+                }
 
                 left = Math.max(8, Math.min(left, window.innerWidth - alertWidth - 8));
                 if (top < 8) top = 8;
@@ -2677,6 +2895,23 @@
             if (role === 'ai') lastAssistantText = content;
         }
 
+        function appendStreamingMessage() {
+            if (!chatMessagesEl) return null;
+            const msgEl = document.createElement('div');
+            msgEl.className = 'shimeji-chat-msg ai';
+            msgEl.textContent = '';
+            chatMessagesEl.appendChild(msgEl);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            return msgEl;
+        }
+
+        function updateStreamingMessage(msgEl, content) {
+            if (!chatMessagesEl || !msgEl) return;
+            msgEl.textContent = content;
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            lastAssistantText = content;
+        }
+
         function appendErrorMessage(text) {
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
@@ -2703,6 +2938,42 @@
                 return response.content.map((c) => c?.text || c?.content || c?.value || '').join('');
             }
             return '';
+        }
+
+        function handleAiErrorResponse(error, errorType) {
+            if (errorType === 'no_credits') {
+                appendMessage('ai', addWarning(getNoCreditsMessage()));
+                playSoundOrQueue('error');
+                return;
+            }
+            if (errorType === 'locked') {
+                appendMessage('ai', addWarning(getLockedMessage()));
+                playSoundOrQueue('error');
+                return;
+            }
+            if (errorType === 'no_response') {
+                appendMessage('ai', addWarning(getNoResponseMessage()));
+                playSoundOrQueue('error');
+                return;
+            }
+            const errorText = error || '';
+            if (/No API key set/i.test(errorText)) {
+                if (chatMessagesEl) {
+                    chatMessagesEl.appendChild(buildNoApiKeyMessageElement(true));
+                    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+                } else {
+                    appendMessage('ai', addWarning(getNoApiKeyMessage()));
+                }
+            } else if (/Invalid API key/i.test(errorText)) {
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? 'La API key no es válida. Revisa la key en el popup de la extensión.'
+                    : 'Invalid API key. Please check your key in the extension popup.'));
+            } else {
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? 'Ocurrió un error al hablar. Revisa tu configuración.'
+                    : 'Something went wrong while chatting. Check your settings.'));
+            }
+            playSoundOrQueue('error');
         }
 
         function handleMascotClick() {
@@ -2756,6 +3027,106 @@
 
             showThinking();
 
+            const provider = config.standardProvider || 'openrouter';
+            const shouldStream = mode === 'standard' && (provider === 'openrouter' || provider === 'ollama');
+
+            if (shouldStream) {
+                const streamEl = appendStreamingMessage();
+                const port = safeRuntimeConnect('aiChatStream');
+                if (!port) {
+                    hideThinking();
+                    appendMessage('ai', addWarning(isSpanishLocale()
+                        ? 'No pude comunicarme con la extensión. Recarga la página.'
+                        : 'Could not reach extension. Try reloading the page.'));
+                    playSoundOrQueue('error');
+                    return;
+                }
+
+                let responseText = '';
+                let finished = false;
+
+                const finalizeResponse = (text) => {
+                    if (finished) return;
+                    finished = true;
+                    hideThinking();
+                    if (!text) {
+                        appendMessage('ai', addWarning(getNoResponseMessage()));
+                        playSoundOrQueue('error');
+                        return;
+                    }
+                    updateStreamingMessage(streamEl, text);
+                    conversationHistory.push({ role: 'assistant', content: text });
+                    saveConversation();
+                    if (!(isChatOpen && config.ttsEnabled)) {
+                        playSoundOrQueue('success');
+                    }
+                    if (isChatOpen) {
+                        const openMicAfter = config.openMicEnabled;
+                        if (config.ttsEnabled) {
+                            enqueueSpeech(text, openMicAfter ? () => {
+                                if (!config.openMicEnabled || isListening) return;
+                                startVoiceInput();
+                            } : null);
+                        } else if (openMicAfter) {
+                            setTimeout(() => {
+                                if (config.openMicEnabled && !isListening) startVoiceInput();
+                            }, 300);
+                        }
+                    } else {
+                        pendingSpeechText = text;
+                        if (config.openMicEnabled && !isListening) {
+                            setTimeout(() => {
+                                if (config.openMicEnabled && !isListening) startVoiceInput();
+                            }, 300);
+                        }
+                    }
+                    if (config.relayEnabled && !options.isRelay) {
+                        dispatchRelay(text);
+                    }
+                    if (!isChatOpen) {
+                        showAlert();
+                    }
+                };
+
+                port.onMessage.addListener((msg) => {
+                    if (!msg) return;
+                    if (msg.type === 'delta') {
+                        if (!responseText && (msg.text || msg.full)) {
+                            hideThinking();
+                        }
+                        responseText = msg.full || (responseText + (msg.text || ''));
+                        updateStreamingMessage(streamEl, responseText);
+                        return;
+                    }
+                    if (msg.type === 'done') {
+                        responseText = msg.text || responseText;
+                        finalizeResponse(responseText);
+                        try { port.disconnect(); } catch (e) {}
+                        return;
+                    }
+                    if (msg.type === 'error') {
+                        hideThinking();
+                        if (streamEl && !responseText) streamEl.remove();
+                        handleAiErrorResponse(msg.error, msg.errorType);
+                        try { port.disconnect(); } catch (e) {}
+                    }
+                });
+
+                port.onDisconnect.addListener(() => {
+                    if (finished) return;
+                    if (responseText) {
+                        finalizeResponse(responseText);
+                    } else {
+                        hideThinking();
+                        appendMessage('ai', addWarning(getNoResponseMessage()));
+                        playSoundOrQueue('error');
+                    }
+                });
+
+                port.postMessage({ type: 'start', messages: conversationHistory, shimejiId });
+                return;
+            }
+
             safeRuntimeSendMessage(
                 { type: 'aiChat', messages: conversationHistory, shimejiId },
                 (response) => {
@@ -2769,35 +3140,7 @@
                         return;
                     }
                     if (response && response.error) {
-                        if (response.errorType === 'no_credits') {
-                            appendMessage('ai', addWarning(getNoCreditsMessage()));
-                            playSoundOrQueue('error');
-                        } else if (response.errorType === 'locked') {
-                            appendMessage('ai', addWarning(getLockedMessage()));
-                            playSoundOrQueue('error');
-                        } else if (response.errorType === 'no_response') {
-                            appendMessage('ai', addWarning(getNoResponseMessage()));
-                            playSoundOrQueue('error');
-                        } else {
-                            const errorText = response.error || '';
-                            if (/No API key set/i.test(errorText)) {
-                                if (chatMessagesEl) {
-                                    chatMessagesEl.appendChild(buildNoApiKeyMessageElement(true));
-                                    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-                                } else {
-                                    appendMessage('ai', addWarning(getNoApiKeyMessage()));
-                                }
-                            } else if (/Invalid API key/i.test(errorText)) {
-                                appendMessage('ai', addWarning(isSpanishLocale()
-                                    ? 'La API key no es válida. Revisa la key en el popup de la extensión.'
-                                    : 'Invalid API key. Please check your key in the extension popup.'));
-                            } else {
-                                appendMessage('ai', addWarning(isSpanishLocale()
-                                    ? 'Ocurrió un error al hablar. Revisa tu configuración.'
-                                    : 'Something went wrong while chatting. Check your settings.'));
-                            }
-                            playSoundOrQueue('error');
-                        }
+                        handleAiErrorResponse(response.error, response.errorType);
                         return;
                     }
                     const responseText = extractResponseText(response);
@@ -2805,27 +3148,27 @@
                         conversationHistory.push({ role: 'assistant', content: responseText });
                         saveConversation();
                         appendMessage('ai', responseText);
-                        if (!(isChatOpen && config.ttsEnabled) && !( !isChatOpen && config.ttsEnabled && config.ttsWhenClosed)) {
+                        if (!(isChatOpen && config.ttsEnabled)) {
                             playSoundOrQueue('success');
                         }
                         if (isChatOpen) {
-                            const openMicAfter = config.openMicEnabled && isChatOpen;
+                            const openMicAfter = config.openMicEnabled;
                             enqueueSpeech(responseText, openMicAfter ? () => {
-                                if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                                if (!config.openMicEnabled || isListening) return;
                                 startVoiceInput();
                             } : null);
                             // If TTS is off but open mic is on, start listening after a short delay
                             if (openMicAfter && !config.ttsEnabled) {
                                 setTimeout(() => {
-                                    if (isChatOpen && config.openMicEnabled && !isListening) startVoiceInput();
+                                    if (config.openMicEnabled && !isListening) startVoiceInput();
                                 }, 300);
                             }
                         } else {
-                            if (config.ttsEnabled && config.ttsWhenClosed) {
-                                pendingSpeechText = null;
-                                enqueueSpeech(responseText);
-                            } else {
-                                pendingSpeechText = responseText;
+                            pendingSpeechText = responseText;
+                            if (config.openMicEnabled && !isListening) {
+                                setTimeout(() => {
+                                    if (config.openMicEnabled && !isListening) startVoiceInput();
+                                }, 300);
                             }
                         }
                         if (config.relayEnabled && !options.isRelay) {
@@ -2908,9 +3251,12 @@
         }
 
         async function sendChatMessage() {
-            if (!chatInputEl) return;
-            const text = chatInputEl.value.trim();
+            const text = (chatInputEl ? chatInputEl.value : micDraftText || '').trim();
             if (!text) return;
+            if (chatInputEl) {
+                chatInputEl.value = '';
+            }
+            micDraftText = '';
             await sendChatMessageWithText(text);
         }
 
@@ -3358,6 +3704,9 @@
                     createAlertBubble();
                     loadSoundBuffers();
                     scheduleNoKeyNudge();
+                    if (getChatOpenState()) {
+                        openChatBubble();
+                    }
 
                     gameLoopTimer = setInterval(gameLoop, TICK_MS);
 
@@ -3416,6 +3765,10 @@
             if (alertBubbleEl) {
                 alertBubbleEl.remove();
                 alertBubbleEl = null;
+            }
+            if (micCountdownBubbleEl) {
+                micCountdownBubbleEl.remove();
+                micCountdownBubbleEl = null;
             }
             inlineThinkingEl = null;
             document.removeEventListener('mousedown', onClickOutsideChat);
@@ -3498,6 +3851,7 @@
             if (chatBubbleEl) { chatBubbleEl.remove(); chatBubbleEl = null; }
             if (thinkingBubbleEl) { thinkingBubbleEl.remove(); thinkingBubbleEl = null; }
             if (alertBubbleEl) { alertBubbleEl.remove(); alertBubbleEl = null; }
+            if (micCountdownBubbleEl) { micCountdownBubbleEl.remove(); micCountdownBubbleEl = null; }
             inlineThinkingEl = null;
             document.removeEventListener('mousedown', onClickOutsideChat);
             window.removeEventListener('resize', handleResize);
@@ -3577,9 +3931,9 @@
                     ensureVoiceForTts().catch(() => {});
                 }
                 if (!prevTtsEnabled && config.ttsEnabled && lastAssistantText) {
-                    const openMicAfter = config.openMicEnabled && isChatOpen;
+                    const openMicAfter = config.openMicEnabled;
                     enqueueSpeech(lastAssistantText, openMicAfter ? () => {
-                        if (!isChatOpen || !config.openMicEnabled || isListening) return;
+                        if (!config.openMicEnabled || isListening) return;
                         startVoiceInput();
                     } : null);
                 }

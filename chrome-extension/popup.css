@@ -822,10 +822,20 @@ body[data-theme="pink"] .ai-core-field .ai-select {
   background-position: right 10px center;
 }
 
+body[data-theme="pink"] .ai-core-field .ai-input {
+  background-image: none;
+  padding-right: 10px;
+}
+
 body[data-theme="kawaii"] .ai-core-field .ai-select {
   background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 2l4 4 4-4' stroke='%232a1f4e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
+}
+
+body[data-theme="kawaii"] .ai-core-field .ai-input {
+  background-image: none;
+  padding-right: 10px;
 }
 
 body[data-theme="kawaii"] .shimeji-chat-style-section .ai-select {
@@ -1543,6 +1553,7 @@ body[data-theme="pink"] .ai-select option {
   font-family: 'Space Grotesk', sans-serif;
   outline: none;
   width: 100%;
+  background-image: none;
 }
 
 body[data-theme="pink"] .ai-input {
@@ -1561,6 +1572,79 @@ body[data-theme="kawaii"] .ai-input::placeholder {
 
 body[data-theme="kawaii"] .ai-field.locked .ai-input::placeholder {
   color: rgba(42, 31, 78, 0.7);
+}
+
+.popup-theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0 2px;
+}
+
+.popup-theme-circle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.popup-theme-circle-outer {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(120, 140, 255, 0.35);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.popup-theme-circle-inner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2a1f4e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.popup-theme-circle-outer.custom,
+.popup-theme-circle-inner.custom {
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9) 4px, rgba(42, 31, 78, 0.25) 4px, rgba(42, 31, 78, 0.25) 8px);
+}
+
+.popup-theme-circle-inner.emoji {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.popup-theme-circle.active .popup-theme-circle-outer {
+  box-shadow: 0 0 0 2px rgba(134, 240, 255, 0.55), 0 6px 14px rgba(0, 0, 0, 0.2);
+  border-color: rgba(134, 240, 255, 0.7);
+}
+
+body[data-theme="pink"] .popup-theme-circle-outer {
+  border-color: rgba(255, 214, 102, 0.6);
+}
+
+body[data-theme="pink"] .popup-theme-circle.active .popup-theme-circle-outer {
+  box-shadow: 0 0 0 2px rgba(255, 214, 102, 0.6), 0 6px 14px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 214, 102, 0.8);
+}
+
+body[data-theme="kawaii"] .popup-theme-circle-outer {
+  border-color: rgba(80, 180, 255, 0.7);
+}
+
+body[data-theme="kawaii"] .popup-theme-circle.active .popup-theme-circle-outer {
+  box-shadow: 0 0 0 2px rgba(80, 180, 255, 0.6), 0 6px 14px rgba(0, 0, 0, 0.25);
+  border-color: rgba(80, 180, 255, 0.85);
 }
 
 .ai-input:focus {

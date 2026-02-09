@@ -241,6 +241,101 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+chrome.runtime.onConnect.addListener((port) => {
+  if (!port || port.name !== 'aiChatStream') return;
+  let started = false;
+
+  port.onMessage.addListener(async (message) => {
+    if (!message || message.type !== 'start' || started) return;
+    started = true;
+
+    const shimejiId = message.shimejiId;
+    const conversationMessages = Array.isArray(message.messages) ? message.messages : [];
+
+    try {
+      const settings = await getAiSettingsFor(shimejiId);
+      if (settings.locked) {
+        port.postMessage({ type: 'error', error: 'MASTER_KEY_LOCKED', errorType: 'locked' });
+        return;
+      }
+
+      const messages = [
+        { role: 'system', content: settings.systemPrompt },
+        ...conversationMessages
+      ];
+
+      if (settings.chatMode === 'agent') {
+        const result = await handleAiChat(conversationMessages, shimejiId);
+        if (result && result.error) {
+          port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
+        } else {
+          port.postMessage({ type: 'done', text: result?.content || '' });
+        }
+        return;
+      }
+
+      if (settings.provider === 'ollama') {
+        try {
+          const full = await callOllamaStream(
+            settings.ollamaModel,
+            messages,
+            settings.ollamaUrl,
+            (delta, accumulated) => {
+              port.postMessage({ type: 'delta', text: delta, full: accumulated });
+            }
+          );
+          port.postMessage({ type: 'done', text: full || '' });
+          return;
+        } catch (streamErr) {
+          const result = await handleAiChat(conversationMessages, shimejiId);
+          if (result && result.error) {
+            port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
+          } else {
+            port.postMessage({ type: 'done', text: result?.content || '' });
+          }
+          return;
+        }
+      }
+
+      if (settings.provider === 'openrouter') {
+        try {
+          const full = await callOpenRouterStream(
+            settings.model,
+            settings.apiKey,
+            messages,
+            (delta, accumulated) => {
+              port.postMessage({ type: 'delta', text: delta, full: accumulated });
+            }
+          );
+          port.postMessage({ type: 'done', text: full || '' });
+          return;
+        } catch (streamErr) {
+          const result = await handleAiChat(conversationMessages, shimejiId);
+          if (result && result.error) {
+            port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
+          } else {
+            port.postMessage({ type: 'done', text: result?.content || '' });
+          }
+          return;
+        }
+      }
+
+      const result = await handleAiChat(conversationMessages, shimejiId);
+      if (result && result.error) {
+        port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
+      } else {
+        port.postMessage({ type: 'done', text: result?.content || '' });
+      }
+    } catch (err) {
+      const errorMessage = err?.message || 'Unknown error';
+      let errorType = 'generic';
+      if (errorMessage === 'NO_CREDITS') errorType = 'no_credits';
+      if (errorMessage === 'NO_RESPONSE') errorType = 'no_response';
+      port.postMessage({ type: 'error', error: errorMessage, errorType });
+    }
+  });
+});
+
 // --- AI Chat Helpers ---
 
 const STYLE_RULES = `
@@ -698,6 +793,175 @@ async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
   return content;
 }
 
+async function callOpenRouterStream(model, apiKey, messages, onDelta) {
+  if (!apiKey) {
+    throw new Error('No API key set! Open the extension popup to add your API key.');
+  }
+
+  const url = 'https://openrouter.ai/api/v1/chat/completions';
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+    'HTTP-Referer': 'https://shimeji.dev',
+    'X-Title': 'Shimeji Browser Extension'
+  };
+
+  const body = {
+    model: model,
+    messages: messages,
+    max_tokens: 256,
+    temperature: 0.8,
+    stream: true
+  };
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    throw new Error('Network error — check your connection and try again.');
+  }
+
+  if (response.status === 401) {
+    throw new Error('Invalid API key. Please check your key in the extension popup.');
+  }
+  if (!response.ok) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (response.status === 402) {
+      throw new Error('NO_CREDITS');
+    }
+
+    if (response.status === 429) {
+      const errorCode = payload?.error?.code || payload?.error?.type;
+      if (errorCode === 'insufficient_quota') {
+        throw new Error('NO_CREDITS');
+      }
+      throw new Error('Rate limited — too many requests. Wait a moment and try again.');
+    }
+
+    const text = payload ? JSON.stringify(payload).slice(0, 160) : await response.text().catch(() => '');
+    throw new Error(`API error (${response.status}): ${text || 'Unknown error'}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Streaming not supported by the server.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let fullText = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line || !line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === '[DONE]') {
+        continue;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(data);
+      } catch {
+        continue;
+      }
+      const delta = payload?.choices?.[0]?.delta?.content
+        || payload?.choices?.[0]?.message?.content
+        || payload?.choices?.[0]?.text
+        || '';
+      if (delta) {
+        fullText += delta;
+        if (onDelta) onDelta(delta, fullText);
+      }
+    }
+  }
+
+  return fullText;
+}
+
+async function callOllamaStream(model, messages, ollamaUrl, onDelta) {
+  const base = (ollamaUrl || 'http://127.0.0.1:11434').replace(/\/$/, '');
+  const url = `${base}/api/chat`;
+  const headers = { 'Content-Type': 'application/json' };
+  const body = {
+    model: model || 'llama3.1',
+    messages: messages,
+    stream: true
+  };
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    throw new Error('Network error — check your connection and try again.');
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`API error (${response.status}): ${text || 'Unknown error'}`);
+  }
+
+  if (!response.body) {
+    throw new Error('Streaming not supported by the server.');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let fullText = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      let payload;
+      try {
+        payload = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (payload?.done) {
+        continue;
+      }
+      const delta = payload?.message?.content || payload?.response || '';
+      if (delta) {
+        fullText += delta;
+        if (onDelta) onDelta(delta, fullText);
+      }
+    }
+  }
+
+  return fullText;
+}
+
 async function callOpenClaw(gatewayUrl, token, messages) {
   return new Promise((resolve, reject) => {
     let ws;
@@ -763,6 +1027,15 @@ async function callOpenClaw(gatewayUrl, token, messages) {
         return payload.content.map((c) => c?.text || c?.content || c?.value || '').join('');
       }
       return '';
+    }
+
+    function mergeStreamText(current, next) {
+      if (!next) return current;
+      if (!current) return next;
+      // Some gateways send full snapshots; avoid repeating prefixes.
+      if (next.startsWith(current)) return next;
+      if (current.startsWith(next)) return current;
+      return current + next;
     }
 
     function bumpIdleFinish() {
@@ -840,7 +1113,7 @@ async function callOpenClaw(gatewayUrl, token, messages) {
         const p = data.payload || {};
         const text = extractPayloadText(p);
         if (text) {
-          responseText += text;
+          responseText = mergeStreamText(responseText, text);
           bumpIdleFinish();
         }
         if (p.status === 'completed' || p.status === 'ok' || p.type === 'done' || p.done) {
@@ -859,7 +1132,7 @@ async function callOpenClaw(gatewayUrl, token, messages) {
         }
         const text = extractPayloadText(data.payload);
         if (text) {
-          responseText += text;
+          responseText = mergeStreamText(responseText, text);
           finish(responseText);
           return;
         }
