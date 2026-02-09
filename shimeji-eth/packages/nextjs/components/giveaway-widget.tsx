@@ -68,7 +68,7 @@ export function GiveawayWidget() {
         id="giveaway-panel"
         className={`origin-right overflow-hidden transition-all duration-300 ease-out ${
           isOpen
-            ? "pointer-events-auto w-[min(78vw,18rem)] max-w-[calc(100vw-5rem)] opacity-100 translate-x-0"
+            ? "pointer-events-auto w-[min(78vw,18rem)] md:w-[min(70vw,24rem)] lg:w-[min(60vw,26rem)] max-w-[calc(100vw-5rem)] opacity-100 translate-x-0"
             : "pointer-events-none w-0 opacity-0 translate-x-3"
         }`}
       >

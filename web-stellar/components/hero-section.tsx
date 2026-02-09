@@ -42,7 +42,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsHowItWorksHovered(true)}
                 onMouseLeave={() => setIsHowItWorksHovered(false)}
               >
-                <ScrollLink to="how-it-works" smooth={true} duration={300}>
+                <ScrollLink to="get-started" smooth={true} duration={1500}>
                   <Button
                     size="lg"
                     className="neural-button rounded-full hover:cursor-pointer px-8 gap-2 text-base"
