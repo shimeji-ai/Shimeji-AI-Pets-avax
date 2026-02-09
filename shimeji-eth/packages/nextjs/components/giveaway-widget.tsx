@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
 
@@ -81,12 +82,25 @@ export function GiveawayWidget() {
             >
               ×
             </button>
-            <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
-              {isSpanish ? "Giveaway Shimeji" : "Shimeji Giveaway"}
-            </p>
-            <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
-              {isSpanish ? "Gana 1 comisión personalizada." : "Win 1 custom commission."}
-            </p>
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12 shrink-0">
+                <Image
+                  src="/GIVEAWAY2.png"
+                  alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
+                  fill
+                  sizes="48px"
+                  className="object-contain drop-shadow"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
+                  {isSpanish ? "Giveaway Shimeji" : "Shimeji Giveaway"}
+                </p>
+                <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
+                  {isSpanish ? "Gana 1 comisión personalizada." : "Win 1 custom commission."}
+                </p>
+              </div>
+            </div>
             <p className="mt-1 text-xs md:text-sm leading-snug text-white/90 break-words">
               {isSpanish ? "Sigue a " : "Follow "}
               <Link

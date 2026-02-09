@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
 import { Button } from "~~/components/ui/button";
@@ -112,6 +113,29 @@ export function ProjectFeedbackBox() {
           </Link>
           {isSpanish ? " en X." : " on X."}
         </p>
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center gap-4">
+            <div className="relative h-14 w-14 shrink-0">
+              <Image
+                src="/GIVEAWAY2.png"
+                alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
+                fill
+                sizes="56px"
+                className="object-contain drop-shadow"
+              />
+            </div>
+            <div className="text-sm text-foreground">
+              <p className="font-semibold">
+                {isSpanish ? "Recordatorio del giveaway" : "Giveaway reminder"}
+              </p>
+              <p className="text-muted-foreground">
+                {isSpanish
+                  ? "Deja feedback, agrega tu usuario de X y sigue a @ShimejiFactory para entrar al sorteo de 1 comisión personalizada. Es rápido y nos ayuda a mejorar."
+                  : "Leave feedback, add your X username, and follow @ShimejiFactory to enter the draw for 1 custom commission. It’s quick and it helps us improve."}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <textarea
