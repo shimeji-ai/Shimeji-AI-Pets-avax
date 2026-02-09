@@ -28,7 +28,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             onMouseEnter={() => setIsLogoHovered(true)}
             onMouseLeave={() => setIsLogoHovered(false)}
           >
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3" prefetch={false}>
               <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
                 <Image
                   src="/logo.png"
@@ -47,24 +47,28 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
           <nav className="hidden lg:flex items-center gap-8">
             <Link
               href="/"
+              prefetch={false}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Inicio" : "Home"}
             </Link>
             <Link
               href="/factory"
+              prefetch={false}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Fábrica" : "Factory"}
             </Link>
             <Link
               href="/collection"
+              prefetch={false}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Colección" : "Collection"}
             </Link>
             <Link
               href="/help"
+              prefetch={false}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Ayuda" : "Help"}
@@ -96,6 +100,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             <nav className="flex flex-col gap-4 pt-4">
               <Link
                 href="/"
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -103,6 +108,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               </Link>
               <Link
                 href="/factory"
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -110,6 +116,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               </Link>
               <Link
                 href="/collection"
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -117,6 +124,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               </Link>
               <Link
                 href="/download"
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -124,6 +132,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               </Link>
               <Link
                 href="/help"
+                prefetch={false}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >

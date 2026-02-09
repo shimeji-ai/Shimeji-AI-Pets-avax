@@ -17,7 +17,7 @@ const DownloadButton = ({
 }: DownloadButtonProps) => {
   const { isSpanish } = useLanguage();
   return (
-    <Link href={href}>
+    <Link href={href} prefetch={false}>
       <button type="button" className="neural-stars-button">
         <strong className="neural-stars-label">{isSpanish ? labelEs : labelEn}</strong>
         <div className="neural-stars-container">

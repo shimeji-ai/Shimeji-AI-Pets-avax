@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
   webpack: config => {
     config.resolve.fallback = { fs: false, net: false, tls: false };
     config.externals.push("pino-pretty", "lokijs", "encoding");
+    config.watchOptions = {
+      ...(config.watchOptions || {}),
+      ignored: [
+        "**/node_modules/**",
+        "**/desktop-mvp/**",
+        "**/chrome-extension/**",
+        "**/web-stellar/**",
+        "**/animation-reference/**",
+      ],
+    };
     return config;
   },
 };
