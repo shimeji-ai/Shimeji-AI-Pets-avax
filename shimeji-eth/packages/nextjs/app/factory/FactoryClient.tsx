@@ -90,7 +90,7 @@ export default function FactoryClient() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="flex-1">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-40 h-40 shrink-0 flex items-center justify-center">
+                    <div className="w-40 h-40 shrink-0 flex items-start justify-start self-start">
                       <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-36 h-36 object-contain" />
                     </div>
                     <div>
