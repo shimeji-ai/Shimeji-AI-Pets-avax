@@ -79,9 +79,33 @@ export default function PrivacyPage() {
             <div>
               <h2 className="text-foreground font-semibold mb-2">{isSpanish ? "Contacto" : "Contact"}</h2>
               <p>
-                {isSpanish
-                  ? "Si tienes preguntas, contáctanos en X/Twitter @ShimejiAIPets."
-                  : "If you have questions, contact us on X/Twitter @ShimejiAIPets."}
+                {isSpanish ? (
+                  <>
+                    Si tienes preguntas, contáctanos en X/Twitter{" "}
+                    <a
+                      href="https://x.com/ShimejiAIPets"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
+                    >
+                      @ShimejiAIPets
+                    </a>
+                    .
+                  </>
+                ) : (
+                  <>
+                    If you have questions, contact us on X/Twitter{" "}
+                    <a
+                      href="https://x.com/ShimejiAIPets"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
+                    >
+                      @ShimejiAIPets
+                    </a>
+                    .
+                  </>
+                )}
               </p>
             </div>
           </div>

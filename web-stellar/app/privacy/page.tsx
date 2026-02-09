@@ -89,9 +89,33 @@ export default function PrivacyPage() {
                 {isSpanish ? "Contacto" : "Contact"}
               </h2>
               <p>
-                {isSpanish
-                  ? "Si tienes preguntas, contáctanos en X/Twitter @ShimejiFactory."
-                  : "If you have questions, contact us on X/Twitter @ShimejiFactory."}
+                {isSpanish ? (
+                  <>
+                    Si tienes preguntas, contáctanos en X/Twitter{" "}
+                    <a
+                      href="https://x.com/ShimejiFactory"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
+                    >
+                      @ShimejiFactory
+                    </a>
+                    .
+                  </>
+                ) : (
+                  <>
+                    If you have questions, contact us on X/Twitter{" "}
+                    <a
+                      href="https://x.com/ShimejiFactory"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
+                    >
+                      @ShimejiFactory
+                    </a>
+                    .
+                  </>
+                )}
               </p>
             </div>
           </div>
