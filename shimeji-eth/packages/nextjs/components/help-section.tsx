@@ -62,7 +62,14 @@ const providers = [
   },
 ];
 
-const configReference = [
+const configReference: Array<{
+  emoji: string;
+  titleEn: string;
+  titleEs: string;
+  contentEn: string;
+  contentEs: string;
+  highlight?: boolean;
+}> = [
   {
     emoji: "🎭",
     titleEn: "Character",
@@ -111,6 +118,7 @@ const configReference = [
     titleEs: "API Key",
     contentEn: "Paste your OpenRouter key here so the shimeji can speak.",
     contentEs: "Pegá tu key de OpenRouter para que el shimeji pueda hablar.",
+    highlight: true,
   },
   {
     emoji: "🧪",

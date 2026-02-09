@@ -42,7 +42,10 @@ export function FeaturesSection() {
   };
 
   return (
-    <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 scroll-mt-28 sm:scroll-mt-32">
+    <section
+      id="features"
+      className="py-20 px-4 sm:px-6 lg:px-8 scroll-mt-[110px] sm:scroll-mt-[128px]"
+    >
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
