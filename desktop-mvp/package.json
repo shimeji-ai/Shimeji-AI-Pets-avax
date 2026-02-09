@@ -1,0 +1,14 @@
+{
+  "name": "shimeji-desktop-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^30.0.0",
+    "electron-store": "^9.0.0"
+  }
+}

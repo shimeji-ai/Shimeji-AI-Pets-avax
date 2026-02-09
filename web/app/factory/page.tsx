@@ -75,7 +75,7 @@ export default function FactoryPage() {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
-                Shimeji AI Pets
+                {t("Factory", "Fábrica")}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {t(
@@ -96,11 +96,8 @@ export default function FactoryPage() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center justify-center text-foreground">
-                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-8 h-8 object-contain" />
-                      <span className="text-[10px] font-semibold leading-none mt-1">
-                        {t("Egg", "Huevo")}
-                      </span>
+                    <div className="w-14 h-14 flex items-center justify-center">
+                      <img src="/egg-sit.png" alt={t("Egg", "Huevo")} className="w-12 h-12 object-contain" />
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
