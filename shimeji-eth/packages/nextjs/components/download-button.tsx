@@ -33,5 +33,3 @@ const DownloadButton = ({
 };
 
 export default DownloadButton;
-
-export default DownloadButton;
