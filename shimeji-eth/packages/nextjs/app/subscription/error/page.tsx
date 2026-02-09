@@ -1,9 +1,10 @@
 import SubscriptionErrorClient from "./SubscriptionErrorClient";
 
-export default function SubscriptionErrorPage({
+export default async function SubscriptionErrorPage({
   searchParams,
 }: {
-  searchParams: { reason?: string };
+  searchParams: Promise<{ reason?: string }>;
 }) {
-  return <SubscriptionErrorClient searchParams={searchParams} />;
+  const resolvedSearchParams = await searchParams;
+  return <SubscriptionErrorClient searchParams={resolvedSearchParams} />;
 }
