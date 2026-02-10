@@ -73,7 +73,7 @@ export function GiveawayWidget() {
         }`}
       >
         <div className="rounded-2xl giveaway-border p-[2px] shadow-[0_12px_30px_rgba(0,0,0,0.45)]">
-          <div className="relative rounded-[calc(1rem-2px)] bg-[#0b0f14] text-white p-3 md:p-4 border border-white/10">
+          <div className="relative rounded-[calc(1rem-2px)] bg-[#0b0f14] text-white p-3 md:p-4 border border-white/10 giveaway-inner">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
@@ -105,17 +105,17 @@ export function GiveawayWidget() {
                 <button
                   type="button"
                   onClick={goToFeedback}
-                  className="mt-3 h-8 rounded-lg px-3 text-xs font-bold neural-button"
+                  className="mt-3 h-10 rounded-xl px-4 text-[11px] font-black giveaway-cta"
                 >
                   {isSpanish ? "Ir al formulario" : "Go to feedback form"}
                 </button>
               </div>
-              <div className="relative w-20 shrink-0">
+              <div className="relative w-24 md:w-28 shrink-0">
                 <Image
                   src="/GIVEAWAY2.png"
                   alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
                   fill
-                  sizes="80px"
+                  sizes="120px"
                   className="object-contain object-right drop-shadow"
                 />
               </div>
@@ -146,6 +146,48 @@ export function GiveawayWidget() {
           100% {
             background-position: 0% 50%;
           }
+        }
+
+        #giveaway-panel .giveaway-inner {
+          background: linear-gradient(180deg, rgba(11, 15, 20, 0.96), rgba(12, 22, 38, 0.95));
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        @media (prefers-color-scheme: dark) {
+          #giveaway-panel .giveaway-inner {
+            background: linear-gradient(180deg, rgba(5, 5, 13, 0.97), rgba(9, 9, 19, 0.98));
+          }
+        }
+
+        #giveaway-panel .giveaway-cta {
+          background: linear-gradient(135deg, rgba(255, 214, 102, 0.95), rgba(255, 155, 210, 0.95));
+          color: #1b0b15;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 10px 24px rgba(255, 214, 102, 0.25);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #giveaway-panel .giveaway-cta:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 12px 28px rgba(255, 214, 102, 0.35);
+        }
+
+        :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-inner {
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 183, 255, 0.2));
+          color: #2a1f4e;
+          border-color: rgba(42, 31, 78, 0.3);
+        }
+
+        :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-cta {
+          background: #2a1f4e;
+          color: #fef5ff;
+          border-color: #fef5ff;
+          box-shadow: 0 12px 30px rgba(42, 31, 78, 0.35);
+        }
+
+        :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-cta:hover {
+          background: #4f3c7f;
+          box-shadow: 0 14px 34px rgba(42, 31, 78, 0.45);
         }
       `}</style>
     </div>
