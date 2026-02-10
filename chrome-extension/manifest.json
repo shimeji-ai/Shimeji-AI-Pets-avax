@@ -3,7 +3,7 @@
   "name": "Shimeji AI Pets",
   "version": "1.0.0",
   "description": "Animated AI pets for your browser. Chat with a shimeji or connect your own agent.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

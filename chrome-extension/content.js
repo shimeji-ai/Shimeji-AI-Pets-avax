@@ -732,18 +732,7 @@
     }
 
     function loadShimejiConfigs(callback) {
-        safeStorageLocalGet([
-            'shimejis',
-            'aiModel',
-            'aiApiKey',
-            'aiPersonality',
-            'chatMode',
-            'openclawGatewayUrl',
-            'openclawGatewayToken',
-            'ttsEnabledMigrationDone',
-            'masterKeyEnabled',
-            'noShimejis'
-        ], (data) => {
+        const handleData = (data) => {
             let list = migrateLegacy(data);
             if (!!data.noShimejis) {
                 list = [];
@@ -777,9 +766,41 @@
                 };
             });
             list = list.slice(0, MAX_SHIMEJIS);
-            safeStorageLocalSet({ shimejis: list, ttsEnabledMigrationDone: true });
+            try {
+                chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
+            } catch (e) {
+                safeStorageLocalSet({ shimejis: list, ttsEnabledMigrationDone: true });
+            }
             callback(list);
-        });
+        };
+
+        try {
+            chrome.storage.local.get([
+                'shimejis',
+                'aiModel',
+                'aiApiKey',
+                'aiPersonality',
+                'chatMode',
+                'openclawGatewayUrl',
+                'openclawGatewayToken',
+                'ttsEnabledMigrationDone',
+                'masterKeyEnabled',
+                'noShimejis'
+            ], (data) => handleData(data || {}));
+        } catch (e) {
+            safeStorageLocalGet([
+                'shimejis',
+                'aiModel',
+                'aiApiKey',
+                'aiPersonality',
+                'chatMode',
+                'openclawGatewayUrl',
+                'openclawGatewayToken',
+                'ttsEnabledMigrationDone',
+                'masterKeyEnabled',
+                'noShimejis'
+            ], (data) => handleData(data || {}));
+        }
     }
 
     function createShimejiRuntime(config, visibilityState, options = {}) {
@@ -1069,6 +1090,10 @@
                 ? (isSpanishLocale() ? 'Voz activada' : 'Voice on')
                 : (isSpanishLocale() ? 'Voz desactivada' : 'Voice off');
             quickTtsBtnEl.classList.toggle('active', !!config.ttsEnabled);
+        }
+
+        function updateTtsClosedBtnVisual() {
+            // Legacy hook: keep as no-op to avoid breaking runtime updates.
         }
 
         function updateRelayToggleBtnVisual() {
@@ -3114,7 +3139,7 @@
                     updateStreamingMessage(streamEl, text);
                     conversationHistory.push({ role: 'assistant', content: text });
                     saveConversation();
-                    if (!(isChatOpen && config.ttsEnabled)) {
+                    if (!config.ttsEnabled) {
                         playSoundOrQueue('success');
                     }
                     if (isChatOpen) {
@@ -3209,7 +3234,7 @@
                         conversationHistory.push({ role: 'assistant', content: responseText });
                         saveConversation();
                         appendMessage('ai', responseText);
-                        if (!(isChatOpen && config.ttsEnabled)) {
+                        if (!config.ttsEnabled) {
                             playSoundOrQueue('success');
                         }
                         if (isChatOpen) {

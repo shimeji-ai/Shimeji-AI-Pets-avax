@@ -1046,6 +1046,22 @@ if (securityHint) securityHint.textContent = t(
     try {
       chrome.runtime.sendMessage({ type: "refreshShimejis" });
     } catch {}
+    try {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs?.[0]?.id;
+        if (!tabId) return;
+        chrome.tabs.sendMessage(tabId, { action: "refreshShimejis" }).catch(() => {});
+      });
+    } catch {}
+  }
+
+  function setLocalAndRefresh(payload) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set(payload, () => {
+        notifyRefresh();
+        resolve();
+      });
+    });
   }
 
   function getStoredShimejis() {
@@ -1082,7 +1098,7 @@ if (securityHint) securityHint.textContent = t(
         if (entry.openclawGatewayToken) entry.openclawGatewayToken = '';
         out.push(entry);
       }
-      chrome.storage.local.set({ shimejis: out, masterKeyEnabled: true, masterKeySalt, noShimejis }, notifyRefresh);
+      await setLocalAndRefresh({ shimejis: out, masterKeyEnabled: true, masterKeySalt, noShimejis });
       shimejis = shimejis.map((s, idx) => ({
         ...s,
         openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
@@ -1115,7 +1131,7 @@ if (securityHint) securityHint.textContent = t(
       }
       out.push(entry);
     }
-    chrome.storage.local.set({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null, noShimejis }, notifyRefresh);
+    await setLocalAndRefresh({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null, noShimejis });
     shimejis = shimejis.map((s, idx) => ({
       ...s,
       openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
@@ -1833,7 +1849,6 @@ if (securityHint) securityHint.textContent = t(
       shimejis = ensureShimejiIds(shimejis);
       selectedShimejiId = shimejis[shimejis.length - 1]?.id || null;
       await saveShimejis();
-      notifyRefresh();
       renderShimejis();
     });
   }
