@@ -255,11 +255,6 @@ function buildShimejiPreview(shimeji) {
   const wrapper = document.createElement("div");
   wrapper.className = "shimeji-preview";
 
-  const loader = document.createElement("div");
-  loader.className = "shimeji-preview-loader";
-  wrapper.classList.add("loading");
-  wrapper.appendChild(loader);
-
   const sprite = document.createElement("div");
   sprite.className = "shimeji-preview-sprite";
   const sizePx = getPreviewSizePx(shimeji.size);
@@ -273,9 +268,26 @@ function buildShimejiPreview(shimeji) {
 
   const frameUrls = PREVIEW_FRAMES.map((frame) => `${base}${frame}`);
   let loadedCount = 0;
+  let loadingTimer = null;
+  const loader = document.createElement("div");
+  loader.className = "shimeji-preview-loader";
+
+  const showLoading = () => {
+    if (!wrapper.isConnected) return;
+    wrapper.classList.add("loading");
+    if (!loader.isConnected) wrapper.appendChild(loader);
+  };
+
+  loadingTimer = setTimeout(showLoading, 120);
+
   const finishLoading = () => {
     if (!wrapper.isConnected) return;
+    if (loadingTimer) {
+      clearTimeout(loadingTimer);
+      loadingTimer = null;
+    }
     wrapper.classList.remove("loading");
+    if (loader.isConnected) loader.remove();
     sprite.style.backgroundImage = `url('${frameUrls[frameIndex]}')`;
     const interval = setInterval(() => {
       if (!wrapper.isConnected) {
