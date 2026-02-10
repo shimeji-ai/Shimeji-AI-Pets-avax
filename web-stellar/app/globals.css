@@ -410,25 +410,25 @@ body[data-theme="kawaii"] #feedback-form-section input::placeholder {
 }
 
 body[data-theme="kawaii"] #giveaway-panel .bg-\[\#0b0f14\] {
-  background: rgba(255, 255, 255, 0.92) !important;
-  color: #2a1f4e !important;
-  border-color: rgba(42, 31, 78, 0.2) !important;
+  background: rgba(11, 15, 20, 0.96) !important;
+  color: #f8f7ff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 body[data-theme="kawaii"] #giveaway-panel .text-white {
-  color: #2a1f4e !important;
+  color: #f8f7ff !important;
 }
 
 body[data-theme="kawaii"] #giveaway-panel .text-white\/80 {
-  color: rgba(42, 31, 78, 0.8) !important;
+  color: rgba(248, 247, 255, 0.8) !important;
 }
 
 body[data-theme="kawaii"] #giveaway-panel .text-white\/90 {
-  color: rgba(42, 31, 78, 0.85) !important;
+  color: rgba(248, 247, 255, 0.9) !important;
 }
 
 body[data-theme="kawaii"] #giveaway-panel .text-\[var\(--brand-accent\)\] {
-  color: #2a1f4e !important;
+  color: #9de7ff !important;
 }
 
 body[data-theme="kawaii"] .bg-\[\#0b0f14\] {
