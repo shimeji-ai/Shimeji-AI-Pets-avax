@@ -255,6 +255,11 @@ function buildShimejiPreview(shimeji) {
   const wrapper = document.createElement("div");
   wrapper.className = "shimeji-preview";
 
+  const loader = document.createElement("div");
+  loader.className = "shimeji-preview-loader";
+  wrapper.classList.add("loading");
+  wrapper.appendChild(loader);
+
   const sprite = document.createElement("div");
   sprite.className = "shimeji-preview-sprite";
   const sizePx = getPreviewSizePx(shimeji.size);
@@ -264,14 +269,33 @@ function buildShimejiPreview(shimeji) {
   const character = shimeji.character || "shimeji";
   const base = chrome.runtime.getURL(`characters/${character}/`);
   let frameIndex = 0;
-  sprite.style.backgroundImage = `url('${base}${PREVIEW_FRAMES[frameIndex]}')`;
   wrapper.appendChild(sprite);
 
-  const interval = setInterval(() => {
-    frameIndex = (frameIndex + 1) % PREVIEW_FRAMES.length;
-    sprite.style.backgroundImage = `url('${base}${PREVIEW_FRAMES[frameIndex]}')`;
-  }, 220);
-  previewIntervals.push(interval);
+  const frameUrls = PREVIEW_FRAMES.map((frame) => `${base}${frame}`);
+  let loadedCount = 0;
+  const finishLoading = () => {
+    if (!wrapper.isConnected) return;
+    wrapper.classList.remove("loading");
+    sprite.style.backgroundImage = `url('${frameUrls[frameIndex]}')`;
+    const interval = setInterval(() => {
+      if (!wrapper.isConnected) {
+        clearInterval(interval);
+        return;
+      }
+      frameIndex = (frameIndex + 1) % frameUrls.length;
+      sprite.style.backgroundImage = `url('${frameUrls[frameIndex]}')`;
+    }, 220);
+    previewIntervals.push(interval);
+  };
+
+  frameUrls.forEach((url) => {
+    const img = new Image();
+    img.onload = img.onerror = () => {
+      loadedCount += 1;
+      if (loadedCount === frameUrls.length) finishLoading();
+    };
+    img.src = url;
+  });
 
   return wrapper;
 }
