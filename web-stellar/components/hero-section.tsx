@@ -22,7 +22,7 @@ export function HeroSection() {
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left lg:mr-10">
             {/* Large background typography */}
             <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance lg:text-left">
-              Decorative AI companions that chat and act on your behalf
+              Chatty NFT Companions
             </h1>
 
             {/* Info cards */}

@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLanguage } from "~~/components/language-provider";
-
 import styles from "./site-shimeji-mascot.module.css";
+import { useLanguage } from "~~/components/language-provider";
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string };

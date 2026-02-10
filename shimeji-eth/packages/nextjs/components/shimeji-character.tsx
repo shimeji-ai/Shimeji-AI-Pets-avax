@@ -33,8 +33,8 @@ export function ShimejiCharacter() {
       <div className="relative">
         {/* Main character image */}
         <Image
-          src="/mascota-shimeji-2.png"
-          alt={isSpanish ? "Personaje mascota Shimeji_2" : "Shimeji_2 mascot character"}
+          src="/bunny-hero.png"
+          alt={isSpanish ? "Icono del conejo Shimeji" : "Shimeji bunny icon"}
           width={320}
           height={320}
           className="w-60 h-60 sm:w-72 sm:h-72 lg:w-80 lg:h-80 object-contain drop-shadow-2xl"

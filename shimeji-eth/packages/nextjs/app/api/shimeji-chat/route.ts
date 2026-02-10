@@ -85,7 +85,11 @@ export async function POST(request: NextRequest) {
         model: DEFAULT_MODEL,
         temperature: 0.7,
         max_tokens: 250,
-        messages: [{ role: "system", content: buildSystemPrompt(lang) }, ...history, { role: "user", content: message }],
+        messages: [
+          { role: "system", content: buildSystemPrompt(lang) },
+          ...history,
+          { role: "user", content: message },
+        ],
       }),
       cache: "no-store",
     });
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ reply: reply.trim() });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
