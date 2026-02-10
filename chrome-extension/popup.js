@@ -1831,7 +1831,8 @@ if (securityHint) securityHint.textContent = t(
       shimejis.push(newShimeji);
       shimejis = ensureShimejiIds(shimejis);
       selectedShimejiId = shimejis[shimejis.length - 1]?.id || null;
-      saveShimejis();
+      await saveShimejis();
+      notifyRefresh();
       renderShimejis();
     });
   }
