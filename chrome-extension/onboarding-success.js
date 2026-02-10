@@ -1,4 +1,7 @@
-const isSpanish = (navigator.language || "").toLowerCase().startsWith("es");
+const languages = Array.isArray(navigator.languages) && navigator.languages.length
+  ? navigator.languages
+  : [navigator.language];
+const isSpanish = languages.some((lang) => (lang || "").toLowerCase().startsWith("es"));
 
 function t(en, es) {
   return isSpanish ? es : en;
