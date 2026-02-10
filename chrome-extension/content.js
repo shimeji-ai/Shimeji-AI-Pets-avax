@@ -266,8 +266,11 @@
     let uiLanguage = null;
 
     function detectBrowserLanguage() {
-        const locale = (navigator.language || '').toLowerCase();
-        return locale.startsWith('es') ? 'es' : 'en';
+        const languages = Array.isArray(navigator.languages) && navigator.languages.length
+            ? navigator.languages
+            : [navigator.language];
+        const hasSpanish = languages.some((lang) => (lang || '').toLowerCase().startsWith('es'));
+        return hasSpanish ? 'es' : 'en';
     }
 
     function isSpanishLocale() {
