@@ -1057,6 +1057,7 @@ if (securityHint) securityHint.textContent = t(
   }
 
   async function saveShimejis() {
+    const noShimejis = shimejis.length === 0;
     if (masterKeyEnabled) {
       const sessionKey = await getSessionMasterKey();
       if (!sessionKey) {
@@ -1081,7 +1082,7 @@ if (securityHint) securityHint.textContent = t(
         if (entry.openclawGatewayToken) entry.openclawGatewayToken = '';
         out.push(entry);
       }
-      chrome.storage.local.set({ shimejis: out, masterKeyEnabled: true, masterKeySalt }, notifyRefresh);
+      chrome.storage.local.set({ shimejis: out, masterKeyEnabled: true, masterKeySalt, noShimejis }, notifyRefresh);
       shimejis = shimejis.map((s, idx) => ({
         ...s,
         openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
@@ -1114,7 +1115,7 @@ if (securityHint) securityHint.textContent = t(
       }
       out.push(entry);
     }
-    chrome.storage.local.set({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null }, notifyRefresh);
+    chrome.storage.local.set({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null, noShimejis }, notifyRefresh);
     shimejis = shimejis.map((s, idx) => ({
       ...s,
       openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
