@@ -809,6 +809,7 @@
         let inlineThinkingEl = null;
         let chatMessagesEl = null;
         let chatInputEl = null;
+        let chatInputAreaEl = null;
         let chatMetaEl = null;
         let chatControlsPanelEl = null;
         let lastAssistantText = '';
@@ -856,6 +857,8 @@
         let micDraftText = '';
         let micAutoSendSeconds = 0;
         let autoSendArmed = false;
+        let micSessionAutoRestart = false;
+        let micSessionContinuous = false;
         let noKeyNudgeTimer = null;
         let noKeyNudgeShown = false;
         let isPrimary = !!options.isPrimary;
@@ -1248,7 +1251,14 @@
             }, micAutoSendSeconds * 1000);
         }
 
-        function startVoiceInput() {
+        function setMicListeningState(listening) {
+            isListening = listening;
+            if (micBtnEl) micBtnEl.classList.toggle('listening', listening);
+            if (chatInputAreaEl) chatInputAreaEl.classList.toggle('listening', listening);
+        }
+
+        function startVoiceInput(options = {}) {
+            const { continuous = false, allowAutoRestart = false } = options;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 appendErrorMessage(isSpanishLocale() ? 'Tu navegador no soporta reconocimiento de voz.' : 'Your browser does not support speech recognition.');
@@ -1263,13 +1273,15 @@
             }
             clearAutoSendPopup();
             micDraftText = '';
+            micSessionAutoRestart = !!allowAutoRestart;
+            micSessionContinuous = !!continuous;
             // Cancel any ongoing TTS before starting mic
             cancelSpeech();
             if (recognition) {
                 try { recognition.abort(); } catch (e) {}
             }
             recognition = new SpeechRecognition();
-            recognition.continuous = true;
+            recognition.continuous = !!continuous;
             recognition.interimResults = true;
             recognition.lang = isSpanishLocale() ? 'es' : 'en';
 
@@ -1297,17 +1309,24 @@
                 const displayText = (micDraftText + interim).trim();
                 if (chatInputEl) {
                     chatInputEl.value = displayText;
+                    try {
+                        const end = chatInputEl.value.length;
+                        chatInputEl.setSelectionRange(end, end);
+                        chatInputEl.scrollLeft = chatInputEl.scrollWidth;
+                    } catch (e) {}
                 }
 
                 if (hasFinal) {
                     autoSendArmed = true;
                     showAutoSendPopup();
+                    if (!micSessionContinuous && recognition) {
+                        try { recognition.stop(); } catch (e) {}
+                    }
                 }
             };
 
             recognition.onend = () => {
-                isListening = false;
-                if (micBtnEl) micBtnEl.classList.remove('listening');
+                setMicListeningState(false);
                 if (window.__shimejiActiveRecognition === shimejiId) {
                     window.__shimejiActiveRecognition = null;
                 }
@@ -1317,38 +1336,40 @@
                 } else {
                     autoSendArmed = false;
                     // Open mic: auto-restart if still enabled and not sending/thinking
-                    if (config.openMicEnabled && !isListening && !isThinking) {
+                    if (config.openMicEnabled && micSessionAutoRestart && !isListening && !isThinking) {
                         setTimeout(() => {
-                            if (config.openMicEnabled && !isListening && !isThinking) startVoiceInput();
+                            if (config.openMicEnabled && micSessionAutoRestart && !isListening && !isThinking) {
+                                startVoiceInput({ continuous: true, allowAutoRestart: true });
+                            }
                         }, 300);
                     }
                 }
             };
 
             recognition.onerror = (event) => {
-                isListening = false;
-                if (micBtnEl) micBtnEl.classList.remove('listening');
+                setMicListeningState(false);
                 if (window.__shimejiActiveRecognition === shimejiId) {
                     window.__shimejiActiveRecognition = null;
                 }
                 autoSendArmed = false;
                 if (event.error === 'not-allowed') {
                     appendErrorMessage(isSpanishLocale() ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.' : 'Microphone permission denied. Enable it in browser settings.');
-                } else if (config.openMicEnabled && event.error !== 'aborted') {
+                } else if (config.openMicEnabled && micSessionAutoRestart && event.error !== 'aborted') {
                     // Open mic: retry on non-fatal errors (e.g. no-speech timeout)
                     setTimeout(() => {
-                        if (config.openMicEnabled && !isListening) startVoiceInput();
+                        if (config.openMicEnabled && micSessionAutoRestart && !isListening) {
+                            startVoiceInput({ continuous: true, allowAutoRestart: true });
+                        }
                     }, 500);
                 }
             };
 
             try {
                 recognition.start();
-                isListening = true;
+                setMicListeningState(true);
                 window.__shimejiActiveRecognition = shimejiId;
-                if (micBtnEl) micBtnEl.classList.add('listening');
             } catch (e) {
-                isListening = false;
+                setMicListeningState(false);
             }
         }
 
@@ -1358,8 +1379,9 @@
             }
             clearAutoSendPopup();
             micDraftText = '';
-            isListening = false;
-            if (micBtnEl) micBtnEl.classList.remove('listening');
+            micSessionAutoRestart = false;
+            micSessionContinuous = false;
+            setMicListeningState(false);
             if (window.__shimejiActiveRecognition === shimejiId) {
                 window.__shimejiActiveRecognition = null;
             }
@@ -1369,7 +1391,7 @@
             if (isListening) {
                 stopVoiceInput();
             } else {
-                startVoiceInput();
+                startVoiceInput({ continuous: false, allowAutoRestart: false });
             }
         }
 
@@ -1942,7 +1964,7 @@
                     const openMicAfter = config.openMicEnabled;
                     enqueueSpeech(lastAssistantText, openMicAfter ? () => {
                         if (!config.openMicEnabled || isListening) return;
-                        startVoiceInput();
+                        startVoiceInput({ continuous: true, allowAutoRestart: true });
                     } : null);
                 }
                 persistTtsEnabled(config.ttsEnabled);
@@ -1969,7 +1991,7 @@
                 persistOpenMicEnabled(config.openMicEnabled);
                 if (config.openMicEnabled) {
                     // Start listening immediately when enabled
-                    if (!isListening) startVoiceInput();
+                    if (!isListening) startVoiceInput({ continuous: true, allowAutoRestart: true });
                 } else {
                     stopVoiceInput();
                 }
@@ -2290,6 +2312,7 @@
             const inputArea = document.createElement('div');
             inputArea.className = 'shimeji-chat-input-area';
             inputArea.addEventListener('click', closePanels);
+            chatInputAreaEl = inputArea;
             chatInputEl = document.createElement('input');
             chatInputEl.className = 'shimeji-chat-input';
             chatInputEl.type = 'text';
@@ -2680,7 +2703,7 @@
                             const openMicAfter = config.openMicEnabled;
                             enqueueSpeech(text, openMicAfter ? () => {
                                 if (!config.openMicEnabled || isListening) return;
-                                startVoiceInput();
+                                startVoiceInput({ continuous: true, allowAutoRestart: true });
                             } : null);
                         }
                     }
@@ -3072,18 +3095,22 @@
                         if (config.ttsEnabled) {
                             enqueueSpeech(text, openMicAfter ? () => {
                                 if (!config.openMicEnabled || isListening) return;
-                                startVoiceInput();
+                                startVoiceInput({ continuous: true, allowAutoRestart: true });
                             } : null);
                         } else if (openMicAfter) {
                             setTimeout(() => {
-                                if (config.openMicEnabled && !isListening) startVoiceInput();
+                                if (config.openMicEnabled && !isListening) {
+                                    startVoiceInput({ continuous: true, allowAutoRestart: true });
+                                }
                             }, 300);
                         }
                     } else {
                         pendingSpeechText = text;
                         if (config.openMicEnabled && !isListening) {
                             setTimeout(() => {
-                                if (config.openMicEnabled && !isListening) startVoiceInput();
+                                if (config.openMicEnabled && !isListening) {
+                                    startVoiceInput({ continuous: true, allowAutoRestart: true });
+                                }
                             }, 300);
                         }
                     }
@@ -3162,19 +3189,23 @@
                             const openMicAfter = config.openMicEnabled;
                             enqueueSpeech(responseText, openMicAfter ? () => {
                                 if (!config.openMicEnabled || isListening) return;
-                                startVoiceInput();
+                                startVoiceInput({ continuous: true, allowAutoRestart: true });
                             } : null);
                             // If TTS is off but open mic is on, start listening after a short delay
                             if (openMicAfter && !config.ttsEnabled) {
                                 setTimeout(() => {
-                                    if (config.openMicEnabled && !isListening) startVoiceInput();
+                                    if (config.openMicEnabled && !isListening) {
+                                        startVoiceInput({ continuous: true, allowAutoRestart: true });
+                                    }
                                 }, 300);
                             }
                         } else {
                             pendingSpeechText = responseText;
                             if (config.openMicEnabled && !isListening) {
                                 setTimeout(() => {
-                                    if (config.openMicEnabled && !isListening) startVoiceInput();
+                                    if (config.openMicEnabled && !isListening) {
+                                        startVoiceInput({ continuous: true, allowAutoRestart: true });
+                                    }
                                 }, 300);
                             }
                         }
@@ -3941,7 +3972,7 @@
                     const openMicAfter = config.openMicEnabled;
                     enqueueSpeech(lastAssistantText, openMicAfter ? () => {
                         if (!config.openMicEnabled || isListening) return;
-                        startVoiceInput();
+                        startVoiceInput({ continuous: true, allowAutoRestart: true });
                     } : null);
                 }
                 updateTtsToggleBtnVisual();

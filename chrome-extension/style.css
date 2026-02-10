@@ -570,6 +570,17 @@
     position: relative;
 }
 
+.shimeji-chat-input-area.listening {
+    animation: shimejiInputGlow 1.4s ease-in-out infinite;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-theme, #2a1f4e) 20%, transparent),
+        0 0 12px color-mix(in srgb, var(--chat-theme, #2a1f4e) 35%, transparent);
+}
+
+.shimeji-chat-input-area.listening .shimeji-chat-input {
+    border-color: color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
+    background: color-mix(in srgb, #ffffff 88%, var(--chat-theme, #2a1f4e) 12%);
+}
+
 .shimeji-chat-input {
     flex: 1;
     border: 1px solid rgba(42, 31, 78, 0.15);
@@ -700,6 +711,17 @@
     }
     50% {
         box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+    }
+}
+
+@keyframes shimejiInputGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-theme, #2a1f4e) 18%, transparent),
+            0 0 10px color-mix(in srgb, var(--chat-theme, #2a1f4e) 28%, transparent);
+    }
+    50% {
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-theme, #2a1f4e) 30%, transparent),
+            0 0 16px color-mix(in srgb, var(--chat-theme, #2a1f4e) 45%, transparent);
     }
 }
 
@@ -1006,10 +1028,20 @@
     border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+.chat-style-dark .shimeji-chat-input-area.listening {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--chat-theme, #9f7aea) 25%, transparent),
+        0 0 14px color-mix(in srgb, var(--chat-theme, #9f7aea) 40%, transparent);
+}
+
 .chat-style-dark .shimeji-chat-input {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.12);
     color: #e0dce8;
+}
+
+.chat-style-dark .shimeji-chat-input-area.listening .shimeji-chat-input {
+    border-color: color-mix(in srgb, var(--chat-theme, #9f7aea) 55%, transparent);
+    background: color-mix(in srgb, rgba(14, 18, 26, 0.9) 85%, var(--chat-theme, #9f7aea) 15%);
 }
 
 .chat-style-dark .shimeji-chat-input::placeholder {
