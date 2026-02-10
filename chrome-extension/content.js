@@ -2365,11 +2365,30 @@
             resizeHandleEl.className = 'shimeji-chat-resize-handle';
             chatBubbleEl.appendChild(resizeHandleEl);
 
-            const bringToFront = () => {
+            const shouldFocusOnChatClick = (target) => {
+                if (!target || !target.closest) return true;
+                if (target.closest('input, textarea, select')) return false;
+                if (target.closest('button')) return false;
+                return true;
+            };
+
+            const focusChatInput = () => {
+                if (!chatInputEl || !chatBubbleEl) return;
                 setChatBubbleFront(chatBubbleEl);
+                setTimeout(() => chatInputEl && chatInputEl.focus(), 0);
+            };
+
+            const bringToFront = (e) => {
+                setChatBubbleFront(chatBubbleEl);
+                if (!isChatOpen) return;
+                if (shouldFocusOnChatClick(e?.target)) {
+                    focusChatInput();
+                }
             };
             chatBubbleEl.addEventListener('mousedown', bringToFront);
             chatBubbleEl.addEventListener('touchstart', bringToFront, { passive: true });
+            chatMessagesEl.addEventListener('mousedown', bringToFront);
+            chatMessagesEl.addEventListener('touchstart', bringToFront, { passive: true });
 
             function updateResizeCursor(e) {
                 if (!chatBubbleEl || isResizing) return;
@@ -2619,6 +2638,9 @@
             isChatOpen = true;
             chatBubbleEl.classList.add('visible');
             setChatBubbleFront(chatBubbleEl);
+            if (chatInputEl) {
+                setTimeout(() => chatInputEl && chatInputEl.focus(), 0);
+            }
             updateBubblePosition();
             setChatOpenState(true);
             if (micCountdownBubbleEl) micCountdownBubbleEl.classList.remove('visible');
