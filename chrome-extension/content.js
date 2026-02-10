@@ -189,7 +189,8 @@
 
     const PERSONALITY_PITCH = {
         cryptid: 1.0, cozy: 0.85, chaotic: 1.35,
-        philosopher: 0.75, hype: 1.25, noir: 0.7
+        philosopher: 0.75, hype: 1.25, noir: 0.7,
+        egg: 0.95
     };
     const PERSONALITY_TTS = {
         cryptid: { pitch: 0.9, rate: 1.0 },
@@ -197,7 +198,8 @@
         chaotic: { pitch: 1.4, rate: 1.4 },
         philosopher: { pitch: 0.7, rate: 0.8 },
         hype: { pitch: 1.3, rate: 1.3 },
-        noir: { pitch: 0.6, rate: 0.9 }
+        noir: { pitch: 0.6, rate: 0.9 },
+        egg: { pitch: 1.15, rate: 0.95 }
     };
 
     const TTS_VOICE_PROFILES = {
@@ -566,7 +568,7 @@
     }
 
     const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
-    const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir'];
+    const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir', 'egg'];
     const MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
         'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat-v3-0324', 'mistralai/mistral-large-2411'

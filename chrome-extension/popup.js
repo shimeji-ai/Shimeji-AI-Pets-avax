@@ -218,6 +218,7 @@ const securityLockText = document.getElementById("security-lock-text");
     { value: "philosopher", labelEn: "Philosopher", labelEs: "Filósofo" },
     { value: "hype", labelEn: "Hype Beast", labelEs: "Entusiasta" },
     { value: "noir", labelEn: "Noir", labelEs: "Noir" },
+    { value: "egg", labelEn: "Egg", labelEs: "Huevo" },
   ];
   const VOICE_PROFILE_POOL = ["warm", "bright", "deep", "calm", "energetic"];
   function pickRandomVoiceProfile() {
@@ -1728,6 +1729,9 @@ if (securityHint) securityHint.textContent = t(
     } else if (field === "character") {
       target.character = value;
       target.characterSource = nftCharacterIds.has(value) ? "nft" : "free";
+      if (value === "egg") {
+        target.personality = "egg";
+      }
     } else if (field === "openrouterModel") {
       target.openrouterModel = value;
       if (value === "random") {
