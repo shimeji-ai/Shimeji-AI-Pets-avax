@@ -1,108 +1,75 @@
-# Shimeji Factory
+# Shimeji AI Pets
 
-Animated AI companions that live in your browser. Chat from any tab, get gentle nudges, or connect an agent with online and onchain tools.
+Animated shimejis that live in your browser. Add one (or a few) to any site, click to chat, and choose your AI backend: local (Ollama), hosted (OpenRouter), or tool-using agent mode (OpenClaw).
 
-Shimeji Factory is an open-source project with two parts: a **Next.js web app** for the landing page and factory UI, and a **Chrome extension** that renders animated shimejis on every webpage you visit.
+This repo is primarily a **Chrome extension**. The other folders are supporting apps, references, and experiments.
 
-## Features
+## Install The Chrome Extension (Dev Mode)
 
-- Animated sprite companions that wander around your browser tabs
-- AI chat powered by OpenRouter, Ollama (local), or OpenClaw (agent mode)
-- Multiple characters and personalities to choose from
-- Stellar wallet (Freighter) integration for custom shimeji commissions
-- Voice input support
-- Sound effects and idle/walk/drag animations
-- Works on any website
+1. Open `chrome://extensions` (or `brave://extensions`, `edge://extensions`).
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select this repo's `chrome-extension/` folder.
+5. Pin the extension so the toolbar icon is easy to reach.
 
-## Project Structure
+## Turn It On For The Sites You Want
 
-```
-stellar-shimeji-factory/
-├── web/                   # Next.js web app (landing page + factory)
-│   ├── app/               # Next.js app router pages
-│   ├── components/        # React components
-│   └── public/            # Static assets
-├── chrome-extension/      # Chrome extension
-│   ├── characters/        # Sprite sheets per character
-│   ├── popup.html         # Extension popup UI
-│   ├── content.js         # Injects shimeji into pages
-│   ├── background.js      # Service worker
-│   └── manifest.json      # Extension manifest (MV3)
-├── animation-reference/   # Sprite animation reference files
-└── generate_sprites.py    # Sprite sheet generation script
-```
+By default, the extension is allowed on `shimeji.dev`. To enable it elsewhere:
 
-## Getting Started
+1. Open the extension popup (toolbar icon).
+2. Use **Enabled on this site** to enable the current site.
+3. Or use **Enabled on all sites** if you want shimejis everywhere (Chrome will ask for permission).
 
-### Prerequisites
+If you don't see a shimeji after enabling: reload the page once.
 
-- [Node.js](https://nodejs.org/) v18+
-- [pnpm](https://pnpm.io/) (the web app uses pnpm as its package manager)
-- A Chromium-based browser (Chrome, Brave, Edge, etc.)
+## Configure Your AI Brain (OpenRouter / Ollama / OpenClaw)
 
-### Web App
+In the extension popup:
 
-```bash
-cd web
-pnpm install
-pnpm dev
-```
+1. Click `+` to add a shimeji (or select an existing one).
+2. Set **AI Brain**:
+   - `Standard (API key only)` for OpenRouter or Ollama chat.
+   - `AI Agent` for OpenClaw gateway mode.
 
-The app will be available at `http://localhost:3000`.
+### OpenRouter (Hosted Models)
 
-### Chrome Extension
+Best for getting started quickly.
 
-1. Open your browser and go to `chrome://extensions`
-2. Enable **Developer mode** (toggle in the top-right corner)
-3. Click **Load unpacked**
-4. Select the `chrome-extension/` folder from this repo
-5. The shimeji icon will appear in your browser toolbar
+1. Set **AI Brain** to `Standard (API key only)`.
+2. Set **Provider** to `OpenRouter`.
+3. Create an API key at [openrouter.ai/settings/keys](https://openrouter.ai/settings/keys)
+4. Paste your **OpenRouter API Key**.
+5. Choose a **Model** (or keep the default).
 
-### Connecting an AI Provider
+### Ollama (Local Models)
 
-Once the extension is loaded, click the shimeji icon in the toolbar to open the popup. You have three options:
+Best for local/offline and keeping prompts on your machine.
 
-**OpenRouter (recommended)**
-1. Create an account at [openrouter.ai](https://openrouter.ai/) and generate an API key
-2. In the extension popup, go to **Standard > OpenRouter** and paste your key
-3. Pick a model or keep the default
-
-**Ollama (local, offline)**
-1. Install [Ollama](https://ollama.com/) and pull a model:
+1. Install Ollama and pull a model, for example:
    ```bash
    ollama pull llama3.1
    ```
-2. In the extension popup, go to **Standard > Provider: Ollama**
-3. Set the Ollama URL (default `http://localhost:11434`) and your model name
+2. Set **AI Brain** to `Standard (API key only)`.
+3. Set **Provider** to `Ollama`.
+4. Set **Ollama URL** (default `http://127.0.0.1:11434`).
+5. Set **Ollama Model** (must match the model name you pulled).
 
-**OpenClaw (agent mode)**
-1. Run [OpenClaw](https://github.com/OpenAgentsInc/openclaw) locally or on your server
-2. Copy the WebSocket URL and gateway token
-3. In the extension popup, go to **AI Agent** and paste the Gateway URL + Token
+### OpenClaw (Tool-Using Agent Mode)
 
-## Development
+Best when you want your shimeji to run as an agent behind an OpenClaw gateway.
 
-### Web App Commands
+1. Run an OpenClaw gateway (local or remote).
+2. Set **AI Brain** to `AI Agent`.
+3. Set **Gateway URL** (default `ws://127.0.0.1:18789`).
+4. Paste the **Gateway Auth Token**.
 
-```bash
-cd web
-pnpm dev       # Start dev server
-pnpm build     # Production build
-pnpm lint      # Run ESLint
-pnpm start     # Start production server
-```
+Tip: If you're storing API keys/tokens, consider enabling **Protect keys with master key** in the popup.
 
-### Tech Stack
+## Repository Folders
 
-- **Web App:** Next.js 16, React 19, Tailwind CSS 4, Framer Motion, Radix UI
-- **Chrome Extension:** Vanilla JS, Chrome Extension Manifest V3
-- **Wallet:** Stellar / Freighter API
-- **Email:** Resend
-
-## Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests.
-
-## License
-
-This project is open source. See the repository for license details.
+- `chrome-extension/`: The browser extension (popup UI, content script, background worker, characters).
+- `web-stellar/`: Next.js site with Stellar Freighter wallet compatibility.
+- `shimeji-eth/`: Scaffold-ETH installation (Ethereum dev scaffold).
+- `animation-reference/`: Reference docs for animating shimejis (sprite sheets and timings).
+- `desktop-mvp/`: Future home of the Windows desktop MVP.
+- `generate_sprites.py`: Helper script for generating sprite sheets.

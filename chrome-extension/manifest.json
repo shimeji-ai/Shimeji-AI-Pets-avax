@@ -3,7 +3,7 @@
   "name": "Shimeji AI Pets",
   "version": "1.0.0",
   "description": "Animated AI pets for your browser. Chat with a shimeji or connect your own agent.",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "scripting"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -22,9 +22,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "https://shimeji.dev/*",
+        "https://www.shimeji.dev/*"
+      ],
       "js": ["content.js"],
-      "css": ["style.css"]
+      "css": ["style.css"],
+      "run_at": "document_idle"
     },
     {
       "matches": [
@@ -36,15 +40,26 @@
     }
   ],
   "host_permissions": [
+    "https://shimeji.dev/*",
+    "https://www.shimeji.dev/*",
     "https://openrouter.ai/*",
     "http://127.0.0.1/*",
     "http://localhost/*",
     "ws://127.0.0.1/*",
     "ws://localhost/*"
   ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "ws://*/*",
+    "wss://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https: http: ws: wss:;"
+  },
   "web_accessible_resources": [
     {
-      "resources": ["characters/*", "config.html", "assets/shimeji-success.wav", "assets/shimeji-error.wav", "assets/sounds/*"],
+      "resources": ["characters/**", "assets/shimeji-success.wav", "assets/shimeji-error.wav", "assets/sounds/*"],
       "matches": ["<all_urls>"]
     }
   ]

@@ -318,22 +318,15 @@
         return 'standard';
     }
 
-    function injectFontIfNeeded() {
-        if (document.getElementById('shimeji-nunito-font')) return;
-        const link = document.createElement('link');
-        link.id = 'shimeji-nunito-font';
-        link.rel = 'stylesheet';
-        link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap';
-        document.head.appendChild(link);
-    }
+    // Chrome Web Store readiness: avoid injecting remotely hosted fonts.
+    function injectFontIfNeeded() {}
 
     function normalizePageUrl(url) {
         try {
             const parsed = new URL(url);
-            parsed.hash = '';
-            return parsed.toString();
+            return parsed.origin;
         } catch (error) {
-            return url;
+            return null;
         }
     }
 
@@ -449,6 +442,7 @@
     function isDisabledForCurrentPage(disabledAll, disabledPages) {
         if (disabledAll) return true;
         const pageKey = normalizePageUrl(window.location.href);
+        if (!pageKey) return false;
         const pageList = Array.isArray(disabledPages) ? disabledPages : [];
         return pageList.includes(pageKey);
     }
@@ -4167,6 +4161,15 @@
         if (isExtensionContextValid()) {
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (extensionInvalidated || !isExtensionContextValid()) return false;
+            if (message.action === 'shutdownShimejis') {
+                try {
+                    if (typeof window.__shimejiCleanup === 'function') {
+                        window.__shimejiCleanup();
+                    }
+                } catch (e) {}
+                sendResponse({ ok: true });
+                return true;
+            }
             if (message.action === 'refreshShimejis') {
                 loadShimejiConfigs((configs) => {
                     syncRuntimes(configs);

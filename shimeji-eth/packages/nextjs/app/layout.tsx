@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { LanguageProvider } from "~~/components/language-provider";
+import { SiteShimejiMascot } from "~~/components/site-shimeji-mascot";
 import "~~/styles/globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -75,7 +76,10 @@ export default function RootLayout({
       >
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ScaffoldEthAppWithProviders>
-          <LanguageProvider>{children}</LanguageProvider>
+          <LanguageProvider>
+            {children}
+            <SiteShimejiMascot />
+          </LanguageProvider>
         </ScaffoldEthAppWithProviders>
         <Analytics />
       </body>

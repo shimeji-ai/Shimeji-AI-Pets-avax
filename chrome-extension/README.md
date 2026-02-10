@@ -12,8 +12,8 @@ A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. 
 
 1. Open Chrome and go to `chrome://extensions`.
 2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select this repository folder.
-4. Open any webpage to see the mascot injected (or open [popup.html](popup.html) to interact with the extension UI).
+3. Click **Load unpacked** and select the `chrome-extension/` folder.
+4. Open https://shimeji.dev (or enable the extension on any site via the popup) to see the mascot injected.
 
 ## How it works (high level)
 
@@ -28,7 +28,7 @@ Follow these steps to verify core functionality locally. Each milestone includes
 
 - **Milestone 1 — Install and show default mascot:**
 
-  - Steps: Install the extension using the Quick install steps above. Open any page.
+  - Steps: Install the extension using the Quick install steps above. Open https://shimeji.dev (or enable it for your current site in the popup).
   - Expected result: A mascot appears on the page and wanders around.
   - Files: See [content.js](content.js) and [manifest.json](manifest.json).
 

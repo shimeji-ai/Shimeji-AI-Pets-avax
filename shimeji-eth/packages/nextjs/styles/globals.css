@@ -459,6 +459,34 @@ body[data-theme="kawaii"] .text-white\/80 {
   color: rgba(42, 31, 78, 0.8) !important;
 }
 
+.giveaway-reminder {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 214, 102, 0.12));
+  border-color: rgba(255, 214, 102, 0.45) !important;
+  box-shadow: 0 18px 42px rgba(11, 15, 20, 0.35);
+}
+
+.giveaway-reminder .text-foreground {
+  color: #fefefe !important;
+}
+
+.giveaway-reminder .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+body[data-theme="kawaii"] .giveaway-reminder {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 214, 102, 0.4));
+  border-color: rgba(42, 31, 78, 0.45) !important;
+  box-shadow: 0 22px 50px rgba(42, 31, 78, 0.25);
+}
+
+body[data-theme="kawaii"] .giveaway-reminder .text-foreground {
+  color: #2a1f4e !important;
+}
+
+body[data-theme="kawaii"] .giveaway-reminder .text-muted-foreground {
+  color: rgba(42, 31, 78, 0.7) !important;
+}
+
 body[data-theme="kawaii"] .text-white\/90 {
   color: rgba(42, 31, 78, 0.85) !important;
 }

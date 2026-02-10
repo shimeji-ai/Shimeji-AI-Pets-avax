@@ -1,0 +1,146 @@
+.wrap {
+  position: fixed;
+  left: 0;
+  bottom: 10px;
+  z-index: 60;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.actor {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 72px;
+  height: 72px;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.sprite {
+  width: 72px;
+  height: 72px;
+  display: block;
+  image-rendering: pixelated;
+  transform-origin: center;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+}
+
+.bubble {
+  position: absolute;
+  bottom: 86px;
+  width: min(340px, calc(100vw - 24px));
+  background: #050507;
+  border: 1px solid rgba(255, 154, 216, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.bubbleRight {
+  left: 8px;
+}
+
+.bubbleLeft {
+  right: 8px;
+}
+
+.bubbleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid rgba(255, 154, 216, 0.2);
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #ff9ad8;
+}
+
+.closeBtn {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.bubbleBody {
+  padding: 10px 12px 12px;
+}
+
+.messages {
+  max-height: 210px;
+  overflow: auto;
+  padding-right: 4px;
+  margin-bottom: 10px;
+}
+
+.msg {
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg + .msg {
+  margin-top: 10px;
+}
+
+.msgUser {
+  opacity: 0.95;
+}
+
+.msgAssistant {
+  opacity: 0.92;
+}
+
+.inputRow {
+  display: flex;
+  gap: 8px;
+}
+
+.input {
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 154, 216, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.94);
+  padding: 9px 10px;
+  font-size: 12px;
+  outline: none;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.sendBtn {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 154, 216, 0.35);
+  background: rgba(255, 154, 216, 0.15);
+  color: #ff9ad8;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.sendBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}

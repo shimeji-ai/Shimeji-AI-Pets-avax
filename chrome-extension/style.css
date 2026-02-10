@@ -17,7 +17,7 @@
     border-radius: 16px;
     border: 1px solid rgba(42, 31, 78, 0.12);
     box-shadow: 0 8px 32px rgba(42, 31, 78, 0.18);
-    font-family: 'Nunito', sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #2a1f4e;
     display: flex;
     flex-direction: column;
@@ -587,7 +587,7 @@
     border-radius: 10px;
     padding: 6px 10px;
     font-size: var(--chat-font-size, 13px);
-    font-family: 'Nunito', sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #2a1f4e;
     background: rgba(255, 255, 255, 0.7);
     outline: none;
@@ -817,7 +817,7 @@
     border-radius: 50%;
     border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 18%, transparent);
     box-shadow: 0 6px 20px color-mix(in srgb, var(--chat-theme, #2a1f4e) 22%, transparent);
-    font-family: 'Nunito', sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 24px;
     font-weight: 900;
     color: var(--chat-theme, #2a1f4e);
@@ -866,7 +866,7 @@
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 20%, transparent);
     box-shadow: 0 6px 18px color-mix(in srgb, var(--chat-theme, #2a1f4e) 20%, transparent);
-    font-family: 'Nunito', sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 16px;
     font-weight: 800;
     color: var(--chat-theme, #2a1f4e);

@@ -9,15 +9,392 @@
  * When sending messages back, we use chrome.tabs.sendMessage to the sender's tab ID.
  */
 
+const DEBUG = false;
+const ALL_SITES_ORIGINS = ['http://*/*', 'https://*/*'];
+const PENDING_ENABLE_TTL_MS = 2 * 60 * 1000;
+const REQUIRED_ORIGINS = new Set([
+  'https://shimeji.dev',
+  'https://www.shimeji.dev',
+  'https://openrouter.ai',
+  'http://127.0.0.1',
+  'http://localhost',
+  'ws://127.0.0.1',
+  'ws://localhost'
+]);
+
+// Click-to-enable per-site injection:
+// - Request optional host permissions for the current site (origin/*).
+// - Register a persistent content script for that origin.
+// - On startup, re-register scripts for previously enabled origins.
+
 // Helper function to send message to a specific tab (used for Vercel-hosted dapp)
 function sendMessageToTab(tabId, message) {
   if (tabId) {
-    console.log('[Background] Sending message to tab:', tabId, message);
+    if (DEBUG) console.log('[Background] Sending message to tab:', tabId, message);
     chrome.tabs.sendMessage(tabId, message).catch(err => {
-      console.warn('[Background] Could not send message to tab:', err.message);
+      if (DEBUG) console.warn('[Background] Could not send message to tab:', err.message);
     });
   }
 }
+
+function storageLocalGet(keys) {
+  return new Promise((resolve) => chrome.storage.local.get(keys, resolve));
+}
+
+function storageLocalSet(obj) {
+  return new Promise((resolve) => chrome.storage.local.set(obj, resolve));
+}
+
+function storageSyncGet(keys) {
+  return new Promise((resolve) => chrome.storage.sync.get(keys, resolve));
+}
+
+function storageSyncSet(obj) {
+  return new Promise((resolve) => chrome.storage.sync.set(obj, resolve));
+}
+
+function storageSessionGet(keys) {
+  return new Promise((resolve) => chrome.storage.session.get(keys, resolve));
+}
+
+function storageSessionSet(obj) {
+  return new Promise((resolve) => chrome.storage.session.set(obj, resolve));
+}
+
+function storageSessionRemove(keys) {
+  return new Promise((resolve) => chrome.storage.session.remove(keys, resolve));
+}
+
+function permissionsContains(origins) {
+  return new Promise((resolve) => {
+    chrome.permissions.contains({ origins }, (ok) => resolve(!!ok));
+  });
+}
+
+function fnv1a32(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function normalizeOrigin(origin) {
+  if (!origin) return '';
+  const o = String(origin);
+  if (!o.startsWith('http://') && !o.startsWith('https://')) return '';
+  return o.replace(/\/$/, '');
+}
+
+function originToMatchPattern(origin) {
+  const o = normalizeOrigin(origin);
+  return o ? `${o}/*` : '';
+}
+
+function contentScriptIdForOrigin(origin) {
+  const o = normalizeOrigin(origin);
+  return o ? `shimeji_site_${fnv1a32(o)}` : '';
+}
+
+function isContentScriptRegistered(id) {
+  return new Promise((resolve) => {
+    chrome.scripting.getRegisteredContentScripts((scripts) => {
+      const found = Array.isArray(scripts) && scripts.some((s) => s.id === id);
+      resolve(found);
+    });
+  });
+}
+
+async function scriptingRegisterContentScript(origin) {
+  const id = contentScriptIdForOrigin(origin);
+  const match = originToMatchPattern(origin);
+  if (!id || !match) return false;
+  if (await isContentScriptRegistered(id)) return true;
+
+  return new Promise((resolve, reject) => {
+    chrome.scripting.registerContentScripts([{
+      id,
+      matches: [match],
+      js: ['content.js'],
+      css: ['style.css'],
+      runAt: 'document_idle',
+      allFrames: false,
+      persistAcrossSessions: true,
+    }], () => {
+      const err = chrome.runtime.lastError;
+      if (err) return reject(new Error(err.message || 'registerContentScripts failed'));
+      resolve(true);
+    });
+  });
+}
+
+async function scriptingUnregisterContentScript(origin) {
+  const id = contentScriptIdForOrigin(origin);
+  if (!id) return true;
+  if (!await isContentScriptRegistered(id)) return true;
+  return new Promise((resolve) => {
+    chrome.scripting.unregisterContentScripts({ ids: [id] }, () => resolve(true));
+  });
+}
+
+async function scriptingRegisterAllSites() {
+  const id = 'shimeji_all_sites';
+  if (await isContentScriptRegistered(id)) return true;
+  return new Promise((resolve, reject) => {
+    chrome.scripting.registerContentScripts([{
+      id,
+      matches: ALL_SITES_ORIGINS,
+      js: ['content.js'],
+      css: ['style.css'],
+      runAt: 'document_idle',
+      allFrames: false,
+      persistAcrossSessions: true,
+    }], () => {
+      const err = chrome.runtime.lastError;
+      if (err) return reject(new Error(err.message || 'registerContentScripts(all) failed'));
+      resolve(true);
+    });
+  });
+}
+
+async function scriptingUnregisterAllSites() {
+  const id = 'shimeji_all_sites';
+  if (!await isContentScriptRegistered(id)) return true;
+  return new Promise((resolve) => {
+    chrome.scripting.unregisterContentScripts({ ids: [id] }, () => resolve(true));
+  });
+}
+
+
+async function getEnabledOrigins() {
+  const data = await storageLocalGet(['enabledOrigins']);
+  return Array.isArray(data.enabledOrigins) ? data.enabledOrigins : [];
+}
+
+async function setEnabledOrigins(list) {
+  await storageLocalSet({ enabledOrigins: list });
+}
+
+async function ensureInjectedNow(tabId) {
+  await new Promise((resolve) => {
+    chrome.scripting.insertCSS({ target: { tabId }, files: ['style.css'] }, () => resolve(true));
+  });
+  await new Promise((resolve) => {
+    chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] }, () => resolve(true));
+  });
+}
+
+function isInjectableUrl(url) {
+  return typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'));
+}
+
+async function injectIntoAllEligibleTabs() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({}, async (tabs) => {
+      const list = Array.isArray(tabs) ? tabs : [];
+      for (const tab of list) {
+        if (!tab?.id) continue;
+        if (!isInjectableUrl(tab.url)) continue;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await ensureInjectedNow(tab.id);
+        } catch {}
+      }
+      resolve(true);
+    });
+  });
+}
+
+async function setVisibilityEnabledEverywhere() {
+  await storageSyncSet({ disabledAll: false, disabledPages: [] });
+}
+
+async function setVisibilityDisabledEverywhere() {
+  await storageSyncSet({ disabledAll: true, disabledPages: [] });
+}
+
+async function removeDisabledPage(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return;
+  const data = await storageSyncGet(['disabledPages']);
+  const list = Array.isArray(data.disabledPages) ? data.disabledPages : [];
+  const next = list.filter((item) => item !== normalized);
+  if (next.length !== list.length) {
+    await storageSyncSet({ disabledPages: next });
+  }
+}
+
+function isPendingFresh(pending) {
+  const createdAt = pending?.createdAt;
+  if (typeof createdAt !== 'number') return false;
+  return (Date.now() - createdAt) <= PENDING_ENABLE_TTL_MS;
+}
+
+async function handlePendingEnableSite(addedOrigins) {
+  const data = await storageSessionGet(['pendingEnableSite']);
+  const pending = data?.pendingEnableSite;
+  if (!pending) return;
+  if (!isPendingFresh(pending)) {
+    await storageSessionRemove(['pendingEnableSite']);
+    return;
+  }
+
+  const origin = normalizeOrigin(pending.origin);
+  const tabId = pending.tabId;
+  const match = originToMatchPattern(origin);
+  if (!origin || !match) return;
+  if (!Array.isArray(addedOrigins) || !addedOrigins.includes(match)) return;
+
+  // Clear first to avoid double-processing if multiple onAdded events come in.
+  await storageSessionRemove(['pendingEnableSite']);
+
+  try {
+    await registerOrigin(origin);
+  } catch {}
+
+  try {
+    await storageSyncSet({ disabledAll: false });
+    await removeDisabledPage(origin);
+  } catch {}
+
+  if (typeof tabId === 'number') {
+    try { await ensureInjectedNow(tabId); } catch {}
+  }
+}
+
+async function handlePendingEnableAllSites(addedOrigins) {
+  const data = await storageSessionGet(['pendingEnableAllSites']);
+  const pending = data?.pendingEnableAllSites;
+  if (!pending) return;
+  if (!isPendingFresh(pending)) {
+    await storageSessionRemove(['pendingEnableAllSites']);
+    return;
+  }
+
+  const hasAllSites = Array.isArray(addedOrigins)
+    && (addedOrigins.includes(ALL_SITES_ORIGINS[0]) || addedOrigins.includes(ALL_SITES_ORIGINS[1]));
+  if (!hasAllSites) return;
+
+  await storageSessionRemove(['pendingEnableAllSites']);
+
+  try {
+    await scriptingRegisterAllSites();
+    await storageLocalSet({ allSitesEnabled: true });
+  } catch {}
+
+  try {
+    await setVisibilityEnabledEverywhere();
+  } catch {}
+
+  // Best-effort: inject immediately into open tabs so shimejis appear without reload.
+  try { await injectIntoAllEligibleTabs(); } catch {}
+
+  const tabId = pending.tabId;
+  if (typeof tabId === 'number') {
+    try { await ensureInjectedNow(tabId); } catch {}
+  }
+}
+
+async function registerOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return { error: 'Invalid site.' };
+
+  try {
+    await scriptingRegisterContentScript(normalized);
+  } catch (e) {
+    if (DEBUG) console.warn('[Background] registerContentScripts:', e && e.message);
+  }
+
+  const list = await getEnabledOrigins();
+  if (!list.includes(normalized)) {
+    list.push(normalized);
+    await setEnabledOrigins(list);
+  }
+
+  return { enabled: true };
+}
+
+async function unregisterOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return { error: 'Invalid site.' };
+
+  await scriptingUnregisterContentScript(normalized);
+
+  const list = await getEnabledOrigins();
+  const next = list.filter((o) => o !== normalized);
+  if (next.length !== list.length) await setEnabledOrigins(next);
+
+  return { enabled: false };
+}
+
+async function restoreRegisteredScripts() {
+  const list = await getEnabledOrigins();
+  const next = [];
+
+  // Restore global "all sites" registration if the permission is still granted.
+  try {
+    const data = await storageLocalGet(['allSitesEnabled']);
+    if (data.allSitesEnabled) {
+      const ok = await permissionsContains(ALL_SITES_ORIGINS);
+      if (!ok) {
+        await storageLocalSet({ allSitesEnabled: false });
+      } else {
+        try { await scriptingRegisterAllSites(); } catch {}
+      }
+    }
+  } catch {}
+
+  for (const origin of list) {
+    const normalized = normalizeOrigin(origin);
+    if (!normalized) continue;
+    const match = originToMatchPattern(normalized);
+    if (!match) continue;
+    const ok = await permissionsContains([match]);
+    if (!ok) continue;
+    try {
+      await scriptingRegisterContentScript(normalized);
+    } catch {}
+    next.push(normalized);
+  }
+
+  if (next.length !== list.length) {
+    await setEnabledOrigins(next);
+  }
+}
+
+chrome.runtime.onStartup?.addListener(() => {
+  restoreRegisteredScripts().catch(() => {});
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  restoreRegisteredScripts().catch(() => {});
+});
+
+async function cleanupStalePending() {
+  try {
+    const data = await storageSessionGet(['pendingEnableSite', 'pendingEnableAllSites']);
+    if (data?.pendingEnableSite && !isPendingFresh(data.pendingEnableSite)) {
+      await storageSessionRemove(['pendingEnableSite']);
+    }
+    if (data?.pendingEnableAllSites && !isPendingFresh(data.pendingEnableAllSites)) {
+      await storageSessionRemove(['pendingEnableAllSites']);
+    }
+  } catch {}
+}
+
+chrome.runtime.onStartup?.addListener(() => {
+  cleanupStalePending().catch(() => {});
+});
+chrome.runtime.onInstalled.addListener(() => {
+  cleanupStalePending().catch(() => {});
+});
+
+chrome.permissions.onAdded.addListener((permissions) => {
+  const origins = permissions?.origins || [];
+  handlePendingEnableAllSites(origins).catch(() => {});
+  handlePendingEnableSite(origins).catch(() => {});
+});
 chrome.runtime.onInstalled.addListener(() => {
   // Initially set shimeji as default character
   console.log('[Background] Extension installed, setting initial storage values.');
@@ -38,6 +415,69 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   const senderTabId = sender.tab?.id;
+
+  // Popup-driven click-to-enable per-site control.
+  if (request && request.type === 'getSiteStatus') {
+    const origin = normalizeOrigin(request.origin);
+    const match = originToMatchPattern(origin);
+    if (!match) {
+      sendResponse({ enabled: false, error: 'Invalid site' });
+      return true;
+    }
+    permissionsContains([match]).then((ok) => {
+      sendResponse({ enabled: !!ok });
+    }).catch(() => {
+      sendResponse({ enabled: false });
+    });
+    return true;
+  }
+
+  if (request && request.type === 'registerSite') {
+    const origin = normalizeOrigin(request.origin);
+    registerOrigin(origin).then(sendResponse).catch((e) => {
+      sendResponse({ error: (e && e.message) || 'Failed to register site' });
+    });
+    return true;
+  }
+
+  if (request && request.type === 'unregisterSite') {
+    const origin = normalizeOrigin(request.origin);
+    unregisterOrigin(origin).then(sendResponse).catch((e) => {
+      sendResponse({ error: (e && e.message) || 'Failed to unregister site' });
+    });
+    return true;
+  }
+
+  if (request && request.type === 'registerAllSites') {
+    (async () => {
+      try {
+        await scriptingRegisterAllSites();
+        await storageLocalSet({ allSitesEnabled: true });
+        sendResponse({ enabled: true });
+      } catch (e) {
+        sendResponse({ error: (e && e.message) || 'Failed to register all sites' });
+      }
+    })();
+    return true;
+  }
+
+  if (request && request.type === 'unregisterAllSites') {
+    storageLocalSet({ allSitesEnabled: false }).then(async () => {
+      await scriptingUnregisterAllSites();
+      // Best-effort: hide any currently injected shimejis.
+      chrome.tabs.query({}, (tabs) => {
+        tabs.forEach((tab) => {
+          if (!tab.id) return;
+          chrome.tabs.sendMessage(tab.id, { action: 'shutdownShimejis' }).catch(() => {});
+        });
+      });
+      sendResponse({ enabled: false });
+    }).catch((e) => {
+      sendResponse({ error: (e && e.message) || 'Failed to unregister all sites' });
+    });
+    return true;
+  }
+
   const dappAllowedOrigins = [
     'https://chrome-extension-stellar-shimeji-fa.vercel.app/',
     'https://shimeji.dev/',
@@ -123,21 +563,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === 'setCharacter') {
     console.log('[Background] Received setCharacter message:', request.payload);
     chrome.storage.sync.set({ character: request.payload.character }, () => {
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          if(tab.id) {
-            chrome.tabs.sendMessage(tab.id, { action: 'updateCharacter', character: request.payload.character })
-              .catch(error => {
-                if (error.message.includes("Could not establish connection. Receiving end does not exist.")) {
-                  // This is expected if content script is not injected in a tab
-                  console.warn(`[Background] Failed to send updateCharacter to tab ${tab.id}: No receiving end.`);
-                } else {
-                  console.error(`[Background] Error sending updateCharacter to tab ${tab.id}:`, error);
-                }
-              });
-          }
-        });
-      });
       sendResponse({ status: 'Character set' });
     });
     return true;
@@ -151,20 +576,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === 'setBehavior') {
     console.log('[Background] Received setBehavior message:', request.payload);
     chrome.storage.sync.set({ behavior: request.payload.behavior }, () => {
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          if (tab.id) {
-            chrome.tabs.sendMessage(tab.id, { action: 'updateBehavior', behavior: request.payload.behavior })
-              .catch(error => {
-                if (error.message.includes("Could not establish connection. Receiving end does not exist.")) {
-                  console.warn(`[Background] Failed to send updateBehavior to tab ${tab.id}: No receiving end.`);
-                } else {
-                  console.error(`[Background] Error sending updateBehavior to tab ${tab.id}:`, error);
-                }
-              });
-          }
-        });
-      });
       sendResponse({ status: 'Behavior set' });
     });
     return true;
@@ -178,20 +589,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === 'setSize') {
     console.log('[Background] Received setSize message:', request.payload);
     chrome.storage.sync.set({ size: request.payload.size }, () => {
-      chrome.tabs.query({}, (tabs) => {
-        tabs.forEach(tab => {
-          if (tab.id) {
-            chrome.tabs.sendMessage(tab.id, { action: 'updateSize', size: request.payload.size })
-              .catch(error => {
-                if (error.message.includes("Could not establish connection. Receiving end does not exist.")) {
-                  console.warn(`[Background] Failed to send updateSize to tab ${tab.id}: No receiving end.`);
-                } else {
-                  console.error(`[Background] Error sending updateSize to tab ${tab.id}:`, error);
-                }
-              });
-          }
-        });
-      });
       sendResponse({ status: 'Size set' });
     });
     return true;
@@ -240,12 +637,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'disabled' });
     return true;
   } else if (request.type === 'refreshShimejis') {
-    chrome.tabs.query({}, (tabs) => {
-      tabs.forEach((tab) => {
-        if (!tab.id) return;
-        chrome.tabs.sendMessage(tab.id, { action: 'refreshShimejis' }).catch(() => {});
-      });
-    });
+    if (senderTabId) {
+      chrome.tabs.sendMessage(senderTabId, { action: 'refreshShimejis' }).catch(() => {});
+    }
     sendResponse({ status: 'ok' });
     return true;
   }

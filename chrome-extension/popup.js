@@ -1,146 +1,495 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const allSitesToggle = document.getElementById("all-sites-toggle");
+  const allSitesToggleRow = document.getElementById("all-sites-toggle-row");
   const pageToggle = document.getElementById("page-toggle");
   const pageToggleRow = document.getElementById("page-toggle-row");
-  const enableAllBtn = document.getElementById("enable-all-btn");
-  const disableAllBtn = document.getElementById("disable-all-btn");
   const globalStatus = document.getElementById("global-status");
-  let currentPageKey = null;
+  let currentOrigin = null;
+  let currentTabId = null;
+  const REQUIRED_ORIGINS = new Set([
+    "https://shimeji.dev",
+    "https://www.shimeji.dev",
+    "https://openrouter.ai",
+    "http://127.0.0.1",
+    "http://localhost",
+    "ws://127.0.0.1",
+    "ws://localhost"
+  ]);
 
-  function normalizePageUrl(url) {
-    try {
-      const parsed = new URL(url);
-      parsed.hash = "";
-      return parsed.toString();
-    } catch (error) {
-      return url;
-    }
+  function setStatus(text, isWarning) {
+    if (!globalStatus) return;
+    globalStatus.textContent = text || "";
+    globalStatus.classList.toggle("warning", !!isWarning);
   }
 
-  function updateVisibilityUI(disabledAll, disabledPages) {
-    const pageDisabled = currentPageKey && disabledPages.includes(currentPageKey);
-
-    // Update page toggle
-    if (pageToggle) {
-      // Checked means enabled (not in disabled list)
-      pageToggle.checked = !pageDisabled;
-      pageToggle.disabled = !!disabledAll || !currentPageKey;
-    }
-
-    // Update toggle row disabled state
-    if (pageToggleRow) {
-      pageToggleRow.classList.toggle("disabled", !!disabledAll || !currentPageKey);
-    }
-
-    // Update global buttons
-    if (enableAllBtn) {
-      enableAllBtn.classList.toggle("active", !disabledAll);
-    }
-    if (disableAllBtn) {
-      disableAllBtn.classList.toggle("active", !!disabledAll);
-    }
-
-    // Update status message
-    if (globalStatus) {
-      if (disabledAll) {
-        globalStatus.textContent = "Shimeji is disabled on all pages";
-        globalStatus.classList.add("warning");
-      } else if (pageDisabled) {
-        globalStatus.textContent = "Disabled on this page (remembered)";
-        globalStatus.classList.remove("warning");
-      } else {
-        globalStatus.textContent = "";
-        globalStatus.classList.remove("warning");
-      }
-    }
+  function updateToggleVisual(row, toggle) {
+    if (!row || !toggle) return;
+    row.classList.toggle("active", !!toggle.checked);
   }
 
-  function loadVisibilityState() {
-    chrome.storage.sync.get(["disabledAll", "disabledPages"], (data) => {
-      const disabledPages = Array.isArray(data.disabledPages) ? data.disabledPages : [];
-      updateVisibilityUI(!!data.disabledAll, disabledPages);
+  function applyVisibilityVisuals() {
+    updateToggleVisual(allSitesToggleRow, allSitesToggle);
+    updateToggleVisual(pageToggleRow, pageToggle);
+  }
+
+  const STORAGE_KEYS = {
+    disabledAll: "disabledAll",
+    disabledPages: "disabledPages"
+  };
+
+  function storageLocalGet(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(keys, (result) => resolve(result || {}));
     });
   }
 
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tabUrl = tabs[0]?.url || "";
-    if (tabUrl.startsWith("http")) {
-      currentPageKey = normalizePageUrl(tabUrl);
-    }
-    loadVisibilityState();
-  });
+  function storageSessionSet(obj) {
+    return new Promise((resolve) => {
+      chrome.storage.session.set(obj, () => resolve(true));
+    });
+  }
 
-  // Listen for storage changes
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "sync") {
-      if (changes.disabledAll || changes.disabledPages) {
-        const disabledAll = changes.disabledAll ? changes.disabledAll.newValue : undefined;
-        const disabledPages = changes.disabledPages ? changes.disabledPages.newValue : undefined;
-        chrome.storage.sync.get(["disabledAll", "disabledPages"], (data) => {
-          const resolvedDisabledAll = disabledAll !== undefined ? disabledAll : data.disabledAll;
-          const resolvedDisabledPages = Array.isArray(disabledPages)
-            ? disabledPages
-            : Array.isArray(data.disabledPages)
-              ? data.disabledPages
-              : [];
-          updateVisibilityUI(!!resolvedDisabledAll, resolvedDisabledPages);
+  function storageSessionRemove(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.session.remove(keys, () => resolve(true));
+    });
+  }
+
+  function storageSyncGet(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.get(keys, (result) => resolve(result));
+    });
+  }
+
+  function storageSyncSet(obj) {
+    return new Promise((resolve) => {
+      chrome.storage.sync.set(obj, () => resolve());
+    });
+  }
+
+  async function addDisabledPage(origin) {
+    const normalized = normalizeOriginFromUrl(origin);
+    if (!normalized) return;
+    const data = await storageSyncGet([STORAGE_KEYS.disabledPages]);
+    const list = Array.isArray(data.disabledPages) ? data.disabledPages : [];
+    if (!list.includes(normalized)) {
+      list.push(normalized);
+      await storageSyncSet({ [STORAGE_KEYS.disabledPages]: list });
+    }
+  }
+
+  async function removeDisabledPage(origin) {
+    const normalized = normalizeOriginFromUrl(origin);
+    if (!normalized) return;
+    const data = await storageSyncGet([STORAGE_KEYS.disabledPages]);
+    const list = Array.isArray(data.disabledPages) ? data.disabledPages : [];
+    const next = list.filter((item) => item !== normalized);
+    if (next.length !== list.length) {
+      await storageSyncSet({ [STORAGE_KEYS.disabledPages]: next });
+    }
+  }
+
+  async function setDisabledAll(value) {
+    await storageSyncSet({ [STORAGE_KEYS.disabledAll]: !!value });
+  }
+
+  function setStatusMessage(en, es, isWarning) {
+    setStatus(t(en, es), isWarning);
+  }
+
+  function setControlsEnabled(enabled) {
+    if (allSitesToggle) allSitesToggle.disabled = !enabled;
+    if (allSitesToggleRow) allSitesToggleRow.classList.toggle("disabled", !enabled);
+    if (pageToggle) pageToggle.disabled = !enabled;
+    if (pageToggleRow) pageToggleRow.classList.toggle("disabled", !enabled);
+  }
+
+  function setPageControlEnabled(enabled) {
+    if (pageToggle) pageToggle.disabled = !enabled;
+    if (pageToggleRow) pageToggleRow.classList.toggle("disabled", !enabled);
+  }
+
+  function setAllSitesControlEnabled(enabled) {
+    if (allSitesToggle) allSitesToggle.disabled = !enabled;
+    if (allSitesToggleRow) allSitesToggleRow.classList.toggle("disabled", !enabled);
+  }
+
+  function normalizeOriginFromUrl(url) {
+    try {
+      const u = new URL(url);
+      return u.origin;
+    } catch {
+      return null;
+    }
+  }
+
+  function sendBg(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (resp) => resolve(resp));
+    });
+  }
+
+  function isRequiredOrigin(origin) {
+    if (!origin) return false;
+    const normalized = origin.replace(/\/$/, "");
+    return REQUIRED_ORIGINS.has(normalized);
+  }
+
+  function originToMatchPattern(origin) {
+    const o = (origin || "").replace(/\/$/, "");
+    return `${o}/*`;
+  }
+
+  function allSitesOrigins() {
+    return ["http://*/*", "https://*/*"];
+  }
+
+  function permissionsContainsAllSites() {
+    return new Promise((resolve) => {
+      chrome.permissions.contains({ origins: allSitesOrigins() }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function permissionsRequestAllSites() {
+    return new Promise((resolve) => {
+      chrome.permissions.request({ origins: allSitesOrigins() }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function permissionsRemoveAllSites() {
+    return new Promise((resolve) => {
+      chrome.permissions.remove({ origins: allSitesOrigins() }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function permissionsContainsOrigin(origin) {
+    return new Promise((resolve) => {
+      chrome.permissions.contains({ origins: [originToMatchPattern(origin)] }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function permissionsRequestOrigin(origin) {
+    return new Promise((resolve) => {
+      chrome.permissions.request({ origins: [originToMatchPattern(origin)] }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function permissionsRemoveOrigin(origin) {
+    if (isRequiredOrigin(origin)) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      chrome.permissions.remove({ origins: [originToMatchPattern(origin)] }, (ok) => resolve(!!ok));
+    });
+  }
+
+  function injectIntoTab(tabId) {
+    return new Promise((resolve) => {
+      try {
+        chrome.scripting.insertCSS({ target: { tabId }, files: ["style.css"] }, () => {
+          const cssErr = chrome.runtime.lastError;
+          chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] }, () => {
+            const jsErr = chrome.runtime.lastError;
+            if (cssErr || jsErr) return resolve(false);
+            resolve(true);
+          });
+        });
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  function isInjectableUrl(url) {
+    return typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"));
+  }
+
+  async function getAllSitesModeState() {
+    const permGranted = await permissionsContainsAllSites();
+    const localData = await storageLocalGet(["allSitesEnabled"]);
+    const registered = !!localData.allSitesEnabled;
+    return {
+      permGranted,
+      registered,
+      active: permGranted && registered
+    };
+  }
+
+  async function shutdownAllTabs() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({}, (tabs) => {
+        (tabs || []).forEach((tab) => {
+          if (!tab?.id) return;
+          chrome.tabs.sendMessage(tab.id, { action: "shutdownShimejis" }).catch(() => {});
+        });
+        resolve(true);
+      });
+    });
+  }
+
+  async function injectIntoAllEligibleTabs() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({}, async (tabs) => {
+        const list = Array.isArray(tabs) ? tabs : [];
+        // Best-effort, sequential to avoid spiking the scripting API.
+        for (const tab of list) {
+          if (!tab?.id) continue;
+          if (!isInjectableUrl(tab.url)) continue;
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await injectIntoTab(tab.id);
+          } catch {}
+        }
+        resolve(true);
+      });
+    });
+  }
+
+  async function setAllSitesEnabled(nextEnabled) {
+    setControlsEnabled(false);
+    setStatusMessage(
+      nextEnabled ? "Enabling on all sites..." : "Disabling on all sites...",
+      nextEnabled ? "Activando en todos los sitios..." : "Desactivando en todos los sitios...",
+      false
+    );
+
+    if (nextEnabled) {
+      const alreadyGranted = await permissionsContainsAllSites();
+      if (!alreadyGranted) {
+        // If the popup closes during the permission prompt, background.js will finish the enable flow.
+        await storageSessionSet({
+          pendingEnableAllSites: {
+            tabId: currentTabId,
+            createdAt: Date.now()
+          }
         });
       }
+      const granted = alreadyGranted ? true : await permissionsRequestAllSites();
+      if (!granted) {
+        await storageSessionRemove(["pendingEnableAllSites"]);
+        if (allSitesToggle) allSitesToggle.checked = false;
+        applyVisibilityVisuals();
+        await refreshSiteStatus();
+        setStatusMessage("Permission not granted for all sites.", "Permiso denegado para todos los sitios.", true);
+        return;
+      }
+
+      const reg = await sendBg({ type: "registerAllSites" });
+      if (reg?.error) {
+        await refreshSiteStatus();
+        setStatus(reg.error, true);
+        return;
+      }
+
+      // Enabling "all sites" should immediately bring shimejis to life on open tabs.
+      await storageSyncSet({ [STORAGE_KEYS.disabledPages]: [] });
+      await setDisabledAll(false);
+      if (currentTabId) {
+        try {
+          await injectIntoTab(currentTabId);
+        } catch {}
+      }
+      await injectIntoAllEligibleTabs();
+      if (allSitesToggle) allSitesToggle.checked = true;
+      applyVisibilityVisuals();
+      await refreshSiteStatus();
+      setStatusMessage("Enabled on all sites.", "Habilitado en todos los sitios.", false);
+      return;
     }
-  });
 
-  // Page toggle (checkbox)
-  if (pageToggle) {
-    pageToggle.addEventListener("change", () => {
-      if (!currentPageKey) return;
+    // Disable immediately everywhere (even before unregistering permissions/scripts).
+    await shutdownAllTabs();
 
-      chrome.storage.sync.get(["disabledPages", "disabledAll"], (data) => {
-        if (data.disabledAll) return; // Don't allow changes when globally disabled
+    const unreg = await sendBg({ type: "unregisterAllSites" });
+    if (unreg?.error) {
+      await refreshSiteStatus();
+      setStatus(unreg.error, true);
+      return;
+    }
 
-        const disabledPages = Array.isArray(data.disabledPages) ? data.disabledPages : [];
-        const pageIndex = disabledPages.indexOf(currentPageKey);
+    await permissionsRemoveAllSites();
 
-        if (pageToggle.checked) {
-          // Enable on this page (remove from disabled list)
-          if (pageIndex >= 0) {
-            disabledPages.splice(pageIndex, 1);
-          }
-        } else {
-          // Disable on this page (add to disabled list)
-          if (pageIndex < 0) {
-            disabledPages.push(currentPageKey);
-          }
+    await setDisabledAll(true);
+    await storageSyncSet({ [STORAGE_KEYS.disabledPages]: [] });
+    if (allSitesToggle) allSitesToggle.checked = false;
+    await refreshSiteStatus();
+  }
+
+  function queryActiveTab() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        resolve((tabs && tabs[0]) ? tabs[0] : null);
+      });
+    });
+  }
+
+  async function refreshSiteStatus() {
+    setStatus("");
+    currentOrigin = null;
+    currentTabId = null;
+
+    // All-sites mode should be usable even if the active tab is not a website.
+    setAllSitesControlEnabled(false);
+    setPageControlEnabled(false);
+
+    const syncData = await storageSyncGet([STORAGE_KEYS.disabledAll, STORAGE_KEYS.disabledPages]);
+    const disabledAll = !!syncData[STORAGE_KEYS.disabledAll];
+    const allSitesState = await getAllSitesModeState();
+    if (allSitesToggle) allSitesToggle.checked = allSitesState.active && !disabledAll;
+    applyVisibilityVisuals();
+
+    const tab = await queryActiveTab();
+    const tabUrl = tab?.url || "";
+    currentTabId = typeof tab?.id === "number" ? tab.id : null;
+    currentOrigin = normalizeOriginFromUrl(tabUrl);
+
+    if (!currentTabId || !currentOrigin || !(currentOrigin.startsWith("http://") || currentOrigin.startsWith("https://"))) {
+      setAllSitesControlEnabled(true);
+      setPageControlEnabled(false);
+      if (pageToggle) pageToggle.checked = false;
+      applyVisibilityVisuals();
+      setStatusMessage("Open a website tab to enable Shimeji on that site.", "Abrí una pestaña web para habilitar al Shimeji.", true);
+      return;
+    }
+
+    const disabledPages = Array.isArray(syncData[STORAGE_KEYS.disabledPages])
+      ? syncData[STORAGE_KEYS.disabledPages].map((value) => (typeof value === "string" ? value.replace(/\/$/, "") : "")).filter(Boolean)
+      : [];
+    const originDisabled = disabledAll || disabledPages.includes(currentOrigin);
+
+    let hasOriginPermission = false;
+    try {
+      hasOriginPermission = await permissionsContainsOrigin(currentOrigin);
+    } catch {
+      hasOriginPermission = false;
+    }
+
+    const pageHasPermission = allSitesState.active || hasOriginPermission;
+    const pageEnabled = !originDisabled && pageHasPermission;
+
+    // "Enabled on all sites" represents our global mode (registered + permission + not globally disabled).
+    if (allSitesToggle) allSitesToggle.checked = allSitesState.active && !disabledAll;
+    if (pageToggle) pageToggle.checked = pageEnabled;
+
+    setAllSitesControlEnabled(true);
+    setPageControlEnabled(true);
+    applyVisibilityVisuals();
+
+    if (disabledAll) {
+      setStatusMessage("Disabled across every site.", "Deshabilitado en todos los sitios.", false);
+      return;
+    }
+
+    if (originDisabled) {
+      setStatusMessage("Disabled on this site.", "Deshabilitado en esta página.", false);
+      return;
+    }
+
+    if (allSitesState.active && !disabledAll) {
+      setStatusMessage("Enabled on all sites.", "Habilitado en todos los sitios.", false);
+      return;
+    }
+
+    if (!hasOriginPermission) {
+      setStatusMessage("Not enabled on this site. Toggle to enable.", "No está habilitado en esta página. Activá el interruptor.", false);
+      return;
+    }
+
+    setStatus("");
+  }
+
+  async function setSiteEnabled(nextEnabled, originOverride) {
+    if (!currentOrigin || !currentTabId) return;
+    setControlsEnabled(false);
+    setStatusMessage(
+      nextEnabled ? "Enabling site..." : "Disabling site...",
+      nextEnabled ? "Habilitando sitio..." : "Deshabilitando sitio...",
+      false
+    );
+
+    if (nextEnabled) {
+      const targetOrigin = originOverride || currentOrigin;
+      const allSitesState = await getAllSitesModeState();
+      if (!allSitesState.active) {
+        const alreadyHasOriginPerm = isRequiredOrigin(targetOrigin)
+          ? true
+          : (allSitesState.permGranted ? true : await permissionsContainsOrigin(targetOrigin).catch(() => false));
+        if (!alreadyHasOriginPerm && !isRequiredOrigin(targetOrigin)) {
+          // If the popup closes during the permission prompt, background.js will finish the enable flow.
+          await storageSessionSet({
+            pendingEnableSite: {
+              origin: targetOrigin,
+              tabId: currentTabId,
+              createdAt: Date.now()
+            }
+          });
+        }
+        const granted = alreadyHasOriginPerm
+          ? true
+          : (isRequiredOrigin(targetOrigin) ? true : await permissionsRequestOrigin(targetOrigin));
+        if (!granted) {
+          await storageSessionRemove(["pendingEnableSite"]);
+          if (pageToggle) pageToggle.checked = false;
+          setControlsEnabled(true);
+          setStatusMessage("Permission not granted for this site.", "Permiso denegado para este sitio.", true);
+          return;
         }
 
-        chrome.storage.sync.set({ disabledPages }, () => {
-          updateVisibilityUI(!!data.disabledAll, disabledPages);
-        });
-      });
+        await storageSessionRemove(["pendingEnableSite"]);
+        const reg = await sendBg({ type: "registerSite", origin: targetOrigin });
+        if (reg?.error) {
+          setControlsEnabled(true);
+          setStatus(reg.error, true);
+          return;
+        }
+      }
+
+      await removeDisabledPage(targetOrigin);
+      await setDisabledAll(false);
+      await injectIntoTab(currentTabId);
+      if (pageToggle) pageToggle.checked = true;
+      applyVisibilityVisuals();
+      setControlsEnabled(true);
+      setStatus("", false);
+      return;
+    }
+
+    const allSitesState = await getAllSitesModeState();
+
+    // Disable: remove from this tab immediately.
+    try {
+      chrome.tabs.sendMessage(currentTabId, { action: "shutdownShimejis" }).catch(() => {});
+    } catch {}
+
+    if (!allSitesState.active) {
+      const unreg = await sendBg({ type: "unregisterSite", origin: currentOrigin });
+      if (unreg?.error) {
+        setControlsEnabled(true);
+          setStatus(unreg.error, true);
+        return;
+      }
+
+      await permissionsRemoveOrigin(currentOrigin);
+    }
+    await addDisabledPage(currentOrigin);
+
+    if (pageToggle) pageToggle.checked = false;
+    applyVisibilityVisuals();
+    setControlsEnabled(true);
+    setStatusMessage("Disabled on this site.", "Deshabilitado en esta página.", false);
+  }
+
+  if (pageToggle) {
+    pageToggle.addEventListener("change", () => {
+      setSiteEnabled(!!pageToggle.checked);
     });
   }
 
-  // Enable All button
-  if (enableAllBtn) {
-    enableAllBtn.addEventListener("click", () => {
-      chrome.storage.sync.get(["disabledPages"], (data) => {
-        const disabledPages = Array.isArray(data.disabledPages) ? data.disabledPages : [];
-        chrome.storage.sync.set({ disabledAll: false }, () => {
-          updateVisibilityUI(false, disabledPages);
-        });
-      });
+  if (allSitesToggle) {
+    allSitesToggle.addEventListener("change", () => {
+      setAllSitesEnabled(!!allSitesToggle.checked);
     });
   }
 
-  // Disable All button
-  if (disableAllBtn) {
-    disableAllBtn.addEventListener("click", () => {
-      chrome.storage.sync.get(["disabledPages"], (data) => {
-        const disabledPages = Array.isArray(data.disabledPages) ? data.disabledPages : [];
-        chrome.storage.sync.set({ disabledAll: true }, () => {
-          updateVisibilityUI(true, disabledPages);
-        });
-      });
-    });
-  }
+  refreshSiteStatus();
 
   // --- AI Chat Settings ---
   // --- Shimeji Configurator ---
@@ -159,8 +508,6 @@ const onboardingClose = document.getElementById("onboarding-close");
   const shimejiLimitHint = document.getElementById("shimeji-limit-hint");
   const popupSubtitle = document.getElementById("popup-subtitle");
   const popupStats = document.getElementById("popup-stats");
-  const wakeAllBtn = document.getElementById("wake-all-btn");
-  const sleepAllBtn = document.getElementById("sleep-all-btn");
 const popupThemeLabel = document.getElementById("popup-theme-label");
 const popupThemeSelect = document.getElementById("popup-theme-select");
 const popupLanguageSelect = document.getElementById("popup-language-select");
@@ -186,12 +533,10 @@ const masterkeyActionsRow = document.getElementById("masterkey-actions-row");
 const securityLockBanner = document.getElementById("security-lock-banner");
 const securityLockTitle = document.getElementById("security-lock-title");
 const securityLockText = document.getElementById("security-lock-text");
-  const linkPrivacy = document.getElementById("link-privacy");
-  const appearanceVisibilityTitle = document.getElementById("appearance-visibility-title");
-  const labelEnabledPage = document.getElementById("label-enabled-page");
-  const enableAllBtnLabel = document.getElementById("enable-all-btn");
-  const disableAllBtnLabel = document.getElementById("disable-all-btn");
-  const aiStateHint = document.getElementById("ai-state-hint");
+const linkPrivacy = document.getElementById("link-privacy");
+const labelEnabledPage = document.getElementById("label-enabled-page");
+const labelEnabledAllSites = document.getElementById("label-enabled-all-sites");
+const presenceTitle = document.getElementById("presence-title");
 
   const MODEL_OPTIONS = [
     { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
@@ -218,8 +563,12 @@ const securityLockText = document.getElementById("security-lock-text");
     { value: "philosopher", labelEn: "Philosopher", labelEs: "Filósofo" },
     { value: "hype", labelEn: "Hype Beast", labelEs: "Entusiasta" },
     { value: "noir", labelEn: "Noir", labelEs: "Noir" },
-    { value: "egg", labelEn: "Egg", labelEs: "Huevo" },
   ];
+  const EGG_PERSONALITY = {
+    value: "hatchling",
+    labelEn: "Hatchling",
+    labelEs: "Pollito"
+  };
   const VOICE_PROFILE_POOL = ["warm", "bright", "deep", "calm", "energetic"];
   function pickRandomVoiceProfile() {
     return VOICE_PROFILE_POOL[Math.floor(Math.random() * VOICE_PROFILE_POOL.length)];
@@ -245,6 +594,18 @@ const PREVIEW_FRAMES = [
   "stand-neutral.png",
   "walk-step-right.png"
 ];
+
+function isEggCharacter(character) {
+  return String(character || "").toLowerCase() === "egg";
+}
+
+function getPersonalityOptionsForCharacter(character) {
+  const options = [...PERSONALITY_OPTIONS];
+  if (isEggCharacter(character)) {
+    options.push(EGG_PERSONALITY);
+  }
+  return options;
+}
 
 function getPreviewSizePx(sizeKey) {
   if (sizeKey === "small") return 48;
@@ -672,14 +1033,10 @@ function buildShimejiPreview(shimeji) {
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = "+";
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
-    if (appearanceVisibilityTitle) appearanceVisibilityTitle.textContent = t("Visibility & Activity", "Visibilidad y actividad");
-    if (labelEnabledPage) labelEnabledPage.textContent = t("Show on this page", "Mostrar en esta página");
-    if (enableAllBtnLabel) enableAllBtnLabel.textContent = t("Show All", "Mostrar todo");
-    if (disableAllBtnLabel) disableAllBtnLabel.textContent = t("Hide All", "Ocultar todo");
+    if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this site", "Habilitado en este sitio");
+    if (labelEnabledAllSites) labelEnabledAllSites.textContent = t("Enabled on all sites", "Habilitado en todos los sitios");
+    if (presenceTitle) presenceTitle.textContent = t("Visibility", "Visibilidad");
     if (popupSubtitle) popupSubtitle.textContent = t("Your AI mascot orchestrator", "Tu orquestador de mascotas AI");
-    if (aiStateHint) aiStateHint.textContent = t("AI activity (wake/sleep all)", "Actividad de IA (activar/pausar)");
-    if (wakeAllBtn) wakeAllBtn.textContent = t("Wake All AI", "Activar todas las IA");
-if (sleepAllBtn) sleepAllBtn.textContent = t("Sleep All AI", "Pausar todas las IA");
 if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del popup");
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
@@ -1231,7 +1588,8 @@ if (securityHint) securityHint.textContent = t(
           { value: "full", labelEn: "Complete", labelEs: "Completa" }
         ], shimeji.animationQuality || "full"));
       }
-      grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), PERSONALITY_OPTIONS, shimeji.personality));
+      const personalityOptions = getPersonalityOptionsForCharacter(shimeji.character);
+      grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), personalityOptions, shimeji.personality));
       grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), shimeji.soundEnabled !== false));
       grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
       grid.appendChild(renderToggleField("ttsEnabled", t("Read Aloud", "Leer en voz alta"), !!shimeji.ttsEnabled));
@@ -1459,12 +1817,6 @@ if (securityHint) securityHint.textContent = t(
       toggleProviderBlocks(card, shimeji.standardProvider || "openrouter");
     });
 
-    if (wakeAllBtn && sleepAllBtn) {
-      const allOff = countOff === shimejis.length;
-      const allOn = countOff === 0;
-      wakeAllBtn.classList.toggle("selected", allOn);
-      sleepAllBtn.classList.toggle("selected", allOff);
-    }
 
     if (shimejiSelectorEl) {
       shimejiSelectorEl.innerHTML = "";
@@ -1579,11 +1931,15 @@ if (securityHint) securityHint.textContent = t(
     freeSelect.classList.add("character-select");
     if (source === "nft") freeSelect.classList.add("hidden");
 
-    const nftOptions = nftCharacters.map((nft) => ({
-      value: nft.id,
-      labelEn: nft.name || nft.id || "NFT",
-      labelEs: nft.name || nft.id || "NFT"
-    }));
+    const nftOptions = nftCharacters.map((nft) => {
+      const id = nft?.id || "";
+      const isBuiltinEgg = String(id).toLowerCase() === "egg";
+      return {
+        value: nft.id,
+        labelEn: isBuiltinEgg ? "Egg" : (nft.name || nft.id || "NFT"),
+        labelEs: isBuiltinEgg ? "Huevo" : (nft.name || nft.id || "NFT")
+      };
+    });
     if (nftOptions.length === 0) {
       nftOptions.push({ value: "", labelEn: t("No NFT characters", "Sin personajes NFT"), labelEs: t("No NFT characters", "Sin personajes NFT"), disabled: true });
     }
@@ -1746,8 +2102,10 @@ if (securityHint) securityHint.textContent = t(
     } else if (field === "character") {
       target.character = value;
       target.characterSource = nftCharacterIds.has(value) ? "nft" : "free";
-      if (value === "egg") {
-        target.personality = "egg";
+      if (isEggCharacter(value)) {
+        target.personality = EGG_PERSONALITY.value;
+      } else if (target.personality === EGG_PERSONALITY.value) {
+        target.personality = PERSONALITY_OPTIONS[0]?.value || "cryptid";
       }
     } else if (field === "openrouterModel") {
       target.openrouterModel = value;
@@ -1813,7 +2171,6 @@ if (securityHint) securityHint.textContent = t(
     addShimejiBtn.addEventListener("click", async () => {
       if (shimejis.length === 0) {
         chrome.storage.local.set({ noShimejis: false });
-        chrome.storage.sync.set({ disabledAll: false });
       }
       if (shimejis.length >= MAX_SHIMEJIS) return;
       const newShimeji = getDefaultShimeji(shimejis.length);
@@ -1894,7 +2251,6 @@ if (securityHint) securityHint.textContent = t(
           shimejis = [];
           selectedShimejiId = null;
           chrome.storage.local.set({ noShimejis: true });
-          chrome.storage.sync.set({ disabledAll: true });
           saveShimejis();
           renderShimejis();
           return;
@@ -2028,22 +2384,6 @@ if (securityHint) securityHint.textContent = t(
   }
 
   attachOnboardingHandlers();
-
-  if (wakeAllBtn) {
-    wakeAllBtn.addEventListener("click", () => {
-      shimejis = shimejis.map((s) => ({ ...s, mode: "standard" }));
-      saveShimejis();
-      renderShimejis();
-    });
-  }
-
-  if (sleepAllBtn) {
-    sleepAllBtn.addEventListener("click", () => {
-      shimejis = shimejis.map((s) => ({ ...s, mode: "off" }));
-      saveShimejis();
-      renderShimejis();
-    });
-  }
 
   if (masterkeyToggle) {
     masterkeyToggle.addEventListener('change', async () => {
@@ -2208,7 +2548,18 @@ if (securityHint) securityHint.textContent = t(
         card.className = "nft-card";
         const preview = document.createElement("div");
         preview.className = "nft-card-preview";
-        preview.textContent = (nft.name || "?")[0].toUpperCase();
+        const nftId = nft?.id || "";
+        const isBuiltinEgg = String(nftId).toLowerCase() === "egg";
+        if (isBuiltinEgg) {
+          card.classList.add("nft-card-egg");
+          const img = document.createElement("img");
+          img.className = "nft-card-preview-img";
+          img.alt = "";
+          img.src = chrome.runtime.getURL("characters/egg/stand-neutral.png");
+          preview.appendChild(img);
+        } else {
+          preview.textContent = (nft.name || "?")[0].toUpperCase();
+        }
         const name = document.createElement("div");
         name.className = "nft-card-name";
         name.textContent = nft.name || t("Unknown", "Desconocido");
@@ -2216,8 +2567,10 @@ if (securityHint) securityHint.textContent = t(
         id.className = "nft-card-id";
         id.textContent = nft.id || "";
         card.appendChild(preview);
-        card.appendChild(name);
-        card.appendChild(id);
+        if (!isBuiltinEgg) {
+          card.appendChild(name);
+          card.appendChild(id);
+        }
         nftListEl.appendChild(card);
       });
       renderShimejis();

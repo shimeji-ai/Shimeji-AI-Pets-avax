@@ -113,15 +113,15 @@ export function ProjectFeedbackBox() {
           </Link>
           {isSpanish ? " en X." : " on X."}
         </p>
-        <div className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="mb-6 rounded-2xl border border-white/10 p-4 giveaway-reminder">
           <div className="flex items-center gap-4">
-            <div className="relative h-14 w-14 shrink-0">
+            <div className="relative h-20 w-20 shrink-0">
               <Image
                 src="/GIVEAWAY2.png"
                 alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
                 fill
-                sizes="56px"
-                className="object-contain drop-shadow"
+                sizes="112px"
+                className="object-contain drop-shadow-2xl"
               />
             </div>
             <div className="text-sm text-foreground">

@@ -110,13 +110,13 @@ export function GiveawayWidget() {
                   {isSpanish ? "Ir al formulario" : "Go to feedback form"}
                 </button>
               </div>
-              <div className="relative w-24 md:w-28 shrink-0">
+              <div className="relative h-28 w-28 md:h-32 md:w-32 shrink-0">
                 <Image
                   src="/GIVEAWAY2.png"
                   alt={isSpanish ? "Mascota del giveaway" : "Giveaway mascot"}
                   fill
-                  sizes="120px"
-                  className="object-contain object-right drop-shadow"
+                  sizes="160px"
+                  className="object-contain object-right drop-shadow-2xl"
                 />
               </div>
             </div>
@@ -173,21 +173,22 @@ export function GiveawayWidget() {
         }
 
         :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-inner {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 183, 255, 0.2));
+          background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 214, 102, 0.3));
           color: #2a1f4e;
           border-color: rgba(42, 31, 78, 0.3);
+          box-shadow: 0 20px 45px rgba(42, 31, 78, 0.25);
         }
 
         :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-cta {
-          background: #2a1f4e;
-          color: #fef5ff;
-          border-color: #fef5ff;
-          box-shadow: 0 12px 30px rgba(42, 31, 78, 0.35);
+          background: linear-gradient(135deg, #fce38a, #f0a500);
+          color: #1b0b15;
+          border-color: #f5b81c;
+          box-shadow: 0 12px 30px rgba(240, 165, 0, 0.35);
         }
 
         :global(body[data-theme="kawaii"]) #giveaway-panel .giveaway-cta:hover {
-          background: #4f3c7f;
-          box-shadow: 0 14px 34px rgba(42, 31, 78, 0.45);
+          background: linear-gradient(135deg, #ffe9a3, #ffc558);
+          box-shadow: 0 14px 34px rgba(240, 165, 0, 0.45);
         }
       `}</style>
     </div>

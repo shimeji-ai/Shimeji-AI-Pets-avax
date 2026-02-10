@@ -28,6 +28,25 @@
   </section>
 
   <section class="controls-section">
+    <div class="control-group presence-group" id="presence-group">
+      <div class="presence-panel">
+        <div class="presence-heading">
+          <span id="presence-title">Visibility</span>
+        </div>
+        <label class="toggle-row" id="all-sites-toggle-row">
+          <span class="toggle-label" id="label-enabled-all-sites">Enabled on all sites</span>
+          <input type="checkbox" id="all-sites-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <label class="toggle-row" id="page-toggle-row">
+          <span class="toggle-label" id="label-enabled-page">Enabled on this site</span>
+          <input type="checkbox" id="page-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="global-status" id="global-status"></div>
+      </div>
+    </div>
+
     <div class="control-group" id="shimeji-config-group">
       <div class="section-header">
         <h3 id="shimeji-section-title">Shimejis</h3>
@@ -57,27 +76,6 @@
             <line x1="10" y1="14" x2="21" y2="3"></line>
           </svg>
         </a>
-      </div>
-    </div>
-
-    <div class="control-group">
-      <h3 id="appearance-visibility-title">Visibility</h3>
-      <div class="visibility-controls">
-        <label class="toggle-row" id="page-toggle-row">
-          <span class="toggle-label" id="label-enabled-page">Enabled on this page</span>
-          <input type="checkbox" id="page-toggle" class="toggle-checkbox">
-          <span class="toggle-slider"></span>
-        </label>
-        <div class="global-controls">
-          <button class="control-btn global-btn" id="enable-all-btn">Enable All</button>
-          <button class="control-btn global-btn" id="disable-all-btn">Disable All</button>
-        </div>
-        <div class="ai-hint" id="ai-state-hint"></div>
-        <div class="mode-controls">
-          <button class="control-btn mode-btn" id="wake-all-btn">Wake All</button>
-          <button class="control-btn mode-btn" id="sleep-all-btn">Sleep All</button>
-        </div>
-        <div class="global-status" id="global-status"></div>
       </div>
     </div>
 

@@ -29,8 +29,8 @@ export function CtaSection() {
             </p>
             <p className="mb-8 max-w-lg mx-auto text-muted-foreground/80">
               {isSpanish
-                ? "La extensión es gratis e incluye una mascota por defecto. Consigue un huevo en Factory si quieres algo hecho a medida."
-                : "The extension is free and includes a default mascot. Get an egg in the Factory if you want something custom."}
+                ? "La extensión es gratis e incluye 5 mascotas gratis. Consigue un huevo en Factory si quieres algo hecho a medida."
+                : "The extension is free and includes 5 free pets. Get an egg in the Factory if you want something custom."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />
