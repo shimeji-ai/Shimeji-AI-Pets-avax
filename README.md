@@ -77,3 +77,5 @@ Tip: If you're storing API keys/tokens, consider enabling **Protect keys with ma
 ## Contributors
 
 - Kathonejo <kathonejo@gmail.com> (https://github.com/kathonejo)
+
+More contributors welcome; send a PR to add your name when you help out.
