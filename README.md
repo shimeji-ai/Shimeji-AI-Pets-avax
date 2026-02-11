@@ -73,3 +73,7 @@ Tip: If you're storing API keys/tokens, consider enabling **Protect keys with ma
 - `animation-reference/`: Reference docs for animating shimejis (sprite sheets and timings).
 - `desktop-mvp/`: Future home of the Windows desktop MVP.
 - `generate_sprites.py`: Helper script for generating sprite sheets.
+
+## Contributors
+
+- Kathonejo <kathonejo@gmail.com> (https://github.com/kathonejo)
