@@ -58,7 +58,7 @@ const providers = [
       "Copiá la URL WebSocket + token.",
       "Popup → AI Agent → pegá URL + token.",
     ],
-    link: { href: "https://openclaw.ai", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
+    link: { href: "https://github.com/openclaw/openclaw", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
   },
 ];
 
