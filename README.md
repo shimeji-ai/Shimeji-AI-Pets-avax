@@ -77,5 +77,6 @@ Tip: If you're storing API keys/tokens, consider enabling **Protect keys with ma
 ## Contributors
 
 - Kathonejo <kathonejo@gmail.com> (https://github.com/kathonejo)
+- Lulox <lulox.eth@protonmail.com> (https://github.com/luloxi)
 
 More contributors welcome; send a PR to add your name when you help out.
