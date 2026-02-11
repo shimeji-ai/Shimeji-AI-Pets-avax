@@ -18,26 +18,26 @@ export function HeroSection() {
       <div className="max-w-7xl mx-auto w-full">
         <div className="relative flex flex-col items-center text-center lg:flex-row lg:justify-center lg:items-center lg:gap-8 w-full">
           {/* Left content (h1, info cards, CTA) */}
-          <div className="flex flex-col items-center text-center lg:items-center lg:text-center lg:mx-auto lg:max-w-[44%]">
+          <div className="flex flex-col items-center text-center lg:items-center lg:text-center lg:mx-auto lg:max-w-[60%]">
             {/* Large background typography */}
             <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance lg:text-left">
-              {isSpanish ? "Mascotas AI gratis" : "Free AI pets"}
+              {isSpanish ? "Sistema de Mascotas IA" : "AI pets system"}
             </h1>
 
             {/* Info cards */}
             <div className="flex flex-col sm:flex-row items-start justify-between w-full max-w-4xl mt-8 gap-8">
-              <div className="max-w-sm text-left sm:text-left">
+              <div className="max-w-xl text-left sm:text-left">
                 <p className="text-lg leading-relaxed text-muted-foreground">
                   {isSpanish ? (
                     <>
-                      Animaciones NFT para tu navegador: mascotas decorativas que chatean con IA o despiertan como agentes OpenClaw para hacer tareas online y onchain.{' '}
+                      Mascotas animadas para tu navegador: chatean con IA con OpenRouter u Ollama, despiertan como agentes OpenClaw para hacer tareas online y onchain, y su apariencia es personalizable con NFTs únicos.{' '}
                       <Link href="/download" prefetch={false} className="underline font-medium">
                         Pruébalas gratis
                       </Link>
                     </>
                   ) : (
                     <>
-                      Decorative NFT pets for your browser that chat through Ollama/OpenRouter or awaken as OpenClaw agents to handle online and onchain errands.{' '}
+                      Animated pets for your browser that chat through Ollama/OpenRouter or awaken as OpenClaw agents to handle online and onchain errands. Their appearance is customizable with unique NFTs.{' '}
                       <Link href="/download" prefetch={false} className="underline font-medium">
                         Try them for free
                       </Link>
