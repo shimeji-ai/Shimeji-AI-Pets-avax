@@ -3112,8 +3112,8 @@
                     : `Could not connect to Ollama at ${ollamaEndpoint}. Check URL and that the server is running.` + wslHint));
             } else if (errorText === 'OPENCLAW_MISSING_TOKEN') {
                 appendMessage('ai', addWarning(isSpanishLocale()
-                    ? 'Falta el token de OpenClaw. Configúralo en el popup (AI Agent).'
-                    : 'OpenClaw token is missing. Set it in the popup (AI Agent).'));
+                    ? 'Falta el token de OpenClaw. Configúralo en el popup (AI Agent). Para obtenerlo ejecuta: openclaw config get gateway.auth.token'
+                    : 'OpenClaw token is missing. Set it in the popup (AI Agent). To get it run: openclaw config get gateway.auth.token'));
             } else if (openclawInvalidUrlMatch) {
                 const endpoint = openclawInvalidUrlMatch[1] || (config.openclawGatewayUrl || 'ws://127.0.0.1:18789');
                 appendMessage('ai', addWarning(isSpanishLocale()

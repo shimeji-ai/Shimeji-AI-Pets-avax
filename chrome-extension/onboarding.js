@@ -86,8 +86,8 @@ function setLabels() {
   openclawUrl.placeholder = "ws://127.0.0.1:18789";
   openclawToken.placeholder = t("Enter gateway token", "Token del gateway");
   document.getElementById("openclaw-hint").textContent = t(
-    "OpenClaw needs a WebSocket URL + gateway token.",
-    "OpenClaw necesita un WebSocket + token del gateway."
+    "OpenClaw needs a WebSocket URL + gateway token. To get the token run: openclaw config get gateway.auth.token",
+    "OpenClaw necesita un WebSocket + token del gateway. Para obtener el token ejecuta: openclaw config get gateway.auth.token"
   );
   saveBtn.textContent = t("Save", "Guardar");
   skipBtn.textContent = t("Skip for now", "Omitir por ahora");

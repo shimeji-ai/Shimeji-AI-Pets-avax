@@ -509,6 +509,10 @@ function renderShimejiCards() {
     } else if (mode === 'agent') {
       aiCorePanel.appendChild(renderInputField('openclawGatewayUrl', 'Gateway URL', shimeji.openclawGatewayUrl || 'ws://127.0.0.1:18789', 'text', 'ws://127.0.0.1:18789', { className: 'ai-core-field' }));
       aiCorePanel.appendChild(renderInputField('openclawGatewayToken', 'Gateway Auth Token', shimeji.openclawGatewayToken, 'password', 'Enter gateway auth token', { className: 'ai-core-field' }));
+      const openclawTokenHint = document.createElement('div');
+      openclawTokenHint.className = 'helper-text';
+      openclawTokenHint.textContent = 'To get the token run: openclaw config get gateway.auth.token';
+      aiCorePanel.appendChild(openclawTokenHint);
     }
     // mode === 'off' shows nothing extra
 

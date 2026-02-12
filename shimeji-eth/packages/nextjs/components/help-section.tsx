@@ -52,9 +52,15 @@ const providers = [
     titleEs: "OpenClaw (Agente)",
     descriptionEn: "Tool-augmented agent mode with a gateway.",
     descriptionEs: "Modo agente con herramientas vía gateway.",
-    stepsEn: ["Run your OpenClaw gateway.", "Copy the WebSocket URL + token.", "Popup → AI Agent → paste URL + token."],
+    stepsEn: [
+      "Run your OpenClaw gateway.",
+      "Get your gateway token by running `openclaw config get gateway.auth.token`.",
+      "Copy the WebSocket URL + token.",
+      "Popup → AI Agent → paste URL + token.",
+    ],
     stepsEs: [
       "Corré tu gateway de OpenClaw.",
+      "Obtené el token ejecutando `openclaw config get gateway.auth.token`.",
       "Copiá la URL WebSocket + token.",
       "Popup → AI Agent → pegá URL + token.",
     ],

@@ -28,11 +28,13 @@ const steps = [
     descriptionEs: "Usa tu gateway de OpenClaw para acciones reales online y onchain.",
     bulletsEn: [
       "Run OpenClaw locally or on your server.",
+      "Get the gateway token with `openclaw config get gateway.auth.token`.",
       "Copy the WebSocket URL + gateway token.",
       "Popup → AI Agent → paste Gateway URL + Token.",
     ],
     bulletsEs: [
       "Corre OpenClaw localmente o en tu servidor.",
+      "Obtené el token con `openclaw config get gateway.auth.token`.",
       "Copia el WebSocket y el gateway token.",
       "Popup → AI Agent → pega Gateway URL + Token.",
     ],
@@ -82,7 +84,7 @@ export function SetupSection() {
               <div className="flex items-center justify-between mb-6">
                 <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">{step.id}</span>
                 <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
-                  {isSpanish ? "3 pasos" : "3 steps"}
+                  {isSpanish ? `${step.bulletsEs.length} pasos` : `${step.bulletsEn.length} steps`}
                 </span>
               </div>
               <h3 className="text-2xl font-semibold text-foreground mb-3">{isSpanish ? step.titleEs : step.titleEn}</h3>

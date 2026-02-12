@@ -1718,7 +1718,10 @@ if (securityHint) securityHint.textContent = t(
       agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
       const openclawHint = document.createElement("div");
       openclawHint.className = "helper-text";
-      openclawHint.textContent = t("OpenClaw needs a WebSocket URL + gateway token.", "OpenClaw necesita un WebSocket + token del gateway.");
+      openclawHint.textContent = t(
+        "OpenClaw needs a WebSocket URL + gateway token. To get the token run: openclaw config get gateway.auth.token",
+        "OpenClaw necesita un WebSocket + token del gateway. Para obtener el token ejecuta: openclaw config get gateway.auth.token"
+      );
       agentBlock.appendChild(openclawHint);
       const openclawTokenInput = renderInputField(
         "openclawGatewayToken",
