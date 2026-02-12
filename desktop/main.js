@@ -61,6 +61,7 @@ app.on('ready', () => {
   if (store.get('enabled') === undefined) {
     store.set('enabled', true);
   }
+  repairStoredShimejis();
   
   console.log('Config:', store.store);
 });
@@ -248,9 +249,48 @@ function normalizeMode(modeValue) {
   return 'standard';
 }
 
+function normalizeShimejiList(listValue) {
+  if (!Array.isArray(listValue)) return [];
+  return listValue
+    .filter((item) => item && typeof item === 'object')
+    .slice(0, MAX_SHIMEJIS)
+    .map((item, index) => ({
+      ...item,
+      id: `shimeji-${index + 1}`
+    }));
+}
+
+function getShimejiIndexFromId(shimejiId) {
+  const match = String(shimejiId || '').match(/(\d+)/);
+  if (!match) return -1;
+  const parsed = Number.parseInt(match[1], 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return -1;
+  return parsed - 1;
+}
+
+function repairStoredShimejis() {
+  const raw = store.get('shimejis');
+  const normalized = normalizeShimejiList(raw);
+
+  if (Array.isArray(raw)) {
+    const idsChanged = raw.length !== normalized.length || raw.some((item, index) => {
+      const expectedId = `shimeji-${index + 1}`;
+      return !item || item.id !== expectedId;
+    });
+    if (idsChanged) {
+      store.set('shimejis', normalized);
+    }
+  }
+
+  if (store.get('shimejiCount') !== normalized.length) {
+    store.set('shimejiCount', normalized.length);
+  }
+
+  return normalized;
+}
+
 function getStoredShimejis() {
-  const list = store.get('shimejis');
-  return Array.isArray(list) ? list : [];
+  return normalizeShimejiList(store.get('shimejis'));
 }
 
 function getShimejiConfig(shimejiId) {
@@ -269,7 +309,13 @@ function getShimejiConfig(shimejiId) {
       personality: 'cryptid'
     };
   }
-  return shimejis.find((s) => s.id === shimejiId) || shimejis[0];
+  const byId = shimejis.find((s) => s.id === shimejiId);
+  if (byId) return byId;
+
+  const byIndex = shimejis[getShimejiIndexFromId(shimejiId)];
+  if (byIndex) return byIndex;
+
+  return shimejis[0];
 }
 
 function patchShimejiConfig(shimejiId, patch) {
@@ -737,11 +783,18 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       }, 4500);
     }
 
+    const WebSocketCtor = globalThis.WebSocket;
+    if (typeof WebSocketCtor !== 'function') {
+      clearTimeout(timeout);
+      reject(new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE'));
+      return;
+    }
+
     try {
-      ws = new WebSocket(normalizedUrl);
+      ws = new WebSocketCtor(normalizedUrl);
     } catch {
       clearTimeout(timeout);
-      reject(new Error(`OPENCLAW_INVALID_URL:${normalizedUrl}`));
+      reject(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
       return;
     }
 
@@ -935,7 +988,9 @@ ipcMain.on('update-config', (event, nextConfig) => {
   }
 
   if (Array.isArray(nextConfig.shimejis)) {
-    store.set('shimejis', nextConfig.shimejis);
+    const normalized = normalizeShimejiList(nextConfig.shimejis);
+    store.set('shimejis', normalized);
+    store.set('shimejiCount', normalized.length);
   }
 
   const shimejiPattern = /^shimeji(\d+)_/;
@@ -944,13 +999,14 @@ ipcMain.on('update-config', (event, nextConfig) => {
     if (match) {
       const index = parseInt(match[1], 10);
       const prop = key.substring(match[0].length);
-      const shimejis = store.get('shimejis') || [];
+      const shimejis = normalizeShimejiList(store.get('shimejis'));
       if (shimejis[index - 1]) {
         shimejis[index - 1][prop] = value;
         if (prop === 'openrouterModel') {
           shimejis[index - 1].openrouterModelResolved = value === 'random' ? '' : value;
         }
         store.set('shimejis', shimejis);
+        store.set('shimejiCount', shimejis.length);
       }
     }
   }

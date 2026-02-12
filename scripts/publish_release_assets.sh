@@ -7,9 +7,27 @@ TAG="${1:-desktop-assets-$(date +%Y%m%d-%H%M%S)}"
 TITLE="${2:-Desktop assets ${TAG}}"
 
 WIN_ASSET="${ROOT_DIR}/desktop/dist/Shimeji-Desktop-Portable-0.1.0.exe"
-LINUX_ASSET="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0.AppImage"
+LINUX_ASSET_DASH="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0.AppImage"
+LINUX_ASSET_DOT="${ROOT_DIR}/desktop/dist/Shimeji.Desktop-0.1.0.AppImage"
 EXT_SOURCE_DIR="${ROOT_DIR}/chrome-extension"
 EXT_ZIP="${ROOT_DIR}/shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip"
+TEMP_DIR="$(mktemp -d)"
+WIN_CANONICAL="${TEMP_DIR}/shimeji-desktop-windows-portable.exe"
+LINUX_CANONICAL="${TEMP_DIR}/shimeji-desktop-linux.AppImage"
+EXT_CANONICAL="${TEMP_DIR}/shimeji-chrome-extension.zip"
+
+cleanup() {
+  rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
+
+if [[ -f "$LINUX_ASSET_DASH" ]]; then
+  LINUX_ASSET="$LINUX_ASSET_DASH"
+elif [[ -f "$LINUX_ASSET_DOT" ]]; then
+  LINUX_ASSET="$LINUX_ASSET_DOT"
+else
+  LINUX_ASSET=""
+fi
 
 for file in "$WIN_ASSET" "$LINUX_ASSET"; do
   if [[ ! -f "$file" ]]; then
@@ -45,15 +63,19 @@ rm -f "$EXT_ZIP"
   zip -rq "$EXT_ZIP" . -x ".git/*" "node_modules/*"
 )
 
+cp -f "$WIN_ASSET" "$WIN_CANONICAL"
+cp -f "$LINUX_ASSET" "$LINUX_CANONICAL"
+cp -f "$EXT_ZIP" "$EXT_CANONICAL"
+
 if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
   gh release create "$TAG" -R "$REPO" --title "$TITLE" --notes "Automated desktop asset upload."
 fi
 
 UPLOAD_ARGS=(
   "$TAG"
-  "${WIN_ASSET}#shimeji-desktop-windows-portable.exe"
-  "${LINUX_ASSET}#shimeji-desktop-linux.AppImage"
-  "${EXT_ZIP}#shimeji-chrome-extension.zip"
+  "$WIN_CANONICAL"
+  "$LINUX_CANONICAL"
+  "$EXT_CANONICAL"
   --clobber
   -R "$REPO"
 )

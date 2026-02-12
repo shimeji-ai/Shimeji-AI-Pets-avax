@@ -64,6 +64,13 @@ export function DownloadSection() {
                     ? "Versión .exe portable (sin instalador). Descargá y ejecutá el archivo. Si Windows pregunta por seguridad, permite la ejecución."
                     : "Portable .exe build (no installer needed). Download and run the file. If Windows shows a security prompt, allow execution."}
                 </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
+                    </a>
+                  </Button>
+                </div>
               </div>
               <div>
                 <p className="mb-2 text-muted-foreground font-medium">
@@ -74,19 +81,14 @@ export function DownloadSection() {
                     ? "Build Linux portable en formato AppImage. Después de descargar: `chmod +x shimeji-desktop-linux.AppImage` y luego ejecuta el archivo."
                     : "Portable Linux build in AppImage format. After download: `chmod +x shimeji-desktop-linux.AppImage` and then run it."}
                 </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar AppImage" : "Download AppImage"}
+                    </a>
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Button asChild className="neural-button">
-                <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                  {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
-                </a>
-              </Button>
-              <Button asChild className="neural-button">
-                <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                  {isSpanish ? "Descargar AppImage" : "Download AppImage"}
-                </a>
-              </Button>
             </div>
           </div>
 

@@ -1,4 +1,7 @@
 **/node_modules/
 **/dist/
-shimeji-eth/packages/nextjs/public/shimeji-desktop-windows-portable.exe
-shimeji-eth/packages/nextjs/public/shimeji-desktop-linux.AppImage
+
+# Release/download artifacts (must live in GitHub Releases, not git)
+*.exe
+*.AppImage
+*.zip

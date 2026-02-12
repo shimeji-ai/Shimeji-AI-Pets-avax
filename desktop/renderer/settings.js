@@ -95,6 +95,14 @@ const ollamaModelCatalog = new Map(); // shimejiId -> string[]
 const ollamaModelStatus = new Map(); // shimejiId -> status text
 const ollamaModelLoading = new Set(); // shimejiId currently refreshing
 
+function normalizeShimejiIds(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map((shimeji, index) => ({
+    ...shimeji,
+    id: `shimeji-${index + 1}`
+  }));
+}
+
 function updateStats() {
   const status = currentConfig.enabled ? 'Active' : 'Inactive';
   const count = shimejis.length;
@@ -111,6 +119,8 @@ function updateAIModeVisibility() {
 }
 
 function saveShimejis() {
+  shimejis = normalizeShimejiIds(shimejis);
+
   // Save API config from first shimeji if available
   if (shimejis.length > 0) {
     const first = shimejis[0];
@@ -179,6 +189,7 @@ function removeShimeji(index) {
   // Allow removing all shimejis, but keep API config in memory
 
   shimejis.splice(index, 1);
+  shimejis = normalizeShimejiIds(shimejis);
   if (selectedShimejiIndex >= shimejis.length) {
     selectedShimejiIndex = shimejis.length - 1;
   }
@@ -546,7 +557,7 @@ function applyConfig(next) {
   }
 
   if (next.shimejis) {
-    shimejis = next.shimejis;
+    shimejis = normalizeShimejiIds(next.shimejis);
     if (selectedShimejiIndex >= shimejis.length) {
       selectedShimejiIndex = Math.max(0, shimejis.length - 1);
     }
