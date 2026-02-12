@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shimeji Desktop Config</title>
+  <link rel="stylesheet" type="text/css" href="popup.css">
+  <link rel="stylesheet" type="text/css" href="settings.css">
+  <style>
+    /* Override popup styles for desktop settings window */
+    html, body {
+      width: 100% !important;
+      min-width: 360px !important;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      background:
+        radial-gradient(circle at 20% 10%, rgba(134, 240, 255, 0.22), transparent 45%),
+        radial-gradient(circle at 90% 20%, rgba(91, 123, 255, 0.18), transparent 45%),
+        radial-gradient(circle at 50% 90%, rgba(120, 190, 255, 0.18), transparent 50%),
+        #0b0f14 !important;
+      color: #e6e9f2;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* Ensure all content is visible */
+    .controls-section {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    
+    /* Force display of critical elements */
+    .popup-header,
+    .control-group,
+    section {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    
+    /* Shortcuts highlighted container */
+    .shortcuts-highlighted {
+      background: linear-gradient(135deg, rgba(134, 240, 255, 0.15) 0%, rgba(91, 123, 255, 0.12) 100%);
+      border: 1px solid rgba(134, 240, 255, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+    
+    .shortcuts-highlighted h3 {
+      color: #86f0ff;
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .shortcuts-highlighted .ai-hint {
+      color: rgba(230, 233, 242, 0.9);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    /* Global toggle styling */
+    .global-toggle-group {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(134, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+    }
+    
+    .global-toggle-group .toggle-row {
+      margin-bottom: 8px;
+    }
+    
+    .global-toggle-group .toggle-label {
+      font-weight: 600;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header class="popup-header">
+    <span class="logo">Shimeji Desktop</span>
+    <div class="popup-subtitle" id="popup-subtitle">Your AI mascot orchestrator</div>
+    <div class="popup-stats" id="popup-stats"></div>
+  </header>
+
+  <section class="controls-section">
+    <div class="control-group shortcuts-highlighted">
+      <h3>Shortcuts</h3>
+      <div class="ai-hint">Click a shimeji to open chat. Drag to reposition with gravity. Double-click to jump.</div>
+    </div>
+
+    <div class="control-group global-toggle-group">
+      <label class="toggle-row" id="global-shimeji-toggle-row">
+        <span class="toggle-label">Show all shimejis</span>
+        <input type="checkbox" id="global-shimeji-toggle" class="toggle-checkbox" checked>
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="ai-hint">Toggle to show or hide all shimejis on screen</div>
+    </div>
+
+    <div class="control-group presence-group" id="presence-group">
+      <div class="presence-panel">
+        <div class="presence-heading">
+          <span id="presence-title">Visibility</span>
+        </div>
+        <label class="toggle-row" id="all-sites-toggle-row">
+          <span class="toggle-label" id="label-enabled-all-sites">Enabled on desktop</span>
+          <input type="checkbox" id="all-sites-toggle" class="toggle-checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <label class="toggle-row is-disabled" id="page-toggle-row">
+          <span class="toggle-label" id="label-enabled-page">Enable on this app</span>
+          <input type="checkbox" id="page-toggle" class="toggle-checkbox" disabled>
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="global-status" id="global-status"></div>
+      </div>
+    </div>
+
+    <div class="control-group" id="shimeji-config-group">
+      <div class="section-header">
+        <h3 id="shimeji-section-title">Shimejis</h3>
+      </div>
+      <div class="security-status config-lock-hint" id="shimeji-lock-hint"></div>
+      <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
+      <div class="shimeji-selector-row">
+        <button class="shimeji-add-btn" id="add-shimeji-btn" aria-label="Add shimeji">+</button>
+        <div class="shimeji-selector" id="shimeji-selector"></div>
+      </div>
+      <div id="shimeji-empty" class="shimeji-empty"></div>
+      <div id="shimeji-list" class="shimeji-list"></div>
+    </div>
+
+    <div class="control-group" id="nft-collection-group">
+      <div class="section-header">
+        <h3 id="nft-section-title">NFT Shimejis</h3>
+      </div>
+      <div class="ai-hint" id="nft-hint">NFT collection syncing is coming soon on desktop.</div>
+      <div id="nft-list" class="nft-list is-disabled"></div>
+      <div class="popup-links is-disabled">
+        <a href="#" class="popup-link marketplace-link" tabindex="-1" aria-disabled="true">
+          <span id="link-nft-collection">Manage Collection</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="control-group is-disabled">
+      <h3 id="security-title">Security</h3>
+      <div class="security-box">
+        <div class="security-status" id="security-hint">Desktop security controls are coming soon.</div>
+        <label class="toggle-row mini-toggle">
+          <span class="toggle-label" id="masterkey-label">Protect keys with master key</span>
+          <input type="checkbox" id="masterkey-toggle" class="toggle-checkbox" disabled>
+          <span class="toggle-slider"></span>
+        </label>
+        <label class="toggle-row mini-toggle" id="autolock-row">
+          <span class="toggle-label" id="autolock-label">Auto-lock</span>
+          <input type="checkbox" id="autolock-toggle" class="toggle-checkbox" disabled>
+          <span class="toggle-slider"></span>
+        </label>
+        <div class="security-input-row" id="autolock-minutes-row">
+          <input type="range" id="autolock-minutes" class="ai-range" min="5" max="120" step="5" disabled>
+          <span class="security-inline-label" id="autolock-minutes-label">30 min</span>
+        </div>
+        <div class="security-input-row">
+          <input type="password" id="masterkey-input" class="ai-input" placeholder="Master key" disabled>
+          <button class="control-btn mini-btn" id="masterkey-action-btn" disabled>Unlock</button>
+        </div>
+        <div class="security-input-row" id="masterkey-confirm-row">
+          <input type="password" id="masterkey-confirm" class="ai-input" placeholder="Confirm password" disabled>
+          <button class="control-btn mini-btn" id="masterkey-save-btn" disabled>Save</button>
+        </div>
+        <div class="security-actions-row" id="masterkey-actions-row">
+          <button class="control-btn mini-btn" id="masterkey-change-btn" disabled>Change password</button>
+        </div>
+        <div class="security-status" id="masterkey-status"></div>
+      </div>
+    </div>
+
+    <div class="control-group is-disabled">
+      <label class="ai-label" id="popup-theme-label">Theme</label>
+      <select class="ai-select" id="popup-theme-select" disabled>
+        <option value="aurora">Aurora</option>
+        <option value="pink">Pink</option>
+        <option value="kawaii">Kawaii</option>
+      </select>
+      <div class="desktop-note">Popup themes are coming soon on desktop.</div>
+    </div>
+
+    <div class="control-group is-disabled">
+      <label class="ai-label" id="popup-language-label">Language</label>
+      <select class="ai-select" id="popup-language-select" disabled>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
+      <div class="desktop-note">Language switching is coming soon on desktop.</div>
+    </div>
+
+    <div class="control-group">
+      <div class="popup-links footer-links">
+        <a href="https://www.shimeji.dev/privacy" target="_blank" class="popup-link privacy-link">
+          <span id="link-privacy">Privacy</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <script src="settings.js"></script>
+</body>
+</html>

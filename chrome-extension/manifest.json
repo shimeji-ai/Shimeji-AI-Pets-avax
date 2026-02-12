@@ -18,7 +18,8 @@
     "128": "icons/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
@@ -36,7 +37,8 @@
         "https://www.shimeji.dev/*"
       ],
       "js": ["dapp_content_script.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "host_permissions": [
@@ -48,6 +50,7 @@
     "ws://127.0.0.1/*",
     "ws://localhost/*"
   ],
+  "options_page": "onboarding-installed.html",
   "optional_host_permissions": [
     "http://*/*",
     "https://*/*",

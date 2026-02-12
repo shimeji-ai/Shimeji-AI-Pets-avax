@@ -160,6 +160,23 @@ select {
   gap: 8px;
 }
 
+.inline-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.inline-btn {
+  white-space: nowrap;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
 .primary,
 .secondary {
   border: none;

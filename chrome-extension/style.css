@@ -507,6 +507,8 @@
     min-height: 60px;
     min-height: 0;
     max-height: none;
+    user-select: text !important;
+    -webkit-user-select: text !important;
 }
 
 .shimeji-chat-messages::-webkit-scrollbar {
@@ -527,6 +529,9 @@
     line-height: 1.4;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text;
 }
 
 .shimeji-chat-msg.user {

@@ -1171,7 +1171,7 @@ if (securityHint) securityHint.textContent = t(
       openrouterModel: "random",
       openrouterModelResolved: randomModel,
       ollamaUrl: "http://127.0.0.1:11434",
-      ollamaModel: "llama3.1",
+      ollamaModel: "gemma3:1b",
       openclawGatewayUrl: "ws://127.0.0.1:18789",
       openclawGatewayToken: "",
       personality: randomPersonality,
@@ -1222,7 +1222,7 @@ if (securityHint) securityHint.textContent = t(
               ? shimeji.openrouterModel
               : pickRandomModel()),
           ollamaUrl: shimeji.ollamaUrl || "http://127.0.0.1:11434",
-          ollamaModel: shimeji.ollamaModel || "llama3.1",
+          ollamaModel: shimeji.ollamaModel || "gemma3:1b",
           openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
           openclawGatewayToken: shimeji.openclawGatewayToken || "",
           personality: shimeji.personality || "cryptid",
@@ -1255,7 +1255,7 @@ if (securityHint) securityHint.textContent = t(
         openrouterModel: "random",
         openrouterModelResolved: fallbackRandom,
         ollamaUrl: "http://127.0.0.1:11434",
-        ollamaModel: "llama3.1",
+        ollamaModel: "gemma3:1b",
         openclawGatewayUrl: data.openclawGatewayUrl || "ws://127.0.0.1:18789",
         openclawGatewayToken: data.openclawGatewayToken || "",
         personality: data.aiPersonality || "cryptid",
@@ -1662,8 +1662,54 @@ if (securityHint) securityHint.textContent = t(
       ollamaBlock.className = "shimeji-mode-row";
       ollamaBlock.dataset.provider = "ollama";
       ollamaBlock.appendChild(renderInputField("ollamaUrl", t("Ollama URL", "Ollama URL"), shimeji.ollamaUrl || "http://127.0.0.1:11434", "text", "http://127.0.0.1:11434", "ai-core-field"));
-      ollamaBlock.appendChild(renderInputField("ollamaModel", t("Ollama Model", "Modelo Ollama"), shimeji.ollamaModel || "llama3.1", "text", "llama3.1", "ai-core-field"));
+      const ollamaModelField = renderInputField(
+        "ollamaModel",
+        t("Ollama Model", "Modelo Ollama"),
+        shimeji.ollamaModel || "gemma3:1b",
+        "text",
+        "gemma3:1b",
+        "ai-core-field"
+      );
+      const ollamaInput = ollamaModelField.querySelector('input[data-field="ollamaModel"]');
+      if (ollamaInput) {
+        ollamaInput.placeholder = t("Type a model or pick one below", "Escribe un modelo o elige uno abajo");
+      }
+      ollamaBlock.appendChild(ollamaModelField);
+
+      const ollamaDetectedField = document.createElement("div");
+      ollamaDetectedField.className = "ai-field ai-core-field";
+      const ollamaDetectedLabel = document.createElement("label");
+      ollamaDetectedLabel.className = "ai-label";
+      ollamaDetectedLabel.textContent = t("Detected models", "Modelos detectados");
+      const ollamaDetectedRow = document.createElement("div");
+      ollamaDetectedRow.className = "ollama-model-row";
+      const ollamaSelect = document.createElement("select");
+      ollamaSelect.className = "ai-select";
+      ollamaSelect.dataset.field = "ollamaModelSelect";
+      ollamaSelect.dataset.shimejiId = shimeji.id;
+      ollamaSelect.id = `select-ollamaModel-${shimeji.id}`;
+      ollamaSelect.innerHTML = `<option value="custom">${t("Custom model", "Modelo personalizado")}</option>`;
+      const ollamaRefreshBtn = document.createElement("button");
+      ollamaRefreshBtn.type = "button";
+      ollamaRefreshBtn.className = "control-btn mini-btn";
+      ollamaRefreshBtn.dataset.action = "refresh-ollama-models";
+      ollamaRefreshBtn.textContent = t("Refresh", "Actualizar");
+      ollamaDetectedRow.appendChild(ollamaSelect);
+      ollamaDetectedRow.appendChild(ollamaRefreshBtn);
+      ollamaDetectedField.appendChild(ollamaDetectedLabel);
+      ollamaDetectedField.appendChild(ollamaDetectedRow);
+      ollamaBlock.appendChild(ollamaDetectedField);
+
+      const ollamaHint = document.createElement("div");
+      ollamaHint.className = "helper-text";
+      ollamaHint.dataset.role = "ollama-status";
+      ollamaHint.textContent = t(
+        "Fetch your local Ollama model list, or keep using a custom model name.",
+        "Carga la lista local de modelos de Ollama, o usa un nombre personalizado."
+      );
+      ollamaBlock.appendChild(ollamaHint);
       standardBlock.appendChild(ollamaBlock);
+      setTimeout(() => { refreshOllamaModels(shimeji.id, false); }, 0);
 
       const agentBlock = document.createElement("div");
       agentBlock.className = "shimeji-mode-row";
@@ -2125,10 +2171,138 @@ if (securityHint) securityHint.textContent = t(
     } else {
       target[field] = value;
     }
-    saveShimejis();
+  saveShimejis();
+}
+
+// Polyfill for AbortSignal.timeout if not available
+if (!AbortSignal.timeout) {
+  AbortSignal.timeout = (ms) => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  };
+}
+
+function setOllamaHelper(card, message, isError) {
+  const helperText = card?.querySelector('[data-role="ollama-status"]');
+  if (!helperText) return;
+  helperText.textContent = message || "";
+  helperText.style.color = isError ? "rgba(248, 113, 113, 0.95)" : "rgba(200, 210, 235, 0.75)";
+}
+
+function normalizeOllamaUrl(url) {
+  const fallback = "http://127.0.0.1:11434";
+  const raw = (url || fallback).trim();
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (!parsed.hostname) return fallback;
+    return `http://${parsed.host}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function setOllamaSelectOptions(select, modelNames, currentModel) {
+  if (!select) return;
+  select.innerHTML = "";
+  const customOption = document.createElement("option");
+  customOption.value = "custom";
+  customOption.textContent = t("Custom model", "Modelo personalizado");
+  select.appendChild(customOption);
+
+  modelNames.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+
+  if (currentModel && modelNames.includes(currentModel)) {
+    select.value = currentModel;
+  } else {
+    select.value = "custom";
+  }
+}
+
+// Refresh Ollama models from server and update dropdown
+async function refreshOllamaModels(shimejiId, showFeedback = true) {
+  const shimeji = shimejis.find((s) => s.id === shimejiId);
+  if (!shimeji) return;
+
+  const select = document.getElementById(`select-ollamaModel-${shimejiId}`);
+  const card = document.querySelector(`[data-shimeji-id="${shimejiId}"]`);
+  const customInput = card?.querySelector('input[data-field="ollamaModel"]');
+  const refreshBtn = card?.querySelector('button[data-action="refresh-ollama-models"]');
+  if (!select || !customInput || !card) return;
+
+  const currentModel = (shimeji.ollamaModel || "").trim() || "gemma3:1b";
+  const normalizedUrl = normalizeOllamaUrl(shimeji.ollamaUrl || "http://127.0.0.1:11434");
+
+  if (refreshBtn) refreshBtn.disabled = true;
+  select.disabled = true;
+  customInput.disabled = true;
+  select.innerHTML = `<option value="">${t("Loading models...", "Cargando modelos...")}</option>`;
+  if (showFeedback) {
+    setOllamaHelper(card, t("Checking Ollama server...", "Verificando servidor Ollama..."), false);
   }
 
-  const onboardingActive = new URLSearchParams(window.location.search || "").get("onboarding") === "1";
+  try {
+    const response = await fetch(`${normalizedUrl}/api/tags`, {
+      method: "GET",
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP_${response.status}`);
+    }
+
+    const payload = await response.json();
+    const modelNames = Array.isArray(payload?.models)
+      ? payload.models.map((model) => model?.name).filter(Boolean)
+      : [];
+
+    setOllamaSelectOptions(select, modelNames, currentModel);
+    if (select.value !== "custom") {
+      customInput.value = select.value;
+      updateShimeji(shimejiId, "ollamaModel", select.value);
+    }
+
+    if (showFeedback) {
+      if (modelNames.length > 0) {
+        setOllamaHelper(
+          card,
+          t(`Found ${modelNames.length} local models.`, `Se encontraron ${modelNames.length} modelos locales.`),
+          false
+        );
+      } else {
+        setOllamaHelper(
+          card,
+          t("Connected, but no local models were found.", "Conectado, pero no se encontraron modelos locales."),
+          false
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to fetch Ollama models:", error);
+    setOllamaSelectOptions(select, [], currentModel);
+    if (showFeedback) {
+      setOllamaHelper(
+        card,
+        t(
+          `Could not connect to Ollama at ${normalizedUrl}. Keep using a custom model name or verify the URL.`,
+          `No se pudo conectar a Ollama en ${normalizedUrl}. Usa un modelo personalizado o verifica la URL.`
+        ),
+        true
+      );
+    }
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+    select.disabled = false;
+    customInput.disabled = false;
+  }
+}
+
+const onboardingActive = new URLSearchParams(window.location.search || "").get("onboarding") === "1";
 
   function showOnboardingBanner() {
     if (!onboardingBanner || !onboardingActive) return;
@@ -2277,6 +2451,8 @@ if (securityHint) securityHint.textContent = t(
           if (nextNft) updateShimeji(id, "character", nextNft);
         }
         renderShimejis();
+      } else if (action === "refresh-ollama-models") {
+        refreshOllamaModels(id, true);
       } else if (action === "toggle") {
         const input = e.target.previousElementSibling;
         if (input && input.type === "password") {
@@ -2326,6 +2502,17 @@ if (securityHint) securityHint.textContent = t(
         if (bgInput) bgInput.value = preset.bg;
         return;
       }
+      if (field === "ollamaModelSelect") {
+        const nextModel = e.target.value || "custom";
+        const modelInput = card.querySelector('input[data-field="ollamaModel"]');
+        if (nextModel === "custom") {
+          if (modelInput) modelInput.focus();
+        } else {
+          if (modelInput) modelInput.value = nextModel;
+          updateShimeji(id, "ollamaModel", nextModel);
+        }
+        return;
+      }
       if (e.target.type === "checkbox") {
         updateShimeji(id, field, e.target.checked);
         if (field === "enabled") {
@@ -2349,6 +2536,9 @@ if (securityHint) securityHint.textContent = t(
       }
       if (field === "standardProvider") {
         toggleProviderBlocks(card, e.target.value);
+        if (e.target.value === "ollama") {
+          refreshOllamaModels(id, false);
+        }
       }
       if (field === "chatThemeColor" || field === "chatBgColor") {
         const presetSelect = card.querySelector('select[data-field="chatThemePreset"]');
@@ -2357,7 +2547,7 @@ if (securityHint) securityHint.textContent = t(
       }
     });
 
-    shimejiListEl.addEventListener("input", (e) => {
+      shimejiListEl.addEventListener("input", (e) => {
       const card = e.target.closest(".shimeji-card");
       if (!card) return;
       const id = card.dataset.shimejiId;
@@ -2368,6 +2558,12 @@ if (securityHint) securityHint.textContent = t(
         updateShimeji(id, field, v);
       } else {
         updateShimeji(id, field, e.target.value);
+        if (field === "ollamaModel") {
+          const select = card.querySelector('select[data-field="ollamaModelSelect"]');
+          if (select && select.value !== "custom" && select.value !== e.target.value) {
+            select.value = "custom";
+          }
+        }
       }
     });
   }

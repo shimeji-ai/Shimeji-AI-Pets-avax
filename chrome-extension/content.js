@@ -680,7 +680,7 @@
             openrouterModel: 'random',
             openrouterModelResolved: randomModel,
             ollamaUrl: 'http://127.0.0.1:11434',
-            ollamaModel: 'llama3.1',
+            ollamaModel: 'gemma3:1b',
             openclawGatewayUrl: 'ws://127.0.0.1:18789',
             openclawGatewayToken: '',
             personality: randomPersonality,
@@ -749,7 +749,7 @@
                             ? modelValue
                             : MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)]),
                     ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
-                    ollamaModel: item.ollamaModel || 'llama3.1',
+                    ollamaModel: item.ollamaModel || 'gemma3:1b',
                     ttsEnabled: needsTtsMigration ? item.ttsEnabled === true : item.ttsEnabled === true,
                     ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
                     ttsVoiceId: item.ttsVoiceId || '',
@@ -2386,6 +2386,10 @@
 
             const shouldFocusOnChatClick = (target) => {
                 if (!target || !target.closest) return true;
+                // Keep text selection behavior inside message history.
+                if (target.closest('.shimeji-chat-messages')) return false;
+                if (target.closest('.shimeji-chat-msg')) return false;
+                if (target.closest('a')) return false;
                 if (target.closest('input, textarea, select')) return false;
                 if (target.closest('button')) return false;
                 return true;
@@ -2803,8 +2807,9 @@
                 return;
             }
             const provider = config.standardProvider || 'openrouter';
+            console.log('Chat meta update:', { provider, config, ollamaModel: config.ollamaModel });
             if (provider === 'ollama') {
-                const model = config.ollamaModel || 'llama3.1';
+                const model = config.ollamaModel || 'gemma3:1b';
                 chatMetaEl.textContent = `ollama · ${model}`;
             } else {
                 let model = config.openrouterModel || 'google/gemini-2.0-flash-001';
@@ -2971,6 +2976,27 @@
             if (role === 'ai') lastAssistantText = content;
         }
 
+        function escapeHtml(text) {
+            return String(text || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function appendMessageHtml(role, htmlContent, plainTextFallback) {
+            if (!chatMessagesEl) return;
+            const msgEl = document.createElement('div');
+            msgEl.className = `shimeji-chat-msg ${role}`;
+            msgEl.innerHTML = htmlContent;
+            chatMessagesEl.appendChild(msgEl);
+            chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            if (role === 'ai') {
+                lastAssistantText = plainTextFallback || msgEl.textContent || '';
+            }
+        }
+
         function appendStreamingMessage() {
             if (!chatMessagesEl) return null;
             const msgEl = document.createElement('div');
@@ -3033,7 +3059,52 @@
                 return;
             }
             const errorText = error || '';
-            if (/No API key set/i.test(errorText)) {
+            // Check for Ollama model not found error
+            console.error('AI Error:', errorText, 'Type:', errorType);
+            const modelNotFoundMatch = errorText.match(/MODEL_NOT_FOUND:(.+)/);
+            const ollamaForbiddenMatch = errorText.match(/OLLAMA_FORBIDDEN:(.+)/);
+            const ollamaConnectMatch = errorText.match(/OLLAMA_CONNECT:(.+)/);
+            const ollamaHttpOnlyMatch = errorText.match(/OLLAMA_HTTP_ONLY:(.+)/);
+            if (modelNotFoundMatch) {
+                const modelName = modelNotFoundMatch[1];
+                const command = isSpanishLocale() ? `ollama pull ${modelName}` : `ollama pull ${modelName}`;
+                const wslHelp = isSpanishLocale() 
+                    ? `\n\nSi estás en WSL, probá: ollama pull ${modelName} && OLLAMA_HOST=0.0.0.0:11434 ollama serve`
+                    : `\n\nIf in WSL, try: ollama pull ${modelName} && OLLAMA_HOST=0.0.0.0:11434 ollama serve`;
+                const windowsIpHelp = isSpanishLocale()
+                    ? '\nO ejecuta: ip route show | grep default | awk \'{print $3}\' y usa esa IP'
+                    : '\nOr run: ip route show | grep default | awk \'{print $3}\' and use that IP';
+                
+                appendMessage('ai', addWarning(
+                    (isSpanishLocale() ? `Modelo "${modelName}" no encontrado. Ejecuta: ${command}` : `Model "${modelName}" not found. Run: ${command}`) + wslHelp + windowsIpHelp));
+            } else if (ollamaHttpOnlyMatch) {
+                const badEndpoint = ollamaHttpOnlyMatch[1] || (config.ollamaUrl || 'http://127.0.0.1:11434');
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `Ollama en esta extensión usa solo HTTP local. URL inválida: ${badEndpoint}. Usa por ejemplo: http://127.0.0.1:11434`
+                    : `This extension only supports local HTTP for Ollama. Invalid URL: ${badEndpoint}. Use for example: http://127.0.0.1:11434`));
+            } else if (ollamaForbiddenMatch) {
+                const ollamaEndpoint = ollamaForbiddenMatch[1] || (config.ollamaUrl || 'http://127.0.0.1:11434');
+                const safeEndpoint = escapeHtml(ollamaEndpoint);
+                const command = 'setx OLLAMA_ORIGINS "chrome-extension://*"';
+                const safeCommand = escapeHtml(command);
+                if (isSpanishLocale()) {
+                    const html = `Ollama rechazó la petición (403) en ${safeEndpoint}. Debes permitir el origen de la extensión con OLLAMA_ORIGINS.<br><br>En Windows (PowerShell):<br><strong>${safeCommand}</strong><br>Luego reinicia Ollama y el navegador. ⚠️`;
+                    const plain = `Ollama rechazó la petición (403) en ${ollamaEndpoint}. Debes permitir el origen de la extensión con OLLAMA_ORIGINS.\n\nEn Windows (PowerShell):\n${command}\nLuego reinicia Ollama y el navegador. ⚠️`;
+                    appendMessageHtml('ai', html, plain);
+                } else {
+                    const html = `Ollama rejected this request (403) at ${safeEndpoint}. You must allow extension origins via OLLAMA_ORIGINS.<br><br>On Windows (PowerShell):<br><strong>${safeCommand}</strong><br>Then restart Ollama and your browser. ⚠️`;
+                    const plain = `Ollama rejected this request (403) at ${ollamaEndpoint}. You must allow extension origins via OLLAMA_ORIGINS.\n\nOn Windows (PowerShell):\n${command}\nThen restart Ollama and your browser. ⚠️`;
+                    appendMessageHtml('ai', html, plain);
+                }
+            } else if (ollamaConnectMatch) {
+                const ollamaEndpoint = ollamaConnectMatch[1] || (config.ollamaUrl || 'http://127.0.0.1:11434');
+                const wslHint = isSpanishLocale()
+                    ? `\nSi está en WSL, iniciá: OLLAMA_HOST=0.0.0.0:11434 ollama serve`
+                    : `\nIf running in WSL, start with: OLLAMA_HOST=0.0.0.0:11434 ollama serve`;
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `No se pudo conectar a Ollama en ${ollamaEndpoint}. Verificá URL y que el servidor esté activo.` + wslHint
+                    : `Could not connect to Ollama at ${ollamaEndpoint}. Check URL and that the server is running.` + wslHint));
+            } else if (/No API key set/i.test(errorText)) {
                 if (chatMessagesEl) {
                     chatMessagesEl.appendChild(buildNoApiKeyMessageElement(true));
                     chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -3105,6 +3176,7 @@
 
             const provider = config.standardProvider || 'openrouter';
             const shouldStream = mode === 'standard' && (provider === 'openrouter' || provider === 'ollama');
+            console.log('Chat config:', { mode, provider, shouldStream, ollamaUrl: config.ollamaUrl, ollamaModel: config.ollamaModel });
 
             if (shouldStream) {
                 const streamEl = appendStreamingMessage();
@@ -3194,11 +3266,19 @@
 
                 port.onDisconnect.addListener(() => {
                     if (finished) return;
+                    const runtimeError = safeRuntimeLastError();
+                    console.error('Port disconnected:', runtimeError);
                     if (responseText) {
                         finalizeResponse(responseText);
                     } else {
                         hideThinking();
-                        appendMessage('ai', addWarning(getNoResponseMessage()));
+                        if (runtimeError) {
+                            appendMessage('ai', addWarning(isSpanishLocale() 
+                                ? `Error de conexión: ${runtimeError.message || 'Verifica que Ollama esté corriendo'}`
+                                : `Connection error: ${runtimeError.message || 'Check that Ollama is running'}`));
+                        } else {
+                            appendMessage('ai', addWarning(getNoResponseMessage()));
+                        }
                         playSoundOrQueue('error');
                     }
                 });

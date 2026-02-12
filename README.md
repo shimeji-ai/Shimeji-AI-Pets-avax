@@ -71,8 +71,13 @@ Tip: If you're storing API keys/tokens, consider enabling **Protect keys with ma
 - `web-stellar/`: Next.js site with Stellar Freighter wallet compatibility.
 - `shimeji-eth/`: Scaffold-ETH installation (Ethereum dev scaffold).
 - `animation-reference/`: Reference docs for animating shimejis (sprite sheets and timings).
-- `desktop-mvp/`: Future home of the Windows desktop MVP.
+- `desktop/`: Electron desktop app workspace (Windows/Linux today, Mac planned).
 - `generate_sprites.py`: Helper script for generating sprite sheets.
+
+## Release Policy
+
+Desktop binaries and extension zip distribution are managed through GitHub Releases.  
+See `RELEASING.md` for the required process and upload script.
 
 ## Contributors
 

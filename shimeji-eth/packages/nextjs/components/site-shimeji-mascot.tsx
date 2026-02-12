@@ -11,10 +11,48 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function pingExtension(timeoutMs = 800): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", handler);
+      resolve(false);
+    }, timeoutMs);
+
+    function handler(event: MessageEvent) {
+      if (event.source !== window) return;
+      if (event.data?.type === "EXTENSION_RESPONSE" && event.data?.originalType === "pingExtension") {
+        window.clearTimeout(timeout);
+        window.removeEventListener("message", handler);
+        resolve(true);
+      }
+    }
+
+    window.addEventListener("message", handler);
+    window.postMessage({ type: "DAPP_MESSAGE", payload: { type: "pingExtension" } }, "*");
+  });
+}
+
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const [showMascot, setShowMascot] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    pingExtension().then(installed => {
+      if (cancelled) return;
+      setShowMascot(!installed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [open, setOpen] = useState(false);
   const openRef = useRef(open);
@@ -94,7 +132,8 @@ export function SiteShimejiMascot() {
       }
 
       wrapRef.current.style.transform = `translate3d(${Math.round(clamp(x, minX, maxX))}px, 0, 0)`;
-      if (imgRef.current) imgRef.current.style.transform = `scaleX(${dir})`;
+      // Sprite art faces opposite of movement direction by default; invert to avoid moonwalking.
+      if (imgRef.current) imgRef.current.style.transform = `scaleX(${-dir})`;
 
       raf = requestAnimationFrame(tick);
     };
@@ -143,6 +182,8 @@ export function SiteShimejiMascot() {
       setSending(false);
     }
   }
+
+  if (!showMascot) return null;
 
   return (
     <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>

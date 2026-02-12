@@ -16,6 +16,9 @@ const agentBlock = document.getElementById("agent-block");
 const openrouterKey = document.getElementById("openrouter-key");
 const modelSelect = document.getElementById("model-select");
 const ollamaUrl = document.getElementById("ollama-url");
+const ollamaModelSelect = document.getElementById("ollama-model-select");
+const ollamaRefreshBtn = document.getElementById("ollama-refresh");
+const ollamaModelsStatus = document.getElementById("ollama-models-status");
 const ollamaModel = document.getElementById("ollama-model");
 const openclawUrl = document.getElementById("openclaw-url");
 const openclawToken = document.getElementById("openclaw-token");
@@ -24,6 +27,7 @@ const skipBtn = document.getElementById("skip-btn");
 const langSelect = document.getElementById("lang-select");
 
 let language = "en";
+let ollamaDetectedModels = [];
 
 function detectBrowserLanguage() {
   const languages = Array.isArray(navigator.languages) && navigator.languages.length
@@ -69,8 +73,10 @@ function setLabels() {
   }
   document.getElementById("ollama-url-label").textContent = t("Ollama URL", "Ollama URL");
   ollamaUrl.placeholder = "http://127.0.0.1:11434";
+  document.getElementById("ollama-model-list-label").textContent = t("Detected Models", "Modelos detectados");
+  if (ollamaRefreshBtn) ollamaRefreshBtn.textContent = t("Refresh", "Actualizar");
   document.getElementById("ollama-model-label").textContent = t("Ollama Model", "Modelo Ollama");
-  ollamaModel.placeholder = "llama3.1";
+  ollamaModel.placeholder = "gemma3:1b";
   document.getElementById("ollama-hint").textContent = t(
     "Use a local Ollama server to keep everything on-device.",
     "Usa un servidor Ollama local para mantener todo en tu dispositivo."
@@ -100,6 +106,122 @@ function populateModels(selectedValue) {
     modelSelect.appendChild(option);
   });
   modelSelect.value = selectedValue || modelSelect.value || "random";
+}
+
+function setOllamaStatus(text, type) {
+  if (!ollamaModelsStatus) return;
+  ollamaModelsStatus.textContent = text || "";
+  if (type === "error") {
+    ollamaModelsStatus.style.color = "rgba(255, 134, 134, 0.9)";
+  } else if (type === "ok") {
+    ollamaModelsStatus.style.color = "rgba(134, 240, 180, 0.9)";
+  } else {
+    ollamaModelsStatus.style.color = "rgba(234, 242, 255, 0.6)";
+  }
+}
+
+function normalizeOllamaUrl(rawUrl) {
+  const fallback = "http://127.0.0.1:11434";
+  const value = (rawUrl || fallback).trim();
+  const withProtocol = /^https?:\/\//i.test(value) ? value : `http://${value}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (!parsed.hostname) return fallback;
+    return `http://${parsed.host}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function populateOllamaModelSelect(selectedModel) {
+  if (!ollamaModelSelect) return;
+  ollamaModelSelect.innerHTML = "";
+
+  const customOption = document.createElement("option");
+  customOption.value = "custom";
+  customOption.textContent = t("Custom model", "Modelo personalizado");
+  ollamaModelSelect.appendChild(customOption);
+
+  const names = ollamaDetectedModels.map((item) => item?.name).filter(Boolean);
+  names.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    ollamaModelSelect.appendChild(option);
+  });
+
+  if (selectedModel && names.includes(selectedModel)) {
+    ollamaModelSelect.value = selectedModel;
+  } else {
+    ollamaModelSelect.value = "custom";
+  }
+}
+
+function syncOllamaModelSelection() {
+  if (!ollamaModelSelect || !ollamaModel) return;
+  if (ollamaModelSelect.value === "custom") {
+    ollamaModel.focus();
+    return;
+  }
+  ollamaModel.value = ollamaModelSelect.value;
+}
+
+async function refreshOllamaModels(showStatus) {
+  if (!ollamaUrl || !ollamaModelSelect || !ollamaRefreshBtn) return;
+
+  const normalizedUrl = normalizeOllamaUrl(ollamaUrl.value);
+  ollamaUrl.value = normalizedUrl;
+  const currentModel = (ollamaModel?.value || "").trim() || "gemma3:1b";
+  let timeoutId = null;
+
+  ollamaRefreshBtn.disabled = true;
+  ollamaModelSelect.disabled = true;
+  if (showStatus) {
+    setOllamaStatus(t("Checking Ollama...", "Verificando Ollama..."), "muted");
+  }
+
+  try {
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(`${normalizedUrl}/api/tags`, {
+      method: "GET",
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP_${response.status}`);
+    }
+
+    const payload = await response.json();
+    ollamaDetectedModels = Array.isArray(payload?.models) ? payload.models : [];
+    populateOllamaModelSelect(currentModel);
+
+    if (showStatus) {
+      const count = ollamaDetectedModels.length;
+      setOllamaStatus(
+        count > 0
+          ? t(`Found ${count} local models.`, `Se encontraron ${count} modelos locales.`)
+          : t("Connected, but no models were found.", "Conectado, pero no se encontraron modelos."),
+        "ok"
+      );
+    }
+  } catch {
+    ollamaDetectedModels = [];
+    populateOllamaModelSelect(currentModel);
+    if (showStatus) {
+      setOllamaStatus(
+        t(
+          `Could not reach Ollama at ${normalizedUrl}. Keep a custom model or check your server URL.`,
+          `No se pudo conectar a Ollama en ${normalizedUrl}. Usa un modelo personalizado o revisa la URL del servidor.`
+        ),
+        "error"
+      );
+    }
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    ollamaRefreshBtn.disabled = false;
+    ollamaModelSelect.disabled = false;
+  }
 }
 
 function toggleProvider() {
@@ -132,7 +254,7 @@ function getDefaultShimeji(index) {
     openrouterApiKey: "",
     openrouterModel: "random",
     ollamaUrl: "http://127.0.0.1:11434",
-    ollamaModel: "llama3.1",
+    ollamaModel: "gemma3:1b",
     openclawGatewayUrl: "ws://127.0.0.1:18789",
     openclawGatewayToken: "",
     personality: "cryptid",
@@ -156,7 +278,11 @@ function loadExistingConfig() {
   chrome.storage.local.get(["shimejis"], (data) => {
     const list = Array.isArray(data.shimejis) ? data.shimejis : [];
     const first = list[0];
-    if (!first) return;
+    if (!first) {
+      populateOllamaModelSelect(ollamaModel.value || "gemma3:1b");
+      refreshOllamaModels(false);
+      return;
+    }
     if (first.mode && modeSelect) modeSelect.value = first.mode;
     if (first.standardProvider) providerSelect.value = first.standardProvider;
     if (first.openrouterApiKey) openrouterKey.value = first.openrouterApiKey;
@@ -169,7 +295,9 @@ function loadExistingConfig() {
     if (first.ollamaModel) ollamaModel.value = first.ollamaModel;
     if (first.openclawGatewayUrl) openclawUrl.value = first.openclawGatewayUrl;
     if (first.openclawGatewayToken) openclawToken.value = first.openclawGatewayToken;
+    populateOllamaModelSelect(ollamaModel.value || "gemma3:1b");
     toggleMode();
+    refreshOllamaModels(false);
   });
 }
 
@@ -190,7 +318,7 @@ function saveConfig() {
         first.openrouterModel = modelSelect.value || "random";
       } else {
         first.ollamaUrl = ollamaUrl.value || "http://127.0.0.1:11434";
-        first.ollamaModel = ollamaModel.value || "llama3.1";
+        first.ollamaModel = ollamaModel.value || "gemma3:1b";
       }
     } else if (mode === "agent") {
       first.openclawGatewayUrl = openclawUrl.value || "ws://127.0.0.1:18789";
@@ -217,6 +345,7 @@ function initOnboardingLanguage() {
     if (langSelect) langSelect.value = language;
     setLabels();
     populateModels("random");
+    populateOllamaModelSelect(ollamaModel.value || "gemma3:1b");
     toggleMode();
     loadExistingConfig();
   });
@@ -227,10 +356,43 @@ initOnboardingLanguage();
 providerSelect.addEventListener("change", () => {
   toggleProvider();
   toggleMode();
+  if ((providerSelect.value || "openrouter") === "ollama") {
+    refreshOllamaModels(false);
+  }
 });
-if (modeSelect) modeSelect.addEventListener("change", toggleMode);
+if (modeSelect) {
+  modeSelect.addEventListener("change", () => {
+    toggleMode();
+    if ((modeSelect.value || "standard") === "standard" && (providerSelect.value || "openrouter") === "ollama") {
+      refreshOllamaModels(false);
+    }
+  });
+}
 saveBtn.addEventListener("click", saveConfig);
 skipBtn.addEventListener("click", skipOnboarding);
+if (ollamaRefreshBtn) {
+  ollamaRefreshBtn.addEventListener("click", () => {
+    refreshOllamaModels(true);
+  });
+}
+if (ollamaModelSelect) {
+  ollamaModelSelect.addEventListener("change", syncOllamaModelSelection);
+}
+if (ollamaModel) {
+  ollamaModel.addEventListener("input", () => {
+    if (!ollamaModelSelect) return;
+    const current = (ollamaModel.value || "").trim();
+    const isKnown = ollamaDetectedModels.some((model) => model?.name === current);
+    if (!isKnown) ollamaModelSelect.value = "custom";
+  });
+}
+if (ollamaUrl) {
+  ollamaUrl.addEventListener("blur", () => {
+    if ((providerSelect.value || "openrouter") === "ollama") {
+      refreshOllamaModels(false);
+    }
+  });
+}
 if (langSelect) {
   langSelect.addEventListener("change", () => {
     const value = langSelect.value === "es" ? "es" : "en";
@@ -238,5 +400,6 @@ if (langSelect) {
     chrome.storage.local.set({ shimejiLanguage: value });
     setLabels();
     populateModels(modelSelect.value || "random");
+    populateOllamaModelSelect(ollamaModel.value || "gemma3:1b");
   });
 }

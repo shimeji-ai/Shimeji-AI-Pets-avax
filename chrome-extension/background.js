@@ -1047,7 +1047,7 @@ async function getShimejiConfigs() {
         openrouterModel: 'random',
         openrouterModelResolved: enabledModels[Math.floor(Math.random() * enabledModels.length)],
         ollamaUrl: 'http://127.0.0.1:11434',
-        ollamaModel: 'llama3.1',
+        ollamaModel: 'gemma3:1b',
         openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
         openclawGatewayToken: data.openclawGatewayToken || '',
         personality: data.aiPersonality || 'cryptid',
@@ -1130,22 +1130,42 @@ async function getAiSettingsFor(shimejiId) {
     model,
     apiKey,
     ollamaUrl: shimeji?.ollamaUrl || 'http://127.0.0.1:11434',
-    ollamaModel: shimeji?.ollamaModel || 'llama3.1',
+    ollamaModel: shimeji?.ollamaModel || 'gemma3:1b',
     systemPrompt: buildSystemPrompt(shimeji?.personality || 'cryptid', chatMode),
     openclawGatewayUrl: shimeji?.openclawGatewayUrl || 'ws://127.0.0.1:18789',
     openclawGatewayToken: openclawToken
   };
 }
 
+function resolveOllamaUrl(rawUrl) {
+  const fallback = 'http://127.0.0.1:11434';
+  const input = (rawUrl || fallback).trim();
+  const withProtocol = /^https?:\/\//i.test(input) ? input : `http://${input}`;
+  try {
+    const parsed = new URL(withProtocol);
+    if (parsed.protocol !== 'http:') {
+      throw new Error(`OLLAMA_HTTP_ONLY:${parsed.origin || input}`);
+    }
+    return parsed.origin;
+  } catch (err) {
+    if (err?.message?.startsWith('OLLAMA_HTTP_ONLY:')) {
+      throw err;
+    }
+    return fallback;
+  }
+}
+
 async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
   let url, headers, body;
+  let resolvedOllamaUrl = '';
 
   if (provider === 'ollama') {
-    const base = (ollamaUrl || 'http://127.0.0.1:11434').replace(/\/$/, '');
+    resolvedOllamaUrl = resolveOllamaUrl(ollamaUrl);
+    const base = resolvedOllamaUrl.replace(/\/$/, '');
     url = `${base}/api/chat`;
     headers = { 'Content-Type': 'application/json' };
     body = {
-      model: model || 'llama3.1',
+      model: model || 'gemma3:1b',
       messages: messages,
       stream: false
     };
@@ -1177,6 +1197,9 @@ async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
       body: JSON.stringify(body)
     });
   } catch (err) {
+    if (provider === 'ollama') {
+      throw new Error(`OLLAMA_CONNECT:${resolvedOllamaUrl || resolveOllamaUrl(ollamaUrl)}`);
+    }
     throw new Error('Network error — check your connection and try again.');
   }
 
@@ -1204,6 +1227,15 @@ async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
     }
 
     const text = payload ? JSON.stringify(payload).slice(0, 160) : await response.text().catch(() => '');
+    console.error('Ollama API error (non-streaming):', response.status, text);
+    if (provider === 'ollama') {
+      if (response.status === 403) {
+        throw new Error(`OLLAMA_FORBIDDEN:${resolvedOllamaUrl || resolveOllamaUrl(ollamaUrl)}`);
+      }
+      if (response.status === 404 || text.toLowerCase().includes('not found') || text.toLowerCase().includes('does not exist')) {
+        throw new Error(`MODEL_NOT_FOUND:${model}`);
+      }
+    }
     throw new Error(`API error (${response.status}): ${text || 'Unknown error'}`);
   }
 
@@ -1243,7 +1275,8 @@ async function callOpenRouterStream(model, apiKey, messages, onDelta) {
     response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000) // 30 second timeout
     });
   } catch (err) {
     throw new Error('Network error — check your connection and try again.');
@@ -1321,28 +1354,43 @@ async function callOpenRouterStream(model, apiKey, messages, onDelta) {
 }
 
 async function callOllamaStream(model, messages, ollamaUrl, onDelta) {
-  const base = (ollamaUrl || 'http://127.0.0.1:11434').replace(/\/$/, '');
+  const resolvedUrl = await resolveOllamaUrl(ollamaUrl);
+  const base = resolvedUrl.replace(/\/$/, '');
   const url = `${base}/api/chat`;
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = { 
+    'Content-Type': 'application/json'
+  };
   const body = {
-    model: model || 'llama3.1',
+    model: model || 'gemma3:1b',
     messages: messages,
     stream: true
   };
+
+  console.log('Ollama stream request:', { resolvedUrl, url, model, messageCount: messages.length });
 
   let response;
   try {
     response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      // Add timeout for better error handling
+      signal: AbortSignal.timeout(30000) // 30 second timeout
     });
   } catch (err) {
-    throw new Error('Network error — check your connection and try again.');
+    throw new Error(`OLLAMA_CONNECT:${resolvedUrl}`);
   }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
+    console.error('Ollama API error:', response.status, text);
+    if (response.status === 403) {
+      throw new Error(`OLLAMA_FORBIDDEN:${resolvedUrl}`);
+    }
+    // Check for Ollama model not found error - Ollama returns 404 with "model" not found message
+    if (response.status === 404 || text.toLowerCase().includes('not found') || text.toLowerCase().includes('does not exist')) {
+      throw new Error(`MODEL_NOT_FOUND:${model}`);
+    }
     throw new Error(`API error (${response.status}): ${text || 'Unknown error'}`);
   }
 
@@ -1602,12 +1650,13 @@ async function handleAiChat(conversationMessages, shimejiId) {
       content = await callOpenClaw(settings.openclawGatewayUrl, settings.openclawGatewayToken, messages);
     } else {
       const provider = settings.provider || 'openrouter';
-      const model = provider === 'ollama' ? (settings.ollamaModel || 'llama3.1') : settings.model;
+      const model = provider === 'ollama' ? (settings.ollamaModel || 'gemma3:1b') : settings.model;
       const ollamaUrl = settings.ollamaUrl || 'http://127.0.0.1:11434';
       content = await callAiApi(provider, model, settings.apiKey, messages, ollamaUrl);
     }
     return { content };
-  } catch (err) {
+    } catch (err) {
+    console.error('AI API Error:', err);
     const errorMessage = err.message || 'Unknown error';
     let errorType = 'generic';
     if (errorMessage === 'NO_CREDITS') errorType = 'no_credits';

@@ -64,8 +64,16 @@
           <input id="ollama-url" type="text" placeholder="http://127.0.0.1:11434" />
         </div>
         <div class="field">
+          <label id="ollama-model-list-label">Detected Models</label>
+          <div class="inline-row">
+            <select id="ollama-model-select"></select>
+            <button id="ollama-refresh" class="secondary inline-btn" type="button">Refresh</button>
+          </div>
+          <p class="hint" id="ollama-models-status"></p>
+        </div>
+        <div class="field">
           <label id="ollama-model-label">Ollama Model</label>
-          <input id="ollama-model" type="text" placeholder="llama3.1" />
+          <input id="ollama-model" type="text" placeholder="gemma3:1b" />
         </div>
         <p class="hint" id="ollama-hint">Use a local Ollama server to keep everything on-device.</p>
       </div>

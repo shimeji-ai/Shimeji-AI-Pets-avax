@@ -15,6 +15,11 @@ Shimeji Factory opens intergalactic portals that bring animated desktop companio
    - Renders shimejis on web pages
    - Syncs unlocks on wallet connect
 
+3. **Desktop App** (`/desktop`)
+   - Electron-based desktop app with portable exe
+   - Standalone shimeji overlay for Windows
+   - See `/desktop/AGENTS.md` for build instructions
+
 ## Flow
 
 1. User connects Freighter

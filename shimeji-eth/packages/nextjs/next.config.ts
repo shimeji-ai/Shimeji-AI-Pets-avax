@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
       ...(config.watchOptions || {}),
       ignored: [
         "**/node_modules/**",
-        "**/desktop-mvp/**",
+        "**/desktop/**",
         "**/chrome-extension/**",
         "**/web-stellar/**",
         "**/animation-reference/**",

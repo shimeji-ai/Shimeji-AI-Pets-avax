@@ -516,6 +516,17 @@ body[data-theme="pink"] .remove-btn:hover {
   gap: 6px;
 }
 
+.ollama-model-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ollama-model-row .ai-select {
+  flex: 1;
+  min-width: 0;
+}
+
 h2 {
   font-size: 12px;
   text-transform: uppercase;
@@ -1844,7 +1855,7 @@ body[data-theme="kawaii"] .ai-hint {
   font-weight: 700;
   color: rgba(200, 210, 235, 0.6);
   cursor: pointer;
-  user-select: none;
+  user-select: text;
   border-top: 1px solid rgba(120, 140, 255, 0.15);
 }
 
