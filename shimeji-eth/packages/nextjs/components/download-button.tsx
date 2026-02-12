@@ -12,14 +12,14 @@ interface DownloadButtonProps {
 
 const DownloadButton = ({
   href = "/download",
-  labelEn = "Download!",
-  labelEs = "¡Descargar!",
+  labelEn = "DOWNLOAD!",
+  labelEs = "¡DESCARGAR!",
 }: DownloadButtonProps) => {
   const { isSpanish } = useLanguage();
   return (
     <Link href={href} prefetch={false}>
       <button type="button" className="neural-stars-button">
-        <strong className="neural-stars-label">{isSpanish ? labelEs : labelEn}</strong>
+        <strong className="neural-stars-label uppercase">{isSpanish ? labelEs : labelEn}</strong>
         <div className="neural-stars-container">
           <div className="neural-stars" />
         </div>
