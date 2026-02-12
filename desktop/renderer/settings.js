@@ -87,20 +87,51 @@ let globalApiConfig = {
   openclawUrl: 'ws://127.0.0.1:18789',
   openclawToken: '',
   openclawGatewayUrl: 'ws://127.0.0.1:18789',
-  openclawGatewayToken: ''
+  openclawGatewayToken: '',
+  openclawAgentName: 'desktop-shimeji-1'
 };
 
 const DEFAULT_OLLAMA_MODEL = 'gemma3:1b';
+const OPENCLAW_AGENT_NAME_MAX = 32;
 const ollamaModelCatalog = new Map(); // shimejiId -> string[]
 const ollamaModelStatus = new Map(); // shimejiId -> status text
 const ollamaModelLoading = new Set(); // shimejiId currently refreshing
 
+function defaultOpenClawAgentName(indexOrId) {
+  if (typeof indexOrId === 'number') {
+    return `desktop-shimeji-${indexOrId + 1}`;
+  }
+  const match = String(indexOrId || '').match(/(\d+)/);
+  const suffix = match ? match[1] : '1';
+  return `desktop-shimeji-${suffix}`;
+}
+
+function normalizeOpenClawAgentName(rawValue, fallback) {
+  const fallbackName = String(fallback || 'desktop-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+  const normalized = String(rawValue || '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/_+/g, '_')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, OPENCLAW_AGENT_NAME_MAX);
+  return normalized || fallbackName;
+}
+
 function normalizeShimejiIds(list) {
   if (!Array.isArray(list)) return [];
-  return list.map((shimeji, index) => ({
-    ...shimeji,
-    id: `shimeji-${index + 1}`
-  }));
+  return list.map((shimeji, index) => {
+    const id = `shimeji-${index + 1}`;
+    return {
+      ...shimeji,
+      id,
+      openclawAgentName: normalizeOpenClawAgentName(
+        shimeji?.openclawAgentName,
+        defaultOpenClawAgentName(index)
+      )
+    };
+  });
 }
 
 function updateStats() {
@@ -132,7 +163,8 @@ function saveShimejis() {
       openclawUrl: first.openclawUrl || 'ws://127.0.0.1:18789',
       openclawToken: first.openclawToken || '',
       openclawGatewayUrl: first.openclawGatewayUrl || 'ws://127.0.0.1:18789',
-      openclawGatewayToken: first.openclawGatewayToken || ''
+      openclawGatewayToken: first.openclawGatewayToken || '',
+      openclawAgentName: normalizeOpenClawAgentName(first.openclawAgentName, defaultOpenClawAgentName(first.id || 0))
     };
   }
   
@@ -177,7 +209,11 @@ function addShimeji() {
     openclawUrl: configSource?.openclawUrl || globalApiConfig.openclawUrl,
     openclawToken: configSource?.openclawToken || globalApiConfig.openclawToken,
     openclawGatewayUrl: configSource?.openclawGatewayUrl || globalApiConfig.openclawGatewayUrl,
-    openclawGatewayToken: configSource?.openclawGatewayToken || globalApiConfig.openclawGatewayToken
+    openclawGatewayToken: configSource?.openclawGatewayToken || globalApiConfig.openclawGatewayToken,
+    openclawAgentName: normalizeOpenClawAgentName(
+      configSource?.openclawAgentName || globalApiConfig.openclawAgentName,
+      defaultOpenClawAgentName(newIndex)
+    )
   };
 
   shimejis.push(newShimeji);
@@ -508,11 +544,25 @@ function renderShimejiCards() {
       }
     } else if (mode === 'agent') {
       aiCorePanel.appendChild(renderInputField('openclawGatewayUrl', 'Gateway URL', shimeji.openclawGatewayUrl || 'ws://127.0.0.1:18789', 'text', 'ws://127.0.0.1:18789', { className: 'ai-core-field' }));
+      aiCorePanel.appendChild(
+        renderInputField(
+          'openclawAgentName',
+          'Agent Name',
+          shimeji.openclawAgentName || defaultOpenClawAgentName(index),
+          'text',
+          defaultOpenClawAgentName(index),
+          { className: 'ai-core-field' }
+        )
+      );
       aiCorePanel.appendChild(renderInputField('openclawGatewayToken', 'Gateway Auth Token', shimeji.openclawGatewayToken, 'password', 'Enter gateway auth token', { className: 'ai-core-field' }));
       const openclawTokenHint = document.createElement('div');
       openclawTokenHint.className = 'helper-text';
       openclawTokenHint.textContent = 'To get the token run: openclaw config get gateway.auth.token';
       aiCorePanel.appendChild(openclawTokenHint);
+      const openclawNameHint = document.createElement('div');
+      openclawNameHint.className = 'helper-text';
+      openclawNameHint.textContent = "Agent name rules: letters, numbers, '-' and '_' only (max 32).";
+      aiCorePanel.appendChild(openclawNameHint);
     }
     // mode === 'off' shows nothing extra
 
@@ -691,6 +741,11 @@ function registerHandlers() {
         value = target.value;
       }
 
+      if (field === 'openclawAgentName') {
+        value = normalizeOpenClawAgentName(value, defaultOpenClawAgentName(index));
+        target.value = value;
+      }
+
       updateShimejiConfig(index, { [field]: value });
 
       if (field === 'ollamaUrl') {
@@ -800,7 +855,8 @@ async function init() {
         openclawUrl: first.openclawUrl || 'ws://127.0.0.1:18789',
         openclawToken: first.openclawToken || '',
         openclawGatewayUrl: first.openclawGatewayUrl || 'ws://127.0.0.1:18789',
-        openclawGatewayToken: first.openclawGatewayToken || ''
+        openclawGatewayToken: first.openclawGatewayToken || '',
+        openclawAgentName: normalizeOpenClawAgentName(first.openclawAgentName, defaultOpenClawAgentName(first.id || 0))
       };
     }
   } else {
@@ -820,7 +876,8 @@ async function init() {
       openclawUrl: 'ws://127.0.0.1:18789',
       openclawToken: '',
       openclawGatewayUrl: 'ws://127.0.0.1:18789',
-      openclawGatewayToken: ''
+      openclawGatewayToken: '',
+      openclawAgentName: defaultOpenClawAgentName(0)
     }];
     renderShimejiSelector();
     renderShimejiCards();

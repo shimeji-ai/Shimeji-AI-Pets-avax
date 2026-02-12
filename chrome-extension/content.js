@@ -662,6 +662,30 @@
         return CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
     }
 
+    const OPENCLAW_AGENT_NAME_MAX = 32;
+
+    function defaultOpenClawAgentName(indexOrId) {
+        if (typeof indexOrId === 'number') {
+            return `chrome-shimeji-${indexOrId + 1}`;
+        }
+        const match = String(indexOrId || '').match(/(\d+)/);
+        const suffix = match ? match[1] : '1';
+        return `chrome-shimeji-${suffix}`;
+    }
+
+    function normalizeOpenClawAgentName(rawValue, fallback) {
+        const fallbackName = String(fallback || 'chrome-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+        const normalized = String(rawValue || '')
+            .trim()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-zA-Z0-9_-]/g, '')
+            .replace(/-+/g, '-')
+            .replace(/_+/g, '_')
+            .replace(/^[-_]+|[-_]+$/g, '')
+            .slice(0, OPENCLAW_AGENT_NAME_MAX);
+        return normalized || fallbackName;
+    }
+
     function getDefaultShimeji(index) {
         const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
         const randomPersonality = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
@@ -683,6 +707,7 @@
             ollamaModel: 'gemma3:1b',
             openclawGatewayUrl: 'ws://127.0.0.1:18789',
             openclawGatewayToken: '',
+            openclawAgentName: defaultOpenClawAgentName(index),
             personality: randomPersonality,
             enabled: true,
             chatThemeColor: preset?.theme || randomThemeColor,
@@ -716,6 +741,7 @@
             openrouterModelResolved: MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)],
             openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
             openclawGatewayToken: data.openclawGatewayToken || '',
+            openclawAgentName: defaultOpenClawAgentName(0),
             personality: data.aiPersonality || 'cryptid',
             enabled: true,
             ttsEnabled: false,
@@ -750,6 +776,10 @@
                             : MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)]),
                     ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
                     ollamaModel: item.ollamaModel || 'gemma3:1b',
+                    openclawAgentName: normalizeOpenClawAgentName(
+                        item.openclawAgentName,
+                        defaultOpenClawAgentName(item.id)
+                    ),
                     ttsEnabled: needsTtsMigration ? item.ttsEnabled === true : item.ttsEnabled === true,
                     ttsVoiceProfile: item.ttsVoiceProfile || pickRandomTtsProfile(),
                     ttsVoiceId: item.ttsVoiceId || '',
@@ -1505,8 +1535,14 @@
             mascot.y = clamp(rawY, minY, maxY);
             mascot.velocityX = 0;
             mascot.velocityY = 0;
-            mascot.state = State.IDLE;
-            mascot.currentAnimation = 'idle';
+            if (isChatOpen) {
+                mascot.state = State.SITTING;
+                mascot.currentAnimation = 'sitting';
+                mascot.direction = 0;
+            } else {
+                mascot.state = State.IDLE;
+                mascot.currentAnimation = 'idle';
+            }
             mascot.animationFrame = 0;
             mascot.animationTick = 0;
             mascot.stateTimer = 0;
@@ -2799,7 +2835,9 @@
             if (!chatMetaEl) return;
             const mode = getMode();
             if (mode === 'agent') {
-                chatMetaEl.textContent = 'openclaw · agent';
+                const fallbackName = defaultOpenClawAgentName(shimejiId);
+                const agentName = normalizeOpenClawAgentName(config.openclawAgentName, fallbackName);
+                chatMetaEl.textContent = `openclaw · ${agentName}`;
                 return;
             }
             if (mode === 'off') {
@@ -2953,15 +2991,190 @@
             });
         }
 
+        const markdownCopyTextMap = new WeakMap();
+
+        async function copyTextToClipboard(text) {
+            const value = String(text || '');
+            if (!value) return false;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(value);
+                    return true;
+                }
+            } catch (err) {}
+            try {
+                const input = document.createElement('textarea');
+                input.value = value;
+                input.setAttribute('readonly', '');
+                input.style.position = 'fixed';
+                input.style.opacity = '0';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.focus();
+                input.select();
+                const copied = document.execCommand('copy');
+                input.remove();
+                return Boolean(copied);
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function appendInlineMarkdown(target, rawText) {
+            const text = String(rawText || '');
+            let i = 0;
+            while (i < text.length) {
+                if (text[i] === '`') {
+                    const end = text.indexOf('`', i + 1);
+                    if (end > i + 1) {
+                        const codeEl = document.createElement('code');
+                        codeEl.className = 'shimeji-chat-inline-code';
+                        codeEl.textContent = text.slice(i + 1, end);
+                        target.appendChild(codeEl);
+                        i = end + 1;
+                        continue;
+                    }
+                }
+                if (text.startsWith('**', i) || text.startsWith('__', i)) {
+                    const marker = text.slice(i, i + 2);
+                    const end = text.indexOf(marker, i + 2);
+                    if (end > i + 2) {
+                        const strongEl = document.createElement('strong');
+                        appendInlineMarkdown(strongEl, text.slice(i + 2, end));
+                        target.appendChild(strongEl);
+                        i = end + 2;
+                        continue;
+                    }
+                }
+
+                let next = text.length;
+                const codeIndex = text.indexOf('`', i);
+                const starIndex = text.indexOf('**', i);
+                const underscoreIndex = text.indexOf('__', i);
+                if (codeIndex !== -1) next = Math.min(next, codeIndex);
+                if (starIndex !== -1) next = Math.min(next, starIndex);
+                if (underscoreIndex !== -1) next = Math.min(next, underscoreIndex);
+
+                if (next === i) {
+                    target.appendChild(document.createTextNode(text[i]));
+                    i += 1;
+                    continue;
+                }
+
+                target.appendChild(document.createTextNode(text.slice(i, next)));
+                i = next;
+            }
+        }
+
+        function appendMarkdownPlainText(container, rawText) {
+            const normalized = String(rawText || '').replace(/\r\n?/g, '\n');
+            const paragraphs = normalized.split(/\n{2,}/);
+            paragraphs.forEach((paragraph) => {
+                if (!paragraph) return;
+                const paragraphEl = document.createElement('div');
+                paragraphEl.className = 'shimeji-chat-md-paragraph';
+                const lines = paragraph.split('\n');
+                lines.forEach((line, index) => {
+                    appendInlineMarkdown(paragraphEl, line);
+                    if (index < lines.length - 1) {
+                        paragraphEl.appendChild(document.createElement('br'));
+                    }
+                });
+                container.appendChild(paragraphEl);
+            });
+        }
+
+        function bindMarkdownCopyButtons(rootEl) {
+            if (!rootEl) return;
+            rootEl.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
+                if (btn.dataset.bound === '1') return;
+                btn.dataset.bound = '1';
+                btn.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const codeText = markdownCopyTextMap.get(btn) || '';
+                    const copied = await copyTextToClipboard(codeText);
+                    const originalLabel = btn.textContent;
+                    btn.textContent = copied
+                        ? (isSpanishLocale() ? 'Copiado' : 'Copied')
+                        : (isSpanishLocale() ? 'Error' : 'Failed');
+                    setTimeout(() => {
+                        btn.textContent = originalLabel;
+                    }, 1200);
+                });
+            });
+        }
+
+        function buildMarkdownFragment(content) {
+            const fragment = document.createDocumentFragment();
+            const normalized = String(content || '').replace(/\r\n?/g, '\n');
+            const codeBlockRegex = /```([^\n`]*)\n?([\s\S]*?)```/g;
+            let match;
+            let cursor = 0;
+
+            while ((match = codeBlockRegex.exec(normalized)) !== null) {
+                const before = normalized.slice(cursor, match.index);
+                appendMarkdownPlainText(fragment, before);
+
+                const rawLang = (match[1] || '').trim();
+                const codeText = (match[2] || '').replace(/\n$/, '');
+                const blockEl = document.createElement('div');
+                blockEl.className = 'shimeji-chat-code-block';
+
+                const headerEl = document.createElement('div');
+                headerEl.className = 'shimeji-chat-code-header';
+
+                const labelEl = document.createElement('span');
+                labelEl.className = 'shimeji-chat-code-lang';
+                labelEl.textContent = rawLang || (isSpanishLocale() ? 'codigo' : 'code');
+
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'shimeji-chat-code-copy';
+                copyBtn.textContent = isSpanishLocale() ? 'Copiar' : 'Copy';
+                markdownCopyTextMap.set(copyBtn, codeText);
+
+                const preEl = document.createElement('pre');
+                preEl.className = 'shimeji-chat-code-pre';
+                const codeEl = document.createElement('code');
+                codeEl.className = 'shimeji-chat-code';
+                codeEl.textContent = codeText;
+                preEl.appendChild(codeEl);
+
+                headerEl.appendChild(labelEl);
+                headerEl.appendChild(copyBtn);
+                blockEl.appendChild(headerEl);
+                blockEl.appendChild(preEl);
+                fragment.appendChild(blockEl);
+                cursor = codeBlockRegex.lastIndex;
+            }
+
+            const trailing = normalized.slice(cursor);
+            appendMarkdownPlainText(fragment, trailing);
+            return fragment;
+        }
+
+        function renderMarkdownIntoMessage(msgEl, content) {
+            if (!msgEl) return;
+            msgEl.innerHTML = '';
+            msgEl.appendChild(buildMarkdownFragment(content));
+            bindMarkdownCopyButtons(msgEl);
+        }
+
         function renderConversationHistory() {
             if (!chatMessagesEl) return;
             chatMessagesEl.innerHTML = '';
             conversationHistory.forEach((msg) => {
+                const isUser = msg.role === 'user';
                 const msgEl = document.createElement('div');
-                msgEl.className = `shimeji-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
-                msgEl.textContent = msg.content;
+                msgEl.className = `shimeji-chat-msg ${isUser ? 'user' : 'ai'}`;
+                if (!isUser) {
+                    renderMarkdownIntoMessage(msgEl, msg.content);
+                    lastAssistantText = msg.content;
+                } else {
+                    msgEl.textContent = msg.content;
+                }
                 chatMessagesEl.appendChild(msgEl);
-                if (msg.role === 'assistant') lastAssistantText = msg.content;
             });
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
@@ -2970,10 +3183,14 @@
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
             msgEl.className = `shimeji-chat-msg ${role}`;
-            msgEl.textContent = content;
+            if (role === 'ai') {
+                renderMarkdownIntoMessage(msgEl, content);
+                lastAssistantText = content;
+            } else {
+                msgEl.textContent = content;
+            }
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-            if (role === 'ai') lastAssistantText = content;
         }
 
         function escapeHtml(text) {
@@ -3001,7 +3218,7 @@
             if (!chatMessagesEl) return null;
             const msgEl = document.createElement('div');
             msgEl.className = 'shimeji-chat-msg ai';
-            msgEl.textContent = '';
+            renderMarkdownIntoMessage(msgEl, '');
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
             return msgEl;
@@ -3009,7 +3226,7 @@
 
         function updateStreamingMessage(msgEl, content) {
             if (!chatMessagesEl || !msgEl) return;
-            msgEl.textContent = content;
+            renderMarkdownIntoMessage(msgEl, content);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
             lastAssistantText = content;
         }
@@ -4078,6 +4295,7 @@
             applyStoredPosition(saved) {
                 if (!saved) return;
                 if (mascot.isDragging || isResizing) return;
+                if (isChatOpen) return;
                 if (!mascotElement) return;
                 if (applySavedPosition(saved)) {
                     lastSavedPos = { x: mascot.x, y: mascot.y };

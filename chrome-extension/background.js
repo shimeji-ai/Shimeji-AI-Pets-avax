@@ -676,6 +676,7 @@ chrome.runtime.onConnect.addListener((port) => {
             messages,
             {
               shimejiId,
+              agentName: settings.openclawAgentName,
               onDelta: (delta, accumulated) => {
                 port.postMessage({ type: 'delta', text: delta, full: accumulated });
               }
@@ -998,6 +999,30 @@ async function decryptWithDeviceKey(payload) {
   return new TextDecoder().decode(plaintext);
 }
 
+const OPENCLAW_AGENT_NAME_MAX = 32;
+
+function defaultOpenClawAgentName(indexOrId) {
+  if (typeof indexOrId === 'number') {
+    return `chrome-shimeji-${indexOrId + 1}`;
+  }
+  const idMatch = String(indexOrId || '').match(/(\d+)/);
+  const suffix = idMatch ? idMatch[1] : '1';
+  return `chrome-shimeji-${suffix}`;
+}
+
+function normalizeOpenClawAgentName(rawValue, fallback) {
+  const fallbackName = String(fallback || 'chrome-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+  const normalized = String(rawValue || '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/_+/g, '_')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, OPENCLAW_AGENT_NAME_MAX);
+  return normalized || fallbackName;
+}
+
 async function getShimejiConfigs() {
   return new Promise((resolve) => {
     chrome.storage.local.get([
@@ -1029,7 +1054,7 @@ async function getShimejiConfigs() {
           'deepseek/deepseek-chat-v3-0324',
           'mistralai/mistral-large-2411'
         ];
-        resolve(data.shimejis.map((shimeji) => ({
+        resolve(data.shimejis.map((shimeji, index) => ({
           ...shimeji,
           mode: normalizeMode(shimeji.mode),
           openrouterModel: shimeji.openrouterModel || 'random',
@@ -1037,6 +1062,7 @@ async function getShimejiConfigs() {
             || (shimeji.openrouterModel && shimeji.openrouterModel !== 'random'
               ? shimeji.openrouterModel
               : enabledModels[Math.floor(Math.random() * enabledModels.length)]),
+          openclawAgentName: normalizeOpenClawAgentName(shimeji.openclawAgentName, defaultOpenClawAgentName(shimeji.id || index)),
           masterKeyEnabled: !!data.masterKeyEnabled
         })));
         return;
@@ -1063,6 +1089,7 @@ async function getShimejiConfigs() {
         ollamaModel: 'gemma3:1b',
         openclawGatewayUrl: data.openclawGatewayUrl || 'ws://127.0.0.1:18789',
         openclawGatewayToken: data.openclawGatewayToken || '',
+        openclawAgentName: defaultOpenClawAgentName(0),
         personality: data.aiPersonality || 'cryptid',
         enabled: true,
         masterKeyEnabled: !!data.masterKeyEnabled
@@ -1146,7 +1173,11 @@ async function getAiSettingsFor(shimejiId) {
     ollamaModel: shimeji?.ollamaModel || 'gemma3:1b',
     systemPrompt: buildSystemPrompt(shimeji?.personality || 'cryptid', chatMode),
     openclawGatewayUrl: shimeji?.openclawGatewayUrl || 'ws://127.0.0.1:18789',
-    openclawGatewayToken: openclawToken
+    openclawGatewayToken: openclawToken,
+    openclawAgentName: normalizeOpenClawAgentName(
+      shimeji?.openclawAgentName,
+      defaultOpenClawAgentName(shimeji?.id || shimejiId || 0)
+    )
   };
 }
 
@@ -1511,8 +1542,8 @@ function getLastUserMessageText(messages) {
   return String(lastUser?.content || '').trim();
 }
 
-function buildOpenClawSessionKey(shimejiId) {
-  const raw = String(shimejiId || 'main').toLowerCase();
+function buildOpenClawSessionKey(shimejiId, agentName) {
+  const raw = String(agentName || shimejiId || 'main').toLowerCase();
   const safe = raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'main';
   return `agent:${safe}:main`;
 }
@@ -1538,7 +1569,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     throw new Error('OPENCLAW_EMPTY_MESSAGE');
   }
 
-  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId);
+  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId, options.agentName);
   const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
 
   return new Promise((resolve, reject) => {
@@ -1658,7 +1689,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
-        if (payload.status === 'completed' || payload.status === 'ok' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+        if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
           finish(responseText || text || '(no response)');
           return;
         }
@@ -1733,7 +1764,7 @@ async function handleAiChat(conversationMessages, shimejiId) {
         settings.openclawGatewayUrl,
         settings.openclawGatewayToken,
         messages,
-        { shimejiId }
+        { shimejiId, agentName: settings.openclawAgentName }
       );
     } else {
       const provider = settings.provider || 'openrouter';

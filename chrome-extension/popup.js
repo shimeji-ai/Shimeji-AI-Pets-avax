@@ -1151,6 +1151,29 @@ if (securityHint) securityHint.textContent = t(
     }
   ];
   const CHAT_THEMES = CHAT_THEME_PRESETS;
+  const OPENCLAW_AGENT_NAME_MAX = 32;
+
+  function defaultOpenClawAgentName(indexOrId) {
+    if (typeof indexOrId === "number") {
+      return `chrome-shimeji-${indexOrId + 1}`;
+    }
+    const idMatch = String(indexOrId || "").match(/(\d+)/);
+    const suffix = idMatch ? idMatch[1] : "1";
+    return `chrome-shimeji-${suffix}`;
+  }
+
+  function normalizeOpenClawAgentName(rawValue, fallback) {
+    const fallbackName = (fallback || "chrome-shimeji-1").slice(0, OPENCLAW_AGENT_NAME_MAX);
+    const normalized = String(rawValue || "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9_-]/g, "")
+      .replace(/-+/g, "-")
+      .replace(/_+/g, "_")
+      .replace(/^[-_]+|[-_]+$/g, "")
+      .slice(0, OPENCLAW_AGENT_NAME_MAX);
+    return normalized || fallbackName;
+  }
 
   function getDefaultShimeji(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
@@ -1175,6 +1198,7 @@ if (securityHint) securityHint.textContent = t(
       ollamaModel: "gemma3:1b",
       openclawGatewayUrl: "ws://127.0.0.1:18789",
       openclawGatewayToken: "",
+      openclawAgentName: defaultOpenClawAgentName(index),
       personality: randomPersonality,
       enabled: true,
       soundEnabled: true,
@@ -1208,9 +1232,10 @@ if (securityHint) securityHint.textContent = t(
     const pickRandomModel = () => (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
 
     if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
-      const list = data.shimejis.map((shimeji) => {
+      const list = data.shimejis.map((shimeji, index) => {
         const needsRandom = !shimeji.openrouterModel || shimeji.openrouterModel === "google/gemini-2.0-flash-001";
         if (needsRandom) migrated = true;
+        const fallbackAgentName = defaultOpenClawAgentName(shimeji.id || index);
         return {
           ...shimeji,
           mode: normalizeMode(shimeji.mode),
@@ -1226,6 +1251,7 @@ if (securityHint) securityHint.textContent = t(
           ollamaModel: shimeji.ollamaModel || "gemma3:1b",
           openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
           openclawGatewayToken: shimeji.openclawGatewayToken || "",
+          openclawAgentName: normalizeOpenClawAgentName(shimeji.openclawAgentName, fallbackAgentName),
           personality: shimeji.personality || "cryptid",
           ttsEnabled: shimeji.ttsEnabled === true,
           ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
@@ -1259,6 +1285,7 @@ if (securityHint) securityHint.textContent = t(
         ollamaModel: "gemma3:1b",
         openclawGatewayUrl: data.openclawGatewayUrl || "ws://127.0.0.1:18789",
         openclawGatewayToken: data.openclawGatewayToken || "",
+        openclawAgentName: defaultOpenClawAgentName(0),
         personality: data.aiPersonality || "cryptid",
         enabled: true,
         soundEnabled: true,
@@ -1716,6 +1743,16 @@ if (securityHint) securityHint.textContent = t(
       agentBlock.className = "shimeji-mode-row";
       agentBlock.dataset.mode = "agent";
       agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
+      agentBlock.appendChild(
+        renderInputField(
+          "openclawAgentName",
+          t("Agent Name", "Nombre del agente"),
+          shimeji.openclawAgentName || defaultOpenClawAgentName(index),
+          "text",
+          defaultOpenClawAgentName(index),
+          "ai-core-field"
+        )
+      );
       const openclawHint = document.createElement("div");
       openclawHint.className = "helper-text";
       openclawHint.textContent = t(
@@ -1723,6 +1760,13 @@ if (securityHint) securityHint.textContent = t(
         "OpenClaw necesita un WebSocket + token del gateway. Para obtener el token ejecuta: openclaw config get gateway.auth.token"
       );
       agentBlock.appendChild(openclawHint);
+      const openclawNameHint = document.createElement("div");
+      openclawNameHint.className = "helper-text";
+      openclawNameHint.textContent = t(
+        "Agent name rules: letters, numbers, '-' and '_' only (max 32).",
+        "Reglas del nombre: solo letras, números, '-' y '_' (máx 32)."
+      );
+      agentBlock.appendChild(openclawNameHint);
       const openclawTokenInput = renderInputField(
         "openclawGatewayToken",
         t("Gateway Auth Token", "Token de auth del gateway"),
@@ -2172,6 +2216,8 @@ if (securityHint) securityHint.textContent = t(
       if (value && !target.ttsVoiceProfile) {
         target.ttsVoiceProfile = pickRandomVoiceProfile();
       }
+    } else if (field === "openclawAgentName") {
+      target.openclawAgentName = normalizeOpenClawAgentName(value, defaultOpenClawAgentName(target.id));
     } else {
       target[field] = value;
     }
@@ -2525,7 +2571,13 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         const label = e.target.closest(".toggle-row")?.querySelector(".toggle-label");
         if (label) label.textContent = e.target.checked ? t("On", "Activo") : t("Off", "Apagado");
       } else {
-        updateShimeji(id, field, e.target.value);
+        if (field === "openclawAgentName") {
+          const normalized = normalizeOpenClawAgentName(e.target.value, defaultOpenClawAgentName(id));
+          e.target.value = normalized;
+          updateShimeji(id, field, normalized);
+        } else {
+          updateShimeji(id, field, e.target.value);
+        }
       }
       if (field === "mode") {
         toggleModeBlocks(card, e.target.value);
@@ -2561,7 +2613,13 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         const v = Number(e.target.value) / 100;
         updateShimeji(id, field, v);
       } else {
-        updateShimeji(id, field, e.target.value);
+        if (field === "openclawAgentName") {
+          const normalized = normalizeOpenClawAgentName(e.target.value, defaultOpenClawAgentName(id));
+          e.target.value = normalized;
+          updateShimeji(id, field, normalized);
+        } else {
+          updateShimeji(id, field, e.target.value);
+        }
         if (field === "ollamaModel") {
           const select = card.querySelector('select[data-field="ollamaModelSelect"]');
           if (select && select.value !== "custom" && select.value !== e.target.value) {

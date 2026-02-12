@@ -29,7 +29,8 @@ const store = new Store({
         ollamaUrl: 'http://127.0.0.1:11434',
         ollamaModel: 'gemma3:1b',
         openclawGatewayUrl: 'ws://127.0.0.1:18789',
-        openclawGatewayToken: ''
+        openclawGatewayToken: '',
+        openclawAgentName: 'desktop-shimeji-1'
       }
     ],
     openrouterApiKey: '',
@@ -40,7 +41,8 @@ const store = new Store({
     openclawUrl: 'ws://127.0.0.1:18789',
     openclawToken: '',
     openclawGatewayUrl: 'ws://127.0.0.1:18789',
-    openclawGatewayToken: ''
+    openclawGatewayToken: '',
+    openclawAgentName: 'desktop-shimeji-1'
   }
 });
 
@@ -249,6 +251,30 @@ function normalizeMode(modeValue) {
   return 'standard';
 }
 
+const OPENCLAW_AGENT_NAME_MAX = 32;
+
+function defaultOpenClawAgentName(indexOrId) {
+  if (typeof indexOrId === 'number') {
+    return `desktop-shimeji-${indexOrId + 1}`;
+  }
+  const match = String(indexOrId || '').match(/(\d+)/);
+  const suffix = match ? match[1] : '1';
+  return `desktop-shimeji-${suffix}`;
+}
+
+function normalizeOpenClawAgentName(rawValue, fallback) {
+  const fallbackName = String(fallback || 'desktop-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+  const normalized = String(rawValue || '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/_+/g, '_')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, OPENCLAW_AGENT_NAME_MAX);
+  return normalized || fallbackName;
+}
+
 function normalizeShimejiList(listValue) {
   if (!Array.isArray(listValue)) return [];
   return listValue
@@ -256,7 +282,11 @@ function normalizeShimejiList(listValue) {
     .slice(0, MAX_SHIMEJIS)
     .map((item, index) => ({
       ...item,
-      id: `shimeji-${index + 1}`
+      id: `shimeji-${index + 1}`,
+      openclawAgentName: normalizeOpenClawAgentName(
+        item.openclawAgentName,
+        defaultOpenClawAgentName(index)
+      )
     }));
 }
 
@@ -273,11 +303,13 @@ function repairStoredShimejis() {
   const normalized = normalizeShimejiList(raw);
 
   if (Array.isArray(raw)) {
-    const idsChanged = raw.length !== normalized.length || raw.some((item, index) => {
+    const needsRepair = raw.length !== normalized.length || raw.some((item, index) => {
       const expectedId = `shimeji-${index + 1}`;
-      return !item || item.id !== expectedId;
+      const expectedAgentName = defaultOpenClawAgentName(index);
+      const normalizedAgentName = normalizeOpenClawAgentName(item?.openclawAgentName, expectedAgentName);
+      return !item || item.id !== expectedId || normalizedAgentName !== normalized[index]?.openclawAgentName;
     });
-    if (idsChanged) {
+    if (needsRepair) {
       store.set('shimejis', normalized);
     }
   }
@@ -306,6 +338,7 @@ function getShimejiConfig(shimejiId) {
       ollamaModel: store.get('ollamaModel') || 'gemma3:1b',
       openclawGatewayUrl: store.get('openclawGatewayUrl') || store.get('openclawUrl') || 'ws://127.0.0.1:18789',
       openclawGatewayToken: store.get('openclawGatewayToken') || store.get('openclawToken') || '',
+      openclawAgentName: normalizeOpenClawAgentName(store.get('openclawAgentName'), defaultOpenClawAgentName(0)),
       personality: 'cryptid'
     };
   }
@@ -353,6 +386,10 @@ function getAiSettingsFor(shimejiId, personalityKey) {
     ollamaModel: shimeji?.ollamaModel || store.get('ollamaModel') || 'gemma3:1b',
     openclawGatewayUrl: shimeji?.openclawGatewayUrl || store.get('openclawGatewayUrl') || store.get('openclawUrl') || 'ws://127.0.0.1:18789',
     openclawGatewayToken: (shimeji?.openclawGatewayToken || store.get('openclawGatewayToken') || store.get('openclawToken') || '').trim(),
+    openclawAgentName: normalizeOpenClawAgentName(
+      shimeji?.openclawAgentName || store.get('openclawAgentName'),
+      defaultOpenClawAgentName(shimeji?.id || shimejiId || 0)
+    ),
     systemPrompt: buildSystemPrompt(personality)
   };
 }
@@ -701,8 +738,8 @@ function getLastUserMessageText(messages) {
   return String(lastUser?.content || '').trim();
 }
 
-function buildOpenClawSessionKey(shimejiId) {
-  const raw = String(shimejiId || 'main').toLowerCase();
+function buildOpenClawSessionKey(shimejiId, agentName) {
+  const raw = String(agentName || shimejiId || 'main').toLowerCase();
   const safe = raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'main';
   return `agent:${safe}:main`;
 }
@@ -714,6 +751,232 @@ function isOpenClawRetryableError(errorMessage) {
     errorMessage.startsWith('OPENCLAW_CLOSED:') ||
     errorMessage === 'OPENCLAW_EMPTY_RESPONSE'
   );
+}
+
+function getOpenClawFallbackWebContents(preferredWebContents) {
+  if (preferredWebContents && !preferredWebContents.isDestroyed()) return preferredWebContents;
+  if (overlayWindow && !overlayWindow.isDestroyed()) return overlayWindow.webContents;
+  if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow.webContents;
+  return null;
+}
+
+async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, messageText, sessionKey) {
+  if (!webContents || webContents.isDestroyed()) {
+    throw new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE');
+  }
+
+  const payload = {
+    normalizedUrl,
+    authToken,
+    messageText,
+    sessionKey
+  };
+
+  const script = `
+    (async () => {
+      const payload = ${JSON.stringify(payload)};
+      const wsUrl = String(payload.normalizedUrl || '');
+      const token = String(payload.authToken || '');
+      const message = String(payload.messageText || '');
+      const sessionKey = String(payload.sessionKey || 'agent:main:main');
+
+      if (typeof WebSocket !== 'function') throw new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE');
+      if (!token) throw new Error('OPENCLAW_MISSING_TOKEN');
+      if (!message) throw new Error('OPENCLAW_EMPTY_MESSAGE');
+
+      let requestCounter = 0;
+      const nextId = (prefix) => \`\${prefix}_\${Date.now()}_\${++requestCounter}\`;
+
+      const extractText = (payload) => {
+        if (!payload || typeof payload !== 'object') return '';
+        if (typeof payload === 'string') return payload;
+        if (typeof payload.content === 'string') return payload.content;
+        if (typeof payload.text === 'string') return payload.text;
+        if (payload.delta) {
+          if (typeof payload.delta.content === 'string') return payload.delta.content;
+          if (typeof payload.delta.text === 'string') return payload.delta.text;
+        }
+        if (payload.message) {
+          const msg = payload.message;
+          if (typeof msg.content === 'string') return msg.content;
+          if (Array.isArray(msg.content)) {
+            return msg.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+          }
+        }
+        if (Array.isArray(payload.content)) {
+          return payload.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+        }
+        return '';
+      };
+
+      const mergeText = (current, next) => {
+        if (!next) return current;
+        if (!current) return next;
+        if (next.startsWith(current)) return next;
+        if (current.startsWith(next)) return current;
+        return current + next;
+      };
+
+      return await new Promise((resolve, reject) => {
+        let ws;
+        let settled = false;
+        let authenticated = false;
+        let chatRequestSent = false;
+        let responseText = '';
+        let idleTimer = null;
+
+        const timeout = setTimeout(() => {
+          fail(new Error(\`OPENCLAW_TIMEOUT:\${wsUrl}\`));
+        }, 70000);
+
+        const finish = (result) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if (idleTimer) {
+            clearTimeout(idleTimer);
+            idleTimer = null;
+          }
+          if (ws && ws.readyState === 1) ws.close(1000, 'done');
+          resolve(result);
+        };
+
+        const fail = (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if (idleTimer) {
+            clearTimeout(idleTimer);
+            idleTimer = null;
+          }
+          if (ws && ws.readyState === 1) ws.close(1011, 'error');
+          reject(err);
+        };
+
+        const pushText = (nextText) => {
+          if (!nextText) return;
+          const merged = mergeText(responseText, nextText);
+          if (merged === responseText) return;
+          responseText = merged;
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            if (responseText) finish(responseText);
+          }, 4500);
+        };
+
+        try {
+          ws = new WebSocket(wsUrl);
+        } catch {
+          fail(new Error(\`OPENCLAW_CONNECT:\${wsUrl}\`));
+          return;
+        }
+
+        ws.addEventListener('message', (event) => {
+          let data;
+          try {
+            const raw = typeof event.data === 'string' ? event.data : '';
+            if (!raw) return;
+            data = JSON.parse(raw);
+          } catch {
+            return;
+          }
+
+          if (data.type === 'event' && data.event === 'connect.challenge') {
+            const connectReq = {
+              type: 'req',
+              id: nextId('connect'),
+              method: 'connect',
+              params: {
+                minProtocol: 3,
+                maxProtocol: 3,
+                client: { id: 'gateway-client', version: '1.0.0', platform: 'desktop', mode: 'backend' },
+                role: 'operator',
+                scopes: ['operator.read', 'operator.write'],
+                auth: { token }
+              }
+            };
+            ws.send(JSON.stringify(connectReq));
+            return;
+          }
+
+          if (data.type === 'res' && !authenticated && data.ok === false) {
+            const errMsg = data.error?.message || data.error?.code || 'Authentication failed';
+            fail(new Error(\`OPENCLAW_AUTH_FAILED:\${errMsg}\`));
+            return;
+          }
+
+          if (data.type === 'res' && !authenticated && (data.payload?.type === 'hello-ok' || data.ok === true)) {
+            authenticated = true;
+            if (!chatRequestSent) {
+              chatRequestSent = true;
+              const agentReq = {
+                type: 'req',
+                id: nextId('chat'),
+                method: 'chat.send',
+                params: {
+                  sessionKey,
+                  message,
+                  idempotencyKey: nextId('idem')
+                }
+              };
+              ws.send(JSON.stringify(agentReq));
+            }
+            return;
+          }
+
+          if (data.type === 'event') {
+            const payload = data.payload || {};
+            const text = extractText(payload);
+            if (text) pushText(text);
+            if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+              finish(responseText || text || '(no response)');
+            }
+            return;
+          }
+
+          if (data.type === 'res' && authenticated && data.ok === true) {
+            if (data.payload?.runId) return;
+            const text = extractText(data.payload);
+            if (text) pushText(text);
+            const status = data.payload?.status;
+            if (status === 'completed' || status === 'done' || data.payload?.done) {
+              finish(responseText || text || '(no response)');
+            }
+            return;
+          }
+
+          if (data.type === 'res' && authenticated && data.ok === false) {
+            const errMsg = data.error?.message || data.error?.code || 'Agent request failed';
+            fail(new Error(\`OPENCLAW_ERROR:\${errMsg}\`));
+          }
+        });
+
+        ws.addEventListener('error', () => {
+          fail(new Error(\`OPENCLAW_CONNECT:\${wsUrl}\`));
+        });
+
+        ws.addEventListener('close', (event) => {
+          if (settled) return;
+          if (responseText) {
+            finish(responseText);
+            return;
+          }
+          if (event.code === 1000 || event.code === 1001) {
+            fail(new Error('OPENCLAW_EMPTY_RESPONSE'));
+            return;
+          }
+          fail(new Error(\`OPENCLAW_CLOSED:\${event.code}\`));
+        });
+      });
+    })();
+  `;
+
+  try {
+    return await webContents.executeJavaScript(script, true);
+  } catch (error) {
+    const message = error?.message ? String(error.message) : '';
+    throw new Error(message || `OPENCLAW_CONNECT:${normalizedUrl}`);
+  }
 }
 
 async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
@@ -728,7 +991,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     throw new Error('OPENCLAW_EMPTY_MESSAGE');
   }
 
-  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId);
+  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId, options.agentName);
   const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
 
   return new Promise((resolve, reject) => {
@@ -751,7 +1014,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, 'done');
+      if (ws && ws.readyState === 1) ws.close(1000, 'done');
       resolve(result);
     }
 
@@ -763,7 +1026,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1011, 'error');
+      if (ws && ws.readyState === 1) ws.close(1011, 'error');
       reject(err);
     }
 
@@ -786,7 +1049,18 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     const WebSocketCtor = globalThis.WebSocket;
     if (typeof WebSocketCtor !== 'function') {
       clearTimeout(timeout);
-      reject(new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE'));
+      const fallbackWebContents = getOpenClawFallbackWebContents(options.webContents);
+      if (!fallbackWebContents) {
+        reject(new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE'));
+        return;
+      }
+      callOpenClawViaRenderer(
+        fallbackWebContents,
+        normalizedUrl,
+        authToken,
+        messageText,
+        sessionKey
+      ).then(resolve).catch(reject);
       return;
     }
 
@@ -855,7 +1129,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
-        if (payload.status === 'completed' || payload.status === 'ok' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+        if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
           finish(responseText || text || '(no response)');
           return;
         }
@@ -978,12 +1252,17 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'openclawUrl',
     'openclawToken',
     'openclawGatewayUrl',
-    'openclawGatewayToken'
+    'openclawGatewayToken',
+    'openclawAgentName'
   ];
 
   for (const key of allowedKeys) {
     if (key in nextConfig) {
-      store.set(key, nextConfig[key]);
+      if (key === 'openclawAgentName') {
+        store.set(key, normalizeOpenClawAgentName(nextConfig[key], defaultOpenClawAgentName(0)));
+      } else {
+        store.set(key, nextConfig[key]);
+      }
     }
   }
 
@@ -1001,7 +1280,11 @@ ipcMain.on('update-config', (event, nextConfig) => {
       const prop = key.substring(match[0].length);
       const shimejis = normalizeShimejiList(store.get('shimejis'));
       if (shimejis[index - 1]) {
-        shimejis[index - 1][prop] = value;
+        if (prop === 'openclawAgentName') {
+          shimejis[index - 1][prop] = normalizeOpenClawAgentName(value, defaultOpenClawAgentName(index - 1));
+        } else {
+          shimejis[index - 1][prop] = value;
+        }
         if (prop === 'openrouterModel') {
           shimejis[index - 1].openrouterModelResolved = value === 'random' ? '' : value;
         }
@@ -1038,6 +1321,8 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
         fullMessages,
         {
           shimejiId,
+          agentName: settings.openclawAgentName,
+          webContents: event.sender,
           onDelta: (delta, accumulated) => {
             event.sender.send('ai-stream-delta', { shimejiId, delta, accumulated });
           }
@@ -1118,7 +1403,7 @@ ipcMain.handle('test-openclaw', async (event, payload = {}) => {
         { role: 'system', content: settings.systemPrompt },
         { role: 'user', content: prompt }
       ],
-      { shimejiId }
+      { shimejiId, agentName: settings.openclawAgentName, webContents: event.sender }
     );
     return { ok: true, content };
   } catch (error) {

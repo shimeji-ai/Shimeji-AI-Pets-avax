@@ -166,6 +166,7 @@ class Shimeji {
     this.messages = [];
     this.pendingAssistantIndex = null;
     this.pendingStreamText = '';
+    this.markdownCopyTextMap = new WeakMap();
     this.elements = {};
     this.chatClickTimeout = null;
 
@@ -674,12 +675,181 @@ class Shimeji {
     this.renderMessages();
   }
 
+  async copyTextToClipboard(text) {
+    const value = String(text || '');
+    if (!value) return false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch (err) {}
+    try {
+      const input = document.createElement('textarea');
+      input.value = value;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      input.style.left = '-9999px';
+      document.body.appendChild(input);
+      input.focus();
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      return Boolean(copied);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  appendInlineMarkdown(target, rawText) {
+    const text = String(rawText || '');
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '`') {
+        const end = text.indexOf('`', i + 1);
+        if (end > i + 1) {
+          const codeEl = document.createElement('code');
+          codeEl.className = 'chat-inline-code';
+          codeEl.textContent = text.slice(i + 1, end);
+          target.appendChild(codeEl);
+          i = end + 1;
+          continue;
+        }
+      }
+      if (text.startsWith('**', i) || text.startsWith('__', i)) {
+        const marker = text.slice(i, i + 2);
+        const end = text.indexOf(marker, i + 2);
+        if (end > i + 2) {
+          const strongEl = document.createElement('strong');
+          this.appendInlineMarkdown(strongEl, text.slice(i + 2, end));
+          target.appendChild(strongEl);
+          i = end + 2;
+          continue;
+        }
+      }
+
+      let next = text.length;
+      const codeIndex = text.indexOf('`', i);
+      const starIndex = text.indexOf('**', i);
+      const underscoreIndex = text.indexOf('__', i);
+      if (codeIndex !== -1) next = Math.min(next, codeIndex);
+      if (starIndex !== -1) next = Math.min(next, starIndex);
+      if (underscoreIndex !== -1) next = Math.min(next, underscoreIndex);
+
+      if (next === i) {
+        target.appendChild(document.createTextNode(text[i]));
+        i += 1;
+        continue;
+      }
+
+      target.appendChild(document.createTextNode(text.slice(i, next)));
+      i = next;
+    }
+  }
+
+  appendMarkdownPlainText(container, rawText) {
+    const normalized = String(rawText || '').replace(/\r\n?/g, '\n');
+    const paragraphs = normalized.split(/\n{2,}/);
+    paragraphs.forEach((paragraph) => {
+      if (!paragraph) return;
+      const paragraphEl = document.createElement('div');
+      paragraphEl.className = 'chat-md-paragraph';
+      const lines = paragraph.split('\n');
+      lines.forEach((line, index) => {
+        this.appendInlineMarkdown(paragraphEl, line);
+        if (index < lines.length - 1) {
+          paragraphEl.appendChild(document.createElement('br'));
+        }
+      });
+      container.appendChild(paragraphEl);
+    });
+  }
+
+  bindMarkdownCopyButtons(rootEl) {
+    if (!rootEl) return;
+    rootEl.querySelectorAll('.chat-code-copy').forEach((btn) => {
+      if (btn.dataset.bound === '1') return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const codeText = this.markdownCopyTextMap.get(btn) || '';
+        const copied = await this.copyTextToClipboard(codeText);
+        const originalLabel = btn.textContent;
+        btn.textContent = copied ? 'Copied' : 'Failed';
+        setTimeout(() => {
+          btn.textContent = originalLabel;
+        }, 1200);
+      });
+    });
+  }
+
+  buildMarkdownFragment(content) {
+    const fragment = document.createDocumentFragment();
+    const normalized = String(content || '').replace(/\r\n?/g, '\n');
+    const codeBlockRegex = /```([^\n`]*)\n?([\s\S]*?)```/g;
+    let cursor = 0;
+    let match;
+
+    while ((match = codeBlockRegex.exec(normalized)) !== null) {
+      const before = normalized.slice(cursor, match.index);
+      this.appendMarkdownPlainText(fragment, before);
+
+      const rawLang = (match[1] || '').trim();
+      const codeText = (match[2] || '').replace(/\n$/, '');
+      const blockEl = document.createElement('div');
+      blockEl.className = 'chat-code-block';
+
+      const headerEl = document.createElement('div');
+      headerEl.className = 'chat-code-header';
+
+      const langEl = document.createElement('span');
+      langEl.className = 'chat-code-lang';
+      langEl.textContent = rawLang || 'code';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'chat-code-copy';
+      copyBtn.textContent = 'Copy';
+      this.markdownCopyTextMap.set(copyBtn, codeText);
+
+      const preEl = document.createElement('pre');
+      preEl.className = 'chat-code-pre';
+      const codeEl = document.createElement('code');
+      codeEl.className = 'chat-code';
+      codeEl.textContent = codeText;
+      preEl.appendChild(codeEl);
+
+      headerEl.appendChild(langEl);
+      headerEl.appendChild(copyBtn);
+      blockEl.appendChild(headerEl);
+      blockEl.appendChild(preEl);
+      fragment.appendChild(blockEl);
+      cursor = codeBlockRegex.lastIndex;
+    }
+
+    this.appendMarkdownPlainText(fragment, normalized.slice(cursor));
+    return fragment;
+  }
+
+  renderMarkdownIntoMessage(msgEl, content) {
+    if (!msgEl) return;
+    msgEl.innerHTML = '';
+    msgEl.appendChild(this.buildMarkdownFragment(content));
+    this.bindMarkdownCopyButtons(msgEl);
+  }
+
   renderMessages() {
     this.elements.messagesArea.innerHTML = '';
     this.messages.forEach((msg) => {
       const msgEl = document.createElement('div');
       msgEl.className = `chat-message ${msg.role === 'user' ? 'user' : 'assistant'}`;
-      msgEl.textContent = msg.content;
+      if (msg.role === 'assistant') {
+        this.renderMarkdownIntoMessage(msgEl, msg.content);
+      } else {
+        msgEl.textContent = msg.content;
+      }
       this.elements.messagesArea.appendChild(msgEl);
     });
     this.elements.messagesArea.scrollTop = this.elements.messagesArea.scrollHeight;
