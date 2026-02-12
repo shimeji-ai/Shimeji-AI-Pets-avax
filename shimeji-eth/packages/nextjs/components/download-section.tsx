@@ -1,16 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Download, Smartphone } from "lucide-react";
-import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
+import { Download } from "lucide-react";
 import { useLanguage } from "~~/components/language-provider";
 import { Button } from "~~/components/ui/button";
-
-type Platform = "android" | "ios" | null;
-
-type DownloadSectionProps = {
-  includeMobile?: boolean;
-};
 
 const WIN_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-windows-portable.exe";
@@ -19,8 +11,7 @@ const LINUX_RELEASE_URL =
 const CHROME_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-chrome-extension.zip";
 
-export function DownloadSection({ includeMobile = true }: DownloadSectionProps) {
-  const [notifyPlatform, setNotifyPlatform] = useState<Platform>(null);
+export function DownloadSection() {
   const { isSpanish } = useLanguage();
 
   return (
@@ -96,79 +87,8 @@ export function DownloadSection({ includeMobile = true }: DownloadSectionProps) 
               </a>
             </Button>
           </div>
-
-          {includeMobile && (
-            <div className="neural-card rounded-2xl p-8 text-center flex flex-col">
-              <h3 className="text-2xl font-semibold mb-4">Android</h3>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 text-[var(--brand-accent)]">
-                  <Smartphone className="w-6 h-6" />
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  {isSpanish
-                    ? "¡App de Android próximamente! Te avisamos cuando salga en Google Play."
-                    : "Android app coming soon! Get notified when it launches on the Google Play Store."}
-                </p>
-              </div>
-              <Button onClick={() => setNotifyPlatform("android")} className="neural-button">
-                <Bell className="w-4 h-4 mr-2" />
-                {isSpanish ? "Avisame" : "Notify Me"}
-              </Button>
-            </div>
-          )}
-          {includeMobile && (
-            <div className="neural-card rounded-2xl p-8 text-center flex flex-col">
-              <h3 className="text-2xl font-semibold mb-4">iOS</h3>
-              <div className="flex-1 flex flex-col justify-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 text-[var(--brand-accent)]">
-                  <Smartphone className="w-6 h-6" />
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  {isSpanish
-                    ? "¡App de iOS próximamente! Te avisamos cuando salga en App Store."
-                    : "iOS app coming soon! Get notified when it launches on the Apple App Store."}
-                </p>
-              </div>
-              <Button onClick={() => setNotifyPlatform("ios")} className="neural-button">
-                <Bell className="w-4 h-4 mr-2" />
-                {isSpanish ? "Avisame" : "Notify Me"}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
-
-      {includeMobile && (
-        <EmailSubscribeModal
-          isOpen={notifyPlatform === "android"}
-          onClose={() => setNotifyPlatform(null)}
-          type="updates"
-          title={isSpanish ? "¡App de Android próximamente!" : "Android App Coming Soon!"}
-          subtitle={
-            isSpanish
-              ? "Te avisamos cuando esté disponible la app de Android"
-              : "We'll notify you when the Android app is available"
-          }
-          buttonText={isSpanish ? "Avisame" : "Notify Me"}
-          metadata={{ platform: "android" }}
-        />
-      )}
-
-      {includeMobile && (
-        <EmailSubscribeModal
-          isOpen={notifyPlatform === "ios"}
-          onClose={() => setNotifyPlatform(null)}
-          type="updates"
-          title={isSpanish ? "¡App de iOS próximamente!" : "iOS App Coming Soon!"}
-          subtitle={
-            isSpanish
-              ? "Te avisamos cuando esté disponible la app de iOS"
-              : "We'll notify you when the iOS app is available"
-          }
-          buttonText={isSpanish ? "Avisame" : "Notify Me"}
-          metadata={{ platform: "ios" }}
-        />
-      )}
     </section>
   );
 }

@@ -9,16 +9,12 @@ const DownloadSection = dynamic(() => import("~~/components/download-section").t
 });
 const Footer = dynamic(() => import("~~/components/footer").then(m => m.Footer), { ssr: false });
 
-type DownloadClientProps = {
-  includeMobile?: boolean;
-};
-
-export default function DownloadClient({ includeMobile = true }: DownloadClientProps) {
+export default function DownloadClient() {
   return (
     <main className="min-h-screen neural-shell">
       <NavHeader />
       <div className="bg-transparent overflow-x-hidden">
-        <DownloadSection includeMobile={includeMobile} />
+        <DownloadSection />
       </div>
       <Footer />
     </main>
