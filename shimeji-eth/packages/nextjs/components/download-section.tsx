@@ -45,7 +45,7 @@ export function DownloadSection() {
             </div>
             <Button asChild className="neural-button">
               <a href={CHROME_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                {isSpanish ? "Descargar Extensión" : "Download Extension"}
+                {isSpanish ? "¡Descargar!" : "Download!"}
               </a>
             </Button>
           </div>

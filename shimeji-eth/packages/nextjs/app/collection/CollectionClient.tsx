@@ -115,7 +115,7 @@ export default function CollectionClient() {
                 href="/download"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold neural-button"
               >
-                {isSpanish ? "Descargar Extensión" : "Download Extension"}
+                {isSpanish ? "¡Descargar!" : "Download!"}
               </a>
             </div>
           ) : !isConnected ? (
