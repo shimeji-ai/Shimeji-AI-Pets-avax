@@ -110,7 +110,8 @@ const CHARACTERS = [
   { id: 'kitten', label: 'Kitten' },
   { id: 'egg', label: 'Egg' },
   { id: 'ghost', label: 'Ghost' },
-  { id: 'blob', label: 'Blob' }
+  { id: 'blob', label: 'Blob' },
+  { id: 'lobster', label: 'Lobster' }
 ];
 
 let shimejis = [];
@@ -163,6 +164,8 @@ class Shimeji {
 
     this.chatOpen = false;
     this.messages = [];
+    this.pendingAssistantIndex = null;
+    this.pendingStreamText = '';
     this.elements = {};
     this.chatClickTimeout = null;
 
@@ -617,23 +620,34 @@ class Shimeji {
     if (!text) return;
 
     this.messages.push({ role: 'user', content: text });
-    this.renderMessages();
     this.elements.input.value = '';
+
+    const requestMessages = this.messages.slice();
+    const assistantIndex = this.messages.push({ role: 'assistant', content: '' }) - 1;
+    this.pendingAssistantIndex = assistantIndex;
+    this.pendingStreamText = '';
+    this.renderMessages();
 
     if (window.shimejiApi) {
       try {
         const result = await window.shimejiApi.aiChatStream({
           shimejiId: this.id,
-          messages: this.messages,
+          messages: requestMessages,
           personality: this.config.personality || 'cryptid'
         });
+        if (this.pendingAssistantIndex !== assistantIndex) {
+          return;
+        }
         if (result.ok) {
-          this.messages.push({ role: 'assistant', content: result.content });
+          const finalText = result.content || this.pendingStreamText || '';
+          this.messages[assistantIndex] = { role: 'assistant', content: finalText || 'Error: NO_RESPONSE' };
         } else {
-          this.messages.push({ role: 'assistant', content: `Error: ${result.error}` });
+          this.messages[assistantIndex] = { role: 'assistant', content: `Error: ${result.error}` };
         }
       } catch {
-        this.messages.push({ role: 'assistant', content: 'AI service unavailable' });
+        if (this.pendingAssistantIndex === assistantIndex) {
+          this.messages[assistantIndex] = { role: 'assistant', content: 'AI service unavailable' };
+        }
       }
     } else {
       const responses = [
@@ -642,8 +656,21 @@ class Shimeji {
         "*nods*",
         "I'm here to brighten your day!"
       ];
-      this.messages.push({ role: 'assistant', content: responses[Math.floor(Math.random() * responses.length)] });
+      this.messages[assistantIndex] = { role: 'assistant', content: responses[Math.floor(Math.random() * responses.length)] };
     }
+    this.pendingAssistantIndex = null;
+    this.pendingStreamText = '';
+    this.renderMessages();
+  }
+
+  applyStreamDelta(delta, accumulated) {
+    if (this.pendingAssistantIndex === null) return;
+    const index = this.pendingAssistantIndex;
+    if (!this.messages[index] || this.messages[index].role !== 'assistant') return;
+    const nextText = accumulated || `${this.pendingStreamText}${delta || ''}`;
+    if (!nextText) return;
+    this.pendingStreamText = nextText;
+    this.messages[index] = { role: 'assistant', content: nextText };
     this.renderMessages();
   }
 
@@ -1413,6 +1440,12 @@ async function init() {
           if (next[`shimeji${index + 1}_ollamaModel`] !== undefined) {
             shimeji.setConfig({ ollamaModel: next[`shimeji${index + 1}_ollamaModel`] });
           }
+          if (next[`shimeji${index + 1}_openclawGatewayUrl`] !== undefined) {
+            shimeji.setConfig({ openclawGatewayUrl: next[`shimeji${index + 1}_openclawGatewayUrl`] });
+          }
+          if (next[`shimeji${index + 1}_openclawGatewayToken`] !== undefined) {
+            shimeji.setConfig({ openclawGatewayToken: next[`shimeji${index + 1}_openclawGatewayToken`] });
+          }
         });
 
         if (
@@ -1420,10 +1453,20 @@ async function init() {
           || next.openrouterModel !== undefined
           || next.openrouterModelResolved !== undefined
           || next.ollamaModel !== undefined
+          || next.openclawGatewayUrl !== undefined
         ) {
           shimejis.forEach((shimeji) => shimeji.updateChatHeader());
         }
       });
+
+      if (window.shimejiApi.onAiStreamDelta) {
+        window.shimejiApi.onAiStreamDelta((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target) return;
+          target.applyStreamDelta(payload.delta || '', payload.accumulated || '');
+        });
+      }
     } else {
       console.log('No API available, creating default shimeji...');
     }

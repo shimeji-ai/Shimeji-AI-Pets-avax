@@ -561,7 +561,7 @@
         return { success: successBuf, error: errorBuf };
     }
 
-    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob'];
+    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob', 'lobster'];
     const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir', 'egg'];
     const MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
@@ -3065,6 +3065,12 @@
             const ollamaForbiddenMatch = errorText.match(/OLLAMA_FORBIDDEN:(.+)/);
             const ollamaConnectMatch = errorText.match(/OLLAMA_CONNECT:(.+)/);
             const ollamaHttpOnlyMatch = errorText.match(/OLLAMA_HTTP_ONLY:(.+)/);
+            const openclawInvalidUrlMatch = errorText.match(/OPENCLAW_INVALID_URL:(.+)/);
+            const openclawAuthMatch = errorText.match(/OPENCLAW_AUTH_FAILED:(.+)/);
+            const openclawConnectMatch = errorText.match(/OPENCLAW_CONNECT:(.+)/);
+            const openclawTimeoutMatch = errorText.match(/OPENCLAW_TIMEOUT:(.+)/);
+            const openclawClosedMatch = errorText.match(/OPENCLAW_CLOSED:(.+)/);
+            const openclawErrorMatch = errorText.match(/OPENCLAW_ERROR:(.+)/);
             if (modelNotFoundMatch) {
                 const modelName = modelNotFoundMatch[1];
                 const command = isSpanishLocale() ? `ollama pull ${modelName}` : `ollama pull ${modelName}`;
@@ -3104,6 +3110,44 @@
                 appendMessage('ai', addWarning(isSpanishLocale()
                     ? `No se pudo conectar a Ollama en ${ollamaEndpoint}. Verificá URL y que el servidor esté activo.` + wslHint
                     : `Could not connect to Ollama at ${ollamaEndpoint}. Check URL and that the server is running.` + wslHint));
+            } else if (errorText === 'OPENCLAW_MISSING_TOKEN') {
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? 'Falta el token de OpenClaw. Configúralo en el popup (AI Agent).'
+                    : 'OpenClaw token is missing. Set it in the popup (AI Agent).'));
+            } else if (openclawInvalidUrlMatch) {
+                const endpoint = openclawInvalidUrlMatch[1] || (config.openclawGatewayUrl || 'ws://127.0.0.1:18789');
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `URL inválida de OpenClaw: ${endpoint}. Usa por ejemplo ws://127.0.0.1:18789`
+                    : `Invalid OpenClaw URL: ${endpoint}. Use for example ws://127.0.0.1:18789`));
+            } else if (openclawAuthMatch) {
+                const reason = openclawAuthMatch[1] || 'Authentication failed';
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `OpenClaw rechazó la autenticación: ${reason}. Revisa el token del gateway.`
+                    : `OpenClaw authentication failed: ${reason}. Check your gateway token.`));
+            } else if (openclawConnectMatch) {
+                const endpoint = openclawConnectMatch[1] || (config.openclawGatewayUrl || 'ws://127.0.0.1:18789');
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `No se pudo conectar a OpenClaw en ${endpoint}. Verifica que el gateway esté activo.`
+                    : `Could not connect to OpenClaw at ${endpoint}. Make sure the gateway is running.`));
+            } else if (openclawTimeoutMatch) {
+                const endpoint = openclawTimeoutMatch[1] || (config.openclawGatewayUrl || 'ws://127.0.0.1:18789');
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `OpenClaw tardó demasiado en responder (${endpoint}). Intenta de nuevo.`
+                    : `OpenClaw timed out (${endpoint}). Try again.`));
+            } else if (openclawClosedMatch) {
+                const code = openclawClosedMatch[1] || '?';
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `OpenClaw cerró la conexión (code ${code}). Revisa logs del gateway.`
+                    : `OpenClaw closed the connection (code ${code}). Check gateway logs.`));
+            } else if (errorText === 'OPENCLAW_EMPTY_RESPONSE' || errorText === 'OPENCLAW_EMPTY_MESSAGE') {
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? 'OpenClaw no devolvió respuesta útil. Intenta de nuevo.'
+                    : 'OpenClaw returned no useful response. Try again.'));
+            } else if (openclawErrorMatch) {
+                const reason = openclawErrorMatch[1] || 'Unknown error';
+                appendMessage('ai', addWarning(isSpanishLocale()
+                    ? `Error del gateway OpenClaw: ${reason}`
+                    : `OpenClaw gateway error: ${reason}`));
             } else if (/No API key set/i.test(errorText)) {
                 if (chatMessagesEl) {
                     chatMessagesEl.appendChild(buildNoApiKeyMessageElement(true));

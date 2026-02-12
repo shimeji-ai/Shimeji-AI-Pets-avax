@@ -554,6 +554,7 @@ const presenceTitle = document.getElementById("presence-title");
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
+    { value: "lobster", labelEn: "Lobster", labelEs: "Langosta" },
   ];
 
   const PERSONALITY_OPTIONS = [

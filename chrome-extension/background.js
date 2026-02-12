@@ -669,11 +669,24 @@ chrome.runtime.onConnect.addListener((port) => {
       ];
 
       if (settings.chatMode === 'agent') {
-        const result = await handleAiChat(conversationMessages, shimejiId);
-        if (result && result.error) {
-          port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
-        } else {
-          port.postMessage({ type: 'done', text: result?.content || '' });
+        try {
+          const full = await callOpenClawWithRetry(
+            settings.openclawGatewayUrl,
+            settings.openclawGatewayToken,
+            messages,
+            {
+              shimejiId,
+              onDelta: (delta, accumulated) => {
+                port.postMessage({ type: 'delta', text: delta, full: accumulated });
+              }
+            }
+          );
+          port.postMessage({ type: 'done', text: full || '' });
+        } catch (agentErr) {
+          const errorMessage = agentErr?.message || 'Unknown error';
+          let errorType = 'generic';
+          if (errorMessage === 'OPENCLAW_EMPTY_RESPONSE') errorType = 'no_response';
+          port.postMessage({ type: 'error', error: errorMessage, errorType });
         }
         return;
       }
@@ -1434,22 +1447,111 @@ async function callOllamaStream(model, messages, ollamaUrl, onDelta) {
   return fullText;
 }
 
-async function callOpenClaw(gatewayUrl, token, messages) {
+let openClawReqCounter = 0;
+
+function nextOpenClawId(prefix = 'shimeji') {
+  openClawReqCounter = (openClawReqCounter + 1) % 1_000_000_000;
+  return `${prefix}-${Date.now()}-${openClawReqCounter}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeOpenClawGatewayUrl(rawUrl) {
+  const fallback = 'ws://127.0.0.1:18789';
+  const input = String(rawUrl || fallback).trim();
+  const withProtocol = /^[a-z]+:\/\//i.test(input) ? input : `ws://${input}`;
+
+  let parsed;
+  try {
+    parsed = new URL(withProtocol);
+  } catch {
+    throw new Error(`OPENCLAW_INVALID_URL:${input || fallback}`);
+  }
+
+  if (parsed.protocol === 'http:') parsed.protocol = 'ws:';
+  if (parsed.protocol === 'https:') parsed.protocol = 'wss:';
+  if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
+    throw new Error(`OPENCLAW_INVALID_URL:${input || fallback}`);
+  }
+
+  return parsed.toString();
+}
+
+function extractOpenClawText(payload) {
+  if (!payload) return '';
+  if (typeof payload === 'string') return payload;
+  if (typeof payload.content === 'string') return payload.content;
+  if (typeof payload.text === 'string') return payload.text;
+  if (payload.delta) {
+    if (typeof payload.delta.content === 'string') return payload.delta.content;
+    if (typeof payload.delta.text === 'string') return payload.delta.text;
+  }
+  if (payload.message) {
+    const msg = payload.message;
+    if (typeof msg.content === 'string') return msg.content;
+    if (Array.isArray(msg.content)) {
+      return msg.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+    }
+  }
+  if (Array.isArray(payload.content)) {
+    return payload.content.map((c) => c?.text || c?.content || c?.value || '').join('');
+  }
+  return '';
+}
+
+function mergeOpenClawStreamText(current, next) {
+  if (!next) return current;
+  if (!current) return next;
+  if (next.startsWith(current)) return next;
+  if (current.startsWith(next)) return current;
+  return current + next;
+}
+
+function getLastUserMessageText(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const lastUser = [...list].reverse().find((m) => m && m.role === 'user');
+  return String(lastUser?.content || '').trim();
+}
+
+function buildOpenClawSessionKey(shimejiId) {
+  const raw = String(shimejiId || 'main').toLowerCase();
+  const safe = raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'main';
+  return `agent:${safe}:main`;
+}
+
+function isOpenClawRetryableError(errorMessage) {
+  return (
+    errorMessage.startsWith('OPENCLAW_CONNECT:') ||
+    errorMessage.startsWith('OPENCLAW_TIMEOUT:') ||
+    errorMessage.startsWith('OPENCLAW_CLOSED:') ||
+    errorMessage === 'OPENCLAW_EMPTY_RESPONSE'
+  );
+}
+
+async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
+  const normalizedUrl = normalizeOpenClawGatewayUrl(gatewayUrl);
+  const authToken = String(token || '').trim();
+  if (!authToken) {
+    throw new Error('OPENCLAW_MISSING_TOKEN');
+  }
+
+  const messageText = getLastUserMessageText(messages);
+  if (!messageText) {
+    throw new Error('OPENCLAW_EMPTY_MESSAGE');
+  }
+
+  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId);
+  const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
+
   return new Promise((resolve, reject) => {
     let ws;
     let settled = false;
-    let responseText = '';
     let authenticated = false;
-    let reqIdCounter = 0;
+    let chatRequestSent = false;
+    let responseText = '';
     let idleTimer = null;
 
     const timeout = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        if (ws) ws.close();
-        reject(new Error('OpenClaw connection timed out. Is the gateway running?'));
-      }
-    }, 60000);
+      fail(new Error(`OPENCLAW_TIMEOUT:${normalizedUrl}`));
+    }, 70000);
 
     function finish(result) {
       if (settled) return;
@@ -1459,7 +1561,7 @@ async function callOpenClaw(gatewayUrl, token, messages) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, 'done');
       resolve(result);
     }
 
@@ -1471,74 +1573,48 @@ async function callOpenClaw(gatewayUrl, token, messages) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1011, 'error');
       reject(err);
     }
 
-    function nextId() {
-      return 'shimeji-' + (++reqIdCounter);
-    }
-
-    function extractPayloadText(payload) {
-      if (!payload) return '';
-      if (typeof payload === 'string') return payload;
-      if (typeof payload.content === 'string') return payload.content;
-      if (typeof payload.text === 'string') return payload.text;
-      if (payload.delta) {
-        if (typeof payload.delta.content === 'string') return payload.delta.content;
-        if (typeof payload.delta.text === 'string') return payload.delta.text;
+    function pushText(nextText) {
+      if (!nextText) return;
+      const previous = responseText;
+      const merged = mergeOpenClawStreamText(previous, nextText);
+      if (merged === previous) return;
+      responseText = merged;
+      const delta = merged.startsWith(previous) ? merged.slice(previous.length) : nextText;
+      if (delta && onDelta) {
+        onDelta(delta, merged);
       }
-      if (payload.message) {
-        const msg = payload.message;
-        if (typeof msg.content === 'string') return msg.content;
-        if (Array.isArray(msg.content)) {
-          return msg.content.map((c) => c?.text || c?.content || c?.value || '').join('');
-        }
-      }
-      if (Array.isArray(payload.content)) {
-        return payload.content.map((c) => c?.text || c?.content || c?.value || '').join('');
-      }
-      return '';
-    }
-
-    function mergeStreamText(current, next) {
-      if (!next) return current;
-      if (!current) return next;
-      // Some gateways send full snapshots; avoid repeating prefixes.
-      if (next.startsWith(current)) return next;
-      if (current.startsWith(next)) return current;
-      return current + next;
-    }
-
-    function bumpIdleFinish() {
-      if (!responseText) return;
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-        finish(responseText || '(no response)');
-      }, 3500);
+        if (responseText) finish(responseText);
+      }, 4500);
     }
 
     try {
-      ws = new WebSocket(gatewayUrl);
-    } catch (err) {
+      ws = new WebSocket(normalizedUrl);
+    } catch {
       clearTimeout(timeout);
-      reject(new Error('Invalid OpenClaw gateway URL. Check your settings.'));
+      reject(new Error(`OPENCLAW_INVALID_URL:${normalizedUrl}`));
       return;
     }
 
     ws.addEventListener('message', (event) => {
       let data;
       try {
-        data = JSON.parse(event.data);
+        const raw = typeof event.data === 'string' ? event.data : '';
+        if (!raw) return;
+        data = JSON.parse(raw);
       } catch {
         return;
       }
 
-      // Step 1: Respond to connect.challenge with auth token
       if (data.type === 'event' && data.event === 'connect.challenge') {
         const connectReq = {
           type: 'req',
-          id: nextId(),
+          id: nextOpenClawId('connect'),
           method: 'connect',
           params: {
             minProtocol: 3,
@@ -1546,93 +1622,99 @@ async function callOpenClaw(gatewayUrl, token, messages) {
             client: { id: 'gateway-client', version: '1.0.0', platform: 'browser', mode: 'backend' },
             role: 'operator',
             scopes: ['operator.read', 'operator.write'],
-            auth: { token: token }
+            auth: { token: authToken }
           }
         };
         ws.send(JSON.stringify(connectReq));
         return;
       }
 
-      // Step 2: Handle connect response
-      if (data.type === 'res' && data.payload?.type === 'hello-ok') {
-        authenticated = true;
-        // Extract the last user message for the agent request
-        const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-        const messageText = lastUserMsg?.content || '';
-        const agentReq = {
-          type: 'req',
-          id: nextId(),
-          method: 'chat.send',
-          params: {
-            sessionKey: 'agent:main:main',
-            message: messageText,
-            idempotencyKey: nextId()
-          }
-        };
-        ws.send(JSON.stringify(agentReq));
-        return;
-      }
-
-      // Handle connect failure
-      if (data.type === 'res' && data.ok === false && !authenticated) {
+      if (data.type === 'res' && !authenticated && data.ok === false) {
         const errMsg = data.error?.message || data.error?.code || 'Authentication failed';
-        fail(new Error('OpenClaw auth failed: ' + errMsg));
+        fail(new Error(`OPENCLAW_AUTH_FAILED:${errMsg}`));
         return;
       }
 
-      // Step 3: Collect streamed agent response events
-      if (data.type === 'event') {
-        const p = data.payload || {};
-        const text = extractPayloadText(p);
-        if (text) {
-          responseText = mergeStreamText(responseText, text);
-          bumpIdleFinish();
+      if (data.type === 'res' && !authenticated && (data.payload?.type === 'hello-ok' || data.ok === true)) {
+        authenticated = true;
+        if (!chatRequestSent) {
+          chatRequestSent = true;
+          const agentReq = {
+            type: 'req',
+            id: nextOpenClawId('chat'),
+            method: 'chat.send',
+            params: {
+              sessionKey,
+              message: messageText,
+              idempotencyKey: nextOpenClawId('idem')
+            }
+          };
+          ws.send(JSON.stringify(agentReq));
         }
-        if (p.status === 'completed' || p.status === 'ok' || p.type === 'done' || p.done) {
+        return;
+      }
+
+      if (data.type === 'event') {
+        const payload = data.payload || {};
+        const text = extractOpenClawText(payload);
+        if (text) pushText(text);
+        if (payload.status === 'completed' || payload.status === 'ok' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+          finish(responseText || text || '(no response)');
+          return;
+        }
+      }
+
+      if (data.type === 'res' && authenticated && data.ok === true) {
+        if (data.payload?.runId) return;
+        const text = extractOpenClawText(data.payload);
+        if (text) pushText(text);
+        const status = data.payload?.status;
+        if (status === 'completed' || status === 'done' || data.payload?.done) {
           finish(responseText || text || '(no response)');
         }
-        if (data.event === 'agent' || data.event?.startsWith('chat.') || data.event === 'message') {
-          return;
-        }
-      }
-
-      // Handle final agent response (res frame)
-      if (data.type === 'res' && authenticated && data.ok === true) {
-        if (data.payload?.runId) {
-          // This is the initial ack — agent run started, wait for events
-          return;
-        }
-        const text = extractPayloadText(data.payload);
-        if (text) {
-          responseText = mergeStreamText(responseText, text);
-          finish(responseText);
-          return;
-        }
-      }
-
-      // Handle agent error response
-      if (data.type === 'res' && authenticated && data.ok === false) {
-        const errMsg = data.error?.message || 'Agent request failed';
-        fail(new Error('OpenClaw error: ' + errMsg));
         return;
+      }
+
+      if (data.type === 'res' && authenticated && data.ok === false) {
+        const errMsg = data.error?.message || data.error?.code || 'Agent request failed';
+        fail(new Error(`OPENCLAW_ERROR:${errMsg}`));
       }
     });
 
     ws.addEventListener('error', () => {
-      fail(new Error('Could not connect to OpenClaw gateway. Make sure it is running at ' + gatewayUrl));
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
     });
 
     ws.addEventListener('close', (event) => {
-      // If we collected text before close, resolve with it
-      if (responseText && !settled) {
+      if (settled) return;
+      if (responseText) {
         finish(responseText);
         return;
       }
-      if (!settled && !event.wasClean && event.code !== 1000) {
-        fail(new Error('OpenClaw connection closed unexpectedly (code ' + event.code + ').'));
+      if (event.code === 1000 || event.code === 1001) {
+        fail(new Error('OPENCLAW_EMPTY_RESPONSE'));
+        return;
       }
+      fail(new Error(`OPENCLAW_CLOSED:${event.code}`));
     });
   });
+}
+
+async function callOpenClawWithRetry(gatewayUrl, token, messages, options = {}) {
+  let lastError;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await callOpenClaw(gatewayUrl, token, messages, options);
+    } catch (error) {
+      lastError = error;
+      const msg = String(error?.message || '');
+      if (attempt === 1 || !isOpenClawRetryableError(msg)) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw lastError || new Error('OPENCLAW_CONNECT:unknown');
 }
 
 async function handleAiChat(conversationMessages, shimejiId) {
@@ -1647,7 +1729,12 @@ async function handleAiChat(conversationMessages, shimejiId) {
   try {
     let content;
     if (settings.chatMode === 'agent') {
-      content = await callOpenClaw(settings.openclawGatewayUrl, settings.openclawGatewayToken, messages);
+      content = await callOpenClawWithRetry(
+        settings.openclawGatewayUrl,
+        settings.openclawGatewayToken,
+        messages,
+        { shimejiId }
+      );
     } else {
       const provider = settings.provider || 'openrouter';
       const model = provider === 'ollama' ? (settings.ollamaModel || 'gemma3:1b') : settings.model;
@@ -1660,7 +1747,7 @@ async function handleAiChat(conversationMessages, shimejiId) {
     const errorMessage = err.message || 'Unknown error';
     let errorType = 'generic';
     if (errorMessage === 'NO_CREDITS') errorType = 'no_credits';
-    if (errorMessage === 'NO_RESPONSE') errorType = 'no_response';
+    if (errorMessage === 'NO_RESPONSE' || errorMessage === 'OPENCLAW_EMPTY_RESPONSE') errorType = 'no_response';
     return { error: errorMessage, errorType };
   }
 }

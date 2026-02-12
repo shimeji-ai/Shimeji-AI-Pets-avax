@@ -40,6 +40,7 @@ function pingExtension(timeoutMs = 800): Promise<boolean> {
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const actorRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [showMascot, setShowMascot] = useState(false);
 
@@ -59,6 +60,23 @@ export function SiteShimejiMascot() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      if (!openRef.current) return;
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (actorRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const messagesRef = useRef<Msg[]>([]);
@@ -188,6 +206,7 @@ export function SiteShimejiMascot() {
   return (
     <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
       <div
+        ref={actorRef}
         className={styles.actor}
         onClick={() => {
           setOpen(v => {

@@ -6,7 +6,8 @@ const CHARACTER_OPTIONS = [
   { id: 'kitten', label: 'Kitten' },
   { id: 'egg', label: 'Egg' },
   { id: 'ghost', label: 'Ghost' },
-  { id: 'blob', label: 'Blob' }
+  { id: 'blob', label: 'Blob' },
+  { id: 'lobster', label: 'Lobster' }
 ];
 
 const PERSONALITY_OPTIONS = [
