@@ -12,8 +12,8 @@ interface DownloadButtonProps {
 
 const DownloadButton = ({
   href = "/download",
-  labelEn = "TRY OUR CHROME EXTENSION",
-  labelEs = "PROBAR EXTENSIÓN",
+  labelEn = "Download!",
+  labelEs = "¡Descargar!",
 }: DownloadButtonProps) => {
   const { isSpanish } = useLanguage();
   return (

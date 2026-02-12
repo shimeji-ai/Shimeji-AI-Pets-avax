@@ -26,13 +26,15 @@ export function DownloadSection() {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {isSpanish
-              ? "Instalá la extensión y tené una mascota AI en tu navegador. Chateá con ella, dejá que reaccione a tu navegación o conectala a herramientas onchain."
-              : "Install the extension and get an AI pet in your browser. Chat with it, let it react to your browsing, or connect it to onchain tools."}
+              ? "Elegí tu plataforma: extensión de navegador, desktop o mobile (próximamente)."
+              : "Choose your platform: browser extension, desktop, or mobile (coming soon)."}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="neural-card rounded-2xl p-8 text-center">
-            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Extensión de Chrome" : "Chrome Extension"}</h3>
+            <h3 className="text-2xl font-semibold mb-4">
+              {isSpanish ? "Extensión de Navegador" : "Browser Extension"}
+            </h3>
             <div className="text-left mb-4">
               <p className="mb-2 text-muted-foreground">
                 {isSpanish ? "Seguí estos pasos para instalar:" : "Follow these steps to install:"}
@@ -51,41 +53,67 @@ export function DownloadSection() {
           </div>
 
           <div className="neural-card rounded-2xl p-8 text-center">
-            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Windows Portable" : "Windows Portable"}</h3>
-            <div className="text-left mb-4">
-              <p className="mb-2 text-muted-foreground">
-                {isSpanish ? "Versión .exe portable (sin instalador)." : "Portable .exe build (no installer needed)."}
-              </p>
-              <div className="text-sm text-muted-foreground">
-                {isSpanish
-                  ? "Descargá y ejecutá el archivo. Si Windows pregunta por seguridad, permite la ejecución."
-                  : "Download and run the file. If Windows shows a security prompt, allow execution."}
+            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Versión Desktop" : "Desktop Version"}</h3>
+            <div className="text-left mb-6 space-y-5">
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">
+                  {isSpanish ? "Windows Portable" : "Windows Portable"}
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Versión .exe portable (sin instalador). Descargá y ejecutá el archivo. Si Windows pregunta por seguridad, permite la ejecución."
+                    : "Portable .exe build (no installer needed). Download and run the file. If Windows shows a security prompt, allow execution."}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">
+                  {isSpanish ? "Linux AppImage" : "Linux AppImage"}
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Build Linux portable en formato AppImage. Después de descargar: `chmod +x shimeji-desktop-linux.AppImage` y luego ejecuta el archivo."
+                    : "Portable Linux build in AppImage format. After download: `chmod +x shimeji-desktop-linux.AppImage` and then run it."}
+                </div>
               </div>
             </div>
-            <Button asChild className="neural-button">
-              <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
-              </a>
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button asChild className="neural-button">
+                <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                  {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
+                </a>
+              </Button>
+              <Button asChild className="neural-button">
+                <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                  {isSpanish ? "Descargar AppImage" : "Download AppImage"}
+                </a>
+              </Button>
+            </div>
           </div>
 
           <div className="neural-card rounded-2xl p-8 text-center">
-            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Linux AppImage" : "Linux AppImage"}</h3>
-            <div className="text-left mb-4">
-              <p className="mb-2 text-muted-foreground">
-                {isSpanish ? "Build Linux portable en formato AppImage." : "Portable Linux build in AppImage format."}
-              </p>
-              <div className="text-sm text-muted-foreground">
-                {isSpanish
-                  ? "Después de descargar: `chmod +x shimeji-desktop-linux.AppImage` y luego ejecuta el archivo."
-                  : "After download: `chmod +x shimeji-desktop-linux.AppImage` and then run it."}
+            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Mobile" : "Mobile"}</h3>
+            <div className="text-left mb-6 space-y-5">
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">Android</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish ? "Versión Android en desarrollo." : "Android version is in development."}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">iPhone (iOS)</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish ? "Versión iPhone (iOS) en desarrollo." : "iPhone (iOS) version is in development."}
+                </div>
               </div>
             </div>
-            <Button asChild className="neural-button">
-              <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                {isSpanish ? "Descargar AppImage" : "Download AppImage"}
-              </a>
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button className="neural-button" disabled>
+                {isSpanish ? "Android (próximamente)" : "Android (coming soon)"}
+              </Button>
+              <Button className="neural-button" disabled>
+                {isSpanish ? "iPhone (próximamente)" : "iPhone (coming soon)"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
