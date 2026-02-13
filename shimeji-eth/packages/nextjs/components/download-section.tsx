@@ -8,6 +8,8 @@ const WIN_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-windows-portable.exe";
 const LINUX_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-linux.AppImage";
+const MAC_RELEASE_URL =
+  "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-macos.zip";
 const CHROME_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-chrome-extension.zip";
 
@@ -85,6 +87,21 @@ export function DownloadSection() {
                   <Button asChild className="neural-button w-full">
                     <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
                       {isSpanish ? "Descargar AppImage" : "Download AppImage"}
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">{isSpanish ? "macOS" : "macOS"}</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Build macOS en formato .zip. Descargá, descomprimí y abrí la app. Si Gatekeeper bloquea la app, permitila desde Configuración > Privacidad y seguridad."
+                    : "macOS build in .zip format. Download, extract, and open the app. If Gatekeeper blocks it, allow it from Settings > Privacy & Security."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={MAC_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar macOS (.zip)" : "Download macOS (.zip)"}
                     </a>
                   </Button>
                 </div>

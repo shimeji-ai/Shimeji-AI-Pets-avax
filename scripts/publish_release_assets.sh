@@ -9,11 +9,15 @@ TITLE="${2:-Desktop assets ${TAG}}"
 WIN_ASSET="${ROOT_DIR}/desktop/dist/Shimeji-Desktop-Portable-0.1.0.exe"
 LINUX_ASSET_DASH="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0.AppImage"
 LINUX_ASSET_DOT="${ROOT_DIR}/desktop/dist/Shimeji.Desktop-0.1.0.AppImage"
+MAC_ASSET_X64="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0-mac.zip"
+MAC_ASSET_ARM64="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0-arm64-mac.zip"
+MAC_ASSET_UNIVERSAL="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0-mac-universal.zip"
 EXT_SOURCE_DIR="${ROOT_DIR}/chrome-extension"
 EXT_ZIP="${ROOT_DIR}/shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip"
 TEMP_DIR="$(mktemp -d)"
 WIN_CANONICAL="${TEMP_DIR}/shimeji-desktop-windows-portable.exe"
 LINUX_CANONICAL="${TEMP_DIR}/shimeji-desktop-linux.AppImage"
+MAC_CANONICAL="${TEMP_DIR}/shimeji-desktop-macos.zip"
 EXT_CANONICAL="${TEMP_DIR}/shimeji-chrome-extension.zip"
 
 cleanup() {
@@ -27,6 +31,16 @@ elif [[ -f "$LINUX_ASSET_DOT" ]]; then
   LINUX_ASSET="$LINUX_ASSET_DOT"
 else
   LINUX_ASSET=""
+fi
+
+if [[ -f "$MAC_ASSET_UNIVERSAL" ]]; then
+  MAC_ASSET="$MAC_ASSET_UNIVERSAL"
+elif [[ -f "$MAC_ASSET_ARM64" ]]; then
+  MAC_ASSET="$MAC_ASSET_ARM64"
+elif [[ -f "$MAC_ASSET_X64" ]]; then
+  MAC_ASSET="$MAC_ASSET_X64"
+else
+  MAC_ASSET=""
 fi
 
 for file in "$WIN_ASSET" "$LINUX_ASSET"; do
@@ -65,6 +79,9 @@ rm -f "$EXT_ZIP"
 
 cp -f "$WIN_ASSET" "$WIN_CANONICAL"
 cp -f "$LINUX_ASSET" "$LINUX_CANONICAL"
+if [[ -n "$MAC_ASSET" ]]; then
+  cp -f "$MAC_ASSET" "$MAC_CANONICAL"
+fi
 cp -f "$EXT_ZIP" "$EXT_CANONICAL"
 
 if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
@@ -80,9 +97,16 @@ UPLOAD_ARGS=(
   -R "$REPO"
 )
 
+if [[ -n "$MAC_ASSET" ]]; then
+  UPLOAD_ARGS+=("$MAC_CANONICAL")
+fi
+
 gh release upload "${UPLOAD_ARGS[@]}"
 
 echo "Uploaded assets to release ${TAG}"
 echo "Windows: https://github.com/${REPO}/releases/download/${TAG}/shimeji-desktop-windows-portable.exe"
 echo "Linux:   https://github.com/${REPO}/releases/download/${TAG}/shimeji-desktop-linux.AppImage"
+if [[ -n "$MAC_ASSET" ]]; then
+  echo "macOS:   https://github.com/${REPO}/releases/download/${TAG}/shimeji-desktop-macos.zip"
+fi
 echo "Chrome:  https://github.com/${REPO}/releases/download/${TAG}/shimeji-chrome-extension.zip"
