@@ -73,7 +73,7 @@ export function Footer() {
                 {isSpanish ? "Mantente informado" : "Stay Updated"}
               </h3>
               <UpdatesSubscribePopup
-                buttonClassName="footer-updates-button bg-white/5 hover:bg-white/10 text-foreground text-sm"
+                buttonClassName="footer-updates-button bg-white/5 hover:bg-white/10 text-sm"
                 buttonVariant="ghost"
               />
             </div>

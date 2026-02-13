@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { EmailSubscribeModal } from "@/components/email-subscribe-modal";
-import { Download, Bell, Smartphone } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 
-type Platform = "android" | "ios" | null;
+const WIN_RELEASE_URL =
+  "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-windows-portable.exe";
+const LINUX_RELEASE_URL =
+  "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-linux.AppImage";
+const CHROME_RELEASE_URL =
+  "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-chrome-extension.zip";
 
 export function DownloadSection() {
-  const [notifyPlatform, setNotifyPlatform] = useState<Platform>(null);
   const { isSpanish } = useLanguage();
 
   return (
@@ -24,14 +26,14 @@ export function DownloadSection() {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {isSpanish
-              ? "Instalá la extensión y tené una mascota AI en tu navegador. Chateá con ella, dejá que reaccione a tu navegación o conectala a herramientas onchain."
-              : "Install the extension and get an AI pet in your browser. Chat with it, let it react to your browsing, or connect it to onchain tools."}
+              ? "Elegí tu plataforma: extensión de navegador, desktop o mobile (próximamente)."
+              : "Choose your platform: browser extension, desktop, or mobile (coming soon)."}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="neural-card rounded-2xl p-8 text-center">
             <h3 className="text-2xl font-semibold mb-4">
-              {isSpanish ? "Extensión de Chrome" : "Chrome Extension"}
+              {isSpanish ? "Extensión de Navegador" : "Browser Extension"}
             </h3>
             <div className="text-left mb-4">
               <p className="mb-2 text-muted-foreground">
@@ -44,73 +46,79 @@ export function DownloadSection() {
               </div>
             </div>
             <Button asChild className="neural-button">
-              <a href="/shimeji-chrome-extension.zip" download>
-                {isSpanish ? "Descargar Extensión" : "Download Extension"}
+              <a href={CHROME_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                {isSpanish ? "¡DESCARGAR!" : "DOWNLOAD!"}
               </a>
             </Button>
           </div>
-          <div className="neural-card rounded-2xl p-8 text-center flex flex-col">
-            <h3 className="text-2xl font-semibold mb-4">Android</h3>
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 text-[var(--brand-accent)]">
-                <Smartphone className="w-6 h-6" />
+
+          <div className="neural-card rounded-2xl p-8 text-center">
+            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Versión Desktop" : "Desktop Version"}</h3>
+            <div className="text-left mb-6 space-y-5">
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">
+                  {isSpanish ? "Windows Portable" : "Windows Portable"}
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Versión .exe portable (sin instalador). Descargá y ejecutá el archivo. Si Windows pregunta por seguridad, permite la ejecución."
+                    : "Portable .exe build (no installer needed). Download and run the file. If Windows shows a security prompt, allow execution."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
+                    </a>
+                  </Button>
+                </div>
               </div>
-              <p className="text-muted-foreground mb-4">
-                {isSpanish
-                  ? "¡App de Android próximamente! Te avisamos cuando salga en Google Play."
-                  : "Android app coming soon! Get notified when it launches on the Google Play Store."}
-              </p>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">
+                  {isSpanish ? "Linux AppImage" : "Linux AppImage"}
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Build Linux portable en formato AppImage. Después de descargar: `chmod +x shimeji-desktop-linux.AppImage` y luego ejecuta el archivo."
+                    : "Portable Linux build in AppImage format. After download: `chmod +x shimeji-desktop-linux.AppImage` and then run it."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar AppImage" : "Download AppImage"}
+                    </a>
+                  </Button>
+                </div>
+              </div>
             </div>
-            <Button
-              onClick={() => setNotifyPlatform("android")}
-              className="neural-button"
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              {isSpanish ? "Avisame" : "Notify Me"}
-            </Button>
           </div>
-          <div className="neural-card rounded-2xl p-8 text-center flex flex-col">
-            <h3 className="text-2xl font-semibold mb-4">iOS</h3>
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/10 mx-auto mb-4 text-[var(--brand-accent)]">
-                <Smartphone className="w-6 h-6" />
+
+          <div className="neural-card rounded-2xl p-8 text-center">
+            <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Mobile" : "Mobile"}</h3>
+            <div className="text-left mb-6 space-y-5">
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">Android</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish ? "Versión Android en desarrollo." : "Android version is in development."}
+                </div>
               </div>
-              <p className="text-muted-foreground mb-4">
-                {isSpanish
-                  ? "¡App de iOS próximamente! Te avisamos cuando salga en App Store."
-                  : "iOS app coming soon! Get notified when it launches on the Apple App Store."}
-              </p>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">iPhone (iOS)</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish ? "Versión iPhone (iOS) en desarrollo." : "iPhone (iOS) version is in development."}
+                </div>
+              </div>
             </div>
-            <Button
-              onClick={() => setNotifyPlatform("ios")}
-              className="neural-button"
-            >
-              <Bell className="w-4 h-4 mr-2" />
-              {isSpanish ? "Avisame" : "Notify Me"}
-            </Button>
+            <div className="flex flex-col gap-3">
+              <Button className="neural-button" disabled>
+                {isSpanish ? "Android (próximamente)" : "Android (coming soon)"}
+              </Button>
+              <Button className="neural-button" disabled>
+                {isSpanish ? "iPhone (próximamente)" : "iPhone (coming soon)"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-
-      <EmailSubscribeModal
-        isOpen={notifyPlatform === "android"}
-        onClose={() => setNotifyPlatform(null)}
-        type="updates"
-        title={isSpanish ? "¡App de Android próximamente!" : "Android App Coming Soon!"}
-        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de Android" : "We'll notify you when the Android app is available"}
-        buttonText={isSpanish ? "Avisame" : "Notify Me"}
-        metadata={{ platform: "android" }}
-      />
-
-      <EmailSubscribeModal
-        isOpen={notifyPlatform === "ios"}
-        onClose={() => setNotifyPlatform(null)}
-        type="updates"
-        title={isSpanish ? "¡App de iOS próximamente!" : "iOS App Coming Soon!"}
-        subtitle={isSpanish ? "Te avisamos cuando esté disponible la app de iOS" : "We'll notify you when the iOS app is available"}
-        buttonText={isSpanish ? "Avisame" : "Notify Me"}
-        metadata={{ platform: "ios" }}
-      />
     </section>
   );
 }

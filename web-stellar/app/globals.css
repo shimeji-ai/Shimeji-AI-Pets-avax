@@ -265,19 +265,25 @@ body[data-theme="kawaii"] .neural-outline {
 }
 
 body[data-theme="kawaii"] .footer-updates-button {
-  background: linear-gradient(135deg, rgba(120, 216, 255, 0.6), rgba(255, 187, 241, 0.5));
-  border: 1px solid rgba(42, 31, 78, 0.28);
-  color: #2a1f4e;
+  background: #2a1f4e;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff8ff !important;
   box-shadow:
-    0 12px 30px rgba(42, 31, 78, 0.25),
-    0 0 24px rgba(120, 216, 255, 0.4);
+    0 12px 30px rgba(42, 31, 78, 0.4),
+    0 0 24px rgba(255, 255, 255, 0.3);
+}
+
+body[data-theme="kawaii"] .footer-updates-button svg {
+  color: #fff8ff !important;
+  stroke: currentColor;
 }
 
 body[data-theme="kawaii"] .footer-updates-button:hover {
-  background: linear-gradient(135deg, rgba(120, 216, 255, 0.75), rgba(255, 187, 241, 0.65));
+  background: #4f3c7f;
+  color: #ffffff !important;
   box-shadow:
-    0 14px 34px rgba(42, 31, 78, 0.3),
-    0 0 28px rgba(120, 216, 255, 0.5);
+    0 14px 34px rgba(42, 31, 78, 0.45),
+    0 0 28px rgba(255, 255, 255, 0.4);
 }
 
 .neural-hero {
