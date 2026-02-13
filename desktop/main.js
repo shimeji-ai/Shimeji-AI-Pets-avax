@@ -1,7 +1,16 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, screen, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const Store = require('electron-store');
+
+const IS_WINDOWS = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
+const DEFAULT_TERMINAL_DISTRO = IS_WINDOWS ? 'Ubuntu' : '';
+const DEFAULT_NON_WINDOWS_SHELL = IS_MAC ? '/bin/zsh' : '/bin/bash';
+
+app.commandLine.appendSwitch('enable-speech-dispatcher');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 // Multi-shimeji configuration
 const MAX_SHIMEJIS = 5;
@@ -20,6 +29,23 @@ const store = new Store({
         size: 'medium',
         personality: 'cryptid',
         chatTheme: 'pastel',
+        chatThemePreset: 'pastel',
+        chatThemeColor: '#3b1a77',
+        chatBgColor: '#f0e8ff',
+        chatBubbleStyle: 'glass',
+        chatFontSize: 'medium',
+        chatWidth: 'medium',
+        chatWidthPx: null,
+        chatHeightPx: 340,
+        soundEnabled: true,
+        soundVolume: 0.7,
+        ttsEnabled: false,
+        ttsVoiceProfile: 'random',
+        ttsVoiceId: '',
+        openMicEnabled: false,
+        sttProvider: 'groq',
+        sttApiKey: '',
+        relayEnabled: false,
         enabled: true,
         mode: 'standard',
         standardProvider: 'openrouter',
@@ -30,11 +56,16 @@ const store = new Store({
         ollamaModel: 'gemma3:1b',
         openclawGatewayUrl: 'ws://127.0.0.1:18789',
         openclawGatewayToken: '',
-        openclawAgentName: 'desktop-shimeji-1'
+        openclawAgentName: 'desktop-shimeji-1',
+        terminalDistro: DEFAULT_TERMINAL_DISTRO,
+        terminalCwd: '',
+        terminalNotifyOnFinish: true
       }
     ],
     openrouterApiKey: '',
     openrouterModel: 'google/gemini-2.0-flash-001',
+    popupTheme: 'random',
+    shimejiLanguage: 'auto',
     aiMode: 'standard',
     ollamaUrl: 'http://127.0.0.1:11434',
     ollamaModel: 'gemma3:1b',
@@ -42,7 +73,10 @@ const store = new Store({
     openclawToken: '',
     openclawGatewayUrl: 'ws://127.0.0.1:18789',
     openclawGatewayToken: '',
-    openclawAgentName: 'desktop-shimeji-1'
+    openclawAgentName: 'desktop-shimeji-1',
+    terminalDistro: DEFAULT_TERMINAL_DISTRO,
+    terminalCwd: '',
+    terminalNotifyOnFinish: true
   }
 });
 
@@ -112,6 +146,45 @@ function createOverlayWindow() {
   overlayWindow.on('closed', () => {
     overlayWindow = null;
   });
+}
+
+function configureMediaPermissions() {
+  const defaultSession = session.defaultSession;
+  if (!defaultSession) return;
+
+  defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    if (
+      permission === 'media'
+      || permission === 'audioCapture'
+      || permission === 'videoCapture'
+      || permission === 'microphone'
+      || permission === 'camera'
+    ) {
+      return true;
+    }
+    return false;
+  });
+
+  defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (
+      permission === 'media'
+      || permission === 'audioCapture'
+      || permission === 'videoCapture'
+      || permission === 'microphone'
+      || permission === 'camera'
+    ) {
+      callback(true);
+      return;
+    }
+    callback(false);
+  });
+
+  if (typeof defaultSession.setDevicePermissionHandler === 'function') {
+    defaultSession.setDevicePermissionHandler((details) => {
+      if (!details || !details.deviceType) return true;
+      return details.deviceType === 'audio' || details.deviceType === 'video';
+    });
+  }
 }
 
 function createSettingsWindow() {
@@ -248,10 +321,148 @@ const MODEL_KEYS_ENABLED = [
 function normalizeMode(modeValue) {
   if (modeValue === 'disabled' || modeValue === 'off' || modeValue === 'decorative') return 'off';
   if (modeValue === 'agent' || modeValue === 'openclaw') return 'agent';
+  if (modeValue === 'terminal' || modeValue === 'wsl' || modeValue === 'shell') return 'terminal';
   return 'standard';
 }
 
 const OPENCLAW_AGENT_NAME_MAX = 32;
+const TERMINAL_STREAM_TAIL_KEEP = 256;
+const TERMINAL_SESSION_BUFFER_MAX = 512 * 1024;
+const TERMINAL_CODEX_SAFE_SUBCOMMANDS = new Set([
+  'exec', 'e', 'review', 'login', 'logout', 'mcp', 'mcp-server', 'app-server',
+  'completion', 'sandbox', 'debug', 'apply', 'a', 'resume', 'fork', 'cloud',
+  'features', 'help'
+]);
+const TERMINAL_CLAUDE_SAFE_SUBCOMMANDS = new Set([
+  'auth', 'doctor', 'install', 'mcp', 'plugin', 'setup-token', 'update', 'upgrade', 'help'
+]);
+
+function normalizeTerminalDistro(rawValue) {
+  const normalized = String(rawValue || '').trim();
+  if (IS_WINDOWS) {
+    return normalized || DEFAULT_TERMINAL_DISTRO;
+  }
+  if (!normalized) {
+    return '';
+  }
+  if (/^ubuntu$/i.test(normalized) || /^wsl$/i.test(normalized)) {
+    return '';
+  }
+  return normalized;
+}
+
+function normalizeTerminalCwd(rawValue) {
+  return String(rawValue || '').trim();
+}
+
+function normalizeTerminalNotifyOnFinish(rawValue, fallback = true) {
+  if (rawValue === undefined || rawValue === null) return fallback;
+  return rawValue !== false;
+}
+
+function escapeRegex(raw) {
+  return String(raw || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function escapeBashDoubleQuoted(raw) {
+  return String(raw || '').replace(/["\\$`]/g, '\\$&');
+}
+
+function shellQuoteSingle(raw) {
+  return `'${String(raw || '').replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function resolvePreferredShellBinary() {
+  const raw = String(process.env.SHELL || '').trim();
+  return raw || DEFAULT_NON_WINDOWS_SHELL;
+}
+
+function buildTerminalScriptSpawnSpec(scriptText, distro = '') {
+  const normalizedDistro = normalizeTerminalDistro(distro);
+  if (IS_WINDOWS) {
+    return {
+      command: 'wsl.exe',
+      args: [...(normalizedDistro ? ['-d', normalizedDistro] : []), '--', 'bash', '-lc', scriptText]
+    };
+  }
+  return {
+    command: 'bash',
+    args: ['-lc', scriptText]
+  };
+}
+
+function buildInteractiveTerminalSessionSpawnSpec(distro = '') {
+  const normalizedDistro = normalizeTerminalDistro(distro);
+  if (IS_WINDOWS) {
+    const shellBootstrap = 'if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "bash -il"; fi; exec bash -il';
+    return {
+      command: 'wsl.exe',
+      args: [...(normalizedDistro ? ['-d', normalizedDistro] : []), '--', 'bash', '-lc', shellBootstrap]
+    };
+  }
+
+  const customShell = String(normalizedDistro || '').trim();
+  const shellBinary = customShell || resolvePreferredShellBinary();
+  if (IS_MAC) {
+    return {
+      command: shellBinary,
+      args: ['-il']
+    };
+  }
+
+  const escapedShell = escapeBashDoubleQuoted(shellBinary);
+  const shellBootstrap = `if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "${escapedShell} -il"; fi; exec "${escapedShell}" -il`;
+  return {
+    command: 'bash',
+    args: ['-lc', shellBootstrap]
+  };
+}
+
+function stripAnsi(rawText) {
+  return String(rawText || '')
+    .replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '')
+    .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, '')
+    .replace(/\r/g, '');
+}
+
+function isLikelyShellPromptLine(text) {
+  return /^[^@\s]+@[^:\s]+:[^#$\n]*[#$]\s*$/.test(String(text || '').trim());
+}
+
+function shouldDropTerminalLine(pending, rawLine) {
+  const line = String(rawLine || '');
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (pending?.startMarker && trimmed.includes(pending.startMarker)) return true;
+  if (pending?.marker && trimmed.includes(pending.marker)) return true;
+  if (/^__shimeji_exit=/.test(trimmed)) return true;
+  if (/^[^@\s]+@[^:\s]+:[^#$\n]*[#$]\s*__shimeji_exit=/.test(trimmed)) return true;
+  if (/^printf\s+["'].*SHIMEJI_(START|DONE)_/i.test(trimmed)) return true;
+  if (/^cd\s+["'][^"']*["']\s*>\/dev\/null\s+2>&1\s+\|\|\s+echo\s+"Warning: could not cd into/i.test(trimmed)) {
+    return true;
+  }
+  if (pending?.commandTrimmed) {
+    const commandTrimmed = pending.commandTrimmed;
+    if (trimmed === commandTrimmed) return true;
+    if (trimmed.endsWith(`$ ${commandTrimmed}`) || trimmed.endsWith(`# ${commandTrimmed}`)) return true;
+  }
+  if (isLikelyShellPromptLine(trimmed)) return true;
+  return false;
+}
+
+function sanitizeTerminalOutput(rawText, pending) {
+  const text = String(rawText || '').replace(/\r/g, '');
+  if (!text) return '';
+  const lines = text.split('\n');
+  const cleaned = [];
+  for (const line of lines) {
+    if (shouldDropTerminalLine(pending, line)) continue;
+    cleaned.push(line);
+  }
+  while (cleaned.length > 0 && cleaned[0].trim() === '') cleaned.shift();
+  while (cleaned.length > 0 && cleaned[cleaned.length - 1].trim() === '') cleaned.pop();
+  return cleaned.join('\n');
+}
 
 function defaultOpenClawAgentName(indexOrId) {
   if (typeof indexOrId === 'number') {
@@ -280,14 +491,66 @@ function normalizeShimejiList(listValue) {
   return listValue
     .filter((item) => item && typeof item === 'object')
     .slice(0, MAX_SHIMEJIS)
-    .map((item, index) => ({
-      ...item,
-      id: `shimeji-${index + 1}`,
-      openclawAgentName: normalizeOpenClawAgentName(
-        item.openclawAgentName,
-        defaultOpenClawAgentName(index)
-      )
-    }));
+    .map((item, index) => {
+      const chatTheme = item.chatTheme || 'pastel';
+      const mode = normalizeMode(item.mode || 'standard');
+      const standardProvider = (item.standardProvider || 'openrouter') === 'ollama' ? 'ollama' : 'openrouter';
+      const chatThemeDefaults = {
+        pastel: { theme: '#3b1a77', bg: '#f0e8ff', bubble: 'glass' },
+        pink: { theme: '#7a124b', bg: '#ffd2ea', bubble: 'glass' },
+        kawaii: { theme: '#5b1456', bg: '#ffd8f0', bubble: 'glass' },
+        mint: { theme: '#0f5f54', bg: '#c7fff0', bubble: 'glass' },
+        ocean: { theme: '#103a7a', bg: '#cfe6ff', bubble: 'glass' },
+        neural: { theme: '#86f0ff', bg: '#0b0d1f', bubble: 'dark' },
+        cyberpunk: { theme: '#19d3ff', bg: '#0a0830', bubble: 'dark' },
+        'noir-rose': { theme: '#ff5fbf', bg: '#0b0717', bubble: 'dark' },
+        midnight: { theme: '#7aa7ff', bg: '#0b1220', bubble: 'dark' },
+        ember: { theme: '#ff8b3d', bg: '#1a0c08', bubble: 'dark' }
+      }[chatTheme] || { theme: '#3b1a77', bg: '#f0e8ff', bubble: 'glass' };
+
+      const widthPx = Number(item.chatWidthPx);
+      const heightPx = Number(item.chatHeightPx);
+      const soundVolume = Number(item.soundVolume);
+
+      return {
+        ...item,
+        id: `shimeji-${index + 1}`,
+        chatTheme,
+        chatThemePreset: item.chatThemePreset || chatTheme,
+        chatThemeColor: item.chatThemeColor || chatThemeDefaults.theme,
+        chatBgColor: item.chatBgColor || chatThemeDefaults.bg,
+        chatBubbleStyle: item.chatBubbleStyle || chatThemeDefaults.bubble,
+        chatFontSize: item.chatFontSize || 'medium',
+        chatWidth: item.chatWidth || 'medium',
+        chatWidthPx: Number.isFinite(widthPx) ? widthPx : null,
+        chatHeightPx: Number.isFinite(heightPx) ? heightPx : 340,
+        soundEnabled: item.soundEnabled !== false,
+        soundVolume: Number.isFinite(soundVolume) ? soundVolume : 0.7,
+        ttsEnabled: item.ttsEnabled === true,
+        ttsVoiceProfile: item.ttsVoiceProfile || 'random',
+        ttsVoiceId: item.ttsVoiceId || '',
+        openMicEnabled: item.openMicEnabled === true,
+        sttProvider: item.sttProvider || 'groq',
+        sttApiKey: item.sttApiKey || '',
+        relayEnabled: item.relayEnabled === true,
+        mode,
+        standardProvider,
+        openrouterApiKey: item.openrouterApiKey || '',
+        openrouterModel: item.openrouterModel || 'random',
+        openrouterModelResolved: item.openrouterModelResolved || '',
+        ollamaUrl: item.ollamaUrl || 'http://127.0.0.1:11434',
+        ollamaModel: item.ollamaModel || 'gemma3:1b',
+        openclawGatewayUrl: item.openclawGatewayUrl || item.openclawUrl || 'ws://127.0.0.1:18789',
+        openclawGatewayToken: item.openclawGatewayToken || item.openclawToken || '',
+        openclawAgentName: normalizeOpenClawAgentName(
+          item.openclawAgentName,
+          defaultOpenClawAgentName(index)
+        ),
+        terminalDistro: normalizeTerminalDistro(item.terminalDistro),
+        terminalCwd: normalizeTerminalCwd(item.terminalCwd),
+        terminalNotifyOnFinish: normalizeTerminalNotifyOnFinish(item.terminalNotifyOnFinish, true)
+      };
+    });
 }
 
 function getShimejiIndexFromId(shimejiId) {
@@ -330,16 +593,40 @@ function getShimejiConfig(shimejiId) {
   if (shimejis.length === 0) {
     return {
       id: 'shimeji-1',
+      character: 'shimeji',
+      size: 'medium',
+      personality: 'cryptid',
+      chatTheme: 'pastel',
+      chatThemePreset: 'pastel',
+      chatThemeColor: '#3b1a77',
+      chatBgColor: '#f0e8ff',
+      chatBubbleStyle: 'glass',
+      chatFontSize: 'medium',
+      chatWidth: 'medium',
+      chatWidthPx: null,
+      chatHeightPx: 340,
+      soundEnabled: true,
+      soundVolume: 0.7,
+      ttsEnabled: false,
+      ttsVoiceProfile: 'random',
+      ttsVoiceId: '',
+      openMicEnabled: false,
+      sttProvider: 'groq',
+      sttApiKey: '',
+      relayEnabled: false,
       mode: normalizeMode(store.get('aiMode') || 'standard'),
       standardProvider: 'openrouter',
       openrouterApiKey: store.get('openrouterApiKey') || '',
       openrouterModel: store.get('openrouterModel') || 'google/gemini-2.0-flash-001',
+      openrouterModelResolved: store.get('openrouterModelResolved') || '',
       ollamaUrl: store.get('ollamaUrl') || 'http://127.0.0.1:11434',
       ollamaModel: store.get('ollamaModel') || 'gemma3:1b',
       openclawGatewayUrl: store.get('openclawGatewayUrl') || store.get('openclawUrl') || 'ws://127.0.0.1:18789',
       openclawGatewayToken: store.get('openclawGatewayToken') || store.get('openclawToken') || '',
       openclawAgentName: normalizeOpenClawAgentName(store.get('openclawAgentName'), defaultOpenClawAgentName(0)),
-      personality: 'cryptid'
+      terminalDistro: normalizeTerminalDistro(store.get('terminalDistro')),
+      terminalCwd: normalizeTerminalCwd(store.get('terminalCwd')),
+      terminalNotifyOnFinish: normalizeTerminalNotifyOnFinish(store.get('terminalNotifyOnFinish'), true)
     };
   }
   const byId = shimejis.find((s) => s.id === shimejiId);
@@ -390,8 +677,602 @@ function getAiSettingsFor(shimejiId, personalityKey) {
       shimeji?.openclawAgentName || store.get('openclawAgentName'),
       defaultOpenClawAgentName(shimeji?.id || shimejiId || 0)
     ),
+    terminalDistro: normalizeTerminalDistro(shimeji?.terminalDistro || store.get('terminalDistro')),
+    terminalCwd: normalizeTerminalCwd(shimeji?.terminalCwd || store.get('terminalCwd')),
+    terminalNotifyOnFinish: normalizeTerminalNotifyOnFinish(
+      shimeji?.terminalNotifyOnFinish,
+      normalizeTerminalNotifyOnFinish(store.get('terminalNotifyOnFinish'), true)
+    ),
     systemPrompt: buildSystemPrompt(personality)
   };
+}
+
+const terminalSessions = new Map();
+
+function emitTerminalEvent(webContents, channel, payload) {
+  if (!webContents || webContents.isDestroyed()) return;
+  webContents.send(channel, payload);
+}
+
+function emitTerminalSessionEvent(sessionObj, channel, payload = {}) {
+  const webContents = sessionObj?.sessionWebContents;
+  if (!webContents || webContents.isDestroyed()) return;
+  emitTerminalEvent(webContents, channel, {
+    shimejiId: sessionObj.shimejiId,
+    ...payload
+  });
+}
+
+function appendTerminalSessionBuffer(sessionObj, chunk) {
+  const next = `${sessionObj.sessionBuffer || ''}${chunk || ''}`;
+  if (next.length <= TERMINAL_SESSION_BUFFER_MAX) {
+    sessionObj.sessionBuffer = next;
+    return;
+  }
+  sessionObj.sessionBuffer = next.slice(next.length - TERMINAL_SESSION_BUFFER_MAX);
+}
+
+function emitTerminalSessionStream(sessionObj, rawChunk, source = 'stdout') {
+  const chunk = String(rawChunk || '');
+  if (!chunk) return;
+  if (!sessionObj?.sessionWebContents || sessionObj.sessionWebContents.isDestroyed()) return;
+  appendTerminalSessionBuffer(sessionObj, chunk);
+  emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
+    data: chunk,
+    source
+  });
+}
+
+function applyConfiguredCwdIfNeeded(sessionObj) {
+  if (!sessionObj?.needsConfiguredCwd) return false;
+  if (!sessionObj.configuredCwd) {
+    sessionObj.needsConfiguredCwd = false;
+    return false;
+  }
+  const script = `cd "${escapeBashDoubleQuoted(sessionObj.configuredCwd)}" >/dev/null 2>&1 || echo "Warning: could not cd into ${escapeBashDoubleQuoted(sessionObj.configuredCwd)}"\n`;
+  try {
+    sessionObj.process.stdin.write(script, 'utf8');
+    sessionObj.needsConfiguredCwd = false;
+    sessionObj.currentCwd = sessionObj.configuredCwd;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function flushTerminalChunk(sessionObj, pending, rawChunk, source = 'stdout') {
+  const chunk = stripAnsi(rawChunk);
+  if (!chunk) return;
+  const merged = `${pending.lineBuffer || ''}${chunk}`;
+  const parts = merged.split('\n');
+  pending.lineBuffer = parts.pop() ?? '';
+
+  let filteredChunk = '';
+  for (const line of parts) {
+    const fullLine = `${line}\n`;
+    if (shouldDropTerminalLine(pending, line)) continue;
+    filteredChunk += fullLine;
+  }
+
+  if (!filteredChunk) return;
+  pending.accumulated += filteredChunk;
+  emitTerminalEvent(pending.webContents, 'terminal-stream-delta', {
+    shimejiId: sessionObj.shimejiId,
+    delta: filteredChunk,
+    accumulated: pending.accumulated,
+    source
+  });
+}
+
+function completeTerminalPending(sessionObj, pending, exitCode, resolvedCwd = '') {
+  if (sessionObj.pending !== pending) return;
+  sessionObj.pending = null;
+  if (pending.lineBuffer) {
+    if (!shouldDropTerminalLine(pending, pending.lineBuffer)) {
+      pending.accumulated += pending.lineBuffer;
+    }
+    pending.lineBuffer = '';
+  }
+  const content = sanitizeTerminalOutput(pending.accumulated, pending);
+  emitTerminalEvent(pending.webContents, 'terminal-stream-done', {
+    shimejiId: sessionObj.shimejiId,
+    exitCode,
+    content
+  });
+  if (resolvedCwd) {
+    sessionObj.currentCwd = resolvedCwd;
+  }
+  pending.resolve({ ok: true, content, exitCode, cwd: sessionObj.currentCwd || resolvedCwd || '' });
+}
+
+function failTerminalPending(sessionObj, errorMessage) {
+  const pending = sessionObj?.pending;
+  if (!pending) return;
+  sessionObj.pending = null;
+  emitTerminalEvent(pending.webContents, 'terminal-stream-error', {
+    shimejiId: sessionObj.shimejiId,
+    error: errorMessage
+  });
+  pending.reject(new Error(errorMessage));
+}
+
+function onTerminalStdout(sessionObj, data) {
+  if (data) {
+    emitTerminalSessionStream(sessionObj, String(data || ''), 'stdout');
+  }
+  const pending = sessionObj.pending;
+  if (!pending || !data) return;
+  pending.stdoutBuffer += data;
+  const keepCharsForMarkers = Math.max(
+    TERMINAL_STREAM_TAIL_KEEP,
+    pending.marker.length + pending.startMarker.length + 64
+  );
+
+  if (!pending.started) {
+    const startPattern = new RegExp(`${escapeRegex(pending.startMarker)}\\r?\\n`);
+    const startMatch = startPattern.exec(pending.stdoutBuffer);
+    if (!startMatch) {
+      if (pending.stdoutBuffer.length > keepCharsForMarkers) {
+        pending.stdoutBuffer = pending.stdoutBuffer.slice(-keepCharsForMarkers);
+      }
+      return;
+    }
+    pending.started = true;
+    pending.stdoutBuffer = pending.stdoutBuffer.slice(startMatch.index + startMatch[0].length);
+  }
+
+  const markerPattern = new RegExp(`${escapeRegex(pending.marker)}(\\d+)\\|([^\\r\\n]*)\\r?\\n`);
+  const match = markerPattern.exec(pending.stdoutBuffer);
+
+  if (!match) {
+    const keepChars = Math.max(TERMINAL_STREAM_TAIL_KEEP, pending.marker.length + 64);
+    if (pending.stdoutBuffer.length > keepChars) {
+      const flushUntil = pending.stdoutBuffer.length - keepChars;
+      const flushChunk = pending.stdoutBuffer.slice(0, flushUntil);
+      pending.stdoutBuffer = pending.stdoutBuffer.slice(flushUntil);
+      flushTerminalChunk(sessionObj, pending, flushChunk, 'stdout');
+    }
+    return;
+  }
+
+  const beforeMarker = pending.stdoutBuffer.slice(0, match.index);
+  flushTerminalChunk(sessionObj, pending, beforeMarker, 'stdout');
+
+  const exitCode = Number.parseInt(match[1], 10);
+  const resolvedCwd = normalizeTerminalCwd(match[2] || '');
+  pending.stdoutBuffer = pending.stdoutBuffer.slice(match.index + match[0].length);
+  completeTerminalPending(sessionObj, pending, Number.isFinite(exitCode) ? exitCode : 0, resolvedCwd);
+}
+
+function onTerminalStderr(sessionObj, data) {
+  if (data) {
+    emitTerminalSessionStream(sessionObj, String(data || ''), 'stderr');
+  }
+  const pending = sessionObj.pending;
+  if (!pending || !data) return;
+  if (!pending.started) return;
+  flushTerminalChunk(sessionObj, pending, data, 'stderr');
+}
+
+function createTerminalSession(shimejiId, settings = {}) {
+  const distro = normalizeTerminalDistro(settings.terminalDistro);
+  const configuredCwd = normalizeTerminalCwd(settings.terminalCwd);
+  const spawnSpec = buildInteractiveTerminalSessionSpawnSpec(distro);
+
+  const child = spawn(spawnSpec.command, spawnSpec.args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+    env: {
+      ...process.env,
+      TERM: process.env.TERM || 'xterm-256color',
+      COLORTERM: process.env.COLORTERM || 'truecolor',
+      TERM_PROGRAM: process.env.TERM_PROGRAM || 'ShimejiDesktop',
+      TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0'
+    }
+  });
+
+  const sessionObj = {
+    shimejiId,
+    distro,
+    configuredCwd,
+    needsConfiguredCwd: Boolean(configuredCwd),
+    currentCwd: '',
+    sessionCols: 0,
+    sessionRows: 0,
+    sessionWebContents: null,
+    sessionBuffer: '',
+    process: child,
+    pending: null,
+    closing: false
+  };
+
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (data) => onTerminalStdout(sessionObj, String(data || '')));
+  child.stderr.on('data', (data) => onTerminalStderr(sessionObj, String(data || '')));
+  child.on('error', (error) => {
+    const message = error?.message ? `TERMINAL_ERROR:${error.message}` : 'TERMINAL_ERROR';
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
+      state: 'error',
+      error: message
+    });
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-exit', {
+      code: null,
+      signal: 'ERROR',
+      error: message
+    });
+    failTerminalPending(sessionObj, message);
+    terminalSessions.delete(shimejiId);
+  });
+  child.on('exit', (code, signal) => {
+    terminalSessions.delete(shimejiId);
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-exit', {
+      code: Number.isFinite(code) ? code : null,
+      signal: signal || ''
+    });
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
+      state: sessionObj.closing ? 'closed' : 'exited',
+      code: Number.isFinite(code) ? code : null,
+      signal: signal || ''
+    });
+    if (sessionObj.pending) {
+      const message = sessionObj.closing
+        ? 'TERMINAL_SESSION_CLOSED'
+        : `TERMINAL_SESSION_EXIT:${code ?? ''}${signal ? `:${signal}` : ''}`;
+      failTerminalPending(sessionObj, message);
+    }
+  });
+
+  terminalSessions.set(shimejiId, sessionObj);
+  return sessionObj;
+}
+
+function closeTerminalSession(shimejiId, reason = 'TERMINAL_SESSION_CLOSED') {
+  const sessionObj = terminalSessions.get(shimejiId);
+  if (!sessionObj) return false;
+  terminalSessions.delete(shimejiId);
+  sessionObj.closing = true;
+  emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
+    state: 'closing',
+    reason
+  });
+  if (sessionObj.pending) {
+    failTerminalPending(sessionObj, reason);
+  }
+  try {
+    if (!sessionObj.process.killed) {
+      sessionObj.process.kill();
+    }
+  } catch {}
+  return true;
+}
+
+function closeAllTerminalSessions() {
+  for (const shimejiId of terminalSessions.keys()) {
+    closeTerminalSession(shimejiId, 'TERMINAL_SESSION_CLOSED');
+  }
+}
+
+function getOrCreateTerminalSession(shimejiId, settings = {}) {
+  const desiredDistro = normalizeTerminalDistro(settings.terminalDistro);
+  const desiredCwd = normalizeTerminalCwd(settings.terminalCwd);
+  let sessionObj = terminalSessions.get(shimejiId);
+  if (sessionObj && sessionObj.distro !== desiredDistro) {
+    closeTerminalSession(shimejiId, 'TERMINAL_SESSION_REPLACED');
+    sessionObj = null;
+  }
+  if (!sessionObj) {
+    sessionObj = createTerminalSession(shimejiId, {
+      terminalDistro: desiredDistro,
+      terminalCwd: desiredCwd
+    });
+    return sessionObj;
+  }
+
+  if (desiredCwd !== sessionObj.configuredCwd) {
+    sessionObj.configuredCwd = desiredCwd;
+    sessionObj.needsConfiguredCwd = Boolean(desiredCwd);
+  }
+  return sessionObj;
+}
+
+function attachTerminalSession(webContents, shimejiId, settings = {}) {
+  const sessionObj = getOrCreateTerminalSession(shimejiId, settings);
+  sessionObj.sessionWebContents = webContents || null;
+  if (!sessionObj.pending) {
+    applyConfiguredCwdIfNeeded(sessionObj);
+  }
+  emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
+    state: 'running',
+    distro: sessionObj.distro,
+    cwd: sessionObj.currentCwd || sessionObj.configuredCwd || '',
+    cols: Number.isFinite(sessionObj.sessionCols) ? sessionObj.sessionCols : 0,
+    rows: Number.isFinite(sessionObj.sessionRows) ? sessionObj.sessionRows : 0
+  });
+  return {
+    ok: true,
+    distro: sessionObj.distro,
+    cwd: sessionObj.currentCwd || sessionObj.configuredCwd || '',
+    replayData: sessionObj.sessionBuffer || ''
+  };
+}
+
+function writeTerminalSessionInput(shimejiId, rawData) {
+  const sessionObj = terminalSessions.get(shimejiId);
+  if (!sessionObj) {
+    return { ok: false, error: 'TERMINAL_SESSION_NOT_STARTED' };
+  }
+  const data = String(rawData || '');
+  if (!data) {
+    return { ok: true };
+  }
+  try {
+    sessionObj.process.stdin.write(data, 'utf8');
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error?.message ? `TERMINAL_WRITE_ERROR:${error.message}` : 'TERMINAL_WRITE_ERROR'
+    };
+  }
+}
+
+function runTerminalSessionLine(shimejiId, lineText) {
+  const line = String(lineText || '');
+  return writeTerminalSessionInput(shimejiId, `${line}\n`);
+}
+
+function resizeTerminalSession(shimejiId, cols, rows) {
+  const sessionObj = terminalSessions.get(shimejiId);
+  if (!sessionObj) {
+    return { ok: false, error: 'TERMINAL_SESSION_NOT_STARTED' };
+  }
+  const parsedCols = Number.parseInt(`${cols}`, 10);
+  const parsedRows = Number.parseInt(`${rows}`, 10);
+  const safeCols = Number.isFinite(parsedCols) ? Math.max(20, Math.min(500, parsedCols)) : 80;
+  const safeRows = Number.isFinite(parsedRows) ? Math.max(6, Math.min(240, parsedRows)) : 24;
+  sessionObj.sessionCols = safeCols;
+  sessionObj.sessionRows = safeRows;
+  try {
+    sessionObj.process.kill('SIGWINCH');
+  } catch {}
+  return { ok: true, cols: safeCols, rows: safeRows };
+}
+
+function findCommonPrefix(values) {
+  if (!Array.isArray(values) || values.length === 0) return '';
+  let prefix = String(values[0] || '');
+  for (let i = 1; i < values.length; i += 1) {
+    const current = String(values[i] || '');
+    let j = 0;
+    const max = Math.min(prefix.length, current.length);
+    while (j < max && prefix[j] === current[j]) j += 1;
+    prefix = prefix.slice(0, j);
+    if (!prefix) break;
+  }
+  return prefix;
+}
+
+function resolveTerminalCommandCompatibility(commandText) {
+  const command = String(commandText || '').replace(/\r\n?/g, '\n').trim();
+  if (!command || command.includes('\n')) {
+    return { command };
+  }
+
+  const match = /^([^\s]+)(?:\s+([\s\S]*))?$/.exec(command);
+  if (!match) {
+    return { command };
+  }
+
+  const executable = match[1];
+  const tail = String(match[2] || '').trim();
+  const base = path.basename(executable || '').toLowerCase();
+  if (!base) {
+    return { command };
+  }
+
+  if (base === 'codex') {
+    if (!tail) {
+      return {
+        error: 'codex is interactive. In Shimeji terminal, use: codex exec "<prompt>"'
+      };
+    }
+    if (/^(--help|-h|--version|-V)\b/.test(tail)) {
+      return { command };
+    }
+    const firstArg = tail.split(/\s+/, 1)[0].toLowerCase();
+    if (TERMINAL_CODEX_SAFE_SUBCOMMANDS.has(firstArg)) {
+      return { command };
+    }
+    if (firstArg.startsWith('-')) {
+      return {
+        error: 'Interactive codex flags are not supported in chat mode. Use: codex exec "<prompt>"'
+      };
+    }
+    return { command: `codex exec ${shellQuoteSingle(tail)}` };
+  }
+
+  if (base === 'claude') {
+    if (!tail) {
+      return {
+        error: 'claude is interactive. In Shimeji terminal, use: claude -p "<prompt>"'
+      };
+    }
+    if (/^(--help|-h|--version|-v)\b/.test(tail)) {
+      return { command };
+    }
+    if (/(^|\s)(-p|--print)(\s|$)/.test(tail)) {
+      return { command };
+    }
+    const firstArg = tail.split(/\s+/, 1)[0].toLowerCase();
+    if (TERMINAL_CLAUDE_SAFE_SUBCOMMANDS.has(firstArg)) {
+      return { command };
+    }
+    if (firstArg.startsWith('-')) {
+      return {
+        error: 'Interactive claude flags are not supported in chat mode. Use: claude -p "<prompt>"'
+      };
+    }
+    return { command: `claude -p ${shellQuoteSingle(tail)}` };
+  }
+
+  return { command };
+}
+
+async function getTerminalAutocomplete(shimejiId, fragment, settings = {}) {
+  const query = String(fragment || '');
+  if (!query) {
+    return { ok: true, completion: '', candidates: [] };
+  }
+
+  const sessionObj = getOrCreateTerminalSession(shimejiId, settings);
+  const cwd = normalizeTerminalCwd(sessionObj.currentCwd || sessionObj.configuredCwd || settings.terminalCwd);
+  const distro = normalizeTerminalDistro(settings.terminalDistro || sessionObj.distro);
+  const cwdPrefix = cwd
+    ? `cd "${escapeBashDoubleQuoted(cwd)}" >/dev/null 2>&1 || true\n`
+    : '';
+  const script = `${cwdPrefix}fragment="${escapeBashDoubleQuoted(query)}"\ncompgen -c -- "$fragment" 2>/dev/null\ncompgen -f -- "$fragment" 2>/dev/null\n`;
+  const spawnSpec = buildTerminalScriptSpawnSpec(script, distro);
+
+  const raw = await new Promise((resolve) => {
+    const child = spawn(spawnSpec.command, spawnSpec.args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: {
+        ...process.env,
+        TERM: process.env.TERM || 'xterm-256color',
+        COLORTERM: process.env.COLORTERM || 'truecolor',
+        TERM_PROGRAM: process.env.TERM_PROGRAM || 'ShimejiDesktop',
+        TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0'
+      }
+    });
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    const timeout = setTimeout(() => {
+      try { child.kill(); } catch {}
+      finish({ ok: false, error: 'TERMINAL_AUTOCOMPLETE_TIMEOUT', stdout, stderr });
+    }, 3500);
+
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk || '');
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += String(chunk || '');
+    });
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      finish({ ok: false, error: error?.message ? `TERMINAL_AUTOCOMPLETE_ERROR:${error.message}` : 'TERMINAL_AUTOCOMPLETE_ERROR', stdout, stderr });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (code !== 0 && !stdout.trim()) {
+        finish({ ok: false, error: `TERMINAL_AUTOCOMPLETE_EXIT:${code}`, stdout, stderr });
+        return;
+      }
+      finish({ ok: true, stdout, stderr });
+    });
+  });
+
+  if (!raw.ok) {
+    return { ok: false, error: raw.error || 'TERMINAL_AUTOCOMPLETE_FAILED', completion: '', candidates: [] };
+  }
+
+  const candidates = Array.from(new Set(
+    String(raw.stdout || '')
+      .replace(/\r/g, '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line && line.startsWith(query))
+  )).sort((a, b) => a.localeCompare(b));
+
+  if (candidates.length === 0) {
+    return { ok: true, completion: query, candidates: [] };
+  }
+
+  const completion = candidates.length === 1
+    ? candidates[0]
+    : (findCommonPrefix(candidates) || query);
+
+  return {
+    ok: true,
+    completion,
+    candidates: candidates.slice(0, 80),
+    exact: candidates.length === 1
+  };
+}
+
+async function executeTerminalCommand(webContents, shimejiId, commandText, settings = {}) {
+  const commandInput = String(commandText || '').replace(/\r\n?/g, '\n').trim();
+  if (!commandInput) {
+    return { ok: false, error: 'Empty command.' };
+  }
+  const compatibility = resolveTerminalCommandCompatibility(commandInput);
+  if (compatibility.error) {
+    return { ok: false, error: compatibility.error };
+  }
+  const command = String(compatibility.command || '').trim();
+  if (!command) {
+    return { ok: false, error: 'Empty command.' };
+  }
+
+  const sessionObj = getOrCreateTerminalSession(shimejiId, {
+    terminalDistro: settings.terminalDistro,
+    terminalCwd: settings.terminalCwd
+  });
+
+  if (sessionObj.pending) {
+    return { ok: false, error: 'TERMINAL_BUSY' };
+  }
+
+  const markerSeed = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  const startMarker = `__SHIMEJI_START_${markerSeed}__`;
+  const marker = `__SHIMEJI_DONE_${markerSeed}__`;
+  const commandTrimmed = command.trim();
+
+  return new Promise((resolve, reject) => {
+    sessionObj.pending = {
+      startMarker,
+      marker,
+      command,
+      commandTrimmed,
+      webContents,
+      resolve,
+      reject,
+      accumulated: '',
+      stdoutBuffer: '',
+      lineBuffer: '',
+      started: false
+    };
+
+    const applyConfiguredCwd = sessionObj.needsConfiguredCwd && Boolean(sessionObj.configuredCwd);
+    const cwdPrefix = applyConfiguredCwd
+      ? `cd "${escapeBashDoubleQuoted(sessionObj.configuredCwd)}" >/dev/null 2>&1 || echo "Warning: could not cd into ${escapeBashDoubleQuoted(sessionObj.configuredCwd)}"\n`
+      : '';
+    const startLine = `printf "${startMarker}\\n"\n`;
+    const markerLine = `__shimeji_exit="$?"\nprintf "\\n${marker}%s|%s\\n" "$__shimeji_exit" "$(pwd)"\n`;
+    const script = `${cwdPrefix}${startLine}${command}\n${markerLine}`;
+    if (applyConfiguredCwd) {
+      sessionObj.needsConfiguredCwd = false;
+    }
+
+    try {
+      sessionObj.process.stdin.write(script, 'utf8');
+    } catch (error) {
+      const message = error?.message ? `TERMINAL_WRITE_ERROR:${error.message}` : 'TERMINAL_WRITE_ERROR';
+      failTerminalPending(sessionObj, message);
+    }
+  }).catch((error) => ({ ok: false, error: error?.message || 'TERMINAL_ERROR' }));
 }
 
 function resolveOllamaUrl(rawUrl) {
@@ -1188,7 +2069,56 @@ async function callOpenClawWithRetry(gatewayUrl, token, messages, options = {}) 
   throw lastError || new Error('OPENCLAW_CONNECT:unknown');
 }
 
+async function transcribeWithWhisper(audioBuffer, provider, apiKey, lang) {
+  if (!apiKey) {
+    throw new Error('No STT API key set. Open settings and add your API key.');
+  }
+
+  let url;
+  let model;
+  if (provider === 'openai') {
+    url = 'https://api.openai.com/v1/audio/transcriptions';
+    model = 'whisper-1';
+  } else {
+    url = 'https://api.groq.com/openai/v1/audio/transcriptions';
+    model = 'whisper-large-v3';
+  }
+
+  const blob = new Blob([audioBuffer], { type: 'audio/webm' });
+  const formData = new FormData();
+  formData.append('file', blob, 'recording.webm');
+  formData.append('model', model);
+  if (lang) formData.append('language', lang);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData,
+      signal: AbortSignal.timeout(30000)
+    });
+  } catch (err) {
+    throw new Error('Network error — check your connection and try again.');
+  }
+
+  if (response.status === 401) {
+    throw new Error('Invalid STT API key. Check your key in settings.');
+  }
+  if (response.status === 402 || response.status === 429) {
+    throw new Error('STT rate limited or quota exceeded. Wait and try again.');
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`STT API error (${response.status}): ${text.slice(0, 160) || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  return { text: data?.text || '' };
+}
+
 app.whenReady().then(() => {
+  configureMediaPermissions();
   createOverlayWindow();
   createTray();
   createSettingsWindow(); // Auto-open settings on startup
@@ -1200,6 +2130,10 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', (event) => {
   event.preventDefault();
+});
+
+app.on('before-quit', () => {
+  closeAllTerminalSessions();
 });
 
 // IPC Handlers
@@ -1243,6 +2177,8 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'enabled',
     'showShimejis',
     'shimejiCount',
+    'popupTheme',
+    'shimejiLanguage',
     'openrouterApiKey',
     'openrouterModel',
     'openrouterModelResolved',
@@ -1253,13 +2189,22 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'openclawToken',
     'openclawGatewayUrl',
     'openclawGatewayToken',
-    'openclawAgentName'
+    'openclawAgentName',
+    'terminalDistro',
+    'terminalCwd',
+    'terminalNotifyOnFinish'
   ];
 
   for (const key of allowedKeys) {
     if (key in nextConfig) {
       if (key === 'openclawAgentName') {
         store.set(key, normalizeOpenClawAgentName(nextConfig[key], defaultOpenClawAgentName(0)));
+      } else if (key === 'terminalDistro') {
+        store.set(key, normalizeTerminalDistro(nextConfig[key]));
+      } else if (key === 'terminalCwd') {
+        store.set(key, normalizeTerminalCwd(nextConfig[key]));
+      } else if (key === 'terminalNotifyOnFinish') {
+        store.set(key, normalizeTerminalNotifyOnFinish(nextConfig[key], true));
       } else {
         store.set(key, nextConfig[key]);
       }
@@ -1267,9 +2212,16 @@ ipcMain.on('update-config', (event, nextConfig) => {
   }
 
   if (Array.isArray(nextConfig.shimejis)) {
+    const previousIds = new Set(getStoredShimejis().map((item) => item.id));
     const normalized = normalizeShimejiList(nextConfig.shimejis);
     store.set('shimejis', normalized);
     store.set('shimejiCount', normalized.length);
+    const nextIds = new Set(normalized.map((item) => item.id));
+    for (const existingId of previousIds) {
+      if (!nextIds.has(existingId)) {
+        closeTerminalSession(existingId, 'TERMINAL_SESSION_REMOVED');
+      }
+    }
   }
 
   const shimejiPattern = /^shimeji(\d+)_/;
@@ -1282,6 +2234,12 @@ ipcMain.on('update-config', (event, nextConfig) => {
       if (shimejis[index - 1]) {
         if (prop === 'openclawAgentName') {
           shimejis[index - 1][prop] = normalizeOpenClawAgentName(value, defaultOpenClawAgentName(index - 1));
+        } else if (prop === 'terminalDistro') {
+          shimejis[index - 1][prop] = normalizeTerminalDistro(value);
+        } else if (prop === 'terminalCwd') {
+          shimejis[index - 1][prop] = normalizeTerminalCwd(value);
+        } else if (prop === 'terminalNotifyOnFinish') {
+          shimejis[index - 1][prop] = normalizeTerminalNotifyOnFinish(value, true);
         } else {
           shimejis[index - 1][prop] = value;
         }
@@ -1306,6 +2264,9 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
     const settings = getAiSettingsFor(shimejiId, personality);
     if (settings.chatMode === 'off') {
       return { ok: false, error: 'AI mode is off for this shimeji.' };
+    }
+    if (settings.chatMode === 'terminal') {
+      return { ok: false, error: 'TERMINAL_MODE_ACTIVE' };
     }
     const fullMessages = [
       { role: 'system', content: settings.systemPrompt },
@@ -1352,6 +2313,129 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
     return { ok: true, content };
   } catch (error) {
     return { ok: false, error: error?.message || 'Unknown error.' };
+  }
+});
+
+ipcMain.handle('terminal-exec', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  const command = String(payload?.command || '').trim();
+  if (!command) {
+    return { ok: false, error: 'Empty command.' };
+  }
+
+  try {
+    const settings = getAiSettingsFor(shimejiId, 'cryptid');
+    if (settings.chatMode !== 'terminal') {
+      return { ok: false, error: 'TERMINAL_MODE_DISABLED' };
+    }
+    const result = await executeTerminalCommand(event.sender, shimejiId, command, {
+      terminalDistro: payload?.terminalDistro || settings.terminalDistro,
+      terminalCwd: payload?.terminalCwd !== undefined ? payload.terminalCwd : settings.terminalCwd,
+      terminalNotifyOnFinish: payload?.terminalNotifyOnFinish !== undefined
+        ? payload.terminalNotifyOnFinish
+        : settings.terminalNotifyOnFinish
+    });
+    return result;
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_ERROR' };
+  }
+});
+
+ipcMain.handle('terminal-close-session', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  const closed = closeTerminalSession(shimejiId, 'TERMINAL_SESSION_CLOSED_BY_UI');
+  return { ok: true, closed };
+});
+
+ipcMain.handle('terminal-session-start', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  try {
+    const settings = getAiSettingsFor(shimejiId, 'cryptid');
+    if (settings.chatMode !== 'terminal') {
+      return { ok: false, error: 'TERMINAL_MODE_DISABLED' };
+    }
+    return attachTerminalSession(event.sender, shimejiId, {
+      terminalDistro: payload?.terminalDistro || settings.terminalDistro,
+      terminalCwd: payload?.terminalCwd !== undefined ? payload.terminalCwd : settings.terminalCwd
+    });
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_SESSION_START_ERROR' };
+  }
+});
+
+ipcMain.handle('terminal-session-write', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  try {
+    if (!terminalSessions.get(shimejiId)) {
+      const settings = getAiSettingsFor(shimejiId, 'cryptid');
+      if (settings.chatMode !== 'terminal') {
+        return { ok: false, error: 'TERMINAL_MODE_DISABLED' };
+      }
+      attachTerminalSession(event.sender, shimejiId, {
+        terminalDistro: payload?.terminalDistro || settings.terminalDistro,
+        terminalCwd: payload?.terminalCwd !== undefined ? payload.terminalCwd : settings.terminalCwd
+      });
+    }
+    return writeTerminalSessionInput(shimejiId, payload?.data || '');
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_WRITE_ERROR' };
+  }
+});
+
+ipcMain.handle('terminal-session-run-line', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  try {
+    if (!terminalSessions.get(shimejiId)) {
+      const settings = getAiSettingsFor(shimejiId, 'cryptid');
+      if (settings.chatMode !== 'terminal') {
+        return { ok: false, error: 'TERMINAL_MODE_DISABLED' };
+      }
+      attachTerminalSession(event.sender, shimejiId, {
+        terminalDistro: payload?.terminalDistro || settings.terminalDistro,
+        terminalCwd: payload?.terminalCwd !== undefined ? payload.terminalCwd : settings.terminalCwd
+      });
+    }
+    return runTerminalSessionLine(shimejiId, payload?.line || '');
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_WRITE_ERROR' };
+  }
+});
+
+ipcMain.handle('terminal-session-resize', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  try {
+    if (!terminalSessions.get(shimejiId)) {
+      return { ok: false, error: 'TERMINAL_SESSION_NOT_STARTED' };
+    }
+    return resizeTerminalSession(shimejiId, payload?.cols, payload?.rows);
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_RESIZE_ERROR' };
+  }
+});
+
+ipcMain.handle('terminal-session-stop', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  const closed = closeTerminalSession(shimejiId, 'TERMINAL_SESSION_STOPPED_BY_UI');
+  return { ok: true, closed };
+});
+
+ipcMain.handle('terminal-autocomplete', async (event, payload = {}) => {
+  const shimejiId = payload?.shimejiId || 'shimeji-1';
+  const fragment = String(payload?.fragment || '');
+  if (!fragment) {
+    return { ok: true, completion: '', candidates: [] };
+  }
+  try {
+    const settings = getAiSettingsFor(shimejiId, 'cryptid');
+    if (settings.chatMode !== 'terminal') {
+      return { ok: false, error: 'TERMINAL_MODE_DISABLED', completion: fragment, candidates: [] };
+    }
+    return await getTerminalAutocomplete(shimejiId, fragment, {
+      terminalDistro: payload?.terminalDistro || settings.terminalDistro,
+      terminalCwd: payload?.terminalCwd !== undefined ? payload.terminalCwd : settings.terminalCwd
+    });
+  } catch (error) {
+    return { ok: false, error: error?.message || 'TERMINAL_AUTOCOMPLETE_FAILED', completion: fragment, candidates: [] };
   }
 });
 
@@ -1408,6 +2492,30 @@ ipcMain.handle('test-openclaw', async (event, payload = {}) => {
     return { ok: true, content };
   } catch (error) {
     return { ok: false, error: error?.message || 'Network error.' };
+  }
+});
+
+ipcMain.handle('transcribe-audio', async (event, { shimejiId, audioData }) => {
+  try {
+    const config = getShimejiConfig(shimejiId || 'shimeji-1');
+    const provider = config.sttProvider || 'groq';
+    const apiKey = (config.sttApiKey || '').trim();
+    if (!apiKey) {
+      return { ok: false, error: 'No STT API key set. Add your key in Settings.' };
+    }
+    if (!audioData || !(audioData instanceof ArrayBuffer || audioData.byteLength !== undefined)) {
+      return { ok: false, error: 'No audio data received.' };
+    }
+    const storedLang = store.get('shimejiLanguage') || 'auto';
+    const lang = storedLang === 'es' ? 'es' : 'en';
+    const result = await transcribeWithWhisper(audioData, provider, apiKey, lang);
+    const transcript = (result?.text || '').trim();
+    if (!transcript) {
+      return { ok: false, error: 'No speech detected.' };
+    }
+    return { ok: true, transcript };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'Transcription failed.' };
   }
 });
 

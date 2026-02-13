@@ -927,6 +927,7 @@
         let pendingSoundKind = null;
         let soundGestureArmed = false;
         let pendingOnboardingGreeting = false;
+        let pendingApiReadyGreeting = false;
 
         async function isMasterKeyLocked() {
             if (!config.masterKeyEnabled) return false;
@@ -2777,6 +2778,11 @@
                     }
                 }
 
+                if (pendingApiReadyGreeting) {
+                    pendingApiReadyGreeting = false;
+                    appendApiReadyGreetingMessage();
+                }
+
                 updateChatMeta();
 
                 setTimeout(() => {
@@ -3620,6 +3626,42 @@
             return !((config.openrouterApiKey || '').trim() || config.openrouterApiKeyEnc);
         }
 
+        function hasOpenRouterCredential(cfg = config) {
+            return Boolean((cfg.openrouterApiKey || '').trim() || cfg.openrouterApiKeyEnc);
+        }
+
+        function hasOpenClawCredential(cfg = config) {
+            return Boolean((cfg.openclawGatewayToken || '').trim() || cfg.openclawGatewayTokenEnc);
+        }
+
+        function hasAnyApiCredential(cfg = config) {
+            return hasOpenRouterCredential(cfg) || hasOpenClawCredential(cfg);
+        }
+
+        function getApiReadyGreetingMessage() {
+            return isSpanishLocale()
+                ? '¡Listo! Ya tengo tu API key y estoy listo para conversar contigo.'
+                : 'All set! I have your API key and I am ready to chat with you.';
+        }
+
+        function appendApiReadyGreetingMessage() {
+            const msg = getApiReadyGreetingMessage();
+            appendMessage('ai', msg);
+            conversationHistory.push({ role: 'assistant', content: msg });
+            saveConversation();
+            playSoundOrQueue('success');
+        }
+
+        function announceReadyAfterApiKeyLoad() {
+            if (isDisabled) return;
+            if (isChatOpen) {
+                appendApiReadyGreetingMessage();
+                return;
+            }
+            pendingApiReadyGreeting = true;
+            openChatBubble();
+        }
+
         function scheduleNoKeyNudge() {
             if (!isPrimary || noKeyNudgeShown) return;
             if (noKeyNudgeTimer) {
@@ -4314,10 +4356,12 @@
                 const prevTtsEnabled = !!config.ttsEnabled;
                 const prevTtsProfile = config.ttsVoiceProfile;
                 const prevAnimationQuality = animationQuality;
+                const prevHadApiCredentials = hasAnyApiCredential(config);
                 config = {
                     ...nextConfig,
                     mode: normalizeMode(nextConfig.mode)
                 };
+                const nextHasApiCredentials = hasAnyApiCredential(config);
                 currentSize = config.size || currentSize;
                 updateMascotStyle();
                 applyChatStyle();
@@ -4374,6 +4418,9 @@
                     const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
                     if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
                     if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
+                }
+                if (!prevHadApiCredentials && nextHasApiCredentials) {
+                    announceReadyAfterApiKeyLoad();
                 }
                 scheduleNoKeyNudge();
             },

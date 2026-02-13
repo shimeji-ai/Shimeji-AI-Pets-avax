@@ -21,6 +21,23 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   // AI streaming
   aiChatStream: (params) => ipcRenderer.invoke('ai-chat-stream', params),
   onAiStreamDelta: (handler) => ipcRenderer.on('ai-stream-delta', (_, data) => handler(data)),
+  terminalExec: (params) => ipcRenderer.invoke('terminal-exec', params),
+  terminalAutocomplete: (params) => ipcRenderer.invoke('terminal-autocomplete', params),
+  terminalCloseSession: (params) => ipcRenderer.invoke('terminal-close-session', params),
+  terminalSessionStart: (params) => ipcRenderer.invoke('terminal-session-start', params),
+  terminalSessionWrite: (params) => ipcRenderer.invoke('terminal-session-write', params),
+  terminalSessionRunLine: (params) => ipcRenderer.invoke('terminal-session-run-line', params),
+  terminalSessionResize: (params) => ipcRenderer.invoke('terminal-session-resize', params),
+  terminalSessionStop: (params) => ipcRenderer.invoke('terminal-session-stop', params),
+  onTerminalStreamDelta: (handler) => ipcRenderer.on('terminal-stream-delta', (_, data) => handler(data)),
+  onTerminalStreamDone: (handler) => ipcRenderer.on('terminal-stream-done', (_, data) => handler(data)),
+  onTerminalStreamError: (handler) => ipcRenderer.on('terminal-stream-error', (_, data) => handler(data)),
+  onTerminalSessionData: (handler) => ipcRenderer.on('terminal-session-data', (_, data) => handler(data)),
+  onTerminalSessionExit: (handler) => ipcRenderer.on('terminal-session-exit', (_, data) => handler(data)),
+  onTerminalSessionState: (handler) => ipcRenderer.on('terminal-session-state', (_, data) => handler(data)),
+
+  // Speech-to-text (Whisper API)
+  transcribeAudio: (params) => ipcRenderer.invoke('transcribe-audio', params),
 
   // Testing
   testOpenRouter: (payload) => ipcRenderer.invoke('test-openrouter', payload),

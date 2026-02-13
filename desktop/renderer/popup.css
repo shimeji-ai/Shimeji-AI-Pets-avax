@@ -1053,6 +1053,44 @@ body.config-locked #shimeji-config-group .config-lock-hint {
   color: rgba(200, 210, 235, 0.6);
 }
 
+.helper-text a {
+  color: #9fe9ff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+
+.helper-text a:hover {
+  color: #f5fdff;
+}
+
+body[data-theme="neural"] .helper-text a {
+  color: #8ff3ff;
+  background: rgba(15, 50, 76, 0.45);
+  border: 1px solid rgba(134, 240, 255, 0.45);
+  border-radius: 999px;
+  padding: 1px 6px;
+  text-decoration: none;
+}
+
+body[data-theme="neural"] .helper-text a:hover {
+  color: #f3fdff;
+  background: rgba(19, 72, 112, 0.62);
+  border-color: rgba(134, 240, 255, 0.78);
+}
+
+body[data-theme="pink"] .helper-text a {
+  color: #ffe6f2;
+  border-color: rgba(255, 154, 216, 0.55);
+}
+
+body[data-theme="kawaii"] .helper-text a {
+  color: #2a1f4e;
+  border-color: rgba(42, 31, 78, 0.35);
+  background: rgba(255, 255, 255, 0.65);
+}
+
 .button-group {
   display: flex;
   gap: 6px;

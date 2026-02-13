@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 import { FreighterProvider } from "@/components/freighter-provider";
+import { SiteShimejiMascot } from "@/components/site-shimeji-mascot";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -78,7 +79,10 @@ export default function RootLayout({
       >
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <FreighterProvider>
-          <LanguageProvider>{children}</LanguageProvider>
+          <LanguageProvider>
+            {children}
+            <SiteShimejiMascot />
+          </LanguageProvider>
         </FreighterProvider>
         <Analytics />
       </body>

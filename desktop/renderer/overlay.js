@@ -4,6 +4,8 @@ const MAX_SHIMEJIS = 5;
 const DRAG_THRESHOLD_PX = 4;
 const CHAT_EDGE_MARGIN_PX = 8;
 const CHAT_VERTICAL_GAP_PX = 10;
+const CHAT_RESIZE_HIT_PX = 8;
+const MAC_GROUND_OFFSET_PX = 14;
 
 const SPRITE_SCALES = {
   small: 0.75,
@@ -79,17 +81,185 @@ function weightedRandom(choices) {
 }
 
 const CHAT_THEMES = [
-  { id: 'pastel', label: 'Pastel', theme: '#3b1a77', bg: '#f0e8ff', bubble: 'glass' },
-  { id: 'pink', label: 'Pink', theme: '#7a124b', bg: '#ffd2ea', bubble: 'glass' },
-  { id: 'kawaii', label: 'Kawaii', theme: '#5b1456', bg: '#ffd8f0', bubble: 'glass' },
-  { id: 'mint', label: 'Mint', theme: '#0f5f54', bg: '#c7fff0', bubble: 'glass' },
-  { id: 'ocean', label: 'Ocean', theme: '#103a7a', bg: '#cfe6ff', bubble: 'glass' },
-  { id: 'neural', label: 'Neural', theme: '#86f0ff', bg: '#0b0d1f', bubble: 'dark' },
-  { id: 'cyberpunk', label: 'Cyberpunk', theme: '#19d3ff', bg: '#0a0830', bubble: 'dark' },
-  { id: 'noir-rose', label: 'Noir Rose', theme: '#ff5fbf', bg: '#0b0717', bubble: 'dark' },
-  { id: 'midnight', label: 'Midnight', theme: '#7aa7ff', bg: '#0b1220', bubble: 'dark' },
-  { id: 'ember', label: 'Ember', theme: '#ff8b3d', bg: '#1a0c08', bubble: 'dark' }
+  { id: 'pastel', labelEn: 'Pastel', labelEs: 'Pastel', theme: '#3b1a77', bg: '#f0e8ff', bubble: 'glass' },
+  { id: 'pink', labelEn: 'Pink', labelEs: 'Rosa', theme: '#7a124b', bg: '#ffd2ea', bubble: 'glass' },
+  { id: 'kawaii', labelEn: 'Kawaii', labelEs: 'Kawaii', theme: '#5b1456', bg: '#ffd8f0', bubble: 'glass' },
+  { id: 'mint', labelEn: 'Mint', labelEs: 'Menta', theme: '#0f5f54', bg: '#c7fff0', bubble: 'glass' },
+  { id: 'ocean', labelEn: 'Ocean', labelEs: 'Océano', theme: '#103a7a', bg: '#cfe6ff', bubble: 'glass' },
+  { id: 'neural', labelEn: 'Neural', labelEs: 'Neural', theme: '#86f0ff', bg: '#0b0d1f', bubble: 'dark' },
+  { id: 'cyberpunk', labelEn: 'Cyberpunk', labelEs: 'Cyberpunk', theme: '#19d3ff', bg: '#0a0830', bubble: 'dark' },
+  { id: 'noir-rose', labelEn: 'Noir Rose', labelEs: 'Noir Rosa', theme: '#ff5fbf', bg: '#0b0717', bubble: 'dark' },
+  { id: 'midnight', labelEn: 'Midnight', labelEs: 'Medianoche', theme: '#7aa7ff', bg: '#0b1220', bubble: 'dark' },
+  { id: 'ember', labelEn: 'Ember', labelEs: 'Brasas', theme: '#ff8b3d', bg: '#1a0c08', bubble: 'dark' }
 ];
+
+const CHAT_THEME_PRESETS = CHAT_THEMES;
+const FONT_SIZE_MAP = { small: '11px', medium: '13px', large: '15px' };
+const CHAT_WIDTH_MAP = { small: 220, medium: 280, large: 360 };
+const DEFAULT_CHAT_HEIGHT = 340;
+const CHAT_MIN_WIDTH = 220;
+const CHAT_MIN_HEIGHT = 180;
+const CHAT_MAX_WIDTH = 9999;
+const CHAT_MAX_HEIGHT = 560;
+
+const PERSONALITY_TTS = {
+  cryptid: { pitch: 0.9, rate: 1.0 },
+  cozy: { pitch: 1.1, rate: 0.85 },
+  chaotic: { pitch: 1.4, rate: 1.4 },
+  philosopher: { pitch: 0.7, rate: 0.8 },
+  hype: { pitch: 1.3, rate: 1.3 },
+  noir: { pitch: 0.6, rate: 0.9 },
+  egg: { pitch: 1.15, rate: 0.95 }
+};
+
+const PERSONALITY_SOUND_RATE = {
+  cryptid: 1.0,
+  cozy: 0.85,
+  chaotic: 1.35,
+  philosopher: 0.75,
+  hype: 1.25,
+  noir: 0.7,
+  egg: 0.95
+};
+
+const TTS_VOICE_PROFILES = {
+  random: [],
+  warm: ['female', 'maria', 'samantha', 'sofia', 'lucia', 'lucía'],
+  bright: ['google', 'zira', 'susan', 'catherine', 'linda'],
+  deep: ['male', 'daniel', 'alex', 'jorge', 'diego', 'miguel'],
+  calm: ['serena', 'paulina', 'audrey', 'amelie'],
+  energetic: ['fred', 'mark', 'david', 'juan']
+};
+
+const TTS_PROFILE_MODIFIERS = {
+  random: { pitchOffset: 0, rateOffset: 0 },
+  warm: { pitchOffset: 0.15, rateOffset: -0.1 },
+  bright: { pitchOffset: 0.3, rateOffset: 0.1 },
+  deep: { pitchOffset: -0.35, rateOffset: -0.1 },
+  calm: { pitchOffset: -0.1, rateOffset: -0.2 },
+  energetic: { pitchOffset: 0.2, rateOffset: 0.25 }
+};
+
+const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
+const SHIMEJI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
+const SOUND_ASSET_PATHS = {
+  success: 'assets/shimeji-success.wav',
+  error: 'assets/shimeji-error.wav'
+};
+
+let sharedAudioCtx = null;
+const sharedSoundBuffers = { success: null, error: null };
+let sharedSoundBuffersLoaded = false;
+let sharedSoundBuffersLoading = null;
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getShimejiPitchFactor(shimejiId) {
+  const idx = parseInt((`${shimejiId}`.match(/(\d+)/) || [, '1'])[1], 10) - 1;
+  return SHIMEJI_PITCH_FACTORS[idx % SHIMEJI_PITCH_FACTORS.length];
+}
+
+function pickRandomTtsProfile() {
+  if (!TTS_PROFILE_POOL.length) return 'random';
+  return TTS_PROFILE_POOL[Math.floor(Math.random() * TTS_PROFILE_POOL.length)];
+}
+
+function pickRandomChatTheme() {
+  return CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
+}
+
+function getVoicesAsync() {
+  return new Promise((resolve) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return resolve([]);
+    let voices = synth.getVoices();
+    if (voices && voices.length) return resolve(voices);
+    const handler = () => {
+      voices = synth.getVoices();
+      resolve(voices || []);
+      synth.removeEventListener?.('voiceschanged', handler);
+    };
+    synth.addEventListener?.('voiceschanged', handler);
+    setTimeout(() => resolve(synth.getVoices() || []), 650);
+  });
+}
+
+function pickVoiceByProfile(profile, voices, langPrefix) {
+  const filtered = voices.filter((v) => (v.lang || '').toLowerCase().startsWith(langPrefix));
+  const pool = filtered.length ? filtered : voices;
+  if (!pool.length) return null;
+  if (profile === 'random') {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  const keywords = TTS_VOICE_PROFILES[profile] || [];
+  if (!keywords.length) return pool[0];
+  const found = pool.find((voice) => {
+    const name = (voice.name || '').toLowerCase();
+    return keywords.some((kw) => name.includes(kw));
+  });
+  return found || pool[0];
+}
+
+function getSpeechRecognitionCtor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function getSpeechRecognitionLang() {
+  return isSpanishLocale() ? 'es-ES' : 'en-US';
+}
+
+function getSharedAudioContext() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new AudioContextCtor();
+  }
+  return sharedAudioCtx;
+}
+
+async function loadAudioBufferFromUrl(url) {
+  if (!url) return null;
+  const ctx = getSharedAudioContext();
+  if (!ctx) return null;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return await ctx.decodeAudioData(arrayBuffer);
+  } catch {
+    return null;
+  }
+}
+
+function getSoundAssetUrl(kind) {
+  const filePath = SOUND_ASSET_PATHS[kind];
+  if (!filePath) return '';
+  try {
+    return new URL(filePath, window.location.href).toString();
+  } catch {
+    return '';
+  }
+}
+
+async function ensureSharedSoundBuffersLoaded() {
+  if (sharedSoundBuffersLoaded) return;
+  if (sharedSoundBuffersLoading) {
+    await sharedSoundBuffersLoading;
+    return;
+  }
+  sharedSoundBuffersLoading = (async () => {
+    for (const kind of ['success', 'error']) {
+      if (sharedSoundBuffers[kind]) continue;
+      const url = getSoundAssetUrl(kind);
+      sharedSoundBuffers[kind] = await loadAudioBufferFromUrl(url);
+    }
+    sharedSoundBuffersLoaded = true;
+    sharedSoundBuffersLoading = null;
+  })();
+  await sharedSoundBuffersLoading;
+}
 
 function hexToRgb(hex) {
   if (!hex) return null;
@@ -116,18 +286,81 @@ const CHARACTERS = [
 
 let shimejis = [];
 let globalConfig = {};
+let uiLanguage = null;
+let activeMicShimejiId = null;
+
+function detectBrowserLanguage() {
+  const languages = Array.isArray(navigator.languages) && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language];
+  const hasSpanish = languages.some((lang) => (lang || '').toLowerCase().startsWith('es'));
+  return hasSpanish ? 'es' : 'en';
+}
+
+function syncUiLanguageFromConfig(config = globalConfig) {
+  const fromConfig = config && (config.shimejiLanguage === 'es' || config.shimejiLanguage === 'en')
+    ? config.shimejiLanguage
+    : null;
+  uiLanguage = fromConfig || detectBrowserLanguage();
+}
+
+function getUiLanguage() {
+  if (uiLanguage === 'es' || uiLanguage === 'en') return uiLanguage;
+  syncUiLanguageFromConfig(globalConfig);
+  return uiLanguage;
+}
+
+function isSpanishLocale() {
+  return getUiLanguage() === 'es';
+}
+
+function t(en, es) {
+  return isSpanishLocale() ? es : en;
+}
+
+const IS_WINDOWS_PLATFORM = /win/i.test(`${navigator.platform || navigator.userAgent || ''}`);
+const IS_MAC_PLATFORM = /mac/i.test(`${navigator.platform || navigator.userAgent || ''}`);
+const DEFAULT_TERMINAL_PROFILE = IS_WINDOWS_PLATFORM ? 'Ubuntu' : '';
+
+function normalizeTerminalProfile(rawValue) {
+  const normalized = `${rawValue || ''}`.trim();
+  if (IS_WINDOWS_PLATFORM) return normalized || DEFAULT_TERMINAL_PROFILE;
+  if (!normalized) return '';
+  if (/^ubuntu$/i.test(normalized) || /^wsl$/i.test(normalized)) return '';
+  return normalized;
+}
 
 class Shimeji {
   constructor(id, config = {}) {
     this.id = id;
+    const randomTheme = pickRandomChatTheme();
     this.config = {
       character: config.character || 'shimeji',
       size: config.size || 'medium',
       enabled: config.enabled !== false,
       personality: config.personality || 'cryptid',
-      chatTheme: config.chatTheme || 'pastel',
+      chatTheme: config.chatTheme || randomTheme.id,
+      chatThemeColor: config.chatThemeColor || randomTheme.theme,
+      chatBgColor: config.chatBgColor || randomTheme.bg,
+      chatBubbleStyle: config.chatBubbleStyle || randomTheme.bubble || 'glass',
+      chatThemePreset: config.chatThemePreset || randomTheme.id,
+      chatFontSize: config.chatFontSize || 'medium',
+      chatWidth: config.chatWidth || 'medium',
+      chatWidthPx: typeof config.chatWidthPx === 'number' ? config.chatWidthPx : null,
+      chatHeightPx: typeof config.chatHeightPx === 'number' ? config.chatHeightPx : null,
+      ttsEnabled: config.ttsEnabled === true,
+      ttsVoiceProfile: config.ttsVoiceProfile || pickRandomTtsProfile(),
+      ttsVoiceId: config.ttsVoiceId || '',
+      openMicEnabled: config.openMicEnabled === true,
+      relayEnabled: config.relayEnabled === true,
+      soundEnabled: config.soundEnabled !== false,
+      soundVolume: typeof config.soundVolume === 'number' ? config.soundVolume : 0.7,
+      terminalDistro: normalizeTerminalProfile(config.terminalDistro),
+      terminalCwd: config.terminalCwd || '',
+      terminalNotifyOnFinish: config.terminalNotifyOnFinish !== false,
       ...config
     };
+    this.config.terminalDistro = normalizeTerminalProfile(this.config.terminalDistro);
 
     this.state = {
       x: 0,
@@ -164,11 +397,53 @@ class Shimeji {
 
     this.chatOpen = false;
     this.messages = [];
+    this.unreadNotificationCount = 0;
     this.pendingAssistantIndex = null;
     this.pendingStreamText = '';
+    this.pendingStreamHadDelta = false;
     this.markdownCopyTextMap = new WeakMap();
     this.elements = {};
     this.chatClickTimeout = null;
+    this.recognition = null;
+    this.mediaRecorder = null;
+    this.mediaRecorderChunks = [];
+    this.isListening = false;
+    this.isTranscribing = false;
+    this.micDraftText = '';
+    this.micAutoSendTimer = null;
+    this.micAutoSendInterval = null;
+    this.micAutoSendSeconds = 0;
+    this.micSessionAutoRestart = false;
+    this.micSessionContinuous = false;
+    this.micRestartTimer = null;
+    this.micPermissionStream = null;
+    this.micPermissionRequest = null;
+    this.silenceDetectionInterval = null;
+    this.lastSpeechTime = 0;
+    this.micNetworkErrorCount = 0;
+    this.micNetworkWarningShown = false;
+    this.ttsQueue = [];
+    this.ttsSpeaking = false;
+    this.relayGuard = false;
+    this.resizeState = null;
+    this.lastAssistantText = '';
+    this.terminalCommandHistory = [];
+    this.terminalHistoryCursor = null;
+    this.terminalHistoryDraft = '';
+    this.terminalAutocompleteToken = 0;
+    this.terminalAutocompleteState = null;
+    this.terminalView = null;
+    this.terminalSessionReady = false;
+    this.terminalSessionStarting = null;
+    this.terminalStatusError = false;
+    this.terminalLastStatus = '';
+    this.terminalLastClosedNotice = 0;
+    this.terminalFitTimer = null;
+    this.terminalLastSize = { cols: 0, rows: 0 };
+    this.closedChatNoticeUntil = 0;
+    this.closedChatNoticeTimer = null;
+    this.boundRelayHandler = (event) => this.onRelayEvent(event);
+    this.boundStopMicHandler = (event) => this.onStopMicEvent(event);
 
     this.init();
   }
@@ -182,9 +457,26 @@ class Shimeji {
     this.state.wanderTarget = this.state.x;
 
     this.createElements();
+    this.loadConversation();
     this.setupEventListeners();
 
     console.log(`Shimeji ${this.id} created with character "${this.config.character}" at (${this.state.x.toFixed(0)}, ${this.state.y.toFixed(0)})`);
+  }
+
+  async loadConversation() {
+    if (!window.shimejiApi?.getConversation) return;
+    try {
+      const history = await window.shimejiApi.getConversation(this.id);
+      if (Array.isArray(history)) {
+        this.messages = history.filter((item) => item && typeof item === 'object');
+        this.renderMessages();
+      }
+    } catch {}
+  }
+
+  saveConversation() {
+    if (!window.shimejiApi?.saveConversation) return;
+    window.shimejiApi.saveConversation(this.id, this.messages.slice(-80));
   }
 
   getCharacterPath() {
@@ -238,112 +530,481 @@ class Shimeji {
     const charPath = this.getCharacterPath();
     sprite.src = charPath + 'stand-neutral.png';
 
+    const overheadTyping = document.createElement('div');
+    overheadTyping.className = 'shimeji-overhead-typing';
+    overheadTyping.appendChild(this.createTypingDotsElement());
+
+    const notificationBadge = document.createElement('div');
+    notificationBadge.className = 'shimeji-notification-badge';
+    notificationBadge.textContent = '1';
+
+    wrapper.appendChild(overheadTyping);
+    wrapper.appendChild(notificationBadge);
     wrapper.appendChild(sprite);
     container.appendChild(wrapper);
 
-    this.elements = { wrapper, sprite, container };
+    this.elements = { wrapper, sprite, container, overheadTyping, notificationBadge };
     this.createChatBubble();
   }
 
   createChatBubble() {
     const chat = document.createElement('div');
-    chat.className = 'chat-bubble glass hidden';
+    chat.className = 'shimeji-chat-bubble chat-style-glass';
     chat.style.position = 'absolute';
 
     const header = document.createElement('div');
-    header.className = 'chat-header';
+    header.className = 'shimeji-chat-header';
 
-    const title = document.createElement('div');
-    title.className = 'chat-title';
-    title.innerHTML = `
-      <span class="chat-name">Shimeji</span>
-      <span class="chat-personality">OpenRouter</span>
-    `;
+    const titleWrap = document.createElement('div');
+    titleWrap.className = 'shimeji-chat-title-wrap';
+    const chatName = document.createElement('span');
+    chatName.className = 'shimeji-chat-name';
+    chatName.textContent = 'Shimeji';
+    const chatMeta = document.createElement('span');
+    chatMeta.className = 'shimeji-chat-meta';
+    chatMeta.textContent = 'OpenRouter';
+    titleWrap.appendChild(chatName);
+    titleWrap.appendChild(chatMeta);
 
-    const controls = document.createElement('div');
-    controls.className = 'chat-controls';
-    controls.innerHTML = `
-      <button class="chat-btn chat-settings-btn" title="Chat settings" disabled>⚙</button>
-      <button class="chat-btn chat-mic-btn" title="Mic (coming soon)" disabled>🎙</button>
-      <button class="chat-btn chat-close-btn" title="Close">✕</button>
-    `;
+    const headerButtons = document.createElement('div');
+    headerButtons.className = 'shimeji-chat-header-btns';
 
-    header.appendChild(title);
-    header.appendChild(controls);
+    const ttsBtn = document.createElement('button');
+    ttsBtn.type = 'button';
+    ttsBtn.className = 'shimeji-chat-voice-quick';
+    ttsBtn.textContent = '🔇';
+    ttsBtn.title = t('Enable voice', 'Activar voz');
 
-    const controlsRow = document.createElement('div');
-    controlsRow.className = 'chat-controls-row';
-    controlsRow.innerHTML = `
-      <button class="chat-toggle-btn" disabled>Open Mic</button>
-      <button class="chat-toggle-btn" disabled>Relay</button>
-      <button class="chat-toggle-btn" disabled>Theme</button>
-    `;
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'shimeji-chat-settings-toggle';
+    settingsBtn.textContent = '⚙️';
+    settingsBtn.title = t('Controls', 'Controles');
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'shimeji-chat-close';
+    closeBtn.textContent = '×';
+    closeBtn.title = t('Close', 'Cerrar');
+
+    headerButtons.appendChild(ttsBtn);
+    headerButtons.appendChild(settingsBtn);
+    headerButtons.appendChild(closeBtn);
+    header.appendChild(titleWrap);
+    header.appendChild(headerButtons);
+
+    const controlsPanel = document.createElement('div');
+    controlsPanel.className = 'shimeji-chat-controls-panel';
+
+    const makeControlRow = (label, control) => {
+      const row = document.createElement('div');
+      row.className = 'shimeji-chat-control-row';
+      const rowLabel = document.createElement('span');
+      rowLabel.className = 'shimeji-chat-control-label';
+      rowLabel.textContent = label;
+      row.appendChild(rowLabel);
+      row.appendChild(control);
+      return { row, rowLabel };
+    };
+
+    const openMicToggleBtn = document.createElement('button');
+    openMicToggleBtn.type = 'button';
+    openMicToggleBtn.className = 'shimeji-chat-openmic-toggle';
+    openMicToggleBtn.textContent = '🎙️';
+    openMicToggleBtn.title = t('Enable open mic', 'Activar micrófono abierto');
+    const openMicRowParts = makeControlRow(t('Open mic', 'Micrófono abierto'), openMicToggleBtn);
+    const openMicRow = openMicRowParts.row;
+    const openMicLabel = openMicRowParts.rowLabel;
+    openMicRow.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('button')) return;
+      openMicToggleBtn.click();
+    });
+    controlsPanel.appendChild(openMicRow);
+
+    const relayToggleBtn = document.createElement('button');
+    relayToggleBtn.type = 'button';
+    relayToggleBtn.className = 'shimeji-chat-relay-toggle';
+    relayToggleBtn.textContent = '🔁';
+    relayToggleBtn.title = t('Talk to other shimejis: off', 'Hablar con otros shimejis: apagado');
+    const relayRowParts = makeControlRow(t('Talk to other shimejis', 'Hablar con otros shimejis'), relayToggleBtn);
+    const relayRow = relayRowParts.row;
+    const relayLabel = relayRowParts.rowLabel;
+    relayRow.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('button')) return;
+      relayToggleBtn.click();
+    });
+    controlsPanel.appendChild(relayRow);
+
+    const themeToggleBtn = document.createElement('button');
+    themeToggleBtn.type = 'button';
+    themeToggleBtn.className = 'shimeji-chat-theme-toggle';
+    themeToggleBtn.textContent = '🎨';
+    themeToggleBtn.title = t('Chat theme', 'Tema de chat');
+    const themeRowParts = makeControlRow(t('Theme', 'Tema'), themeToggleBtn);
+    const themeRow = themeRowParts.row;
+    const themeLabel = themeRowParts.rowLabel;
+    themeRow.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('button')) return;
+      themeToggleBtn.click();
+    });
+    controlsPanel.appendChild(themeRow);
+
+    const fontSizeSelect = document.createElement('select');
+    fontSizeSelect.className = 'shimeji-chat-font-select';
+    [
+      { value: 'small', label: t('Small', 'Pequeño') },
+      { value: 'medium', label: t('Medium', 'Medio') },
+      { value: 'large', label: t('Large', 'Grande') }
+    ].forEach((option) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = option.value;
+      optionEl.textContent = option.label;
+      fontSizeSelect.appendChild(optionEl);
+    });
+    const fontRowParts = makeControlRow(t('Text size', 'Tamaño de texto'), fontSizeSelect);
+    const fontRow = fontRowParts.row;
+    const fontLabel = fontRowParts.rowLabel;
+    fontRow.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('select')) return;
+      fontSizeSelect.focus();
+    });
+    controlsPanel.appendChild(fontRow);
+
+    const themePanel = document.createElement('div');
+    themePanel.className = 'shimeji-chat-theme-panel';
+
+    const themeHeader = document.createElement('div');
+    themeHeader.className = 'shimeji-chat-theme-header';
+    const themeHeaderLabel = document.createElement('span');
+    themeHeaderLabel.className = 'shimeji-chat-theme-header-label';
+    themeHeaderLabel.textContent = t('Chat theme', 'Tema de chat');
+    const themeCloseBtn = document.createElement('button');
+    themeCloseBtn.type = 'button';
+    themeCloseBtn.className = 'shimeji-chat-theme-close';
+    themeCloseBtn.textContent = '×';
+    themeHeader.appendChild(themeHeaderLabel);
+    themeHeader.appendChild(themeCloseBtn);
+    themePanel.appendChild(themeHeader);
+
+    const presetSection = document.createElement('div');
+    presetSection.className = 'shimeji-chat-theme-section';
+    const presetLabel = document.createElement('span');
+    presetLabel.className = 'shimeji-chat-theme-label';
+    presetLabel.textContent = t('Themes', 'Temas');
+    const presetRow = document.createElement('div');
+    presetRow.className = 'shimeji-theme-presets';
+    presetSection.appendChild(presetLabel);
+    presetSection.appendChild(presetRow);
+    themePanel.appendChild(presetSection);
+
+    const themeButtons = new Map();
+    const themeButtonMeta = new Map();
+    const createThemeChip = (id, labelEn, labelEs, colors = null) => {
+      const label = isSpanishLocale() ? (labelEs || labelEn) : (labelEn || labelEs);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'shimeji-theme-circle';
+      btn.dataset.themeId = id;
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+
+      const outer = document.createElement('span');
+      outer.className = 'shimeji-theme-circle-outer';
+      const inner = document.createElement('span');
+      inner.className = 'shimeji-theme-circle-inner';
+      if (colors && colors.theme && colors.bg) {
+        outer.style.background = colors.bg;
+        inner.style.background = colors.theme;
+      } else {
+        outer.classList.add('custom');
+        inner.classList.add('custom');
+      }
+      if (id === 'custom') {
+        inner.textContent = '🎨';
+        inner.classList.add('emoji');
+      }
+      if (id === 'random') {
+        inner.textContent = '🎲';
+        inner.classList.add('emoji');
+      }
+      outer.appendChild(inner);
+      btn.appendChild(outer);
+      presetRow.appendChild(btn);
+      themeButtons.set(id, btn);
+      themeButtonMeta.set(id, { labelEn: labelEn || labelEs || id, labelEs: labelEs || labelEn || id });
+      return btn;
+    };
+
+    createThemeChip('custom', '🎨 Custom', '🎨 Personalizado');
+    createThemeChip('random', '🎲 Random', '🎲 Aleatorio', { theme: '#111827', bg: '#f8fafc' });
+    CHAT_THEME_PRESETS.forEach((theme) => {
+      createThemeChip(
+        theme.id,
+        theme.labelEn || theme.label || theme.id,
+        theme.labelEs || theme.labelEn || theme.label || theme.id,
+        { theme: theme.theme, bg: theme.bg }
+      );
+    });
+
+    const customSection = document.createElement('div');
+    customSection.className = 'shimeji-chat-theme-section shimeji-chat-theme-custom';
+    const customLabel = document.createElement('span');
+    customLabel.className = 'shimeji-chat-theme-label';
+    customLabel.textContent = t('Colors', 'Colores');
+    const customRow = document.createElement('div');
+    customRow.className = 'shimeji-theme-color-row';
+    const themeColorInput = document.createElement('input');
+    themeColorInput.type = 'color';
+    themeColorInput.className = 'shimeji-chat-theme-color';
+    const bgColorInput = document.createElement('input');
+    bgColorInput.type = 'color';
+    bgColorInput.className = 'shimeji-chat-theme-bg';
+    customRow.appendChild(themeColorInput);
+    customRow.appendChild(bgColorInput);
+    customSection.appendChild(customLabel);
+    customSection.appendChild(customRow);
+    themePanel.appendChild(customSection);
 
     const messagesArea = document.createElement('div');
-    messagesArea.className = 'chat-messages';
+    messagesArea.className = 'shimeji-chat-messages';
+
+    const terminalPane = document.createElement('div');
+    terminalPane.className = 'shimeji-chat-terminal-pane';
+    const terminalStatus = document.createElement('div');
+    terminalStatus.className = 'shimeji-chat-terminal-status';
+    terminalStatus.textContent = t('Terminal disconnected', 'Terminal desconectado');
+    const terminalViewport = document.createElement('div');
+    terminalViewport.className = 'shimeji-chat-terminal-viewport';
+    terminalPane.appendChild(terminalStatus);
+    terminalPane.appendChild(terminalViewport);
 
     const inputArea = document.createElement('div');
-    inputArea.className = 'chat-input-area';
-    inputArea.innerHTML = `
-      <textarea class="chat-input" placeholder="Type a message..." rows="1"></textarea>
-      <button class="chat-send-btn" aria-label="Send">➤</button>
-    `;
+    inputArea.className = 'shimeji-chat-input-area';
+    const input = document.createElement('input');
+    input.className = 'shimeji-chat-input';
+    input.type = 'text';
+    input.placeholder = t('Say something...', 'Di algo...');
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'shimeji-chat-send';
+    sendBtn.setAttribute('aria-label', t('Send', 'Enviar'));
+    sendBtn.textContent = '▶';
+    const micBtn = document.createElement('button');
+    micBtn.type = 'button';
+    micBtn.className = 'shimeji-chat-mic';
+    micBtn.setAttribute('aria-label', t('Push to talk', 'Presiona para hablar'));
+    micBtn.textContent = '🎙';
+    inputArea.appendChild(input);
+    inputArea.appendChild(sendBtn);
+    inputArea.appendChild(micBtn);
+
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'shimeji-chat-resize-handle';
 
     chat.appendChild(header);
-    chat.appendChild(controlsRow);
+    chat.appendChild(controlsPanel);
+    chat.appendChild(themePanel);
     chat.appendChild(messagesArea);
+    chat.appendChild(terminalPane);
     chat.appendChild(inputArea);
+    chat.appendChild(resizeHandle);
     document.body.appendChild(chat);
 
     this.elements.chat = chat;
     this.elements.messagesArea = messagesArea;
-    this.elements.input = inputArea.querySelector('.chat-input');
-    this.elements.sendBtn = inputArea.querySelector('.chat-send-btn');
-    this.elements.closeBtn = header.querySelector('.chat-close-btn');
-    this.elements.chatName = title.querySelector('.chat-name');
-    this.elements.chatTitle = title.querySelector('.chat-personality');
+    this.elements.input = input;
+    this.elements.sendBtn = sendBtn;
+    this.elements.closeBtn = closeBtn;
+    this.elements.chatName = chatName;
+    this.elements.chatTitle = chatMeta;
+    this.elements.settingsBtn = settingsBtn;
+    this.elements.ttsBtn = ttsBtn;
+    this.elements.micBtn = micBtn;
+    this.elements.openMicToggleBtn = openMicToggleBtn;
+    this.elements.relayToggleBtn = relayToggleBtn;
+    this.elements.openMicLabel = openMicLabel;
+    this.elements.relayLabel = relayLabel;
+    this.elements.themeToggleBtn = themeToggleBtn;
+    this.elements.themeLabel = themeLabel;
+    this.elements.fontSizeLabel = fontLabel;
+    this.elements.themeHeaderLabel = themeHeaderLabel;
+    this.elements.themePresetLabel = presetLabel;
+    this.elements.themeCustomLabel = customLabel;
+    this.elements.controlsPanel = controlsPanel;
+    this.elements.settingsPanel = controlsPanel;
+    this.elements.themePanel = themePanel;
+    this.elements.resizeHandle = resizeHandle;
+    this.elements.themeColorInput = themeColorInput;
+    this.elements.bgColorInput = bgColorInput;
+    this.elements.fontSizeSelect = fontSizeSelect;
+    this.elements.themeButtons = themeButtons;
+    this.elements.themeButtonMeta = themeButtonMeta;
+    this.elements.themeCustomSection = customSection;
+    this.elements.chatInputArea = inputArea;
+    this.elements.terminalPane = terminalPane;
+    this.elements.terminalStatus = terminalStatus;
+    this.elements.terminalViewport = terminalViewport;
 
+    this.normalizeChatThemeConfig(true);
+    this.syncSettingsInputs();
     this.applyChatTheme();
     this.updateChatHeader();
+    this.applyLocalizedText();
+    this.syncChatControlButtons();
+
+    const shouldFocusOnChatClick = (target) => {
+      if (!target || !target.closest) return true;
+      if (target.closest('.shimeji-chat-messages')) return false;
+      if (target.closest('.shimeji-chat-msg')) return false;
+      if (target.closest('a')) return false;
+      if (target.closest('input, textarea, select')) return false;
+      if (target.closest('button')) return false;
+      if (target.closest('.shimeji-chat-terminal-pane')) return false;
+      return true;
+    };
+
+    const closePanels = () => {
+      this.toggleSettingsPanel(false);
+      this.toggleThemePanel(false);
+    };
 
     this.elements.closeBtn.addEventListener('click', () => this.toggleChat());
     this.elements.sendBtn.addEventListener('click', () => this.sendMessage());
-    this.elements.input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
+    this.elements.input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
         this.sendMessage();
-      }
-    });
-
-    // Chat bubble interactions - hover shows pointer, click brings to front and focuses
-    chat.addEventListener('mouseenter', () => {
-      chat.style.cursor = 'pointer';
-    });
-    
-    chat.addEventListener('click', (e) => {
-      // Don't interfere with input, buttons, or close button clicks
-      if (e.target.tagName === 'INPUT' || 
-          e.target.tagName === 'TEXTAREA' || 
-          e.target.tagName === 'BUTTON' ||
-          e.target.closest('.chat-close-btn')) {
         return;
       }
-      
-      this.bringToFront();
-      this.elements.input.focus();
+      if (!this.isTerminalMode()) return;
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        this.navigateTerminalHistory(-1);
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        this.navigateTerminalHistory(1);
+        return;
+      }
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        this.handleTerminalAutocomplete(event.shiftKey ? -1 : 1);
+      }
     });
 
-    // Prevent chat from closing when clicking inside it
-    chat.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
+    this.elements.input.addEventListener('input', () => {
+      if (this.isTerminalMode() && this.terminalHistoryCursor !== null) {
+        this.terminalHistoryCursor = null;
+      }
+      this.resetTerminalAutocompleteState();
+    });
+
+    settingsBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleSettingsPanel();
+    });
+
+    ttsBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleTts();
+    });
+
+    micBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleVoiceInput();
+    });
+
+    openMicToggleBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.setOpenMicEnabled(!(this.config.openMicEnabled === true));
+    });
+
+    relayToggleBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.setRelayEnabled(!(this.config.relayEnabled === true));
+    });
+
+    themeToggleBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleThemePanel();
+    });
+
+    themeCloseBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleThemePanel(false);
+    });
+
+    fontSizeSelect.addEventListener('change', () => {
+      this.config.chatFontSize = fontSizeSelect.value || 'medium';
+      this.applyChatTheme();
+      this.persistConfig();
+    });
+
+    themeColorInput.addEventListener('input', () => {
+      this.setCustomThemeColors(themeColorInput.value, bgColorInput.value);
+    });
+
+    bgColorInput.addEventListener('input', () => {
+      this.setCustomThemeColors(themeColorInput.value, bgColorInput.value);
+    });
+
+    themeButtons.forEach((button, themeId) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (themeId === 'custom') {
+          this.setCustomThemeColors(themeColorInput.value, bgColorInput.value);
+          return;
+        }
+        this.applyThemePresetSelection(themeId);
+      });
+    });
+
+    resizeHandle.addEventListener('mousedown', (event) => this.onResizeStart(event, 'se'));
+    messagesArea.addEventListener('click', closePanels);
+    terminalPane.addEventListener('click', closePanels);
+    inputArea.addEventListener('click', closePanels);
+
+    chat.addEventListener('click', (event) => {
+      this.bringToFront();
+      if (shouldFocusOnChatClick(event.target)) {
+        this.focusInput();
+      }
+    });
+
+    chat.addEventListener('mousedown', (event) => {
+      if (this.tryStartResizeFromEdge(event)) return;
+      event.stopPropagation();
       if (window.shimejiApi?.setIgnoreMouseEvents) {
         isMouseOverInteractive = true;
         window.shimejiApi.setIgnoreMouseEvents(false);
       }
     });
 
-    this.elements.input.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
+    chat.addEventListener('mousemove', (event) => this.onChatResizeHover(event));
+    chat.addEventListener('mouseleave', () => this.onChatResizeLeave());
+
+    messagesArea.addEventListener('mousedown', (event) => {
+      event.stopPropagation();
+      this.bringToFront();
+    });
+
+    terminalPane.addEventListener('mousedown', (event) => {
+      event.stopPropagation();
+      this.bringToFront();
+      this.focusTerminal();
+    });
+
+    this.elements.input.addEventListener('mousedown', (event) => {
+      event.stopPropagation();
       this.focusInput();
     });
 
@@ -354,6 +1015,1006 @@ class Shimeji {
         window.shimejiApi.setIgnoreMouseEvents(false);
       }
     });
+
+    document.addEventListener('shimeji-relay', this.boundRelayHandler);
+    document.addEventListener('shimeji-stop-mic', this.boundStopMicHandler);
+
+    const TerminalPaneCtor = window.ShimejiTerminalPane;
+    if (TerminalPaneCtor && terminalViewport) {
+      this.terminalView = new TerminalPaneCtor(terminalViewport, {
+        onData: (data) => this.sendTerminalInput(data),
+        onResize: ({ cols, rows }) => this.handleTerminalViewportResize(cols, rows)
+      });
+    }
+    this.syncTerminalModeUi();
+  }
+
+  normalizeChatThemeConfig(forceDefaults = false) {
+    const explicitPreset = CHAT_THEME_PRESETS.find((theme) => theme.id === this.config.chatTheme);
+    const presetId = this.config.chatThemePreset
+      || (explicitPreset ? explicitPreset.id : 'custom');
+
+    if (presetId === 'random' && !forceDefaults) {
+      if (!this.config.chatThemeColor || !this.config.chatBgColor) {
+        const randomTheme = pickRandomChatTheme();
+        this.config.chatThemeColor = randomTheme.theme;
+        this.config.chatBgColor = randomTheme.bg;
+        this.config.chatBubbleStyle = randomTheme.bubble || 'glass';
+      }
+      return;
+    }
+
+    if (presetId !== 'custom') {
+      const preset = CHAT_THEME_PRESETS.find((theme) => theme.id === presetId) || CHAT_THEME_PRESETS[0];
+      if (preset && (forceDefaults || !this.config.chatThemeColor || !this.config.chatBgColor)) {
+        this.config.chatThemeColor = preset.theme;
+        this.config.chatBgColor = preset.bg;
+      }
+      if (preset && (forceDefaults || !this.config.chatBubbleStyle)) {
+        this.config.chatBubbleStyle = preset.bubble || 'glass';
+      }
+      this.config.chatTheme = preset?.id || this.config.chatTheme || 'pastel';
+    }
+
+    if (!this.config.chatThemeColor) this.config.chatThemeColor = '#3b1a77';
+    if (!this.config.chatBgColor) this.config.chatBgColor = '#f0e8ff';
+    if (!this.config.chatBubbleStyle) this.config.chatBubbleStyle = 'glass';
+    if (!this.config.chatFontSize) this.config.chatFontSize = 'medium';
+    if (!this.config.chatWidth) this.config.chatWidth = 'medium';
+    if (!this.config.chatThemePreset) this.config.chatThemePreset = presetId || 'custom';
+    const numericWidth = Number(this.config.chatWidthPx);
+    this.config.chatWidthPx = Number.isFinite(numericWidth) ? numericWidth : null;
+    const numericHeight = Number(this.config.chatHeightPx);
+    this.config.chatHeightPx = Number.isFinite(numericHeight) ? numericHeight : null;
+  }
+
+  syncSettingsInputs() {
+    const {
+      themeColorInput,
+      bgColorInput,
+      fontSizeSelect,
+      voiceProfileSelect,
+      themeButtons,
+      themeCustomSection
+    } = this.elements;
+
+    const themeColor = this.normalizeColor(this.config.chatThemeColor, '#3b1a77');
+    const bgColor = this.normalizeColor(this.config.chatBgColor, '#f0e8ff');
+    const bubbleStyle = this.config.chatBubbleStyle || 'glass';
+
+    if (themeColorInput) {
+      themeColorInput.value = themeColor;
+    }
+    if (bgColorInput) {
+      bgColorInput.value = bgColor;
+    }
+    if (fontSizeSelect) {
+      fontSizeSelect.value = this.config.chatFontSize || 'medium';
+    }
+    if (voiceProfileSelect) {
+      voiceProfileSelect.value = this.config.ttsVoiceProfile || 'random';
+    }
+
+    let selectedThemeId = 'custom';
+    if (this.config.chatThemePreset === 'random') {
+      selectedThemeId = 'random';
+    } else {
+      const matchedPreset = CHAT_THEME_PRESETS.find((theme) => (
+        String(theme.theme).toLowerCase() === themeColor.toLowerCase()
+        && String(theme.bg).toLowerCase() === bgColor.toLowerCase()
+        && String(theme.bubble || 'glass').toLowerCase() === String(bubbleStyle).toLowerCase()
+      ));
+      selectedThemeId = matchedPreset ? matchedPreset.id : 'custom';
+    }
+
+    if (themeButtons && typeof themeButtons.forEach === 'function') {
+      themeButtons.forEach((button, themeId) => {
+        button.classList.toggle('active', themeId === selectedThemeId);
+      });
+    }
+    if (themeCustomSection) {
+      themeCustomSection.style.display = selectedThemeId === 'custom' ? '' : 'none';
+    }
+  }
+
+  applyLocalizedText() {
+    if (this.elements.settingsBtn) {
+      this.elements.settingsBtn.title = t('Controls', 'Controles');
+    }
+    if (this.elements.closeBtn) {
+      this.elements.closeBtn.title = t('Close', 'Cerrar');
+    }
+    if (this.elements.openMicLabel) {
+      this.elements.openMicLabel.textContent = t('Open mic', 'Micrófono abierto');
+    }
+    if (this.elements.relayLabel) {
+      this.elements.relayLabel.textContent = t('Talk to other shimejis', 'Hablar con otros shimejis');
+    }
+    if (this.elements.themeLabel) {
+      this.elements.themeLabel.textContent = t('Theme', 'Tema');
+    }
+    if (this.elements.fontSizeLabel) {
+      this.elements.fontSizeLabel.textContent = t('Text size', 'Tamaño de texto');
+    }
+    if (this.elements.themeHeaderLabel) {
+      this.elements.themeHeaderLabel.textContent = t('Chat theme', 'Tema de chat');
+    }
+    if (this.elements.themePresetLabel) {
+      this.elements.themePresetLabel.textContent = t('Themes', 'Temas');
+    }
+    if (this.elements.themeCustomLabel) {
+      this.elements.themeCustomLabel.textContent = t('Colors', 'Colores');
+    }
+    if (this.elements.input) {
+      this.elements.input.placeholder = t('Say something...', 'Di algo...');
+    }
+    if (this.elements.sendBtn) {
+      this.elements.sendBtn.setAttribute('aria-label', t('Send', 'Enviar'));
+    }
+    if (this.elements.micBtn) {
+      this.elements.micBtn.setAttribute('aria-label', t('Push to talk', 'Presiona para hablar'));
+    }
+    if (this.elements.fontSizeSelect) {
+      const options = [
+        t('Small', 'Pequeño'),
+        t('Medium', 'Medio'),
+        t('Large', 'Grande')
+      ];
+      Array.from(this.elements.fontSizeSelect.options).forEach((option, index) => {
+        if (options[index]) option.textContent = options[index];
+      });
+    }
+    if (this.elements.themeButtons && this.elements.themeButtonMeta) {
+      this.elements.themeButtons.forEach((button, themeId) => {
+        const meta = this.elements.themeButtonMeta.get(themeId);
+        if (!meta) return;
+        const label = t(meta.labelEn, meta.labelEs);
+        button.title = label;
+        button.setAttribute('aria-label', label);
+      });
+    }
+    if (this.elements.messagesArea) {
+      this.elements.messagesArea.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
+        const text = String(btn.textContent || '').trim();
+        if (text === 'Copied' || text === 'Copiado' || text === 'Failed' || text === 'Error') return;
+        btn.textContent = t('Copy', 'Copiar');
+      });
+    }
+    if (this.elements.terminalStatus && !this.terminalStatusError) {
+      if (!this.isTerminalMode()) {
+        this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
+      } else if (this.terminalSessionReady) {
+        this.setTerminalStatus(t('Terminal connected', 'Terminal conectado'));
+      } else {
+        this.setTerminalStatus(t('Connecting terminal...', 'Conectando terminal...'));
+      }
+    }
+    // MediaRecorder doesn't need lang updates — Whisper handles language server-side
+  }
+
+  syncChatControlButtons() {
+    if (this.elements.ttsBtn) {
+      const active = this.config.ttsEnabled === true;
+      this.elements.ttsBtn.textContent = active ? '🔊' : '🔇';
+      this.elements.ttsBtn.classList.toggle('active', active);
+      this.elements.ttsBtn.title = active
+        ? t('Mute voice', 'Silenciar voz')
+        : t('Enable voice', 'Activar voz');
+    }
+
+    if (this.elements.micBtn) {
+      this.elements.micBtn.classList.toggle('active', this.isListening || this.isTranscribing);
+      this.elements.micBtn.classList.toggle('listening', this.isListening);
+      this.elements.micBtn.classList.toggle('transcribing', this.isTranscribing);
+      if (this.isTranscribing) {
+        this.elements.micBtn.textContent = '⏳';
+        this.elements.micBtn.title = t('Transcribing...', 'Transcribiendo...');
+      } else {
+        this.elements.micBtn.title = this.isListening
+          ? t('Stop listening', 'Detener escucha')
+          : t('Push to talk', 'Presiona para hablar');
+        if (!this.isListening) {
+          this.elements.micBtn.textContent = '🎙';
+        }
+      }
+    }
+
+    if (this.elements.openMicToggleBtn) {
+      const active = this.config.openMicEnabled === true;
+      this.elements.openMicToggleBtn.classList.toggle('active', active);
+      this.elements.openMicToggleBtn.textContent = '🎙️';
+      this.elements.openMicToggleBtn.title = active
+        ? t('Disable open mic', 'Desactivar micrófono abierto')
+        : t('Enable open mic', 'Activar micrófono abierto');
+    }
+
+    if (this.elements.relayToggleBtn) {
+      const active = this.config.relayEnabled === true;
+      this.elements.relayToggleBtn.classList.toggle('active', active);
+      this.elements.relayToggleBtn.textContent = '🔁';
+      this.elements.relayToggleBtn.title = active
+        ? t('Talk to other shimejis: on', 'Hablar con otros shimejis: activado')
+        : t('Talk to other shimejis: off', 'Hablar con otros shimejis: apagado');
+    }
+
+    if (this.elements.themeToggleBtn) {
+      this.elements.themeToggleBtn.textContent = '🎨';
+      this.elements.themeToggleBtn.title = t('Chat theme', 'Tema de chat');
+    }
+
+    if (this.elements.chatInputArea) {
+      this.elements.chatInputArea.classList.toggle('listening', this.isListening);
+    }
+  }
+
+  normalizeColor(value, fallback) {
+    const candidate = `${value || ''}`.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(candidate)) {
+      return candidate.toLowerCase();
+    }
+    return fallback;
+  }
+
+  toggleSettingsPanel(forceState) {
+    if (!this.elements.controlsPanel) return;
+    const show = typeof forceState === 'boolean'
+      ? forceState
+      : !this.elements.controlsPanel.classList.contains('open');
+    this.elements.controlsPanel.classList.toggle('open', show);
+    if (show) {
+      this.toggleThemePanel(false);
+      this.applyLocalizedText();
+      this.syncSettingsInputs();
+    }
+  }
+
+  toggleThemePanel(forceState) {
+    if (!this.elements.themePanel) return;
+    const show = typeof forceState === 'boolean'
+      ? forceState
+      : !this.elements.themePanel.classList.contains('open');
+    this.elements.themePanel.classList.toggle('open', show);
+    if (show) {
+      this.toggleSettingsPanel(false);
+      this.applyLocalizedText();
+      this.syncSettingsInputs();
+    }
+  }
+
+  applyThemePresetSelection(presetId) {
+    if (!presetId) return;
+    if (presetId === 'random') {
+      const randomTheme = pickRandomChatTheme();
+      this.config.chatThemePreset = 'random';
+      this.config.chatTheme = randomTheme.id;
+      this.config.chatThemeColor = randomTheme.theme;
+      this.config.chatBgColor = randomTheme.bg;
+      this.config.chatBubbleStyle = randomTheme.bubble || 'glass';
+    } else if (presetId === 'custom') {
+      this.config.chatThemePreset = 'custom';
+    } else {
+      const preset = CHAT_THEME_PRESETS.find((theme) => theme.id === presetId);
+      if (!preset) return;
+      this.config.chatThemePreset = preset.id;
+      this.config.chatTheme = preset.id;
+      this.config.chatThemeColor = preset.theme;
+      this.config.chatBgColor = preset.bg;
+      this.config.chatBubbleStyle = preset.bubble || 'glass';
+    }
+    this.applyChatTheme();
+    this.persistConfig();
+    this.syncSettingsInputs();
+  }
+
+  setCustomThemeColors(themeColor, bgColor) {
+    this.config.chatThemePreset = 'custom';
+    this.config.chatTheme = 'custom';
+    this.config.chatThemeColor = this.normalizeColor(themeColor, '#3b1a77');
+    this.config.chatBgColor = this.normalizeColor(bgColor, '#f0e8ff');
+    this.applyChatTheme();
+    this.persistConfig();
+    this.syncSettingsInputs();
+  }
+
+  cycleThemePreset() {
+    const options = ['pastel', 'pink', 'kawaii', 'mint', 'ocean', 'neural', 'cyberpunk', 'noir-rose', 'midnight', 'ember'];
+    const current = this.config.chatTheme || 'pastel';
+    const idx = options.indexOf(current);
+    const next = options[(idx + 1) % options.length];
+    this.applyThemePresetSelection(next);
+  }
+
+  persistConfig() {
+    persistShimejiConfig(this.id, this.config);
+  }
+
+  toggleTts() {
+    this.config.ttsEnabled = !(this.config.ttsEnabled === true);
+    if (!this.config.ttsEnabled) {
+      this.stopTts();
+    } else if (!this.config.ttsVoiceProfile) {
+      this.config.ttsVoiceProfile = pickRandomTtsProfile();
+    }
+    this.syncChatControlButtons();
+    this.persistConfig();
+  }
+
+  async resolveTtsVoice() {
+    const voices = await getVoicesAsync();
+    if (!voices.length) return null;
+
+    if (this.config.ttsVoiceId) {
+      const byId = voices.find((voice) => voice.name === this.config.ttsVoiceId);
+      if (byId) return byId;
+    }
+
+    const langPrefix = isSpanishLocale() ? 'es' : 'en';
+    const profile = this.config.ttsVoiceProfile || 'random';
+    const picked = pickVoiceByProfile(profile, voices, langPrefix);
+    if (picked && picked.name && picked.name !== this.config.ttsVoiceId) {
+      this.config.ttsVoiceId = picked.name;
+      this.persistConfig();
+    }
+    return picked;
+  }
+
+  enqueueSpeech(text, onEndCallback = null) {
+    const content = `${text || ''}`.trim();
+    if (!content) {
+      if (typeof onEndCallback === 'function') onEndCallback();
+      return;
+    }
+    if (this.config.ttsEnabled !== true || !window.speechSynthesis) {
+      if (typeof onEndCallback === 'function') onEndCallback();
+      return;
+    }
+    this.ttsQueue.push({ text: content, onEndCallback });
+    if (!this.ttsSpeaking) {
+      this.speakNextInQueue();
+    }
+  }
+
+  async speakNextInQueue() {
+    if (this.ttsSpeaking) return;
+    const next = this.ttsQueue.shift();
+    if (!next) return;
+    if (!window.speechSynthesis) {
+      if (typeof next.onEndCallback === 'function') next.onEndCallback();
+      return;
+    }
+
+    this.ttsSpeaking = true;
+    try {
+      const utterance = new SpeechSynthesisUtterance(next.text);
+      const base = PERSONALITY_TTS[this.config.personality] || { pitch: 1.0, rate: 1.0 };
+      const mod = TTS_PROFILE_MODIFIERS[this.config.ttsVoiceProfile || 'random'] || { pitchOffset: 0, rateOffset: 0 };
+      utterance.pitch = clamp(base.pitch + mod.pitchOffset, 0.1, 2.0) * getShimejiPitchFactor(this.id);
+      utterance.rate = clamp(base.rate + mod.rateOffset, 0.1, 3.0);
+      const voice = await this.resolveTtsVoice();
+      if (voice) utterance.voice = voice;
+      utterance.onend = () => {
+        this.ttsSpeaking = false;
+        if (typeof next.onEndCallback === 'function') next.onEndCallback();
+        this.speakNextInQueue();
+      };
+      utterance.onerror = () => {
+        this.ttsSpeaking = false;
+        if (typeof next.onEndCallback === 'function') next.onEndCallback();
+        this.speakNextInQueue();
+      };
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      this.ttsSpeaking = false;
+      if (typeof next.onEndCallback === 'function') next.onEndCallback();
+      this.speakNextInQueue();
+    }
+  }
+
+  stopTts() {
+    this.ttsQueue = [];
+    this.ttsSpeaking = false;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  }
+
+  setOpenMicEnabled(enabled) {
+    this.config.openMicEnabled = enabled === true;
+    if (!this.config.openMicEnabled) {
+      this.stopVoiceInput();
+      this.cancelMicAutoSend();
+    } else if (this.chatOpen) {
+      this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+    }
+    this.syncChatControlButtons();
+    this.persistConfig();
+  }
+
+  setRelayEnabled(enabled) {
+    this.config.relayEnabled = enabled === true;
+    this.syncChatControlButtons();
+    this.persistConfig();
+  }
+
+  async ensureMicrophonePermission() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.pushSystemMessage(t(
+        'Microphone capture is not available in this build.',
+        'La captura de micrófono no está disponible en esta versión.'
+      ));
+      return false;
+    }
+    if (this.micPermissionStream) return true;
+    if (this.micPermissionRequest) return this.micPermissionRequest;
+
+    this.micPermissionRequest = (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.micPermissionStream = stream;
+        return true;
+      } catch (error) {
+        const code = `${error?.name || error?.message || ''}`.toLowerCase();
+        if (code.includes('notallowed') || code.includes('permission') || code.includes('security')) {
+          this.pushSystemMessage(t(
+            'Microphone access denied. Enable microphone permissions.',
+            'Permiso de micrófono denegado. Habilita los permisos del micrófono.'
+          ));
+        } else if (code.includes('notfound') || code.includes('overconstrained') || code.includes('audio')) {
+          this.pushSystemMessage(t(
+            'No microphone detected. Connect a microphone and try again.',
+            'No se detectó micrófono. Conecta un micrófono e inténtalo de nuevo.'
+          ));
+        }
+        return false;
+      } finally {
+        this.micPermissionRequest = null;
+      }
+    })();
+
+    return this.micPermissionRequest;
+  }
+
+  releaseMicrophonePermissionStream() {
+    if (!this.micPermissionStream) return;
+    try {
+      this.micPermissionStream.getTracks().forEach((track) => track.stop());
+    } catch {}
+    this.micPermissionStream = null;
+  }
+
+  toggleVoiceInput() {
+    if (this.isTranscribing) return;
+    if (this.isListening) {
+      this.stopAndTranscribe();
+      return;
+    }
+    this.startVoiceInput({ continuous: false, allowAutoRestart: false });
+  }
+
+  async startVoiceInput({ continuous = true, allowAutoRestart = false } = {}) {
+    const hasMicrophone = await this.ensureMicrophonePermission();
+    if (!hasMicrophone) return;
+
+    if (activeMicShimejiId && activeMicShimejiId !== this.id) {
+      document.dispatchEvent(new CustomEvent('shimeji-stop-mic', {
+        detail: { except: this.id }
+      }));
+    }
+
+    this.stopMediaRecorder();
+    this.stopTts();
+    this.cancelMicAutoSend();
+    this.micSessionAutoRestart = allowAutoRestart === true;
+    this.micSessionContinuous = continuous === true;
+    this.clearMicRestartTimer();
+    this.micDraftText = '';
+
+    const stream = this.micPermissionStream;
+    if (!stream) return;
+
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+
+    let recorder;
+    try {
+      recorder = new MediaRecorder(stream, { mimeType });
+    } catch {
+      this.pushSystemMessage(t(
+        'Audio recording is not supported in this build.',
+        'La grabación de audio no es compatible con esta versión.'
+      ));
+      return;
+    }
+
+    this.mediaRecorderChunks = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) this.mediaRecorderChunks.push(e.data);
+    };
+    recorder.onstop = () => {};
+
+    try {
+      recorder.start(250);
+      this.mediaRecorder = recorder;
+      this.isListening = true;
+      activeMicShimejiId = this.id;
+
+      if (this.micSessionContinuous) {
+        this.startSilenceDetection(stream);
+      }
+    } catch {
+      this.mediaRecorder = null;
+      this.isListening = false;
+      if (activeMicShimejiId === this.id) activeMicShimejiId = null;
+      if (!this.config.openMicEnabled) this.releaseMicrophonePermissionStream();
+    }
+    this.syncChatControlButtons();
+  }
+
+  startSilenceDetection(stream) {
+    this.stopSilenceDetection();
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      this.lastSpeechTime = Date.now();
+      const SILENCE_THRESHOLD = 15;
+      const SILENCE_DURATION_MS = 2000;
+
+      this.silenceDetectionInterval = setInterval(() => {
+        if (!this.isListening || !this.mediaRecorder) {
+          this.stopSilenceDetection();
+          return;
+        }
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const average = sum / dataArray.length;
+
+        if (average > SILENCE_THRESHOLD) {
+          this.lastSpeechTime = Date.now();
+        } else if (Date.now() - this.lastSpeechTime > SILENCE_DURATION_MS && this.mediaRecorderChunks.length > 0) {
+          this.stopSilenceDetection();
+          this.stopAndTranscribe();
+        }
+      }, 100);
+
+      this._silenceAudioCtx = audioCtx;
+    } catch {
+      // Silence detection not critical — user can manually stop
+    }
+  }
+
+  stopSilenceDetection() {
+    if (this.silenceDetectionInterval) {
+      clearInterval(this.silenceDetectionInterval);
+      this.silenceDetectionInterval = null;
+    }
+    if (this._silenceAudioCtx) {
+      try { this._silenceAudioCtx.close(); } catch {}
+      this._silenceAudioCtx = null;
+    }
+  }
+
+  stopMediaRecorder() {
+    this.stopSilenceDetection();
+    const recorder = this.mediaRecorder;
+    this.mediaRecorder = null;
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch {}
+    }
+  }
+
+  async stopAndTranscribe() {
+    if (this.isTranscribing) return;
+    this.cancelMicAutoSend();
+    this.stopSilenceDetection();
+
+    const recorder = this.mediaRecorder;
+    this.mediaRecorder = null;
+    this.isListening = false;
+    if (activeMicShimejiId === this.id) activeMicShimejiId = null;
+
+    if (!recorder || recorder.state === 'inactive') {
+      this.syncChatControlButtons();
+      if (this.canAutoRestartOpenMic()) this.queueOpenMicRestart(400);
+      return;
+    }
+
+    this.isTranscribing = true;
+    this.syncChatControlButtons();
+
+    const chunks = this.mediaRecorderChunks;
+    this.mediaRecorderChunks = [];
+
+    await new Promise((resolve) => {
+      recorder.onstop = resolve;
+      try { recorder.stop(); } catch { resolve(); }
+    });
+
+    if (chunks.length === 0) {
+      this.isTranscribing = false;
+      this.syncChatControlButtons();
+      if (this.canAutoRestartOpenMic()) this.queueOpenMicRestart(400);
+      return;
+    }
+
+    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+    let arrayBuffer;
+    try {
+      arrayBuffer = await blob.arrayBuffer();
+    } catch {
+      this.isTranscribing = false;
+      this.syncChatControlButtons();
+      return;
+    }
+
+    try {
+      const result = await window.shimejiApi.transcribeAudio({
+        shimejiId: this.id,
+        audioData: arrayBuffer
+      });
+
+      this.isTranscribing = false;
+
+      if (result?.ok && result.transcript) {
+        const existing = (this.elements.input?.value || '').trim();
+        const combined = existing ? `${existing} ${result.transcript}` : result.transcript;
+        if (this.elements.input) {
+          this.elements.input.value = combined;
+          const end = this.elements.input.value.length;
+          this.elements.input.setSelectionRange(end, end);
+          this.elements.input.scrollLeft = this.elements.input.scrollWidth;
+        }
+        this.micDraftText = combined;
+        this.scheduleMicAutoSend();
+      } else if (result?.error) {
+        const errMsg = result.error;
+        if (errMsg !== 'No speech detected.') {
+          this.pushSystemMessage(errMsg);
+        }
+        if (this.canAutoRestartOpenMic()) this.queueOpenMicRestart(500);
+      }
+    } catch {
+      this.isTranscribing = false;
+    }
+
+    this.syncChatControlButtons();
+
+    if (this.config.openMicEnabled === true && this.micSessionAutoRestart && !this.isListening) {
+      this.queueOpenMicRestart(500);
+    } else if (!this.config.openMicEnabled || !this.micSessionAutoRestart) {
+      this.releaseMicrophonePermissionStream();
+    }
+  }
+
+  stopVoiceInput(disableAutoRestart = true) {
+    if (disableAutoRestart) {
+      this.micSessionAutoRestart = false;
+    }
+    this.micSessionContinuous = false;
+    this.clearMicRestartTimer();
+    this.stopMediaRecorder();
+
+    if (activeMicShimejiId === this.id) {
+      activeMicShimejiId = null;
+    }
+    if (disableAutoRestart || this.config.openMicEnabled !== true) {
+      this.releaseMicrophonePermissionStream();
+    }
+    this.isListening = false;
+    this.isTranscribing = false;
+    this.syncChatControlButtons();
+  }
+
+  onStopMicEvent(event) {
+    const exceptId = event?.detail?.except;
+    if (exceptId && exceptId === this.id) return;
+    if (!this.isListening) return;
+    this.stopVoiceInput();
+    this.cancelMicAutoSend();
+  }
+
+  canAutoRestartOpenMic() {
+    return this.chatOpen
+      && this.config.openMicEnabled === true
+      && this.micSessionAutoRestart
+      && !this.isListening
+      && !this.isTranscribing
+      && this.pendingAssistantIndex === null;
+  }
+
+  queueOpenMicRestart(delayMs = 350) {
+    this.clearMicRestartTimer();
+    this.micRestartTimer = setTimeout(() => {
+      this.micRestartTimer = null;
+      if (!this.canAutoRestartOpenMic()) return;
+      this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+    }, delayMs);
+  }
+
+  clearMicRestartTimer() {
+    if (!this.micRestartTimer) return;
+    clearTimeout(this.micRestartTimer);
+    this.micRestartTimer = null;
+  }
+
+  scheduleMicAutoSend() {
+    this.cancelMicAutoSend();
+    this.micAutoSendSeconds = 3;
+    this.updateMicCountdownUi();
+
+    this.micAutoSendInterval = setInterval(() => {
+      this.micAutoSendSeconds = Math.max(0, this.micAutoSendSeconds - 1);
+      this.updateMicCountdownUi();
+    }, 1000);
+
+    this.micAutoSendTimer = setTimeout(() => {
+      this.cancelMicAutoSend();
+      if (!this.elements.input) return;
+      const text = this.elements.input.value.trim();
+      this.micDraftText = '';
+      if (text) {
+        this.sendMessage();
+      }
+    }, 3000);
+  }
+
+  updateMicCountdownUi() {
+    if (!this.elements.micBtn || !this.isListening) return;
+    this.elements.micBtn.textContent = this.micAutoSendSeconds > 0 ? `🎙${this.micAutoSendSeconds}` : '🎙';
+  }
+
+  cancelMicAutoSend({ keepDraft = false } = {}) {
+    if (this.micAutoSendTimer) {
+      clearTimeout(this.micAutoSendTimer);
+      this.micAutoSendTimer = null;
+    }
+    if (this.micAutoSendInterval) {
+      clearInterval(this.micAutoSendInterval);
+      this.micAutoSendInterval = null;
+    }
+    this.micAutoSendSeconds = 0;
+    if (!keepDraft) {
+      this.micDraftText = '';
+    }
+    if (this.elements.micBtn && this.isListening) {
+      this.elements.micBtn.textContent = '🎙';
+    }
+  }
+
+  onRelayEvent(event) {
+    const detail = event?.detail || {};
+    if (detail.fromId === this.id) return;
+    if (this.config.relayEnabled !== true) return;
+    if (this.isTerminalMode()) return;
+    const text = `${detail.text || ''}`.trim();
+    if (!text) return;
+    const relayPrompt = isSpanishLocale()
+      ? `Shimeji ${detail.fromId || 'aliado'} dice: ${text}`
+      : `Shimeji ${detail.fromId || 'ally'} says: ${text}`;
+    this.sendPrompt(relayPrompt, { suppressRelay: true });
+  }
+
+  dispatchRelay(text) {
+    const cleanText = `${text || ''}`.trim();
+    if (!cleanText) return;
+    document.dispatchEvent(new CustomEvent('shimeji-relay', {
+      detail: { fromId: this.id, text: cleanText }
+    }));
+  }
+
+  getResizeModeFromPoint(clientX, clientY) {
+    if (!this.elements.chat) return null;
+    const rect = this.elements.chat.getBoundingClientRect();
+    if (
+      clientX < rect.left
+      || clientX > rect.right
+      || clientY < rect.top
+      || clientY > rect.bottom
+    ) {
+      return null;
+    }
+
+    const hit = CHAT_RESIZE_HIT_PX;
+    const nearLeft = (clientX - rect.left) <= hit;
+    const nearRight = (rect.right - clientX) <= hit;
+    const nearTop = (clientY - rect.top) <= hit;
+    const nearBottom = (rect.bottom - clientY) <= hit;
+
+    const vertical = nearTop ? 'n' : (nearBottom ? 's' : '');
+    const horizontal = nearLeft ? 'w' : (nearRight ? 'e' : '');
+    const mode = `${vertical}${horizontal}`;
+    return mode || null;
+  }
+
+  getResizeCursor(mode) {
+    return {
+      n: 'ns-resize',
+      s: 'ns-resize',
+      e: 'ew-resize',
+      w: 'ew-resize',
+      ne: 'nesw-resize',
+      sw: 'nesw-resize',
+      nw: 'nwse-resize',
+      se: 'nwse-resize'
+    }[mode] || '';
+  }
+
+  tryStartResizeFromEdge(event) {
+    const mode = this.getResizeModeFromPoint(event.clientX, event.clientY);
+    if (!mode) return false;
+    this.onResizeStart(event, mode);
+    return true;
+  }
+
+  onChatResizeHover(event) {
+    if (!this.chatOpen || !this.elements.chat) return;
+    if (this.resizeState) return;
+    const mode = this.getResizeModeFromPoint(event.clientX, event.clientY);
+    this.elements.chat.style.cursor = mode ? this.getResizeCursor(mode) : '';
+  }
+
+  onChatResizeLeave() {
+    if (!this.elements.chat) return;
+    if (this.resizeState) return;
+    this.elements.chat.style.cursor = '';
+  }
+
+  onResizeStart(event, mode = 'se') {
+    if (!this.elements.chat || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = this.elements.chat.getBoundingClientRect();
+    const activeMode = mode || 'se';
+    this.resizeState = {
+      mode: activeMode,
+      startX: event.clientX,
+      startY: event.clientY,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    };
+
+    const cursor = this.getResizeCursor(activeMode);
+    if (cursor) {
+      this.elements.chat.style.cursor = cursor;
+      document.body.style.cursor = cursor;
+    }
+
+    const moveHandler = (moveEvent) => this.onResizeMove(moveEvent);
+    const upHandler = () => {
+      document.removeEventListener('mousemove', moveHandler);
+      document.removeEventListener('mouseup', upHandler);
+      this.onResizeEnd();
+    };
+
+    document.addEventListener('mousemove', moveHandler);
+    document.addEventListener('mouseup', upHandler);
+  }
+
+  onResizeMove(event) {
+    if (!this.resizeState || !this.elements.chat) return;
+    const dx = event.clientX - this.resizeState.startX;
+    const dy = event.clientY - this.resizeState.startY;
+    const mode = this.resizeState.mode || 'se';
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    const minWidth = Math.min(CHAT_MIN_WIDTH, Math.max(120, viewportWidth - (CHAT_EDGE_MARGIN_PX * 2)));
+    const minHeight = Math.min(CHAT_MIN_HEIGHT, Math.max(120, viewportHeight - (CHAT_EDGE_MARGIN_PX * 2)));
+    const maxWidth = Math.max(minWidth, viewportWidth - (CHAT_EDGE_MARGIN_PX * 2));
+    const maxHeight = Math.max(minHeight, Math.min(CHAT_MAX_HEIGHT, viewportHeight - (CHAT_EDGE_MARGIN_PX * 2)));
+
+    let width = this.resizeState.width;
+    let height = this.resizeState.height;
+    let left = this.resizeState.left;
+    let top = this.resizeState.top;
+
+    if (mode.includes('e')) {
+      width = clamp(this.resizeState.width + dx, minWidth, maxWidth);
+    }
+    if (mode.includes('s')) {
+      height = clamp(this.resizeState.height + dy, minHeight, maxHeight);
+    }
+    if (mode.includes('w')) {
+      width = clamp(this.resizeState.width - dx, minWidth, maxWidth);
+      left = this.resizeState.left + (this.resizeState.width - width);
+    }
+    if (mode.includes('n')) {
+      height = clamp(this.resizeState.height - dy, minHeight, maxHeight);
+      top = this.resizeState.top + (this.resizeState.height - height);
+    }
+
+    left = clamp(left, CHAT_EDGE_MARGIN_PX, Math.max(CHAT_EDGE_MARGIN_PX, viewportWidth - width - CHAT_EDGE_MARGIN_PX));
+    top = clamp(top, CHAT_EDGE_MARGIN_PX, Math.max(CHAT_EDGE_MARGIN_PX, viewportHeight - height - CHAT_EDGE_MARGIN_PX));
+
+    this.config.chatWidthPx = Math.round(width);
+    this.config.chatHeightPx = Math.round(height);
+    this.elements.chat.style.setProperty('--chat-width', `${Math.round(width)}px`);
+    this.elements.chat.style.setProperty('--chat-height', `${Math.round(height)}px`);
+    this.elements.chat.style.left = `${Math.round(left)}px`;
+    this.elements.chat.style.top = `${Math.round(top)}px`;
+    if (this.supportsInteractiveTerminalMode()) {
+      this.scheduleTerminalFit(0);
+    }
+  }
+
+  onResizeEnd() {
+    this.resizeState = null;
+    if (this.elements.chat) {
+      this.elements.chat.style.cursor = '';
+    }
+    document.body.style.cursor = '';
+    if (this.supportsInteractiveTerminalMode()) {
+      this.scheduleTerminalFit(0);
+    }
+    this.persistConfig();
+  }
+
+  playLegacyNotificationTone(kind = 'success') {
+    try {
+      const ctx = getSharedAudioContext();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const volume = clamp(Number(this.config.soundVolume || 0.7), 0.05, 1);
+      osc.type = 'sine';
+      osc.frequency.value = kind === 'error' ? 320 : 640;
+      gain.gain.value = 0.0001;
+      gain.gain.exponentialRampToValueAtTime(volume * 0.07, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.23);
+    } catch {}
+  }
+
+  async playNotificationSoundAsync(kind = 'success') {
+    const ctx = getSharedAudioContext();
+    if (!ctx) {
+      this.playLegacyNotificationTone(kind);
+      return;
+    }
+    try {
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      await ensureSharedSoundBuffersLoaded();
+      const buffer = sharedSoundBuffers[kind];
+      if (!buffer) {
+        this.playLegacyNotificationTone(kind);
+        return;
+      }
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const personalityRate = PERSONALITY_SOUND_RATE[this.config.personality] || 1.0;
+      source.playbackRate.value = clamp(personalityRate * getShimejiPitchFactor(this.id), 0.6, 1.6);
+      const gain = ctx.createGain();
+      gain.gain.value = clamp(Number(this.config.soundVolume || 0.7), 0, 1);
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
+    } catch {
+      this.playLegacyNotificationTone(kind);
+    }
+  }
+
+  playNotificationSound(kind = 'success') {
+    if (this.config.soundEnabled === false) return;
+    this.playNotificationSoundAsync(kind).catch(() => {});
+  }
+
+  pushSystemMessage(text) {
+    this.messages.push({ role: 'assistant', content: `${t('Warning', 'Aviso')}: ${text}` });
+    this.renderMessages();
+    this.saveConversation();
+    this.playNotificationSound('error');
   }
 
   getShimejiNumber() {
@@ -363,10 +2024,583 @@ class Shimeji {
     return index >= 0 ? index + 1 : 1;
   }
 
-  getAiBrainLabel() {
+  getOpenClawAgentName() {
+    const shimejiNumber = this.getShimejiNumber();
+    const fallback = `desktop-shimeji-${shimejiNumber}`;
+    const perShimejiKey = `shimeji${shimejiNumber}_openclawAgentName`;
+    const rawName = this.config.openclawAgentName
+      || globalConfig[perShimejiKey]
+      || globalConfig.openclawAgentName
+      || fallback;
+    const normalized = `${rawName || ''}`.trim();
+    return normalized || fallback;
+  }
+
+  getTerminalDistroName() {
+    const shimejiNumber = this.getShimejiNumber();
+    const perShimejiKey = `shimeji${shimejiNumber}_terminalDistro`;
+    const rawValue = this.config.terminalDistro
+      || globalConfig[perShimejiKey]
+      || globalConfig.terminalDistro
+      || DEFAULT_TERMINAL_PROFILE;
+    const normalized = normalizeTerminalProfile(rawValue);
+    if (normalized) return normalized;
+    if (this.isMacPlatform()) return 'default shell';
+    if (IS_WINDOWS_PLATFORM) return 'Ubuntu';
+    return 'default shell';
+  }
+
+  getActiveMode() {
     const mode = this.config.mode || globalConfig.aiMode || 'standard';
-    if (mode === 'off') return 'AI Off';
-    if (mode === 'agent') return 'OpenClaw';
+    if (mode === 'terminal' || mode === 'wsl' || mode === 'shell') return 'terminal';
+    if (mode === 'agent' || mode === 'openclaw') return 'agent';
+    if (mode === 'off' || mode === 'disabled' || mode === 'decorative') return 'off';
+    return mode;
+  }
+
+  isTerminalMode() {
+    return this.getActiveMode() === 'terminal';
+  }
+
+  resetTerminalHistoryCursor() {
+    this.terminalHistoryCursor = null;
+    this.terminalHistoryDraft = '';
+  }
+
+  resetTerminalAutocompleteState() {
+    this.terminalAutocompleteState = null;
+    this.terminalAutocompleteToken += 1;
+  }
+
+  pushTerminalCommandToHistory(commandText) {
+    const command = String(commandText || '').trim();
+    if (!command) return;
+    const last = this.terminalCommandHistory[this.terminalCommandHistory.length - 1];
+    if (last !== command) {
+      this.terminalCommandHistory.push(command);
+      if (this.terminalCommandHistory.length > 120) {
+        this.terminalCommandHistory.splice(0, this.terminalCommandHistory.length - 120);
+      }
+    }
+    this.resetTerminalHistoryCursor();
+  }
+
+  navigateTerminalHistory(direction) {
+    if (!this.isTerminalMode()) return;
+    if (!this.elements.input) return;
+    if (!Array.isArray(this.terminalCommandHistory) || this.terminalCommandHistory.length === 0) return;
+
+    const input = this.elements.input;
+    if (this.terminalHistoryCursor === null) {
+      this.terminalHistoryDraft = input.value;
+    }
+
+    if (direction < 0) {
+      if (this.terminalHistoryCursor === null) {
+        this.terminalHistoryCursor = this.terminalCommandHistory.length - 1;
+      } else {
+        this.terminalHistoryCursor = Math.max(0, this.terminalHistoryCursor - 1);
+      }
+    } else if (direction > 0) {
+      if (this.terminalHistoryCursor === null) return;
+      if (this.terminalHistoryCursor >= this.terminalCommandHistory.length - 1) {
+        this.terminalHistoryCursor = null;
+      } else {
+        this.terminalHistoryCursor += 1;
+      }
+    } else {
+      return;
+    }
+
+    input.value = this.terminalHistoryCursor === null
+      ? this.terminalHistoryDraft
+      : this.terminalCommandHistory[this.terminalHistoryCursor];
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+    input.scrollLeft = input.scrollWidth;
+    this.resetTerminalAutocompleteState();
+  }
+
+  applyTerminalAutocompleteReplacement({
+    input,
+    beforeCursor,
+    afterCursor,
+    tokenStart,
+    quotePrefix,
+    completion,
+    exact
+  }) {
+    const nextCompletion = String(completion || '').trim();
+    if (!nextCompletion) return false;
+    let replacement = `${quotePrefix || ''}${nextCompletion}`;
+    const shouldAppendSpace = Boolean(exact) && !replacement.endsWith('/');
+    if (shouldAppendSpace && !/^\s/.test(afterCursor)) {
+      replacement += ' ';
+    }
+    if (replacement === beforeCursor.slice(tokenStart) && !shouldAppendSpace) {
+      return false;
+    }
+
+    const nextValue = `${beforeCursor.slice(0, tokenStart)}${replacement}${afterCursor}`;
+    input.value = nextValue;
+    const nextCaret = (beforeCursor.slice(0, tokenStart) + replacement).length;
+    input.setSelectionRange(nextCaret, nextCaret);
+    input.scrollLeft = input.scrollWidth;
+    return true;
+  }
+
+  tryCycleTerminalAutocomplete({
+    input,
+    beforeCursor,
+    afterCursor,
+    tokenStart,
+    fragment,
+    quotePrefix,
+    direction
+  }) {
+    const state = this.terminalAutocompleteState;
+    if (!state || !Array.isArray(state.candidates) || state.candidates.length < 2) {
+      return false;
+    }
+    const basePrefix = beforeCursor.slice(0, tokenStart);
+    if (state.basePrefix !== basePrefix) return false;
+    if (state.afterCursor !== afterCursor) return false;
+    if (state.quotePrefix !== quotePrefix) return false;
+    if (fragment !== state.query && !state.candidates.includes(fragment)) return false;
+
+    const count = state.candidates.length;
+    let activeIndex = Number.isInteger(state.activeIndex) ? state.activeIndex : -1;
+    const currentIndex = state.candidates.indexOf(fragment);
+    if (currentIndex >= 0) {
+      activeIndex = currentIndex;
+    }
+
+    let nextIndex = 0;
+    if (activeIndex >= 0 && activeIndex < count) {
+      nextIndex = (activeIndex + direction + count) % count;
+    } else if (direction < 0) {
+      nextIndex = count - 1;
+    }
+
+    const nextCompletion = String(state.candidates[nextIndex] || '').trim();
+    if (!nextCompletion) return false;
+    const applied = this.applyTerminalAutocompleteReplacement({
+      input,
+      beforeCursor,
+      afterCursor,
+      tokenStart,
+      quotePrefix,
+      completion: nextCompletion,
+      exact: false
+    });
+    if (!applied) return false;
+    state.activeIndex = nextIndex;
+    return true;
+  }
+
+  async handleTerminalAutocomplete(direction = 1) {
+    if (!this.isTerminalMode()) return;
+    if (!this.elements.input || !window.shimejiApi?.terminalAutocomplete) return;
+
+    const cycleDirection = direction < 0 ? -1 : 1;
+    const input = this.elements.input;
+    const rawValue = input.value || '';
+    const cursor = typeof input.selectionStart === 'number' ? input.selectionStart : rawValue.length;
+    const beforeCursor = rawValue.slice(0, cursor);
+    const afterCursor = rawValue.slice(cursor);
+
+    let tokenStart = beforeCursor.length;
+    while (tokenStart > 0 && !/\s/.test(beforeCursor[tokenStart - 1])) {
+      tokenStart -= 1;
+    }
+    const fragmentRaw = beforeCursor.slice(tokenStart);
+    if (!fragmentRaw) return;
+
+    let quotePrefix = '';
+    let fragment = fragmentRaw;
+    if (
+      (fragment.startsWith('"') || fragment.startsWith("'"))
+      && !fragment.slice(1).includes(fragment[0])
+    ) {
+      quotePrefix = fragment[0];
+      fragment = fragment.slice(1);
+    }
+    if (!fragment) return;
+
+    if (this.tryCycleTerminalAutocomplete({
+      input,
+      beforeCursor,
+      afterCursor,
+      tokenStart,
+      fragment,
+      quotePrefix,
+      direction: cycleDirection
+    })) {
+      return;
+    }
+
+    const requestToken = ++this.terminalAutocompleteToken;
+    let result;
+    try {
+      result = await window.shimejiApi.terminalAutocomplete({
+        shimejiId: this.id,
+        fragment,
+        terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
+        terminalCwd: this.config.terminalCwd || ''
+      });
+    } catch {
+      return;
+    }
+    if (requestToken !== this.terminalAutocompleteToken) return;
+    if (!result?.ok) {
+      this.terminalAutocompleteState = null;
+      return;
+    }
+
+    const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+    const basePrefix = beforeCursor.slice(0, tokenStart);
+    if (candidates.length > 1) {
+      this.terminalAutocompleteState = {
+        basePrefix,
+        afterCursor,
+        quotePrefix,
+        query: fragment,
+        candidates,
+        activeIndex: -1
+      };
+    } else {
+      this.terminalAutocompleteState = null;
+    }
+
+    let completion = String(result.completion || '').trim();
+    if (!completion && candidates.length === 1) {
+      completion = String(candidates[0] || '').trim();
+    }
+    if (!completion) {
+      return;
+    }
+    if (completion === fragment && !result.exact) {
+      return;
+    }
+
+    const applied = this.applyTerminalAutocompleteReplacement({
+      input,
+      beforeCursor,
+      afterCursor,
+      tokenStart,
+      quotePrefix,
+      completion,
+      exact: Boolean(result.exact)
+    });
+    if (!applied) return;
+
+    if (this.terminalAutocompleteState && this.terminalAutocompleteState.candidates.length > 1) {
+      const index = this.terminalAutocompleteState.candidates.indexOf(completion);
+      if (index >= 0) {
+        this.terminalAutocompleteState.activeIndex = index;
+      }
+    }
+  }
+
+  supportsInteractiveTerminalMode() {
+    return this.isTerminalMode()
+      && Boolean(this.terminalView)
+      && Boolean(window.shimejiApi?.terminalSessionStart)
+      && Boolean(window.shimejiApi?.terminalSessionWrite)
+      && Boolean(window.shimejiApi?.terminalSessionResize)
+      && Boolean(window.shimejiApi?.terminalSessionStop);
+  }
+
+  setTerminalStatus(text, { error = false } = {}) {
+    const next = `${text || ''}`.trim();
+    if (!this.elements.terminalStatus || !next) return;
+    if (this.terminalLastStatus === next && this.terminalStatusError === error) return;
+    this.terminalLastStatus = next;
+    this.terminalStatusError = error;
+    this.elements.terminalStatus.textContent = next;
+    this.elements.terminalStatus.classList.toggle('error', error);
+  }
+
+  syncTerminalModeUi() {
+    if (!this.elements.chat) return;
+    const interactive = this.supportsInteractiveTerminalMode();
+    this.elements.chat.classList.toggle('terminal-mode', interactive);
+    if (this.elements.messagesArea) {
+      this.elements.messagesArea.style.display = interactive ? 'none' : '';
+    }
+    if (this.elements.chatInputArea) {
+      this.elements.chatInputArea.style.display = interactive ? 'none' : '';
+    }
+    if (this.elements.terminalPane) {
+      this.elements.terminalPane.style.display = interactive ? 'flex' : 'none';
+    }
+
+    if (!this.isTerminalMode()) {
+      this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
+      return;
+    }
+
+    if (!interactive) {
+      this.setTerminalStatus(
+        t('Interactive terminal unavailable', 'Terminal interactivo no disponible'),
+        { error: true }
+      );
+      return;
+    }
+
+    if (this.terminalSessionReady) {
+      this.setTerminalStatus(t('Terminal connected', 'Terminal conectado'));
+    } else {
+      this.setTerminalStatus(t('Connecting terminal...', 'Conectando terminal...'));
+    }
+    this.scheduleTerminalFit(30);
+    if (this.chatOpen) {
+      this.ensureTerminalSession().catch(() => {});
+    }
+  }
+
+  scheduleTerminalFit(delayMs = 0) {
+    if (!this.terminalView) return;
+    if (this.terminalFitTimer) {
+      clearTimeout(this.terminalFitTimer);
+      this.terminalFitTimer = null;
+    }
+    this.terminalFitTimer = setTimeout(() => {
+      this.terminalFitTimer = null;
+      if (!this.terminalView) return;
+      this.terminalView.fit();
+    }, Math.max(0, delayMs));
+  }
+
+  focusTerminal() {
+    if (!this.supportsInteractiveTerminalMode() || !this.chatOpen) return;
+    if (window.shimejiApi?.setIgnoreMouseEvents) {
+      isMouseOverInteractive = true;
+      window.shimejiApi.setIgnoreMouseEvents(false);
+    }
+    window.focus();
+    requestAnimationFrame(() => {
+      this.terminalView?.focus();
+    });
+  }
+
+  async ensureTerminalSession() {
+    if (!this.supportsInteractiveTerminalMode()) return false;
+    if (this.terminalSessionReady) {
+      this.scheduleTerminalFit(0);
+      return true;
+    }
+    if (this.terminalSessionStarting) {
+      return this.terminalSessionStarting;
+    }
+
+    this.setTerminalStatus(t('Connecting terminal...', 'Conectando terminal...'));
+    this.terminalSessionStarting = (async () => {
+      let result;
+      try {
+        result = await window.shimejiApi.terminalSessionStart({
+          shimejiId: this.id,
+          terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
+          terminalCwd: this.config.terminalCwd || ''
+        });
+      } catch {
+        result = { ok: false, error: 'TERMINAL_SESSION_START_ERROR' };
+      }
+
+      if (!result?.ok) {
+        const errorText = `${result?.error || 'TERMINAL_SESSION_START_ERROR'}`;
+        this.setTerminalStatus(`Error: ${errorText}`, { error: true });
+        if (this.terminalView) {
+          this.terminalView.write(`\n[Error: ${errorText}]\n`);
+        }
+        this.terminalSessionReady = false;
+        return false;
+      }
+
+      this.terminalSessionReady = true;
+      this.setTerminalStatus(t('Terminal connected', 'Terminal conectado'));
+      if (result.replayData && this.terminalView) {
+        this.terminalView.write(result.replayData);
+      }
+      this.scheduleTerminalFit(0);
+      return true;
+    })().finally(() => {
+      this.terminalSessionStarting = null;
+    });
+
+    return this.terminalSessionStarting;
+  }
+
+  async sendTerminalInput(data) {
+    const payload = String(data || '');
+    if (!payload) return;
+    const ready = await this.ensureTerminalSession();
+    if (!ready) return;
+    let result;
+    try {
+      result = await window.shimejiApi.terminalSessionWrite({
+        shimejiId: this.id,
+        data: payload,
+        terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
+        terminalCwd: this.config.terminalCwd || ''
+      });
+    } catch {
+      result = { ok: false, error: 'TERMINAL_WRITE_ERROR' };
+    }
+    if (!result?.ok) {
+      this.setTerminalStatus(`Error: ${result?.error || 'TERMINAL_WRITE_ERROR'}`, { error: true });
+    }
+  }
+
+  async sendTerminalLine(lineText) {
+    const line = String(lineText || '');
+    if (!line.trim()) return;
+    this.pushTerminalCommandToHistory(line);
+    const ready = await this.ensureTerminalSession();
+    if (!ready) return;
+    let result;
+    try {
+      result = await window.shimejiApi.terminalSessionRunLine({
+        shimejiId: this.id,
+        line,
+        terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
+        terminalCwd: this.config.terminalCwd || ''
+      });
+    } catch {
+      result = { ok: false, error: 'TERMINAL_WRITE_ERROR' };
+    }
+    if (!result?.ok) {
+      this.setTerminalStatus(`Error: ${result?.error || 'TERMINAL_WRITE_ERROR'}`, { error: true });
+      if (this.terminalView) {
+        this.terminalView.write(`\n[Error: ${result?.error || 'TERMINAL_WRITE_ERROR'}]\n`);
+      }
+    }
+  }
+
+  async handleTerminalViewportResize(cols, rows) {
+    if (!this.supportsInteractiveTerminalMode()) return;
+    const parsedCols = Number.parseInt(`${cols}`, 10);
+    const parsedRows = Number.parseInt(`${rows}`, 10);
+    if (!Number.isFinite(parsedCols) || !Number.isFinite(parsedRows)) return;
+    if (parsedCols === this.terminalLastSize.cols && parsedRows === this.terminalLastSize.rows) return;
+    this.terminalLastSize = { cols: parsedCols, rows: parsedRows };
+    if (!this.terminalSessionReady || !window.shimejiApi?.terminalSessionResize) return;
+    try {
+      await window.shimejiApi.terminalSessionResize({
+        shimejiId: this.id,
+        cols: parsedCols,
+        rows: parsedRows
+      });
+    } catch {}
+  }
+
+  handleTerminalSessionData(payload) {
+    if (!payload || payload.shimejiId !== this.id) return;
+    if (!this.terminalView) return;
+    const chunk = String(payload.data || '');
+    if (!chunk) return;
+    this.terminalView.write(chunk);
+    if (!this.chatOpen) {
+      const now = Date.now();
+      if (now - this.terminalLastClosedNotice >= 1300) {
+        this.terminalLastClosedNotice = now;
+        this.notifyClosedChatActivity(2400);
+      }
+    }
+  }
+
+  handleTerminalSessionExit(payload) {
+    if (!payload || payload.shimejiId !== this.id) return;
+    this.terminalSessionReady = false;
+    const parsed = Number.parseInt(`${payload.code}`, 10);
+    const hasCode = Number.isFinite(parsed);
+    const isError = hasCode ? parsed !== 0 : false;
+    const status = hasCode
+      ? t(`Terminal exited (code ${parsed})`, `Terminal finalizó (código ${parsed})`)
+      : t('Terminal exited', 'Terminal finalizó');
+    this.setTerminalStatus(status, { error: isError });
+    if (this.terminalView) {
+      this.terminalView.write(`\n[${status}]\n`);
+    }
+    if (this.config.terminalNotifyOnFinish !== false) {
+      this.playNotificationSound(isError ? 'error' : 'success');
+    }
+    if (!this.chatOpen) {
+      this.notifyClosedChatActivity(isError ? 3600 : 2400);
+    }
+  }
+
+  handleTerminalSessionState(payload) {
+    if (!payload || payload.shimejiId !== this.id) return;
+    const state = String(payload.state || '').toLowerCase();
+    if (state === 'running') {
+      this.terminalSessionReady = true;
+      this.setTerminalStatus(t('Terminal connected', 'Terminal conectado'));
+      this.scheduleTerminalFit(0);
+      return;
+    }
+    if (state === 'closing') {
+      this.setTerminalStatus(t('Terminal closing...', 'Cerrando terminal...'));
+      return;
+    }
+    if (state === 'closed') {
+      this.terminalSessionReady = false;
+      this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
+      return;
+    }
+    if (state === 'error') {
+      this.terminalSessionReady = false;
+      const errorText = payload.error ? `Error: ${payload.error}` : t('Terminal error', 'Error de terminal');
+      this.setTerminalStatus(errorText, { error: true });
+      if (this.terminalView) {
+        this.terminalView.write(`\n[${errorText}]\n`);
+      }
+    }
+  }
+
+  stopTerminalSession(reason = 'TERMINAL_SESSION_STOPPED_BY_UI') {
+    this.terminalSessionReady = false;
+    this.terminalSessionStarting = null;
+    this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
+    if (window.shimejiApi?.terminalSessionStop) {
+      window.shimejiApi.terminalSessionStop({ shimejiId: this.id, reason }).catch(() => {});
+    } else if (window.shimejiApi?.terminalCloseSession) {
+      window.shimejiApi.terminalCloseSession({ shimejiId: this.id }).catch(() => {});
+    }
+  }
+
+  notifyClosedChatActivity(durationMs = 3400) {
+    if (this.chatOpen) return;
+    this.closedChatNoticeUntil = Date.now() + Math.max(800, durationMs);
+    if (this.closedChatNoticeTimer) {
+      clearTimeout(this.closedChatNoticeTimer);
+      this.closedChatNoticeTimer = null;
+    }
+    this.syncTypingIndicators();
+    this.closedChatNoticeTimer = setTimeout(() => {
+      this.closedChatNoticeTimer = null;
+      this.closedChatNoticeUntil = 0;
+      this.syncTypingIndicators();
+    }, Math.max(900, durationMs + 50));
+  }
+
+  clearClosedChatActivityNotice() {
+    this.closedChatNoticeUntil = 0;
+    if (this.closedChatNoticeTimer) {
+      clearTimeout(this.closedChatNoticeTimer);
+      this.closedChatNoticeTimer = null;
+    }
+  }
+
+  getAiBrainLabel() {
+    const mode = this.getActiveMode();
+    if (mode === 'off') return t('AI Off', 'AI apagada');
+    if (mode === 'agent') return `OpenClaw · ${this.getOpenClawAgentName()}`;
+    if (mode === 'terminal') {
+      if (this.isMacPlatform()) return `Mac Terminal · ${this.getTerminalDistroName()}`;
+      if (IS_WINDOWS_PLATFORM) return `WSL Terminal · ${this.getTerminalDistroName()}`;
+      return `Terminal · ${this.getTerminalDistroName()}`;
+    }
 
     const provider = this.config.standardProvider || 'openrouter';
     if (provider === 'openrouter') {
@@ -382,7 +2616,7 @@ class Shimeji {
       const model = this.config.ollamaModel || globalConfig.ollamaModel || 'gemma3:1b';
       return `Ollama · ${model}`;
     }
-    if (provider === 'openclaw') return 'OpenClaw';
+    if (provider === 'openclaw') return `OpenClaw · ${this.getOpenClawAgentName()}`;
 
     return provider;
   }
@@ -397,6 +2631,10 @@ class Shimeji {
   }
 
   focusInput() {
+    if (this.supportsInteractiveTerminalMode()) {
+      this.focusTerminal();
+      return;
+    }
     if (!this.elements.input) return;
     if (window.shimejiApi?.setIgnoreMouseEvents) {
       isMouseOverInteractive = true;
@@ -414,6 +2652,8 @@ class Shimeji {
     this.elements.wrapper.addEventListener('mousedown', (e) => this.onPointerDown(e));
     this.elements.wrapper.addEventListener('dblclick', (e) => {
       e.preventDefault();
+      // Double-click is reserved for jump; suppress single-click chat toggle.
+      this.state.suppressClickUntil = Date.now() + 420;
       if (this.chatClickTimeout) {
         clearTimeout(this.chatClickTimeout);
         this.chatClickTimeout = null;
@@ -445,6 +2685,20 @@ class Shimeji {
     document.addEventListener('mouseup', upHandler);
   }
 
+  isMacPlatform() {
+    return /mac/i.test(`${navigator.platform || ''}`);
+  }
+
+  getGroundOffsetPx() {
+    return this.isMacPlatform() ? MAC_GROUND_OFFSET_PX : 0;
+  }
+
+  getGroundY() {
+    const scale = SPRITE_SCALES[this.config.size] || 1;
+    const size = SPRITE_SIZE * scale;
+    return Math.max(0, window.innerHeight - size - this.getGroundOffsetPx());
+  }
+
   onPointerMove(e) {
     if (!this.state.pointerDown) return;
 
@@ -467,7 +2721,7 @@ class Shimeji {
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
     const maxX = Math.max(0, window.innerWidth - size);
-    const maxY = Math.max(0, window.innerHeight - size);
+    const maxY = this.getGroundY();
 
     const targetX = e.clientX - this.state.dragOffsetX;
     const targetY = e.clientY - this.state.dragOffsetY;
@@ -510,6 +2764,9 @@ class Shimeji {
     this.state.pointerDown = false;
 
     if (!this.state.dragging) {
+      if (Date.now() < this.state.suppressClickUntil) {
+        return;
+      }
       this.chatClickTimeout = setTimeout(() => {
         this.toggleChat();
         this.chatClickTimeout = null;
@@ -517,9 +2774,7 @@ class Shimeji {
       return;
     }
 
-    const scale = SPRITE_SCALES[this.config.size] || 1;
-    const size = SPRITE_SIZE * scale;
-    const groundY = Math.max(0, window.innerHeight - size);
+    const groundY = this.getGroundY();
 
     this.state.dragging = false;
 
@@ -548,21 +2803,47 @@ class Shimeji {
   }
 
   openChat() {
-    this.elements.chat.classList.remove('hidden');
+    this.elements.chat.classList.add('visible');
     this.chatOpen = true;
+    this.clearUnreadNotifications();
+    this.clearClosedChatActivityNotice();
     this.updateChatHeader();
     this.positionChatBubble();
     this.bringToFront();
     this.applyChatTheme();
+    this.syncTerminalModeUi();
+    if (this.supportsInteractiveTerminalMode()) {
+      this.ensureTerminalSession().catch(() => {});
+      this.scheduleTerminalFit(60);
+      this.syncTypingIndicators();
+      this.focusTerminal();
+      setTimeout(() => {
+        this.scheduleTerminalFit(0);
+        this.focusTerminal();
+      }, 120);
+      return;
+    }
+
     this.renderMessages();
+    this.syncTypingIndicators();
     this.focusInput();
     // Retry once to guarantee cursor appears even on slow focus transitions.
     setTimeout(() => this.focusInput(), 120);
+    if (this.config.openMicEnabled === true && !this.isListening) {
+      setTimeout(() => {
+        if (!this.chatOpen || this.isListening || this.config.openMicEnabled !== true) return;
+        this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+      }, 260);
+    }
   }
 
   closeChat() {
-    this.elements.chat.classList.add('hidden');
+    this.elements.chat.classList.remove('visible');
     this.chatOpen = false;
+    this.toggleSettingsPanel(false);
+    this.toggleThemePanel(false);
+    this.cancelMicAutoSend();
+    this.stopVoiceInput();
     this.state.chatPoseUntil = 0;
     const S = SHIMEJI_STATES;
     if ([S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN].includes(this.state.currentState)) {
@@ -571,6 +2852,7 @@ class Shimeji {
       this.state.animTimer = 0;
       this.state.wanderUntil = 0;
     }
+    this.syncTypingIndicators();
   }
 
   bringToFront() {
@@ -578,6 +2860,7 @@ class Shimeji {
     shimejis.forEach(s => {
       if (s.elements.chat) {
         s.elements.chat.style.zIndex = s === this ? '3000' : '2000';
+        s.elements.chat.classList.toggle('chat-front', s === this);
       }
     });
   }
@@ -617,51 +2900,184 @@ class Shimeji {
   }
 
   async sendMessage() {
+    if (!this.elements.input) return;
     const text = this.elements.input.value.trim();
     if (!text) return;
-
-    this.messages.push({ role: 'user', content: text });
     this.elements.input.value = '';
+    this.micDraftText = '';
+    this.resetTerminalAutocompleteState();
+    if (this.supportsInteractiveTerminalMode()) {
+      await this.sendTerminalLine(text);
+      return;
+    }
+    await this.sendPrompt(text);
+  }
 
+  async sendPrompt(text, { suppressRelay = false } = {}) {
+    const prompt = `${text || ''}`.trim();
+    if (!prompt) return;
+    if (this.supportsInteractiveTerminalMode()) {
+      await this.sendTerminalLine(prompt);
+      return;
+    }
+    if (this.pendingAssistantIndex !== null) return;
+    const isTerminalMode = this.isTerminalMode();
+    if (isTerminalMode) {
+      this.pushTerminalCommandToHistory(prompt);
+    }
+
+    this.messages.push({ role: 'user', content: prompt });
     const requestMessages = this.messages.slice();
     const assistantIndex = this.messages.push({ role: 'assistant', content: '' }) - 1;
     this.pendingAssistantIndex = assistantIndex;
     this.pendingStreamText = '';
+    this.pendingStreamHadDelta = false;
     this.renderMessages();
+    this.saveConversation();
+
+    const fallbackResponses = isSpanishLocale()
+      ? [
+          'Hola, soy tu compañero shimeji.',
+          'Eso suena interesante. Cuéntame más.',
+          'Te escucho.',
+          'Estoy aquí para alegrarte el día.'
+        ]
+      : [
+          "Hello! I'm your shimeji companion!",
+          "That's interesting! Tell me more.",
+          'I am listening.',
+          "I'm here to brighten your day!"
+        ];
+
+    let finalText = '';
+    let errored = false;
 
     if (window.shimejiApi) {
       try {
-        const result = await window.shimejiApi.aiChatStream({
-          shimejiId: this.id,
-          messages: requestMessages,
-          personality: this.config.personality || 'cryptid'
-        });
+        let result;
+        if (isTerminalMode) {
+          if (!window.shimejiApi.terminalExec) {
+            throw new Error('TERMINAL_API_UNAVAILABLE');
+          }
+          result = await window.shimejiApi.terminalExec({
+            shimejiId: this.id,
+            command: prompt,
+            terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
+            terminalCwd: this.config.terminalCwd || '',
+            terminalNotifyOnFinish: this.config.terminalNotifyOnFinish !== false
+          });
+        } else {
+          result = await window.shimejiApi.aiChatStream({
+            shimejiId: this.id,
+            messages: requestMessages,
+            personality: this.config.personality || 'cryptid'
+          });
+        }
+
         if (this.pendingAssistantIndex !== assistantIndex) {
           return;
         }
+
         if (result.ok) {
-          const finalText = result.content || this.pendingStreamText || '';
-          this.messages[assistantIndex] = { role: 'assistant', content: finalText || 'Error: NO_RESPONSE' };
+          if (isTerminalMode) {
+            const streamed = String(this.pendingStreamText || '').replace(/\r/g, '');
+            const rawText = String(result.content || streamed || '').replace(/\r/g, '').trimEnd();
+            const parsedExit = Number.parseInt(`${result.exitCode}`, 10);
+            const exitCode = Number.isFinite(parsedExit) ? parsedExit : 0;
+            if (exitCode !== 0) {
+              errored = true;
+              finalText = rawText ? `${rawText}\n\n[exit code: ${exitCode}]` : `[exit code: ${exitCode}]`;
+            } else {
+              finalText = rawText || t('(Command finished with no output)', '(El comando terminó sin salida)');
+            }
+          } else {
+            finalText = (result.content || this.pendingStreamText || '').trim();
+          }
+
+          if (!finalText) {
+            finalText = 'Error: NO_RESPONSE';
+            errored = true;
+          }
+          this.messages[assistantIndex] = { role: 'assistant', content: finalText };
         } else {
-          this.messages[assistantIndex] = { role: 'assistant', content: `Error: ${result.error}` };
+          errored = true;
+          const errorText = `${result.error || t('Unknown error', 'Error desconocido')}`;
+          if (isTerminalMode && errorText === 'TERMINAL_BUSY') {
+            finalText = t('Error: Terminal is busy running another command.', 'Error: el terminal está ocupado ejecutando otro comando.');
+          } else {
+            finalText = `Error: ${errorText}`;
+          }
+          this.messages[assistantIndex] = { role: 'assistant', content: finalText };
         }
       } catch {
         if (this.pendingAssistantIndex === assistantIndex) {
-          this.messages[assistantIndex] = { role: 'assistant', content: 'AI service unavailable' };
+          errored = true;
+          finalText = isTerminalMode
+            ? t('Error: Terminal service unavailable', 'Error: servicio de terminal no disponible')
+            : t('AI service unavailable', 'Servicio de AI no disponible');
+          this.messages[assistantIndex] = { role: 'assistant', content: finalText };
         }
       }
     } else {
-      const responses = [
-        "Hello! I'm your shimeji companion!",
-        "That's interesting! Tell me more.",
-        "*nods*",
-        "I'm here to brighten your day!"
-      ];
-      this.messages[assistantIndex] = { role: 'assistant', content: responses[Math.floor(Math.random() * responses.length)] };
+      finalText = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+      this.messages[assistantIndex] = { role: 'assistant', content: finalText };
     }
+
+    const shouldAnimateFallbackTyping = (
+      !isTerminalMode
+      &&
+      !errored
+      && finalText
+      && !finalText.startsWith('Error:')
+      && this.pendingAssistantIndex === assistantIndex
+      && !this.pendingStreamHadDelta
+    );
+
+    if (shouldAnimateFallbackTyping) {
+      this.messages[assistantIndex] = { role: 'assistant', content: '' };
+      this.pendingStreamText = '';
+      await this.animateAssistantReveal(assistantIndex, finalText);
+    }
+
+    if (this.pendingAssistantIndex === assistantIndex) {
+      this.messages[assistantIndex] = { role: 'assistant', content: finalText };
+      this.pendingStreamText = finalText;
+    }
+
     this.pendingAssistantIndex = null;
     this.pendingStreamText = '';
+    this.pendingStreamHadDelta = false;
     this.renderMessages();
+    this.saveConversation();
+
+    if (!errored && finalText && !finalText.startsWith('Error:')) {
+      this.lastAssistantText = finalText;
+      this.playNotificationSound('success');
+      if (!this.chatOpen) {
+        this.incrementUnreadNotifications(1);
+        this.notifyClosedChatActivity();
+      }
+      if (!isTerminalMode && this.config.ttsEnabled === true) {
+        const openMicAfter = this.config.openMicEnabled === true;
+        this.enqueueSpeech(finalText, openMicAfter ? () => {
+          if (!this.chatOpen || this.isListening || !this.config.openMicEnabled) return;
+          this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+        } : null);
+      } else if (!isTerminalMode && this.config.openMicEnabled === true && this.chatOpen && !this.isListening) {
+        setTimeout(() => {
+          if (!this.chatOpen || this.isListening || !this.config.openMicEnabled) return;
+          this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+        }, 280);
+      }
+      if (!isTerminalMode && !suppressRelay && this.config.relayEnabled === true) {
+        this.dispatchRelay(finalText);
+      }
+    } else if (errored) {
+      this.playNotificationSound('error');
+      if (!this.chatOpen) {
+        this.notifyClosedChatActivity(3800);
+      }
+    }
   }
 
   applyStreamDelta(delta, accumulated) {
@@ -670,9 +3086,36 @@ class Shimeji {
     if (!this.messages[index] || this.messages[index].role !== 'assistant') return;
     const nextText = accumulated || `${this.pendingStreamText}${delta || ''}`;
     if (!nextText) return;
+    this.pendingStreamHadDelta = true;
     this.pendingStreamText = nextText;
     this.messages[index] = { role: 'assistant', content: nextText };
     this.renderMessages();
+  }
+
+  async animateAssistantReveal(assistantIndex, finalText) {
+    const text = `${finalText || ''}`;
+    if (!text) return;
+
+    const length = text.length;
+    const minChunk = length > 260 ? 8 : (length > 140 ? 5 : 2);
+    const maxChunk = length > 260 ? 14 : (length > 140 ? 9 : 5);
+    const delayMs = length > 260 ? 10 : (length > 140 ? 14 : 20);
+
+    let cursor = 0;
+    while (cursor < text.length) {
+      if (this.pendingAssistantIndex !== assistantIndex) return;
+      const remaining = text.length - cursor;
+      const chunk = Math.min(
+        remaining,
+        minChunk + Math.floor(Math.random() * (maxChunk - minChunk + 1))
+      );
+      cursor += chunk;
+      const partial = text.slice(0, cursor);
+      this.pendingStreamText = partial;
+      this.messages[assistantIndex] = { role: 'assistant', content: partial };
+      this.renderMessages();
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
 
   async copyTextToClipboard(text) {
@@ -710,7 +3153,7 @@ class Shimeji {
         const end = text.indexOf('`', i + 1);
         if (end > i + 1) {
           const codeEl = document.createElement('code');
-          codeEl.className = 'chat-inline-code';
+          codeEl.className = 'shimeji-chat-inline-code';
           codeEl.textContent = text.slice(i + 1, end);
           target.appendChild(codeEl);
           i = end + 1;
@@ -754,7 +3197,7 @@ class Shimeji {
     paragraphs.forEach((paragraph) => {
       if (!paragraph) return;
       const paragraphEl = document.createElement('div');
-      paragraphEl.className = 'chat-md-paragraph';
+      paragraphEl.className = 'shimeji-chat-md-paragraph';
       const lines = paragraph.split('\n');
       lines.forEach((line, index) => {
         this.appendInlineMarkdown(paragraphEl, line);
@@ -768,7 +3211,7 @@ class Shimeji {
 
   bindMarkdownCopyButtons(rootEl) {
     if (!rootEl) return;
-    rootEl.querySelectorAll('.chat-code-copy').forEach((btn) => {
+    rootEl.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
       if (btn.dataset.bound === '1') return;
       btn.dataset.bound = '1';
       btn.addEventListener('click', async (event) => {
@@ -776,10 +3219,9 @@ class Shimeji {
         event.stopPropagation();
         const codeText = this.markdownCopyTextMap.get(btn) || '';
         const copied = await this.copyTextToClipboard(codeText);
-        const originalLabel = btn.textContent;
-        btn.textContent = copied ? 'Copied' : 'Failed';
+        btn.textContent = copied ? t('Copied', 'Copiado') : t('Failed', 'Error');
         setTimeout(() => {
-          btn.textContent = originalLabel;
+          btn.textContent = t('Copy', 'Copiar');
         }, 1200);
       });
     });
@@ -799,25 +3241,25 @@ class Shimeji {
       const rawLang = (match[1] || '').trim();
       const codeText = (match[2] || '').replace(/\n$/, '');
       const blockEl = document.createElement('div');
-      blockEl.className = 'chat-code-block';
+      blockEl.className = 'shimeji-chat-code-block';
 
       const headerEl = document.createElement('div');
-      headerEl.className = 'chat-code-header';
+      headerEl.className = 'shimeji-chat-code-header';
 
       const langEl = document.createElement('span');
-      langEl.className = 'chat-code-lang';
-      langEl.textContent = rawLang || 'code';
+      langEl.className = 'shimeji-chat-code-lang';
+      langEl.textContent = rawLang || t('code', 'código');
 
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button';
-      copyBtn.className = 'chat-code-copy';
-      copyBtn.textContent = 'Copy';
+      copyBtn.className = 'shimeji-chat-code-copy';
+      copyBtn.textContent = t('Copy', 'Copiar');
       this.markdownCopyTextMap.set(copyBtn, codeText);
 
       const preEl = document.createElement('pre');
-      preEl.className = 'chat-code-pre';
+      preEl.className = 'shimeji-chat-code-pre';
       const codeEl = document.createElement('code');
-      codeEl.className = 'chat-code';
+      codeEl.className = 'shimeji-chat-code';
       codeEl.textContent = codeText;
       preEl.appendChild(codeEl);
 
@@ -840,11 +3282,69 @@ class Shimeji {
     this.bindMarkdownCopyButtons(msgEl);
   }
 
+  isAssistantPending() {
+    return this.pendingAssistantIndex !== null;
+  }
+
+  isAssistantWaitingForFirstToken() {
+    if (this.pendingAssistantIndex === null) return false;
+    const message = this.messages[this.pendingAssistantIndex];
+    const content = `${message?.content || ''}`.trim();
+    return content.length === 0;
+  }
+
+  createTypingDotsElement() {
+    const dots = document.createElement('span');
+    dots.className = 'shimeji-typing-dots';
+    for (let i = 0; i < 3; i += 1) {
+      const dot = document.createElement('span');
+      dot.className = 'shimeji-typing-dot';
+      dot.style.animationDelay = `${i * 0.16}s`;
+      dots.appendChild(dot);
+    }
+    return dots;
+  }
+
+  syncTypingIndicators() {
+    if (this.elements.overheadTyping) {
+      const showNotice = !this.chatOpen && this.closedChatNoticeUntil > Date.now();
+      const showOverhead = (this.isAssistantPending() && !this.chatOpen) || showNotice;
+      this.elements.overheadTyping.classList.toggle('visible', showOverhead);
+    }
+    this.syncNotificationBadge();
+  }
+
+  syncNotificationBadge() {
+    if (!this.elements.notificationBadge) return;
+    const count = Math.max(0, Number(this.unreadNotificationCount) || 0);
+    const show = !this.chatOpen && count > 0;
+    if (show) {
+      this.elements.notificationBadge.textContent = count > 9 ? '9+' : `${count}`;
+    }
+    this.elements.notificationBadge.classList.toggle('visible', show);
+  }
+
+  incrementUnreadNotifications(amount = 1) {
+    const safeAmount = Math.max(1, Number(amount) || 1);
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount + safeAmount);
+    this.syncNotificationBadge();
+  }
+
+  clearUnreadNotifications() {
+    this.unreadNotificationCount = 0;
+    this.syncNotificationBadge();
+  }
+
   renderMessages() {
     this.elements.messagesArea.innerHTML = '';
-    this.messages.forEach((msg) => {
+    this.messages.forEach((msg, msgIndex) => {
+      const isPendingEmptyAssistant = msgIndex === this.pendingAssistantIndex
+        && msg.role === 'assistant'
+        && `${msg?.content || ''}`.trim().length === 0;
+      if (isPendingEmptyAssistant) return;
+
       const msgEl = document.createElement('div');
-      msgEl.className = `chat-message ${msg.role === 'user' ? 'user' : 'assistant'}`;
+      msgEl.className = `shimeji-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
       if (msg.role === 'assistant') {
         this.renderMarkdownIntoMessage(msgEl, msg.content);
       } else {
@@ -852,7 +3352,16 @@ class Shimeji {
       }
       this.elements.messagesArea.appendChild(msgEl);
     });
+
+    if (this.isAssistantWaitingForFirstToken()) {
+      const typingEl = document.createElement('div');
+      typingEl.className = 'shimeji-chat-msg ai shimeji-chat-typing';
+      typingEl.appendChild(this.createTypingDotsElement());
+      this.elements.messagesArea.appendChild(typingEl);
+    }
+
     this.elements.messagesArea.scrollTop = this.elements.messagesArea.scrollHeight;
+    this.syncTypingIndicators();
   }
 
   jump() {
@@ -911,7 +3420,7 @@ class Shimeji {
       return;
     }
 
-    if (this.chatOpen && !this.state.dragging) {
+    if (this.chatOpen && !this.state.dragging && this.state.onGround) {
       this.updateChatBehavior();
       this.updateAnimation();
       this.updateVisuals();
@@ -964,7 +3473,7 @@ class Shimeji {
     st.y += st.vy;
 
     // Ground collision
-    const groundY = screenHeight - size;
+    const groundY = this.getGroundY();
     if (st.y >= groundY) {
       st.y = groundY;
       st.vy = 0;
@@ -1342,35 +3851,206 @@ class Shimeji {
     if (this.chatOpen) this.positionChatBubble();
   }
 
+  hasOpenRouterCredential(cfg = this.config) {
+    return Boolean((cfg?.openrouterApiKey || '').trim());
+  }
+
+  hasOpenClawCredential(cfg = this.config) {
+    return Boolean((cfg?.openclawGatewayToken || '').trim());
+  }
+
+  hasAnyApiCredential(cfg = this.config) {
+    return this.hasOpenRouterCredential(cfg) || this.hasOpenClawCredential(cfg);
+  }
+
+  announceReadyAfterApiKeyLoad() {
+    if (this.config.enabled === false) return;
+    const message = t(
+      'All set! I have your API key and I am ready to chat with you.',
+      '¡Listo! Ya tengo tu API key y estoy listo para conversar contigo.'
+    );
+    if (!this.chatOpen) {
+      this.openChat();
+    }
+    this.messages.push({ role: 'assistant', content: message });
+    this.lastAssistantText = message;
+    this.renderMessages();
+    this.saveConversation();
+    this.playNotificationSound('success');
+  }
+
   setConfig(newConfig) {
+    const prevOpenMic = this.config.openMicEnabled === true;
+    const prevTtsEnabled = this.config.ttsEnabled === true;
+    const prevMode = this.getActiveMode();
+    const prevHadApiCredential = this.hasAnyApiCredential(this.config);
     this.config = { ...this.config, ...newConfig };
+    this.config.terminalDistro = normalizeTerminalProfile(this.config.terminalDistro);
+    const nextHasApiCredential = this.hasAnyApiCredential(this.config);
+    const nextMode = this.getActiveMode();
+    this.normalizeChatThemeConfig();
     const scale = SPRITE_SCALES[this.config.size] || 1;
     this.elements.sprite.style.width = `${SPRITE_SIZE * scale}px`;
     this.elements.sprite.style.height = `${SPRITE_SIZE * scale}px`;
+    if (this.elements.wrapper) {
+      this.elements.wrapper.style.display = this.config.enabled !== false ? 'flex' : 'none';
+    }
+    if (this.config.enabled === false && this.chatOpen) {
+      this.closeChat();
+    }
+
+    if (prevTtsEnabled && this.config.ttsEnabled !== true) {
+      this.stopTts();
+    }
+    if (prevOpenMic && this.config.openMicEnabled !== true) {
+      this.stopVoiceInput();
+      this.cancelMicAutoSend();
+    }
+    if (!prevOpenMic && this.config.openMicEnabled === true && this.chatOpen && !this.isListening) {
+      this.startVoiceInput({ continuous: true, allowAutoRestart: true });
+    }
+    if (prevMode === 'terminal' && nextMode !== 'terminal') {
+      this.stopTerminalSession('TERMINAL_SESSION_REPLACED_BY_MODE');
+    }
+
     this.updateChatHeader();
     this.applyChatTheme();
+    this.syncSettingsInputs();
+    this.applyLocalizedText();
+    this.syncChatControlButtons();
+    this.syncTerminalModeUi();
+    if (!prevHadApiCredential && nextHasApiCredential) {
+      this.announceReadyAfterApiKeyLoad();
+    }
+  }
+
+  onLanguageChanged() {
+    this.applyLocalizedText();
+    this.syncSettingsInputs();
+    this.syncChatControlButtons();
+    this.syncTerminalModeUi();
+    if (this.chatOpen && !this.supportsInteractiveTerminalMode()) {
+      this.renderMessages();
+    }
   }
 
   applyChatTheme() {
     if (!this.elements.chat) return;
-    const themeId = this.config.chatTheme || 'pastel';
-    const theme = CHAT_THEMES.find((t) => t.id === themeId) || CHAT_THEMES[0];
-    const bubbleStyle = theme.bubble || 'glass';
-    this.elements.chat.classList.remove('glass', 'dark', 'solid');
-    this.elements.chat.classList.add(bubbleStyle);
-    this.elements.chat.style.setProperty('--chat-theme', theme.theme);
-    this.elements.chat.style.setProperty('--chat-bg', theme.bg);
-    const rgb = hexToRgb(theme.theme);
+    this.normalizeChatThemeConfig();
+    const bubbleStyle = this.config.chatBubbleStyle || 'glass';
+    const themeColor = this.normalizeColor(this.config.chatThemeColor, '#3b1a77');
+    const bgColor = this.normalizeColor(this.config.chatBgColor, '#f0e8ff');
+    const maxChatWidth = Math.max(CHAT_MIN_WIDTH, window.innerWidth - (CHAT_EDGE_MARGIN_PX * 2));
+    const widthPx = clamp(
+      Number(this.config.chatWidthPx || CHAT_WIDTH_MAP[this.config.chatWidth || 'medium'] || CHAT_WIDTH_MAP.medium),
+      CHAT_MIN_WIDTH,
+      maxChatWidth
+    );
+    const heightPx = clamp(
+      Number(this.config.chatHeightPx || DEFAULT_CHAT_HEIGHT),
+      CHAT_MIN_HEIGHT,
+      CHAT_MAX_HEIGHT
+    );
+    const fontSize = FONT_SIZE_MAP[this.config.chatFontSize || 'medium'] || FONT_SIZE_MAP.medium;
+
+    this.elements.chat.classList.remove('chat-style-glass', 'chat-style-solid', 'chat-style-dark');
+    this.elements.chat.classList.add(`chat-style-${bubbleStyle}`);
+    this.elements.chat.style.setProperty('--chat-theme', themeColor);
+    this.elements.chat.style.setProperty('--chat-bg', bgColor);
+    this.elements.chat.style.setProperty('--chat-font-size', fontSize);
+    this.elements.chat.style.setProperty('--chat-width', `${Math.round(widthPx)}px`);
+    this.elements.chat.style.setProperty('--chat-height', `${Math.round(heightPx)}px`);
+    if (this.elements.wrapper) {
+      this.elements.wrapper.style.setProperty('--chat-theme', themeColor);
+      this.elements.wrapper.style.setProperty('--chat-bg', bgColor);
+    }
+
+    const rgb = hexToRgb(themeColor);
     if (rgb) {
       this.elements.chat.style.setProperty('--chat-theme-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
     }
+    this.syncNotificationBadge();
     this.updateChatHeader();
+    if (this.supportsInteractiveTerminalMode()) {
+      this.scheduleTerminalFit(0);
+    }
   }
 
   remove() {
+    document.removeEventListener('shimeji-relay', this.boundRelayHandler);
+    document.removeEventListener('shimeji-stop-mic', this.boundStopMicHandler);
+    this.clearClosedChatActivityNotice();
+    this.clearMicRestartTimer();
+    if (this.terminalFitTimer) {
+      clearTimeout(this.terminalFitTimer);
+      this.terminalFitTimer = null;
+    }
+    this.cancelMicAutoSend();
+    this.stopVoiceInput();
+    this.stopTts();
+    this.stopTerminalSession('TERMINAL_SESSION_REMOVED');
+    if (this.terminalView && typeof this.terminalView.dispose === 'function') {
+      this.terminalView.dispose();
+      this.terminalView = null;
+    }
     if (this.elements.wrapper) this.elements.wrapper.remove();
     if (this.elements.chat) this.elements.chat.remove();
   }
+}
+
+function toPersistedShimejiConfig(shimeji, index) {
+  const cfg = shimeji.config || {};
+  return {
+    id: `shimeji-${index + 1}`,
+    character: cfg.character || 'shimeji',
+    size: cfg.size || 'medium',
+    personality: cfg.personality || 'cryptid',
+    chatTheme: cfg.chatTheme || 'pastel',
+    chatThemeColor: cfg.chatThemeColor || '#3b1a77',
+    chatBgColor: cfg.chatBgColor || '#f0e8ff',
+    chatBubbleStyle: cfg.chatBubbleStyle || 'glass',
+    chatThemePreset: cfg.chatThemePreset || 'custom',
+    chatFontSize: cfg.chatFontSize || 'medium',
+    chatWidth: cfg.chatWidth || 'medium',
+    chatWidthPx: typeof cfg.chatWidthPx === 'number' ? cfg.chatWidthPx : null,
+    chatHeightPx: typeof cfg.chatHeightPx === 'number' ? cfg.chatHeightPx : DEFAULT_CHAT_HEIGHT,
+    ttsEnabled: cfg.ttsEnabled === true,
+    ttsVoiceProfile: cfg.ttsVoiceProfile || 'random',
+    ttsVoiceId: cfg.ttsVoiceId || '',
+    openMicEnabled: cfg.openMicEnabled === true,
+    sttProvider: cfg.sttProvider || 'groq',
+    sttApiKey: cfg.sttApiKey || '',
+    relayEnabled: cfg.relayEnabled === true,
+    soundEnabled: cfg.soundEnabled !== false,
+    soundVolume: typeof cfg.soundVolume === 'number' ? cfg.soundVolume : 0.7,
+    enabled: cfg.enabled !== false,
+    mode: cfg.mode || 'standard',
+    standardProvider: cfg.standardProvider || 'openrouter',
+    openrouterApiKey: cfg.openrouterApiKey || '',
+    openrouterModel: cfg.openrouterModel || 'random',
+    openrouterModelResolved: cfg.openrouterModelResolved || '',
+    ollamaUrl: cfg.ollamaUrl || 'http://127.0.0.1:11434',
+    ollamaModel: cfg.ollamaModel || 'gemma3:1b',
+    openclawGatewayUrl: cfg.openclawGatewayUrl || 'ws://127.0.0.1:18789',
+    openclawGatewayToken: cfg.openclawGatewayToken || '',
+    openclawAgentName: cfg.openclawAgentName || `desktop-shimeji-${index + 1}`,
+    terminalDistro: normalizeTerminalProfile(cfg.terminalDistro),
+    terminalCwd: cfg.terminalCwd || '',
+    terminalNotifyOnFinish: cfg.terminalNotifyOnFinish !== false
+  };
+}
+
+function persistShimejiConfig(shimejiId, nextConfig) {
+  const target = shimejis.find((item) => item.id === shimejiId);
+  if (target && nextConfig && typeof nextConfig === 'object') {
+    target.config = { ...target.config, ...nextConfig };
+  }
+  if (!window.shimejiApi?.updateConfig) return;
+  const list = shimejis.map((item, index) => toPersistedShimejiConfig(item, index));
+  window.shimejiApi.updateConfig({
+    shimejiCount: list.length,
+    shimejis: list
+  });
 }
 
 function createShimeji(id, config = {}) {
@@ -1395,12 +4075,51 @@ function getConfigForIndex(index) {
     size: globalConfig[`shimeji${index + 1}_size`] || 'medium',
     personality: globalConfig[`shimeji${index + 1}_personality`] || 'cryptid',
     chatTheme: globalConfig[`shimeji${index + 1}_chatTheme`] || 'pastel',
+    chatThemeColor: globalConfig[`shimeji${index + 1}_chatThemeColor`] || '#3b1a77',
+    chatBgColor: globalConfig[`shimeji${index + 1}_chatBgColor`] || '#f0e8ff',
+    chatBubbleStyle: globalConfig[`shimeji${index + 1}_chatBubbleStyle`] || 'glass',
+    chatThemePreset: globalConfig[`shimeji${index + 1}_chatThemePreset`] || 'pastel',
+    chatFontSize: globalConfig[`shimeji${index + 1}_chatFontSize`] || 'medium',
+    chatWidth: globalConfig[`shimeji${index + 1}_chatWidth`] || 'medium',
+    chatWidthPx: globalConfig[`shimeji${index + 1}_chatWidthPx`] || null,
+    chatHeightPx: globalConfig[`shimeji${index + 1}_chatHeightPx`] || DEFAULT_CHAT_HEIGHT,
+    ttsEnabled: globalConfig[`shimeji${index + 1}_ttsEnabled`] === true,
+    ttsVoiceProfile: globalConfig[`shimeji${index + 1}_ttsVoiceProfile`] || pickRandomTtsProfile(),
+    ttsVoiceId: globalConfig[`shimeji${index + 1}_ttsVoiceId`] || '',
+    openMicEnabled: globalConfig[`shimeji${index + 1}_openMicEnabled`] === true,
+    sttProvider: globalConfig[`shimeji${index + 1}_sttProvider`] || 'groq',
+    sttApiKey: globalConfig[`shimeji${index + 1}_sttApiKey`] || '',
+    relayEnabled: globalConfig[`shimeji${index + 1}_relayEnabled`] === true,
+    soundEnabled: globalConfig[`shimeji${index + 1}_soundEnabled`] !== false,
+    soundVolume: typeof globalConfig[`shimeji${index + 1}_soundVolume`] === 'number'
+      ? globalConfig[`shimeji${index + 1}_soundVolume`]
+      : 0.7,
     mode: globalConfig[`shimeji${index + 1}_mode`] || globalConfig.aiMode || 'standard',
     standardProvider: globalConfig[`shimeji${index + 1}_standardProvider`] || 'openrouter',
     openrouterModel: globalConfig[`shimeji${index + 1}_openrouterModel`] || globalConfig.openrouterModel || 'google/gemini-2.0-flash-001',
     openrouterModelResolved: globalConfig[`shimeji${index + 1}_openrouterModelResolved`] || globalConfig.openrouterModelResolved || '',
     ollamaModel: globalConfig[`shimeji${index + 1}_ollamaModel`] || globalConfig.ollamaModel || 'gemma3:1b',
     ollamaUrl: globalConfig[`shimeji${index + 1}_ollamaUrl`] || globalConfig.ollamaUrl || 'http://127.0.0.1:11434',
+    openclawGatewayUrl: globalConfig[`shimeji${index + 1}_openclawGatewayUrl`]
+      || globalConfig.openclawGatewayUrl
+      || globalConfig.openclawUrl
+      || 'ws://127.0.0.1:18789',
+    openclawGatewayToken: globalConfig[`shimeji${index + 1}_openclawGatewayToken`]
+      || globalConfig.openclawGatewayToken
+      || globalConfig.openclawToken
+      || '',
+    openclawAgentName: globalConfig[`shimeji${index + 1}_openclawAgentName`]
+      || globalConfig.openclawAgentName
+      || `desktop-shimeji-${index + 1}`,
+    terminalDistro: normalizeTerminalProfile(globalConfig[`shimeji${index + 1}_terminalDistro`]
+      || globalConfig.terminalDistro
+      || DEFAULT_TERMINAL_PROFILE),
+    terminalCwd: globalConfig[`shimeji${index + 1}_terminalCwd`]
+      || globalConfig.terminalCwd
+      || '',
+    terminalNotifyOnFinish: globalConfig[`shimeji${index + 1}_terminalNotifyOnFinish`] !== undefined
+      ? globalConfig[`shimeji${index + 1}_terminalNotifyOnFinish`] !== false
+      : (globalConfig.terminalNotifyOnFinish !== false),
     enabled: globalConfig.enabled !== false
   };
 }
@@ -1435,6 +4154,12 @@ function applyShimejiList(list) {
     }
     if (nextConfig.enabled !== undefined) {
       shimeji.config.enabled = nextConfig.enabled;
+    }
+    if (shimeji.elements.wrapper) {
+      shimeji.elements.wrapper.style.display = shimeji.config.enabled !== false ? 'flex' : 'none';
+    }
+    if (shimeji.config.enabled === false && shimeji.chatOpen) {
+      shimeji.closeChat();
     }
   });
 }
@@ -1510,6 +4235,7 @@ function updateMouseCapture(x, y) {
 
 async function init() {
   console.log('Initializing Shimeji Desktop...');
+  syncUiLanguageFromConfig(globalConfig);
 
   let container = document.getElementById('shimeji-container');
   if (!container) {
@@ -1534,6 +4260,7 @@ async function init() {
     if (window.shimejiApi) {
       console.log('Loading config from API...');
       globalConfig = await window.shimejiApi.getConfig() || {};
+      syncUiLanguageFromConfig(globalConfig);
       console.log('Config loaded:', globalConfig);
 
       const list = Array.isArray(globalConfig.shimejis) ? globalConfig.shimejis : [];
@@ -1552,7 +4279,10 @@ async function init() {
       }
 
       window.shimejiApi.onConfigUpdated((next) => {
+        const previousLanguage = getUiLanguage();
         globalConfig = { ...globalConfig, ...next };
+        syncUiLanguageFromConfig(globalConfig);
+        const languageChanged = previousLanguage !== getUiLanguage();
         console.log('Config updated:', globalConfig);
 
         if (next.shimejis) {
@@ -1592,6 +4322,57 @@ async function init() {
           if (next[`shimeji${index + 1}_chatTheme`] !== undefined) {
             shimeji.setConfig({ chatTheme: next[`shimeji${index + 1}_chatTheme`] });
           }
+          if (next[`shimeji${index + 1}_chatThemePreset`] !== undefined) {
+            shimeji.setConfig({ chatThemePreset: next[`shimeji${index + 1}_chatThemePreset`] });
+          }
+          if (next[`shimeji${index + 1}_chatThemeColor`] !== undefined) {
+            shimeji.setConfig({ chatThemeColor: next[`shimeji${index + 1}_chatThemeColor`] });
+          }
+          if (next[`shimeji${index + 1}_chatBgColor`] !== undefined) {
+            shimeji.setConfig({ chatBgColor: next[`shimeji${index + 1}_chatBgColor`] });
+          }
+          if (next[`shimeji${index + 1}_chatBubbleStyle`] !== undefined) {
+            shimeji.setConfig({ chatBubbleStyle: next[`shimeji${index + 1}_chatBubbleStyle`] });
+          }
+          if (next[`shimeji${index + 1}_chatFontSize`] !== undefined) {
+            shimeji.setConfig({ chatFontSize: next[`shimeji${index + 1}_chatFontSize`] });
+          }
+          if (next[`shimeji${index + 1}_chatWidth`] !== undefined) {
+            shimeji.setConfig({ chatWidth: next[`shimeji${index + 1}_chatWidth`] });
+          }
+          if (next[`shimeji${index + 1}_chatWidthPx`] !== undefined) {
+            shimeji.setConfig({ chatWidthPx: next[`shimeji${index + 1}_chatWidthPx`] });
+          }
+          if (next[`shimeji${index + 1}_chatHeightPx`] !== undefined) {
+            shimeji.setConfig({ chatHeightPx: next[`shimeji${index + 1}_chatHeightPx`] });
+          }
+          if (next[`shimeji${index + 1}_ttsEnabled`] !== undefined) {
+            shimeji.setConfig({ ttsEnabled: next[`shimeji${index + 1}_ttsEnabled`] });
+          }
+          if (next[`shimeji${index + 1}_ttsVoiceProfile`] !== undefined) {
+            shimeji.setConfig({ ttsVoiceProfile: next[`shimeji${index + 1}_ttsVoiceProfile`] });
+          }
+          if (next[`shimeji${index + 1}_ttsVoiceId`] !== undefined) {
+            shimeji.setConfig({ ttsVoiceId: next[`shimeji${index + 1}_ttsVoiceId`] });
+          }
+          if (next[`shimeji${index + 1}_openMicEnabled`] !== undefined) {
+            shimeji.setConfig({ openMicEnabled: next[`shimeji${index + 1}_openMicEnabled`] });
+          }
+          if (next[`shimeji${index + 1}_sttProvider`] !== undefined) {
+            shimeji.setConfig({ sttProvider: next[`shimeji${index + 1}_sttProvider`] });
+          }
+          if (next[`shimeji${index + 1}_sttApiKey`] !== undefined) {
+            shimeji.setConfig({ sttApiKey: next[`shimeji${index + 1}_sttApiKey`] });
+          }
+          if (next[`shimeji${index + 1}_relayEnabled`] !== undefined) {
+            shimeji.setConfig({ relayEnabled: next[`shimeji${index + 1}_relayEnabled`] });
+          }
+          if (next[`shimeji${index + 1}_soundEnabled`] !== undefined) {
+            shimeji.setConfig({ soundEnabled: next[`shimeji${index + 1}_soundEnabled`] });
+          }
+          if (next[`shimeji${index + 1}_soundVolume`] !== undefined) {
+            shimeji.setConfig({ soundVolume: next[`shimeji${index + 1}_soundVolume`] });
+          }
           if (next[`shimeji${index + 1}_mode`] !== undefined) {
             shimeji.setConfig({ mode: next[`shimeji${index + 1}_mode`] });
           }
@@ -1616,6 +4397,18 @@ async function init() {
           if (next[`shimeji${index + 1}_openclawGatewayToken`] !== undefined) {
             shimeji.setConfig({ openclawGatewayToken: next[`shimeji${index + 1}_openclawGatewayToken`] });
           }
+          if (next[`shimeji${index + 1}_openclawAgentName`] !== undefined) {
+            shimeji.setConfig({ openclawAgentName: next[`shimeji${index + 1}_openclawAgentName`] });
+          }
+          if (next[`shimeji${index + 1}_terminalDistro`] !== undefined) {
+            shimeji.setConfig({ terminalDistro: next[`shimeji${index + 1}_terminalDistro`] });
+          }
+          if (next[`shimeji${index + 1}_terminalCwd`] !== undefined) {
+            shimeji.setConfig({ terminalCwd: next[`shimeji${index + 1}_terminalCwd`] });
+          }
+          if (next[`shimeji${index + 1}_terminalNotifyOnFinish`] !== undefined) {
+            shimeji.setConfig({ terminalNotifyOnFinish: next[`shimeji${index + 1}_terminalNotifyOnFinish`] });
+          }
         });
 
         if (
@@ -1624,8 +4417,15 @@ async function init() {
           || next.openrouterModelResolved !== undefined
           || next.ollamaModel !== undefined
           || next.openclawGatewayUrl !== undefined
+          || next.openclawAgentName !== undefined
+          || next.terminalDistro !== undefined
+          || next.terminalCwd !== undefined
         ) {
           shimejis.forEach((shimeji) => shimeji.updateChatHeader());
+        }
+
+        if (languageChanged) {
+          shimejis.forEach((shimeji) => shimeji.onLanguageChanged());
         }
       });
 
@@ -1635,6 +4435,55 @@ async function init() {
           const target = shimejis.find((s) => s.id === payload.shimejiId);
           if (!target) return;
           target.applyStreamDelta(payload.delta || '', payload.accumulated || '');
+        });
+      }
+
+      if (window.shimejiApi.onTerminalStreamDelta) {
+        window.shimejiApi.onTerminalStreamDelta((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target) return;
+          target.applyStreamDelta(payload.delta || '', payload.accumulated || '');
+        });
+      }
+
+      if (window.shimejiApi.onTerminalStreamError) {
+        window.shimejiApi.onTerminalStreamError((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target || target.pendingAssistantIndex === null) return;
+          const errorText = `Error: ${payload.error || 'TERMINAL_ERROR'}`;
+          target.messages[target.pendingAssistantIndex] = { role: 'assistant', content: errorText };
+          target.pendingStreamText = errorText;
+          target.pendingStreamHadDelta = true;
+          target.renderMessages();
+        });
+      }
+
+      if (window.shimejiApi.onTerminalSessionData) {
+        window.shimejiApi.onTerminalSessionData((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target) return;
+          target.handleTerminalSessionData(payload);
+        });
+      }
+
+      if (window.shimejiApi.onTerminalSessionExit) {
+        window.shimejiApi.onTerminalSessionExit((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target) return;
+          target.handleTerminalSessionExit(payload);
+        });
+      }
+
+      if (window.shimejiApi.onTerminalSessionState) {
+        window.shimejiApi.onTerminalSessionState((payload) => {
+          if (!payload || !payload.shimejiId) return;
+          const target = shimejis.find((s) => s.id === payload.shimejiId);
+          if (!target) return;
+          target.handleTerminalSessionState(payload);
         });
       }
     } else {
@@ -1652,9 +4501,27 @@ async function init() {
         enabled: true, 
         personality: 'random', 
         chatTheme: 'pastel',
+        chatThemePreset: 'pastel',
+        chatThemeColor: '#3b1a77',
+        chatBgColor: '#f0e8ff',
+        chatBubbleStyle: 'glass',
+        chatFontSize: 'medium',
+        chatWidth: 'medium',
+        chatHeightPx: 340,
+        soundEnabled: true,
+        soundVolume: 0.7,
+        ttsEnabled: false,
+        ttsVoiceProfile: 'random',
+        openMicEnabled: false,
+        sttProvider: 'groq',
+        sttApiKey: '',
+        relayEnabled: false,
         mode: 'standard',
         standardProvider: 'openrouter',
-        openrouterModel: 'random'
+        openrouterModel: 'random',
+        terminalDistro: DEFAULT_TERMINAL_PROFILE,
+        terminalCwd: '',
+        terminalNotifyOnFinish: true
       });
     }
 
@@ -1689,6 +4556,14 @@ async function init() {
       isMouseOverInteractive = false;
       window.shimejiApi.setIgnoreMouseEvents(true);
     }
+  });
+
+  window.addEventListener('resize', () => {
+    shimejis.forEach((shimeji) => {
+      if (!shimeji.chatOpen) return;
+      shimeji.positionChatBubble();
+      shimeji.scheduleTerminalFit(0);
+    });
   });
 }
 

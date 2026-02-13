@@ -1604,7 +1604,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1011, 'error');
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close(4000, 'error');
       reject(err);
     }
 
