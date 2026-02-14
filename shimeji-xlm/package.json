@@ -6,7 +6,10 @@
     "chain": "./scripts/chain.sh",
     "chain:stop": "./scripts/chain.sh stop",
     "chain:logs": "./scripts/chain.sh logs",
-    "deploy": "./scripts/deploy.sh"
+    "deploy": "./scripts/deploy.sh",
+    "deploy:local": "./scripts/deploy.sh local",
+    "deploy:testnet": "./scripts/deploy.sh testnet",
+    "deploy:mainnet": "./scripts/deploy.sh mainnet"
   },
   "packageManager": "pnpm@10.24.0"
 }

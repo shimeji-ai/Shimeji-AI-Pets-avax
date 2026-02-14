@@ -22,9 +22,9 @@ Then:
 
 ```bash
 pnpm chain            # local blockchain
-pnpm deploy -- local  # local deploy (+ local frontend env sync)
-pnpm deploy -- testnet
-pnpm deploy -- mainnet
+pnpm run deploy:local  # local deploy (+ local frontend env sync)
+pnpm run deploy:testnet
+pnpm run deploy:mainnet
 ```
 
 ## Quick Setup (Recommended)

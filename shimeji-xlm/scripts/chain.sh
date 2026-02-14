@@ -169,7 +169,7 @@ print_testnet_fallback() {
   print_sad_end "$reason"
   echo "" >&2
   echo "If you want to continue without local Docker, use testnet flow:" >&2
-  echo "  pnpm deploy -- testnet" >&2
+  echo "  pnpm run deploy:testnet" >&2
   echo "  pnpm start" >&2
   echo "" >&2
   print_deploy_paths >&2
@@ -177,9 +177,9 @@ print_testnet_fallback() {
 
 print_deploy_paths() {
   echo "After pnpm chain, deploy with one of these:"
-  echo "  - Local dev:  pnpm deploy -- local   (then pnpm start)"
-  echo "  - Testnet:    pnpm deploy -- testnet (then pnpm start)"
-  echo "  - Mainnet:    pnpm deploy -- mainnet"
+  echo "  - Local dev:  pnpm run deploy:local   (then pnpm start)"
+  echo "  - Testnet:    pnpm run deploy:testnet (then pnpm start)"
+  echo "  - Mainnet:    pnpm run deploy:mainnet"
   echo "                then copy deploy output env vars to Vercel and redeploy web"
 }
 

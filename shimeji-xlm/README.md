@@ -21,7 +21,7 @@ pnpm chain
 2. Deploy contracts (interactive selector: local/testnet/mainnet):
 
 ```bash
-pnpm deploy
+pnpm run deploy
 ```
 
 3. Start frontend:
@@ -41,7 +41,7 @@ Open `http://localhost:3000/auction`.
 - Shows `pnpm chain --logs` to view blocks/logs.
 - Shows `pnpm chain --status` to check status.
 - Shows `pnpm chain --off` to stop chain.
-- Prints deploy command suggestions: `pnpm deploy -- local`, `pnpm deploy -- testnet`, `pnpm deploy -- mainnet`.
+- Prints deploy command suggestions: `pnpm run deploy:local`, `pnpm run deploy:testnet`, `pnpm run deploy:mainnet`.
 
 If chain is already running, it offers a menu to view logs, stop chain, or exit without changes.
 
@@ -51,16 +51,16 @@ If chain is already running, it offers a menu to view logs, stop chain, or exit 
 
 ```bash
 pnpm chain
-pnpm deploy -- local
+pnpm run deploy:local
 pnpm start
 ```
 
-`pnpm deploy -- local` updates `nextjs/.env.local` automatically.
+`pnpm run deploy:local` updates `nextjs/.env.local` automatically.
 
 ### Testnet
 
 ```bash
-pnpm deploy -- testnet
+pnpm run deploy:testnet
 pnpm start
 ```
 
@@ -78,7 +78,7 @@ Use deploy output values in `nextjs/.env.local`:
 1. Deploy contracts:
 
 ```bash
-pnpm deploy -- mainnet
+pnpm run deploy:mainnet
 ```
 
 2. In Vercel, set **Root Directory** to `shimeji-xlm/nextjs`.
