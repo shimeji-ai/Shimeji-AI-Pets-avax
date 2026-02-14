@@ -21,18 +21,24 @@ yarn install
 
 ## Local Development
 
-Run each in a separate terminal:
+Use 3 separate terminals:
+
+Terminal 1 (frontend app):
+
+```bash
+yarn start
+```
+
+Terminal 2 (local blockchain for development):
 
 ```bash
 yarn chain
 ```
 
-```bash
-yarn deploy
-```
+Terminal 3 (deploy contracts):
 
 ```bash
-yarn start
+yarn deploy
 ```
 
 ## Common Commands

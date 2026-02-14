@@ -9,18 +9,6 @@ This repository contains multiple Shimeji products:
 - `animation-reference/`: current sprite guidance (simple walk + full runtime set used by extension/desktop).
 - `scripts/`: release and maintenance scripts.
 
-## Legacy Workspace (Local Only)
-
-`legacy/` is an ignored local workspace used for archived/reference material.
-It currently contains:
-
-- `legacy/shimeji-ee/`
-- `legacy/marketing/`
-- `legacy/generate_sprites.py`
-- previous root markdown docs
-
-This folder is intentionally git-ignored.
-
 ## Quick Start
 
 ### Chrome extension
@@ -39,12 +27,28 @@ npm start
 
 ### Ethereum app (`shimeji-eth`)
 
+Use 3 separate terminals:
+
+Terminal 1 (frontend app):
+
 ```bash
 cd shimeji-eth
 yarn install
-yarn chain
-yarn deploy
 yarn start
+```
+
+Terminal 2 (local blockchain for development):
+
+```bash
+cd shimeji-eth
+yarn chain
+```
+
+Terminal 3 (deploy contracts):
+
+```bash
+cd shimeji-eth
+yarn deploy
 ```
 
 ### Stellar app (`shimeji-xlm`)
