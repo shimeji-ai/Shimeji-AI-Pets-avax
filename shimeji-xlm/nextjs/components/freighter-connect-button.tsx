@@ -54,7 +54,7 @@ export function FreighterConnectButton() {
             : isConnecting
               ? (isSpanish ? "Conectando..." : "Connecting...")
               : isConnected
-                ? (isSpanish ? "Desconectar" : "Disconnect")
+                ? (isSpanish ? "DESCONECTAR" : "DISCONNECT")
                 : (isSpanish ? "CONECTAR BILLETERA" : "CONNECT WALLET")}
         </strong>
         <span className="stars-container" aria-hidden="true">

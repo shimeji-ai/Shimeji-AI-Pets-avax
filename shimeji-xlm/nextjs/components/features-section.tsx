@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, Bot, Sparkles, Palette, ArrowLeftRight } from "lucide-react";
+import { MessageSquare, Bot, Sparkles, Palette, ArrowLeftRight, ShieldCheck } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import { ProjectFeedbackBox } from "./project-feedback-box";
 import { useLanguage } from "./language-provider";
@@ -32,9 +32,15 @@ const features = [
   },
   {
     icon: ArrowLeftRight,
-    title: "Stellar Wallet Integration",
+    title: "Deployed on Stellar Network",
     description:
-      "Connect a Stellar wallet to reserve eggs and handle payments on the Stellar network.",
+      "Shimeji auctions are deployed on the Stellar network.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Trustless Work Escrow",
+    description:
+      "Auction funds are handled with Trustless Work escrow.",
   },
 ];
 
@@ -83,39 +89,71 @@ export function FeaturesSection() {
                           ? "Multi shimejis"
                           : feature.title === "Handcrafted Sprites"
                             ? "Sprites hechos a mano"
-                            : "Subastas en Stellar"
+                            : feature.title === "Deployed on Stellar Network"
+                              ? "Deployado en Stellar Network"
+                              : "Escrow con Trustless Work"
                     : feature.title}
                 </h3>
-                {feature.title === "Stellar Wallet Integration" ? (
-                  <div className="space-y-3">
-                    <p className="text-muted-foreground leading-relaxed">
-                      {isSpanish
-                        ? "Los shimejis se subastan onchain en Stellar y los fondos se gestionan con escrow de Trustless Work."
-                        : "Shimejis are auctioned onchain on Stellar, with funds secured through Trustless Work escrow."}
-                    </p>
-                    <a
-                      href="https://stellar.org"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition hover:bg-white/10"
-                    >
-                      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {isSpanish ? "Subasta" : "Auction"}
-                      </span>
-                      <span className="font-semibold text-foreground">Stellar</span>
-                    </a>
-                    <a
-                      href="https://trustlesswork.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition hover:bg-white/10"
-                    >
-                      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                        Escrow
-                      </span>
-                      <span className="font-semibold text-foreground">Trustless Work</span>
-                    </a>
-                  </div>
+                {feature.title === "Deployed on Stellar Network" ? (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {isSpanish ? (
+                      <>
+                        Se subastan onchain como NFTs en{" "}
+                        <a
+                          href="https://stellar.org"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Stellar
+                        </a>
+                        .
+                      </>
+                    ) : (
+                      <>
+                        Shimejis are auctioned onchain as NFTs on{" "}
+                        <a
+                          href="https://stellar.org"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Stellar
+                        </a>
+                        .
+                      </>
+                    )}
+                  </p>
+                ) : feature.title === "Trustless Work Escrow" ? (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {isSpanish ? (
+                      <>
+                        Los fondos de la subasta usan escrow de{" "}
+                        <a
+                          href="https://trustlesswork.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Trustless Work
+                        </a>
+                        .
+                      </>
+                    ) : (
+                      <>
+                        Auction funds use{" "}
+                        <a
+                          href="https://trustlesswork.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Trustless Work
+                        </a>{" "}
+                        as escrow.
+                      </>
+                    )}
+                  </p>
                 ) : (
                   <p className="text-muted-foreground leading-relaxed">
                     {isSpanish
