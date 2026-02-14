@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
         "**/chrome-extension/**",
         "**/web-stellar/**",
         "**/animation-reference/**",
+        "**/legacy/**",
       ],
     };
     return config;

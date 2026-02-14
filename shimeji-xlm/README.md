@@ -1,91 +1,53 @@
-# Shimeji XLM
+# shimeji-xlm
 
-Stellar-based auction system for handcrafted Shimeji desktop companions. Users bid in XLM or USDC to win custom shimejis minted as NFTs on Soroban.
+Stellar/Soroban implementation for Shimeji products.
 
-## Directory Structure
+## Structure
 
-```
-shimeji-xlm/
-  nextjs/       # Next.js web app (auction UI, wallet connect)
-  soroban/      # Soroban smart contracts (NFT + Auction)
-```
+- `nextjs/`: web frontend.
+- `soroban/`: smart contracts and deployment scripts.
 
-## Soroban Contracts
-
-### Prerequisites
-
-- [Rust](https://rustup.rs/) with `wasm32-unknown-unknown` target
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/install-cli)
-
-### Setup
+## Frontend (`nextjs`)
 
 ```bash
-cd soroban
-rustup target add wasm32-unknown-unknown
-```
-
-### Build
-
-```bash
-cd soroban
-stellar contract build
-```
-
-### Test
-
-```bash
-cd soroban
-cargo test
-```
-
-### Deploy to Testnet
-
-```bash
-export STELLAR_SECRET_KEY="S..."
-cd soroban
-./scripts/deploy.sh
-```
-
-The script deploys both contracts, initializes them, and sets the auction contract as the NFT minter. It prints the contract IDs to add to your `.env.local`.
-
-### Contracts
-
-- **shimeji-nft** — Owner-controlled NFT with updatable metadata. Supports admin and minter roles.
-- **shimeji-auction** — Week-long auctions with dual-currency bidding (XLM + USDC). Fixed exchange rate per auction. Mints NFT to winner on finalization.
-
-## Frontend (Next.js)
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-
-### Setup
-
-```bash
-cd nextjs
+cd shimeji-xlm/nextjs
 pnpm install
-```
-
-### Development
-
-```bash
 pnpm dev
 ```
 
-### Build
+Build:
 
 ```bash
 pnpm build
+pnpm start
 ```
 
-### Environment Variables
+## Contracts (`soroban`)
 
-Create `nextjs/.env.local`:
+Prerequisites:
 
-```env
-NEXT_PUBLIC_AUCTION_CONTRACT_ID=C...
-NEXT_PUBLIC_NFT_CONTRACT_ID=C...
-NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+- Rust + `wasm32-unknown-unknown`
+- Stellar CLI
+
+Build and test:
+
+```bash
+cd shimeji-xlm/soroban
+stellar contract build
+cargo test
 ```
+
+Deploy (example):
+
+```bash
+./scripts/deploy.sh
+```
+
+## Environment
+
+Typical frontend env values live in `shimeji-xlm/nextjs/.env.local`:
+
+- `NEXT_PUBLIC_AUCTION_CONTRACT_ID`
+- `NEXT_PUBLIC_NFT_CONTRACT_ID`
+- `NEXT_PUBLIC_STELLAR_RPC_URL`
+- `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE`
