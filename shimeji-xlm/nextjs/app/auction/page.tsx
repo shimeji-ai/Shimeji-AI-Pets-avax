@@ -918,14 +918,14 @@ export default function FactoryPage() {
                     </div>
                   ) : null}
 
-                  <div className="flex items-center justify-between py-2 text-sm border-t border-white/10 mt-2">
-                    <span>{t("Network", "Red")}</span>
-                    <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
-                  </div>
                 </div>
 
                 <div className="neural-card rounded-2xl border border-white/10 p-4 text-xs text-muted-foreground">
                   <p className="uppercase tracking-wider mb-2">{t("On-chain verification", "Verificación on-chain")}</p>
+                  <div className="mb-3 flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[11px]">
+                    <span>{t("Network", "Red")}</span>
+                    <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
+                  </div>
                   {auctionExplorerUrl ? (
                     <div className="space-y-2">
                       <a
