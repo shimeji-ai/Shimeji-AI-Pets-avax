@@ -43,8 +43,8 @@ export function DownloadSection() {
               </p>
               <div className="text-sm text-muted-foreground">
                 {isSpanish
-                  ? "Descargá, descomprimí, activá el modo desarrollador en `chrome://extensions` y cargá la carpeta."
-                  : "Click download, unzip, enable Developer Mode in `chrome://extensions`, then load the folder."}
+                  ? "Paso 1: también podés descargar la app desktop para Windows, macOS o Linux. Paso 2: descargá la extensión, descomprimí, activá el modo desarrollador en `chrome://extensions` y cargá la carpeta."
+                  : "Step 1: you can also download the desktop app for Windows, macOS, or Linux. Step 2: click download, unzip, enable Developer Mode in `chrome://extensions`, then load the folder."}
               </div>
             </div>
             <Button asChild className="neural-button">

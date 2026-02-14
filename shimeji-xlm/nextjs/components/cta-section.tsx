@@ -26,13 +26,13 @@ export function CtaSection() {
             </h2>
             <p className="mb-4 max-w-lg mx-auto text-muted-foreground">
               {isSpanish
-                ? "Descarga la extensión, elige una personalidad y empieza a chatear. O activa el modo agente para tareas online y onchain."
-                : "Download the extension, pick a personality, and start chatting. Or enable agent mode for online and onchain tasks."}
+                ? "Descarga la extensión o la app para Windows, macOS y Linux, elige una personalidad y empieza a chatear. O activa el modo agente para tareas online y onchain."
+                : "Download the extension or the app for Windows, macOS, and Linux, pick a personality, and start chatting. Or enable agent mode for online and onchain tasks."}
             </p>
             <p className="mb-8 max-w-lg mx-auto text-muted-foreground/80">
               {isSpanish
-                ? "La extensión es gratis e incluye una mascota por defecto. Participá en la subasta para conseguir un shimeji personalizado."
-                : "The extension is free and includes a default mascot. Join the auction to get a custom shimeji."}
+                ? "La extensión es gratis e incluye una mascota por defecto, y también podés usar la app desktop en Windows, macOS y Linux. Participá en la subasta para conseguir un shimeji personalizado."
+                : "The extension is free and includes a default mascot, and you can also use the desktop app on Windows, macOS, and Linux. Join the auction to get a custom shimeji."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />

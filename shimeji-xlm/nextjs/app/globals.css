@@ -667,6 +667,72 @@ body[data-theme="kawaii"] .countdown-unit-highlight {
   background: rgba(42, 31, 78, 0.1);
 }
 
+.auction-loading-track {
+  width: min(25rem, 78vw);
+  overflow: visible;
+}
+
+.auction-loading-runner {
+  animation: auction-loading-run 2.9s ease-in-out infinite alternate;
+}
+
+.auction-loading-bunny {
+  position: relative;
+  display: inline-flex;
+  animation: auction-loading-hop 0.58s ease-in-out infinite;
+}
+
+.auction-loading-sparkle {
+  position: absolute;
+  color: rgba(255, 255, 255, 0.82);
+  animation: auction-loading-spark 0.95s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.auction-loading-sparkle-a {
+  top: 12%;
+  left: -8%;
+  animation-delay: 0s;
+}
+
+.auction-loading-sparkle-b {
+  top: 26%;
+  right: -10%;
+  animation-delay: 0.12s;
+}
+
+.auction-loading-sparkle-c {
+  bottom: 18%;
+  right: 18%;
+  animation-delay: 0.24s;
+}
+
+.auction-wallet-bunny-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: auction-wallet-bunny-hop 1s ease-in-out infinite;
+}
+
+.auction-wallet-bunny-wrap.is-right {
+  animation-delay: 0.22s;
+}
+
+.auction-wallet-bunny {
+  width: clamp(2.8rem, 9vw, 3.6rem);
+  height: clamp(2.8rem, 9vw, 3.6rem);
+  object-fit: contain;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.28));
+}
+
+.auction-wallet-bunny-wrap.is-right .auction-wallet-bunny {
+  transform: scaleX(-1);
+}
+
+body[data-theme="kawaii"] .auction-loading-sparkle {
+  color: rgba(42, 31, 78, 0.85);
+}
+
 @keyframes auction-gold-gradient {
   0% {
     background-position: 0% 50%;
@@ -688,6 +754,51 @@ body[data-theme="kawaii"] .countdown-unit-highlight {
 
   100% {
     left: 125%;
+  }
+}
+
+@keyframes auction-loading-run {
+  from {
+    transform: translateX(-28%);
+  }
+
+  to {
+    transform: translateX(28%);
+  }
+}
+
+@keyframes auction-loading-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@keyframes auction-loading-spark {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes auction-wallet-bunny-hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
   }
 }
 

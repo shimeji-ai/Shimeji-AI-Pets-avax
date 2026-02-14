@@ -8,7 +8,7 @@ import { ShimejiCharacter } from "@/components/shimeji-character";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { CurrencyToggle } from "@/components/currency-toggle";
-import { Wallet, CheckCircle, Loader2, Copy, Check } from "lucide-react";
+import { CheckCircle, Loader2, Copy, Check } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
 import {
@@ -634,15 +634,73 @@ export function AuctionSection() {
     </button>
   ) : null;
 
+  const walletConnectPrompt = (
+    <div className="mt-4 flex flex-col items-center gap-3">
+      <p className="text-muted-foreground text-center max-w-sm">
+        {t("Connect your wallet to participate in the auction.", "Conecta tu billetera para participar en la subasta.")}
+      </p>
+      <div className="flex items-center justify-center gap-2 sm:gap-4">
+        <span className="auction-wallet-bunny-wrap" aria-hidden="true">
+          <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
+        </span>
+        <FreighterConnectButton />
+        <span className="auction-wallet-bunny-wrap is-right" aria-hidden="true">
+          <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
+        </span>
+      </div>
+      {!isAvailable ? (
+        <p className="text-xs text-muted-foreground text-center max-w-md">
+          {isSpanish ? (
+            <>
+              Si usas Lobstr en mobile, abrí esta web desde el navegador interno de Lobstr. También podés{" "}
+              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                instalar Freighter
+              </a>
+              .
+            </>
+          ) : (
+            <>
+              If you use Lobstr on mobile, open this site from Lobstr&apos;s in-app browser. You can also{" "}
+              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                install Freighter
+              </a>
+              .
+            </>
+          )}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  const isAuctionLoading = !mounted || loading;
+
   return (
-    <section id="auction" className="pt-28 pb-16 px-4">
+    <section
+      id="auction"
+      className={`pt-28 px-4 ${isAuctionLoading ? "min-h-screen pb-10" : "pb-16"}`}
+    >
       <div className="max-w-6xl mx-auto">
-        {!mounted || loading ? (
-            <div className="text-center py-16">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
-              <p className="text-muted-foreground">{t("Loading...", "Cargando...")}</p>
+        {isAuctionLoading ? (
+          <div className="auction-loading-screen flex min-h-[calc(100vh-9rem)] flex-col items-center justify-center gap-4">
+            <div className="auction-loading-track">
+              <div className="auction-loading-runner">
+                <div className="auction-loading-bunny">
+                  <img
+                    src="/bunny-hero.png"
+                    alt={t("Loading auction", "Cargando subasta")}
+                    className="h-28 w-28 object-contain drop-shadow-2xl"
+                  />
+                  <span className="auction-loading-sparkle auction-loading-sparkle-a">✦</span>
+                  <span className="auction-loading-sparkle auction-loading-sparkle-b">✦</span>
+                  <span className="auction-loading-sparkle auction-loading-sparkle-c">✦</span>
+                </div>
+              </div>
             </div>
-          ) : hasConnectedWallet ? (
+            <p className="text-sm font-medium tracking-wide text-muted-foreground">
+              {t("Loading auction...", "Cargando subasta...")}
+            </p>
+          </div>
+          ) : (
             <>
               <div className="mb-6 rounded-3xl p-1 md:p-2">
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
@@ -733,7 +791,7 @@ export function AuctionSection() {
                         />
                         <Button
                           onClick={handleBid}
-                          disabled={isBidding || !auction || auction.finalized}
+                          disabled={isBidding || !auction || auction.finalized || !hasConnectedWallet}
                           className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide"
                         >
                           {isBidding ? (
@@ -745,6 +803,7 @@ export function AuctionSection() {
                           )}
                         </Button>
                       </div>
+                      {!hasConnectedWallet ? walletConnectPrompt : null}
 
                       <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
                         {t("Available balance", "Saldo disponible")}:{" "}
@@ -896,100 +955,6 @@ export function AuctionSection() {
                 </div>
               </div>
             </>
-          ) : (
-            <div className="mb-8 flex flex-col items-center justify-center rounded-2xl py-12">
-              <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
-              {isLocalNetwork ? (
-                <>
-                  <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                    {walletMode === "none"
-                      ? t(
-                          "Burner wallet is disconnected. Use the wallet controls above to reconnect burner, or switch to a wallet.",
-                          "La wallet burner está desconectada. Usa los controles de wallet arriba para reconectar burner, o cambia a una billetera."
-                        )
-                      : t(
-                          "Wallet mode selected. Connect your wallet to bid, or switch back to burner above.",
-                          "Modo billetera seleccionado. Conecta tu billetera para ofertar, o vuelve a burner arriba."
-                        )}
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                      onClick={() => setWalletMode("burner")}
-                      disabled={!burnerPublicKey}
-                    >
-                      {t("Use Burner", "Usar Burner")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                      onClick={() => setWalletMode("freighter")}
-                    >
-                      {t("Use Wallet", "Usar billetera")}
-                    </Button>
-                  </div>
-                  {walletMode === "freighter" ? (
-                    <div className="mt-4">
-                      {isAvailable ? (
-                        <FreighterConnectButton />
-                      ) : (
-                        <p className="text-xs text-muted-foreground text-center">
-                          {isSpanish ? (
-                            <>
-                              No detectamos una billetera compatible.{" "}
-                              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                                Instalá Freighter
-                              </a>
-                              .
-                            </>
-                          ) : (
-                            <>
-                              No compatible wallet detected.{" "}
-                              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                                Install Freighter
-                              </a>
-                              .
-                            </>
-                          )}
-                        </p>
-                      )}
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                    {isAvailable ? (
-                      isSpanish
-                        ? "Conecta tu billetera para participar en la subasta."
-                        : "Connect your wallet to participate in the auction."
-                    ) : (
-                      isSpanish ? (
-                        <>
-                          No detectamos una billetera compatible.{" "}
-                          <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                            Instalá Freighter
-                          </a>{" "}
-                          para continuar.
-                        </>
-                      ) : (
-                        <>
-                          No compatible wallet detected.{" "}
-                          <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                            Install Freighter
-                          </a>{" "}
-                          to continue.
-                        </>
-                      )
-                    )}
-                  </p>
-                  <FreighterConnectButton />
-                </>
-              )}
-            </div>
           )}
 
       </div>

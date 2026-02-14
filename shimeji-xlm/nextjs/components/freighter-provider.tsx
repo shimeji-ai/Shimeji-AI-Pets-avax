@@ -38,6 +38,10 @@ const DEFAULT_CONNECTION_ERROR = "Connection request was rejected or failed.";
 const DEFAULT_READ_ERROR = "Unable to read wallet connection.";
 const NO_WALLET_SELECTED_ERROR = "No wallet selected.";
 
+function walletIsReachable(wallet: { isAvailable: boolean; isPlatformWrapper?: boolean }) {
+  return wallet.isAvailable || Boolean(wallet.isPlatformWrapper);
+}
+
 function hasWindow() {
   return typeof window !== "undefined";
 }
@@ -120,13 +124,13 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       const wallets = await kit.getSupportedWallets();
-      const anyAvailable = wallets.some((wallet) => wallet.isAvailable);
+      const anyAvailable = wallets.some((wallet) => walletIsReachable(wallet));
       setIsAvailable(anyAvailable);
 
       const storedWalletId = getStoredWalletId();
       const storedAddress = getStoredWalletAddress();
       const storedWalletAvailable = wallets.some(
-        (wallet) => wallet.id === storedWalletId && wallet.isAvailable
+        (wallet) => wallet.id === storedWalletId && walletIsReachable(wallet)
       );
 
       if (!storedWalletId || !storedAddress || !storedWalletAvailable) {
@@ -179,7 +183,8 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
         kit
           .openModal({
             modalTitle: "Select wallet",
-            notAvailableText: "No compatible wallet detected",
+            notAvailableText:
+              "No compatible wallet detected. On mobile, open this site inside your wallet app browser (for example Lobstr).",
             onWalletSelected: (option: ISupportedWallet) => {
               void (async () => {
                 kit.setWallet(option.id);
@@ -261,7 +266,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
         await refresh();
 
         const wallets = await kit.getSupportedWallets();
-        if (wallets.some((wallet) => wallet.isAvailable)) {
+        if (wallets.some((wallet) => walletIsReachable(wallet))) {
           if (!cancelled) {
             setIsDetecting(false);
           }
