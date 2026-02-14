@@ -9,10 +9,10 @@ const steps = [
   {
     icon: Download,
     step: "01",
-    titleEn: "Install the Extension",
-    titleEs: "Instala la extensión",
-    descriptionEn: "Download the Chrome extension and your shimeji will appear on every page you visit.",
-    descriptionEs: "Descarga la extensión de Chrome y tu shimeji aparecerá en cada página que visites.",
+    titleEn: "Install",
+    titleEs: "Instalar",
+    descriptionEn: "Install with the Chrome extension or the desktop app on Windows, macOS, and Linux.",
+    descriptionEs: "Instalá con la extensión de Chrome o la app desktop en Windows, macOS y Linux.",
   },
   {
     icon: MessageSquare,
@@ -86,9 +86,10 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Descarga la extensión de Chrome
+                          Instalá Shimeji AI Pets
                         </Link>{" "}
-                        y tu shimeji aparecerá en cada página que visites.
+                        con la extensión de Chrome o la app desktop para Windows,
+                        macOS y Linux.
                       </>
                     ) : (
                       <>
@@ -96,9 +97,10 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Download the Chrome extension
+                          Install Shimeji AI Pets
                         </Link>{" "}
-                        and your shimeji will appear on every page you visit.
+                        with the Chrome extension or the desktop app for Windows,
+                        macOS, and Linux.
                       </>
                     )
                   ) : (

@@ -33,10 +33,37 @@ type WalletBalances = {
   usdc: string;
 };
 
+const MONTHS_SHORT = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
+
 function formatBidInput(value: number): string {
   const rounded = Math.max(0, Math.round(value * 1e7) / 1e7);
   if (Number.isInteger(rounded)) return String(rounded);
   return rounded.toFixed(7).replace(/\.?0+$/, "");
+}
+
+function formatShortDateTime(value: Date, includeYear: boolean) {
+  const day = String(value.getDate()).padStart(2, "0");
+  const month = MONTHS_SHORT[value.getMonth()];
+  const year = value.getFullYear();
+  const hour = String(value.getHours()).padStart(2, "0");
+  const minute = String(value.getMinutes()).padStart(2, "0");
+  if (includeYear) {
+    return `${day}/${month}/${year} ${hour}:${minute}`;
+  }
+  return `${day}/${month} ${hour}:${minute}`;
 }
 
 function ceilDiv(a: bigint, b: bigint): bigint {
@@ -501,12 +528,13 @@ export function AuctionSection() {
   };
 
   const auctionDateLabel = useMemo(() => {
-    const sourceDate = auction ? new Date(auction.startTime * 1000) : new Date();
-    return sourceDate.toLocaleDateString(undefined, {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    });
+    if (!auction) return "";
+    const startDate = new Date(auction.startTime * 1000);
+    const endDate = new Date(auction.endTime * 1000);
+    const includeYear = startDate.getFullYear() !== endDate.getFullYear();
+    const start = formatShortDateTime(startDate, includeYear);
+    const end = formatShortDateTime(endDate, includeYear);
+    return `${start} - ${end}`;
   }, [auction]);
   const auctionEndDateLabel = useMemo(() => {
     if (!auction) return "";
@@ -743,8 +771,8 @@ export function AuctionSection() {
                       <p className="text-sm text-muted-foreground">{auctionDateLabel}</p>
                       <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
                         {t(
-                          "Bid on a handcrafted shimeji. The highest bidder wins a unique desktop companion minted as an NFT.",
-                          "Ofertá por un shimeji artesanal. Gana una mascota de escritorio única acuñada como NFT."
+                          "Win a unique handcrafted Shimeji minted as an NFT.",
+                          "Gana un Shimeji artesanal único acuñado como NFT."
                         )}
                       </p>
 
@@ -808,20 +836,24 @@ export function AuctionSection() {
                         walletConnectPrompt
                       )}
 
-                      <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
-                        {t("Available balance", "Saldo disponible")}:{" "}
-                        <span className="font-semibold text-foreground">
-                          {balancesLoading
-                            ? t("Loading...", "Cargando...")
-                            : `${formatBalance(currency === "XLM" ? balances.xlm : balances.usdc)} ${currency}`}
-                        </span>
-                        <span className="auction-network-badge ml-2 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] align-middle">
-                          <span>{t("Network", "Red")}:</span>
-                          <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
-                        </span>
-                      </p>
-                      {balancesError ? (
-                        <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
+                      {hasConnectedWallet ? (
+                        <>
+                          <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
+                            {t("Available balance", "Saldo disponible")}:{" "}
+                            <span className="font-semibold text-foreground">
+                              {balancesLoading
+                                ? t("Loading...", "Cargando...")
+                                : `${formatBalance(currency === "XLM" ? balances.xlm : balances.usdc)} ${currency}`}
+                            </span>
+                            <span className="auction-network-badge ml-2 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] align-middle">
+                              <span>{t("Network", "Red")}:</span>
+                              <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
+                            </span>
+                          </p>
+                          {balancesError ? (
+                            <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
+                          ) : null}
+                        </>
                       ) : null}
                       <div className="mt-3 rounded-xl border border-white/10 bg-transparent p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -844,7 +876,7 @@ export function AuctionSection() {
                                       onClick={() => copyBidderAddress(offer.bidder)}
                                       title={t("Copy wallet address", "Copiar dirección")}
                                       aria-label={t("Copy wallet address", "Copiar dirección")}
-                                      className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-foreground/60 transition hover:text-foreground focus-visible:outline-none"
+                                      className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-foreground/60 transition hover:cursor-pointer hover:text-foreground focus-visible:outline-none"
                                     >
                                       {copiedBidder === offer.bidder ? (
                                         <Check className="h-2.5 w-2.5" />
