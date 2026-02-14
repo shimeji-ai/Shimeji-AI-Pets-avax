@@ -101,6 +101,7 @@ export default function FactoryPage() {
       if (data) {
         setAuction(data.auction);
         setHighestBid(data.highestBid);
+        setRecentOffers(data.recentBids);
         setAuctionId(data.auctionId);
       }
     } catch {
@@ -834,6 +835,57 @@ export default function FactoryPage() {
                         </div>
                       </div>
 
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-4 text-xs text-muted-foreground backdrop-blur-sm">
+                        <p className="mb-2 uppercase tracking-wider">
+                          {t("On-chain verification", "Verificación on-chain")}
+                        </p>
+                        {auctionExplorerUrl ? (
+                          <div className="space-y-2">
+                            <a
+                              href={auctionExplorerUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                            >
+                              {t("Auction contract on Stellar Expert", "Contrato de subasta en Stellar Expert")}
+                            </a>
+                            <p>
+                              {t("Contract ID", "ID del contrato")}:{" "}
+                              <a
+                                href={auctionExplorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-mono break-all underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                              >
+                                {AUCTION_CONTRACT_ID}
+                              </a>
+                            </p>
+                          </div>
+                        ) : (
+                          <p>
+                            {t(
+                              "Explorer link available on testnet/mainnet.",
+                              "Link de explorador disponible en testnet/mainnet."
+                            )}
+                          </p>
+                        )}
+                        <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
+                          <span className="font-semibold">{t("Escrow", "Escrow")}: </span>
+                          <a
+                            href="https://trustlesswork.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="auction-escrow-link underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                          >
+                            Trustless Work
+                          </a>
+                          {t(
+                            " is integrated as escrow for auction funds.",
+                            " está integrado como escrow para los fondos de la subasta."
+                          )}
+                        </p>
+                      </div>
+
                       {bidSuccess ? (
                         <div className="mt-3 bg-white/5 rounded-2xl p-4 border border-white/10">
                           <div className="flex items-center gap-2">
@@ -858,57 +910,6 @@ export default function FactoryPage() {
                       </p>
                     </div>
                   )}
-                </div>
-              </div>
-
-              <div className="mb-10">
-                <div className="rounded-2xl border border-white/10 bg-transparent p-4 text-xs text-muted-foreground">
-                  <p className="uppercase tracking-wider mb-2">{t("On-chain verification", "Verificación on-chain")}</p>
-                  {auctionExplorerUrl ? (
-                    <div className="space-y-2">
-                      <a
-                        href={auctionExplorerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
-                      >
-                        {t("Auction contract on Stellar Expert", "Contrato de subasta en Stellar Expert")}
-                      </a>
-                      <p>
-                        {t("Contract ID", "ID del contrato")}:{" "}
-                        <a
-                          href={auctionExplorerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-mono break-all underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
-                        >
-                          {AUCTION_CONTRACT_ID}
-                        </a>
-                      </p>
-                    </div>
-                  ) : (
-                    <p>
-                      {t(
-                        "Explorer link available on testnet/mainnet.",
-                        "Link de explorador disponible en testnet/mainnet."
-                      )}
-                    </p>
-                  )}
-                  <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
-                    <span className="font-semibold">{t("Escrow", "Escrow")}: </span>
-                    <a
-                      href="https://trustlesswork.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="auction-escrow-link underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
-                    >
-                      Trustless Work
-                    </a>
-                    {t(
-                      " is integrated as escrow for auction funds.",
-                      " está integrado como escrow para los fondos de la subasta."
-                    )}
-                  </p>
                 </div>
               </div>
             </>

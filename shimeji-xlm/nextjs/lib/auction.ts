@@ -8,7 +8,12 @@ import {
   Address,
   rpc,
 } from "@stellar/stellar-sdk";
-import { AUCTION_CONTRACT_ID, getServer, NETWORK_PASSPHRASE } from "./contracts";
+import {
+  AUCTION_CONTRACT_ID,
+  getServer,
+  HORIZON_URL,
+  NETWORK_PASSPHRASE,
+} from "./contracts";
 
 const READONLY_SIMULATION_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
 
@@ -50,6 +55,8 @@ function parseScVal(val: xdr.ScVal): unknown {
     }
     case "scvString":
       return val.str().toString();
+    case "scvSymbol":
+      return val.sym().toString();
     case "scvBool":
       return val.b();
     case "scvAddress":
@@ -75,9 +82,152 @@ function parseScVal(val: xdr.ScVal): unknown {
   }
 }
 
+type HorizonInvokeHostFunctionOperation = {
+  type?: string;
+  parameters?: Array<{ value?: string; type?: string }>;
+  created_at?: string;
+  transaction_hash?: string;
+  id?: string;
+  paging_token?: string;
+};
+
+function decodeOperationParameter(raw: string | undefined): unknown {
+  if (!raw) return null;
+  try {
+    return parseScVal(xdr.ScVal.fromXDR(raw, "base64"));
+  } catch {
+    return null;
+  }
+}
+
+function parsePositiveBigInt(value: unknown): bigint | null {
+  if (typeof value === "bigint") {
+    return value > 0n ? value : null;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) return null;
+    return BigInt(value);
+  }
+  if (typeof value === "string" && /^-?\d+$/.test(value)) {
+    const parsed = BigInt(value);
+    return parsed > 0n ? parsed : null;
+  }
+  return null;
+}
+
+function parseBidFromOperation(
+  op: HorizonInvokeHostFunctionOperation,
+  auctionId: number
+): BidInfo | null {
+  if (op.type !== "invoke_host_function") return null;
+
+  const decoded = (op.parameters ?? []).map((parameter) =>
+    decodeOperationParameter(parameter.value)
+  );
+
+  const contractAddress = decoded[0];
+  if (contractAddress !== AUCTION_CONTRACT_ID) return null;
+
+  const method = String(decoded[1] ?? "").toLowerCase();
+  const currency: BidInfo["currency"] | null =
+    method === "bid_xlm" ? "Xlm" : method === "bid_usdc" ? "Usdc" : null;
+  if (!currency) return null;
+
+  const operationAuctionId = Number(decoded[2]);
+  if (!Number.isFinite(operationAuctionId) || operationAuctionId !== auctionId) return null;
+
+  let bidder = typeof decoded[3] === "string" ? decoded[3] : null;
+  if (!bidder || !/^G[A-Z0-9]{55}$/.test(bidder)) {
+    bidder = null;
+    for (const value of decoded) {
+      if (typeof value === "string" && /^G[A-Z0-9]{55}$/.test(value)) {
+        bidder = value;
+        break;
+      }
+    }
+  }
+  if (!bidder) return null;
+
+  let amount = parsePositiveBigInt(decoded[4]);
+  if (amount === null) {
+    for (const value of decoded) {
+      const parsedAmount = parsePositiveBigInt(value);
+      if (parsedAmount !== null && (amount === null || parsedAmount > amount)) {
+        amount = parsedAmount;
+      }
+    }
+  }
+  if (amount === null || amount <= 0n) return null;
+
+  return { bidder, amount, currency };
+}
+
+async function fetchRecentBidsFromHorizon(
+  auctionId: number,
+  auctionStartTime: number,
+  limit = 8
+): Promise<BidInfo[]> {
+  const baseUrl = HORIZON_URL.replace(/\/$/, "");
+  let cursor: string | undefined;
+  const maxPages = 40;
+  const found: BidInfo[] = [];
+  const seen = new Set<string>();
+  const startThreshold = auctionStartTime - 2;
+
+  for (let page = 0; page < maxPages && found.length < limit; page += 1) {
+    const url = new URL(`${baseUrl}/operations`);
+    url.searchParams.set("order", "desc");
+    url.searchParams.set("limit", "200");
+    url.searchParams.set("join", "transactions");
+    if (cursor) {
+      url.searchParams.set("cursor", cursor);
+    }
+
+    const response = await fetch(url.toString(), { cache: "no-store" });
+    if (!response.ok) break;
+    const payload = (await response.json()) as {
+      _embedded?: { records?: HorizonInvokeHostFunctionOperation[] };
+    };
+    const records = payload._embedded?.records ?? [];
+    if (records.length === 0) break;
+    let pageHasRecentRecords = false;
+
+    for (const record of records) {
+      const createdAtSeconds = record.created_at
+        ? Math.floor(Date.parse(record.created_at) / 1000)
+        : Number.NaN;
+      if (Number.isFinite(createdAtSeconds) && createdAtSeconds >= startThreshold) {
+        pageHasRecentRecords = true;
+      }
+      if (Number.isFinite(createdAtSeconds) && createdAtSeconds < startThreshold) {
+        continue;
+      }
+
+      const bid = parseBidFromOperation(record, auctionId);
+      if (!bid) continue;
+      const key =
+        record.id ??
+        record.transaction_hash ??
+        `${record.created_at ?? ""}-${bid.bidder}-${bid.amount.toString()}-${bid.currency}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      found.push(bid);
+      if (found.length >= limit) break;
+    }
+
+    if (!pageHasRecentRecords) break;
+
+    cursor = records[records.length - 1].paging_token;
+    if (!cursor) break;
+  }
+
+  return found;
+}
+
 export async function fetchActiveAuction(): Promise<{
   auction: AuctionInfo;
   highestBid: BidInfo | null;
+  recentBids: BidInfo[];
   auctionId: number;
 } | null> {
   const server = getServer();
@@ -138,7 +288,18 @@ export async function fetchActiveAuction(): Promise<{
       // No bids yet
     }
 
-    return { auction, highestBid, auctionId };
+    let recentBids: BidInfo[] = [];
+    try {
+      recentBids = await fetchRecentBidsFromHorizon(
+        auctionId,
+        auction.startTime,
+        8
+      );
+    } catch {
+      recentBids = [];
+    }
+
+    return { auction, highestBid, recentBids, auctionId };
   } catch {
     return null;
   }
