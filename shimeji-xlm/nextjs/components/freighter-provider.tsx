@@ -6,17 +6,15 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
-  getAddress,
-  getNetwork,
-  getNetworkDetails,
-  isConnected as apiIsConnected,
-  requestAccess,
-} from "@stellar/freighter-api";
-import { STELLAR_NETWORK } from "@/lib/contracts";
+  StellarWalletsKit,
+  WalletNetwork,
+  allowAllModules,
+  type ISupportedWallet,
+} from "@creit.tech/stellar-wallets-kit";
+import { NETWORK_PASSPHRASE, STELLAR_NETWORK } from "@/lib/contracts";
 
 type FreighterState = {
   isAvailable: boolean;
@@ -29,49 +27,88 @@ type FreighterState = {
   connect: () => Promise<void>;
   disconnect: () => void;
   refresh: () => Promise<void>;
+  signTransaction: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => Promise<string>;
 };
 
 const FreighterContext = createContext<FreighterState | null>(null);
 
-function hasError<T extends { error?: unknown }>(value: T): value is T & {
-  error: { message?: string } | string;
-} {
-  return Boolean(value && "error" in value && value.error);
+const WALLET_ID_STORAGE_KEY = "shimeji_wallet_kit_id";
+const WALLET_ADDRESS_STORAGE_KEY = "shimeji_wallet_kit_address";
+const DEFAULT_CONNECTION_ERROR = "Connection request was rejected or failed.";
+const DEFAULT_READ_ERROR = "Unable to read wallet connection.";
+const NO_WALLET_SELECTED_ERROR = "No wallet selected.";
+
+function hasWindow() {
+  return typeof window !== "undefined";
 }
 
-function hasWindowFreighter() {
-  if (typeof window === "undefined") return false;
-  const anyWindow = window as unknown as {
-    freighterApi?: unknown;
-    freighter?: unknown;
-  };
-  return Boolean(anyWindow.freighterApi || anyWindow.freighter);
+function getStoredWalletId(): string | null {
+  if (!hasWindow()) return null;
+  return window.localStorage.getItem(WALLET_ID_STORAGE_KEY);
 }
 
-async function getNetworkLabel(): Promise<string | null> {
-  const details = await getNetworkDetails();
-  if (hasError(details)) {
-    const networkObj = await getNetwork();
-    if (hasError(networkObj)) {
-      return null;
-    }
-    return networkObj.network || null;
+function getStoredWalletAddress(): string | null {
+  if (!hasWindow()) return null;
+  return window.localStorage.getItem(WALLET_ADDRESS_STORAGE_KEY);
+}
+
+function persistConnection(walletId: string, address: string) {
+  if (!hasWindow()) return;
+  window.localStorage.setItem(WALLET_ID_STORAGE_KEY, walletId);
+  window.localStorage.setItem(WALLET_ADDRESS_STORAGE_KEY, address);
+}
+
+function clearPersistedConnection() {
+  if (!hasWindow()) return;
+  window.localStorage.removeItem(WALLET_ID_STORAGE_KEY);
+  window.localStorage.removeItem(WALLET_ADDRESS_STORAGE_KEY);
+}
+
+function normalizeError(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === "string" && err.trim().length > 0) return err;
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "message" in err &&
+    typeof (err as { message?: unknown }).message === "string"
+  ) {
+    return (err as { message: string }).message;
   }
-  return details.network || details.networkPassphrase || null;
+  return fallback;
 }
 
-/** Try the API's isConnected; returns null if the call errors out. */
-async function probeFreighter(): Promise<boolean | null> {
-  try {
-    const status = await apiIsConnected();
-    if (hasError(status)) return null;
-    return status.isConnected;
-  } catch {
-    return null;
+function toWalletNetwork(): WalletNetwork {
+  if (
+    STELLAR_NETWORK === "mainnet" ||
+    NETWORK_PASSPHRASE === WalletNetwork.PUBLIC
+  ) {
+    return WalletNetwork.PUBLIC;
   }
+  if (
+    STELLAR_NETWORK === "local" ||
+    NETWORK_PASSPHRASE === WalletNetwork.STANDALONE
+  ) {
+    return WalletNetwork.STANDALONE;
+  }
+  if (NETWORK_PASSPHRASE === WalletNetwork.FUTURENET) {
+    return WalletNetwork.FUTURENET;
+  }
+  if (NETWORK_PASSPHRASE === WalletNetwork.SANDBOX) {
+    return WalletNetwork.SANDBOX;
+  }
+  return WalletNetwork.TESTNET;
 }
 
 export function FreighterProvider({ children }: { children: React.ReactNode }) {
+  const kit = useMemo(
+    () =>
+      new StellarWalletsKit({
+        network: toWalletNetwork(),
+        modules: allowAllModules(),
+      }),
+    []
+  );
   const [isAvailable, setIsAvailable] = useState(false);
   const [connected, setConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -79,103 +116,138 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const [network, setNetwork] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDetecting, setIsDetecting] = useState(true);
-  const detectionDone = useRef(false);
-  const autoConnectTried = useRef(false);
-  const shouldAutoConnect = STELLAR_NETWORK !== "local";
 
   const refresh = useCallback(async () => {
     try {
-      // Quick check: window global may already exist
-      if (hasWindowFreighter()) {
-        setIsAvailable(true);
+      const wallets = await kit.getSupportedWallets();
+      const anyAvailable = wallets.some((wallet) => wallet.isAvailable);
+      setIsAvailable(anyAvailable);
+
+      const storedWalletId = getStoredWalletId();
+      const storedAddress = getStoredWalletAddress();
+      const storedWalletAvailable = wallets.some(
+        (wallet) => wallet.id === storedWalletId && wallet.isAvailable
+      );
+
+      if (!storedWalletId || !storedAddress || !storedWalletAvailable) {
+        setConnected(false);
+        setPublicKey(null);
+        setNetwork(null);
+        setError(null);
+        return;
       }
 
-      const status = await apiIsConnected();
-      if (hasError(status)) {
-        // API returned an error – Freighter not reachable
-        if (!hasWindowFreighter()) {
-          setIsAvailable(false);
-        }
+      try {
+        kit.setWallet(storedWalletId);
+      } catch {
+        clearPersistedConnection();
         setConnected(false);
         setPublicKey(null);
         setNetwork(null);
         return;
       }
 
-      // If the API responded without error, Freighter is installed
-      setIsAvailable(true);
+      setConnected(true);
+      setPublicKey(storedAddress);
 
-      if (!status.isConnected) {
-        setConnected(false);
-        setPublicKey(null);
+      try {
+        const walletNetwork = await kit.getNetwork();
+        setNetwork(walletNetwork.network || walletNetwork.networkPassphrase || null);
+      } catch {
         setNetwork(null);
-        return;
       }
 
-      const addressObj = await getAddress();
-      if (hasError(addressObj)) {
-        setConnected(false);
-        setPublicKey(null);
-        setNetwork(null);
-        return;
-      }
-
-      const nextNetwork = await getNetworkLabel();
-      setConnected(Boolean(addressObj.address));
-      setPublicKey(addressObj.address || null);
-      setNetwork(nextNetwork);
       setError(null);
     } catch (err) {
-      console.error("Freighter refresh error:", err);
-      setError("Unable to read Freighter connection.");
+      console.error("Wallet refresh error:", err);
+      setError(DEFAULT_READ_ERROR);
     }
-  }, []);
+  }, [kit]);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
+    setError(null);
     try {
-      const access = await requestAccess();
-      if (hasError(access)) {
-        // If requestAccess errors, Freighter might not be installed
-        const windowAvailable = hasWindowFreighter();
-        if (!windowAvailable) {
-          setIsAvailable(false);
-          setError("Freighter wallet not detected.");
-        } else {
-          throw new Error(
-            typeof access.error === "string"
-              ? access.error
-              : access.error.message || "Connection request failed."
-          );
-        }
-        return;
-      }
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const settle = (cb: () => void) => {
+          if (settled) return;
+          settled = true;
+          cb();
+        };
 
-      setIsAvailable(true);
-      const nextNetwork = await getNetworkLabel();
-      setConnected(true);
-      setPublicKey(access.address);
-      setNetwork(nextNetwork);
-      setError(null);
+        kit
+          .openModal({
+            modalTitle: "Select wallet",
+            notAvailableText: "No compatible wallet detected",
+            onWalletSelected: (option: ISupportedWallet) => {
+              void (async () => {
+                kit.setWallet(option.id);
+                const { address } = await kit.getAddress();
+                persistConnection(option.id, address);
+                setIsAvailable(true);
+                setConnected(true);
+                setPublicKey(address);
+
+                try {
+                  const walletNetwork = await kit.getNetwork();
+                  setNetwork(walletNetwork.network || walletNetwork.networkPassphrase || null);
+                } catch {
+                  setNetwork(null);
+                }
+
+                setError(null);
+                settle(resolve);
+              })().catch((walletErr) => settle(() => reject(walletErr)));
+            },
+            onClosed: () => settle(() => reject(new Error(DEFAULT_CONNECTION_ERROR))),
+          })
+          .catch((modalErr) => settle(() => reject(modalErr)));
+      });
     } catch (err) {
-      console.error("Freighter connect error:", err);
-      setError("Connection request was rejected or failed.");
+      console.error("Wallet connect error:", err);
+      setError(normalizeError(err, DEFAULT_CONNECTION_ERROR));
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [kit]);
+
+  const signTransaction = useCallback(
+    async (
+      xdr: string,
+      opts?: { networkPassphrase?: string; address?: string }
+    ): Promise<string> => {
+      const walletId = getStoredWalletId();
+      if (!walletId) {
+        throw new Error(NO_WALLET_SELECTED_ERROR);
+      }
+
+      kit.setWallet(walletId);
+      const signerAddress = opts?.address ?? publicKey ?? getStoredWalletAddress() ?? undefined;
+      const signed = await kit.signTransaction(xdr, {
+        networkPassphrase: opts?.networkPassphrase,
+        address: signerAddress,
+      });
+      if (!signed?.signedTxXdr) {
+        throw new Error(DEFAULT_CONNECTION_ERROR);
+      }
+      return signed.signedTxXdr;
+    },
+    [kit, publicKey]
+  );
 
   const disconnect = useCallback(() => {
+    void kit.disconnect().catch(() => {
+      // Ignore disconnect failures; we still clear local app session.
+    });
+    clearPersistedConnection();
     setConnected(false);
     setPublicKey(null);
     setNetwork(null);
     setError(null);
-  }, []);
+  }, [kit]);
 
-  // On mount: retry detection to handle late extension injection.
-  // Freighter's content script may load after the page's JS runs;
-  // the API uses postMessage with a 2s timeout, so early calls
-  // silently return isConnected:false even when Freighter is installed.
+  // Retry detection to handle wallet extensions/providers loading late.
   useEffect(() => {
     let cancelled = false;
 
@@ -183,72 +255,35 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       // Try up to 4 times: 0ms, 500ms, 1500ms, 3500ms
       const delays = [0, 500, 1000, 2000];
       for (const delay of delays) {
-        if (cancelled || detectionDone.current) return;
+        if (cancelled) return;
         if (delay > 0) await new Promise((r) => setTimeout(r, delay));
         if (cancelled) return;
+        await refresh();
 
-        // Fast path: window global appeared
-        if (hasWindowFreighter()) {
-          detectionDone.current = true;
-          setIsAvailable(true);
-          setIsDetecting(false);
-          await refresh();
-          return;
-        }
-
-        // Slow path: try the API (postMessage → extension)
-        const result = await probeFreighter();
-        if (cancelled) return;
-
-        if (result !== null) {
-          // Got a real response – extension is installed
-          detectionDone.current = true;
-          setIsAvailable(true);
-          setIsDetecting(false);
-          await refresh();
+        const wallets = await kit.getSupportedWallets();
+        if (wallets.some((wallet) => wallet.isAvailable)) {
+          if (!cancelled) {
+            setIsDetecting(false);
+          }
           return;
         }
       }
-      // All retries exhausted – Freighter not found
       if (!cancelled) {
-        detectionDone.current = true;
-        setIsAvailable(hasWindowFreighter());
         setIsDetecting(false);
       }
     }
 
-    detect();
-
-    // Also listen for late injection via Freighter's postMessage
-    function onMessage(e: MessageEvent) {
-      if (
-        e.data?.source === "FREIGHTER_EXTERNAL_MSG_RESPONSE" &&
-        !detectionDone.current
-      ) {
-        detectionDone.current = true;
-        setIsAvailable(true);
+    detect().catch(() => {
+      if (!cancelled) {
+        setIsAvailable(false);
         setIsDetecting(false);
-        refresh();
       }
-    }
-    window.addEventListener("message", onMessage);
+    });
 
     return () => {
       cancelled = true;
-      window.removeEventListener("message", onMessage);
     };
-  }, [refresh]);
-
-  useEffect(() => {
-    if (!shouldAutoConnect) return;
-    if (isDetecting || isConnecting || !isAvailable || connected) return;
-    if (autoConnectTried.current) return;
-    autoConnectTried.current = true;
-
-    connect().catch(() => {
-      // connect already sets UI error state; this prevents unhandled rejection noise.
-    });
-  }, [connected, connect, isAvailable, isConnecting, isDetecting, shouldAutoConnect]);
+  }, [kit, refresh]);
 
   const value = useMemo(
     () => ({
@@ -262,6 +297,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       connect,
       disconnect,
       refresh,
+      signTransaction,
     }),
     [
       isAvailable,
@@ -274,6 +310,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       connect,
       disconnect,
       refresh,
+      signTransaction,
     ]
   );
 

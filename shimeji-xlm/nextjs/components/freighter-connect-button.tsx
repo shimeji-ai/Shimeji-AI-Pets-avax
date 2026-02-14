@@ -24,14 +24,14 @@ export function FreighterConnectButton() {
 
   const localizeError = (value: string) => {
     if (!isSpanish) return value;
-    if (value === "Freighter wallet not detected.") return "No se detectó la wallet Freighter.";
-    if (value === "Unable to read Freighter connection.") return "No se pudo leer la conexión de Freighter.";
+    if (value === "No compatible wallet detected.") return "No se detectó una billetera compatible.";
+    if (value === "Unable to read wallet connection.") return "No se pudo leer la conexión de la billetera.";
     if (value === "Connection request was rejected or failed.") return "La solicitud de conexión fue rechazada o falló.";
+    if (value === "No wallet selected.") return "No hay una billetera seleccionada.";
     return value;
   };
 
-  // While still detecting, show a connect button (not "Install")
-  // so users don't see a flash of "Install Freighter" on every load
+  // While detecting, keep the connect button visible to avoid install-button flicker.
   if (!isAvailable && !isDetecting) {
     return (
       <Button
@@ -39,7 +39,7 @@ export function FreighterConnectButton() {
         className="neural-button rounded-xl px-4"
       >
         <a href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-          {isSpanish ? "Instalar Freighter" : "Install Freighter"}
+          {isSpanish ? "Instalar wallet" : "Install wallet"}
         </a>
       </Button>
     );
@@ -58,7 +58,7 @@ export function FreighterConnectButton() {
             ? (isSpanish ? "Conectando..." : "Connecting...")
             : isConnected
               ? (isSpanish ? "Desconectar" : "Disconnect")
-              : (isSpanish ? "Conectar Freighter" : "Connect Freighter")}
+              : (isSpanish ? "Conectar billetera" : "Connect wallet")}
       </Button>
       {isConnected && publicKey && (
         <div className="hidden xl:flex flex-col text-xs text-muted-foreground">

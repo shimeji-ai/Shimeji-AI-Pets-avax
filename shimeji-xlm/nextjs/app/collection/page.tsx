@@ -130,12 +130,12 @@ export default function CollectionPage() {
               <p className="text-muted-foreground text-center mb-4 max-w-sm">
                 {isAvailable ? (
                   isSpanish
-                    ? "Conecta tu wallet Freighter para ver tu colección de shimejis NFT."
-                    : "Connect your Freighter wallet to view your NFT shimeji collection."
+                    ? "Conecta tu billetera para ver tu colección de shimejis NFT."
+                    : "Connect your wallet to view your NFT shimeji collection."
                 ) : (
                   isSpanish ? (
                     <>
-                      No detectamos Freighter.{" "}
+                      No detectamos una billetera compatible.{" "}
                       <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                         Instalá Freighter
                       </a>{" "}
@@ -143,7 +143,7 @@ export default function CollectionPage() {
                     </>
                   ) : (
                     <>
-                      Freighter not detected.{" "}
+                      No compatible wallet detected.{" "}
                       <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                         Install Freighter
                       </a>{" "}
@@ -163,8 +163,8 @@ export default function CollectionPage() {
                   </h2>
                   <p className="text-sm text-muted-foreground">
                     {isSpanish
-                      ? `Conectado como ${publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}`
-                      : `Connected as ${publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}`}
+                      ? `Conectado como ${publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Wallet"}`
+                      : `Connected as ${publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Wallet"}`}
                   </p>
                 </div>
               </div>

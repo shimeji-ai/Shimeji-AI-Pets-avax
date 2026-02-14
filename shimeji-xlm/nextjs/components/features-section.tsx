@@ -34,7 +34,7 @@ const features = [
     icon: ArrowLeftRight,
     title: "Stellar Wallet Integration",
     description:
-      "Connect Freighter to reserve eggs and handle payments on the Stellar network.",
+      "Connect a Stellar wallet to reserve eggs and handle payments on the Stellar network.",
   },
 ];
 
@@ -96,7 +96,7 @@ export function FeaturesSection() {
                           ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
                           : feature.title === "Handcrafted Sprites"
                             ? "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
-                            : "Conecta Freighter para reservar huevos y manejar pagos en la red Stellar."
+                            : "Conecta una billetera Stellar para reservar huevos y manejar pagos en la red Stellar."
                     : feature.description}
                 </p>
               </div>

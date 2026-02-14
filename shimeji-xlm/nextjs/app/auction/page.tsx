@@ -79,7 +79,7 @@ export default function FactoryPage() {
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const { isSpanish } = useLanguage();
-  const { isConnected, publicKey, isAvailable } = useFreighter();
+  const { publicKey, isAvailable, signTransaction } = useFreighter();
   const t = (en: string, es: string) => (isSpanish ? es : en);
   const isLocalNetwork = STELLAR_NETWORK === "local";
   const isTestnetNetwork = STELLAR_NETWORK === "testnet";
@@ -153,7 +153,6 @@ export default function FactoryPage() {
     return null;
   }, [burnerPublicKey, isLocalNetwork, publicKey, walletMode]);
 
-  const hasFreighterConnection = Boolean(isConnected && publicKey);
   const hasConnectedWallet = Boolean(activePublicKey);
   const bidAmount = bidAmounts[currency];
 
@@ -452,14 +451,10 @@ export default function FactoryPage() {
         localTx.sign(Keypair.fromSecret(burnerSecret));
         signedXdr = localTx.toXDR();
       } else {
-        const freighterApi = await import("@stellar/freighter-api");
-        const result = await freighterApi.signTransaction(txXdr, {
+        signedXdr = await signTransaction(txXdr, {
           networkPassphrase: NETWORK_PASSPHRASE,
+          address: bidderAddress,
         });
-        if (typeof result === "string") {
-          throw new Error("Signing was cancelled");
-        }
-        signedXdr = result.signedTxXdr;
       }
 
       const tx = TB.fromXDR(signedXdr, NETWORK_PASSPHRASE);
@@ -587,8 +582,8 @@ export default function FactoryPage() {
         : t("Burner", "Burner")
       : walletMode === "freighter"
         ? shortAddress(publicKey)
-          ? t(`Freighter ${shortAddress(publicKey)}`, `Freighter ${shortAddress(publicKey)}`)
-          : t("Freighter", "Freighter")
+          ? t(`Wallet ${shortAddress(publicKey)}`, `Wallet ${shortAddress(publicKey)}`)
+          : t("Wallet", "Wallet")
         : t("Wallet Off", "Wallet Off")
     : "";
 
@@ -919,12 +914,12 @@ export default function FactoryPage() {
                   <p className="text-muted-foreground text-center mb-4 max-w-sm">
                     {walletMode === "none"
                       ? t(
-                          "Burner wallet is disconnected. Use the Wallet button in the header to reconnect burner, or switch to Freighter.",
-                          "La wallet burner está desconectada. Usa el botón Wallet en el header para reconectar burner, o cambia a Freighter."
+                          "Burner wallet is disconnected. Use the Wallet button in the header to reconnect burner, or switch to a wallet.",
+                          "La wallet burner está desconectada. Usa el botón Wallet en el header para reconectar burner, o cambia a una billetera."
                         )
                       : t(
-                          "Freighter mode selected. Connect Freighter to bid, or switch back to burner from the header.",
-                          "Modo Freighter seleccionado. Conecta Freighter para ofertar, o vuelve a burner desde el header."
+                          "Wallet mode selected. Connect your wallet to bid, or switch back to burner from the header.",
+                          "Modo billetera seleccionado. Conecta tu billetera para ofertar, o vuelve a burner desde el header."
                         )}
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -943,7 +938,7 @@ export default function FactoryPage() {
                       className="border-white/20 bg-white/10 text-foreground hover:bg-white/20"
                       onClick={() => setWalletMode("freighter")}
                     >
-                      {t("Use Freighter", "Usar Freighter")}
+                      {t("Use Wallet", "Usar billetera")}
                     </Button>
                   </div>
                   {walletMode === "freighter" ? (
@@ -954,7 +949,7 @@ export default function FactoryPage() {
                         <p className="text-xs text-muted-foreground text-center">
                           {isSpanish ? (
                             <>
-                              No detectamos Freighter.{" "}
+                              No detectamos una billetera compatible.{" "}
                               <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                                 Instalá Freighter
                               </a>
@@ -962,7 +957,7 @@ export default function FactoryPage() {
                             </>
                           ) : (
                             <>
-                              Freighter not detected.{" "}
+                              No compatible wallet detected.{" "}
                               <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                                 Install Freighter
                               </a>
@@ -979,12 +974,12 @@ export default function FactoryPage() {
                   <p className="text-muted-foreground text-center mb-4 max-w-sm">
                     {isAvailable ? (
                       isSpanish
-                        ? "Conecta tu wallet Freighter para participar en la subasta."
-                        : "Connect your Freighter wallet to participate in the auction."
+                        ? "Conecta tu billetera para participar en la subasta."
+                        : "Connect your wallet to participate in the auction."
                     ) : (
                       isSpanish ? (
                         <>
-                          No detectamos Freighter.{" "}
+                          No detectamos una billetera compatible.{" "}
                           <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                             Instalá Freighter
                           </a>{" "}
@@ -992,7 +987,7 @@ export default function FactoryPage() {
                         </>
                       ) : (
                         <>
-                          Freighter not detected.{" "}
+                          No compatible wallet detected.{" "}
                           <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
                             Install Freighter
                           </a>{" "}

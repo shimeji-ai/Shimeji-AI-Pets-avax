@@ -4,7 +4,7 @@ import { createPageMetadata } from "@/lib/metadata";
 export const metadata: Metadata = createPageMetadata({
   title: "NFT Collection | Shimeji AI Pets on Stellar",
   description:
-    "Connect Freighter to view and manage your Shimeji NFT collection on Stellar.",
+    "Connect a Stellar wallet to view and manage your Shimeji NFT collection.",
   path: "/collection",
 });
 
