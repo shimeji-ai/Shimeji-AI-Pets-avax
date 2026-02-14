@@ -636,9 +636,6 @@ export function AuctionSection() {
 
   const walletConnectPrompt = (
     <div className="mt-4 flex flex-col items-center gap-3">
-      <p className="text-muted-foreground text-center max-w-sm">
-        {t("Connect your wallet to participate in the auction.", "Conecta tu billetera para participar en la subasta.")}
-      </p>
       <div className="flex items-center justify-center gap-2 sm:gap-4">
         <span className="auction-wallet-bunny-wrap" aria-hidden="true">
           <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
@@ -648,6 +645,9 @@ export function AuctionSection() {
           <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
         </span>
       </div>
+      <p className="text-muted-foreground text-center max-w-sm">
+        {t("Connect your wallet to participate in the auction.", "Conecta tu billetera para participar en la subasta.")}
+      </p>
       {!isAvailable ? (
         <p className="text-xs text-muted-foreground text-center max-w-md">
           {isSpanish ? (
@@ -777,33 +777,36 @@ export function AuctionSection() {
                         </button>
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                        <input
-                          type="number"
-                          value={bidAmount}
-                          onChange={(e) =>
-                            setBidAmounts((prev) => ({ ...prev, [currency]: e.target.value }))
-                          }
-                          placeholder={minimumBidText}
-                          min={0}
-                          step="any"
-                          className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                        />
-                        <Button
-                          onClick={handleBid}
-                          disabled={isBidding || !auction || auction.finalized || !hasConnectedWallet}
-                          className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide"
-                        >
-                          {isBidding ? (
-                            <span className="inline-flex items-center gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}
-                            </span>
-                          ) : (
-                            t("OFFER!", "¡OFERTAR!")
-                          )}
-                        </Button>
-                      </div>
-                      {!hasConnectedWallet ? walletConnectPrompt : null}
+                      {hasConnectedWallet ? (
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <input
+                            type="number"
+                            value={bidAmount}
+                            onChange={(e) =>
+                              setBidAmounts((prev) => ({ ...prev, [currency]: e.target.value }))
+                            }
+                            placeholder={minimumBidText}
+                            min={0}
+                            step="any"
+                            className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                          />
+                          <Button
+                            onClick={handleBid}
+                            disabled={isBidding || !auction || auction.finalized}
+                            className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide"
+                          >
+                            {isBidding ? (
+                              <span className="inline-flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}
+                              </span>
+                            ) : (
+                              t("OFFER!", "¡OFERTAR!")
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        walletConnectPrompt
+                      )}
 
                       <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
                         {t("Available balance", "Saldo disponible")}:{" "}
