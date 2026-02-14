@@ -307,10 +307,9 @@ mod test {
         let uri = String::from_str(&env, "ipfs://test");
         client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
 
-        let bidder = Address::generate(&env);
-        // This will fail in real execution without token setup, but with mock_all_auths it tests the logic
-        // We test the auction state management, not token transfers
-        // For a full integration test, we'd need to set up SAC tokens
+        let _bidder = Address::generate(&env);
+        // Token transfer calls require SAC token setup for full integration testing.
+        // This test validates auction creation and state management.
     }
 
     #[test]
