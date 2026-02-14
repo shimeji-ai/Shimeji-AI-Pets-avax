@@ -569,9 +569,15 @@ export default function FactoryPage() {
       merged.push(bid);
     };
 
-    if (highestBid) pushUnique(highestBid);
     recentOffers.forEach((bid) => pushUnique(bid));
-    return merged.slice(0, 4);
+    if (highestBid) {
+      const rest = merged.filter((entry) => !isSameBid(entry, highestBid));
+      return [highestBid, ...rest].slice(0, 4);
+    }
+
+    return [...merged]
+      .sort((a, b) => Number(b.amount - a.amount))
+      .slice(0, 4);
   }, [highestBid, recentOffers]);
 
   const showHeaderFaucet = isLocalNetwork || isTestnetNetwork || isMainnetNetwork;
@@ -651,7 +657,7 @@ export default function FactoryPage() {
             </div>
           ) : hasConnectedWallet ? (
             <>
-              <div className="neural-card rounded-3xl p-6 md:p-8 mb-6">
+              <div className="mb-6 rounded-3xl p-1 md:p-2">
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
                   <div className="flex flex-col items-center text-center">
                     <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
@@ -756,7 +762,7 @@ export default function FactoryPage() {
                         </Button>
                       </div>
 
-                      <p className="mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-muted-foreground">
+                      <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
                         {t("Available balance", "Saldo disponible")}:{" "}
                         <span className="font-semibold text-foreground">
                           {balancesLoading
@@ -771,7 +777,7 @@ export default function FactoryPage() {
                       {balancesError ? (
                         <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
                       ) : null}
-                      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="mt-3 rounded-xl border border-white/10 bg-transparent p-3">
                         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                           {t("Latest offers", "Últimas ofertas")}
                         </p>
@@ -843,7 +849,7 @@ export default function FactoryPage() {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                    <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
                       <p className="text-muted-foreground">
                         {t(
                           "No active auction right now. Check back soon!",
@@ -856,7 +862,7 @@ export default function FactoryPage() {
               </div>
 
               <div className="mb-10">
-                <div className="neural-card rounded-2xl border border-white/10 p-4 text-xs text-muted-foreground">
+                <div className="rounded-2xl border border-white/10 bg-transparent p-4 text-xs text-muted-foreground">
                   <p className="uppercase tracking-wider mb-2">{t("On-chain verification", "Verificación on-chain")}</p>
                   {auctionExplorerUrl ? (
                     <div className="space-y-2">
@@ -907,7 +913,7 @@ export default function FactoryPage() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
+            <div className="mb-8 flex flex-col items-center justify-center rounded-2xl py-12">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
               {isLocalNetwork ? (
                 <>

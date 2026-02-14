@@ -532,36 +532,36 @@ body[data-theme="kawaii"] .auction-escrow-link {
 }
 
 .auction-offer-row {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(128, 184, 255, 0.42);
+  background: rgba(88, 151, 255, 0.2);
 }
 
 .auction-offer-row-top {
-  border-color: rgba(255, 221, 129, 0.86);
-  background: rgba(255, 191, 51, 0.5);
-  box-shadow: 0 0 16px rgba(251, 191, 36, 0.28);
+  border-color: rgba(255, 221, 129, 0.95);
+  background: rgba(255, 191, 51, 0.62);
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.34);
 }
 
 body[data-theme="pink"] .auction-offer-row {
-  border-color: rgba(255, 206, 232, 0.45);
-  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(214, 192, 255, 0.5);
+  background: rgba(169, 132, 255, 0.24);
 }
 
 body[data-theme="pink"] .auction-offer-row-top {
-  border-color: rgba(255, 219, 241, 0.84);
-  background: rgba(255, 170, 217, 0.62);
-  box-shadow: 0 0 16px rgba(255, 154, 216, 0.28);
+  border-color: rgba(255, 219, 155, 0.92);
+  background: rgba(255, 194, 87, 0.62);
+  box-shadow: 0 0 18px rgba(255, 181, 70, 0.34);
 }
 
 body[data-theme="kawaii"] .auction-offer-row {
-  border-color: rgba(42, 31, 78, 0.3);
-  background: rgba(255, 255, 255, 0.84);
+  border-color: rgba(78, 122, 172, 0.45);
+  background: rgba(171, 223, 255, 0.86);
 }
 
 body[data-theme="kawaii"] .auction-offer-row-top {
-  border-color: rgba(191, 126, 0, 0.52);
-  background: rgba(255, 210, 120, 0.78);
-  box-shadow: 0 0 18px rgba(240, 171, 0, 0.26);
+  border-color: rgba(191, 126, 0, 0.66);
+  background: rgba(255, 210, 120, 0.88);
+  box-shadow: 0 0 20px rgba(240, 171, 0, 0.34);
 }
 
 .auction-countdown-card {
