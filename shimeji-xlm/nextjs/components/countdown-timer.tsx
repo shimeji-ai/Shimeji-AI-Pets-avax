@@ -36,7 +36,7 @@ export function CountdownTimer({
   if (ended) {
     return (
       <div
-        className={`text-center font-semibold ${highlight ? "text-base text-foreground" : "text-sm text-[var(--brand-accent)]"}`}
+        className={`text-center font-semibold ${highlight ? "text-base text-foreground" : "text-base text-[var(--brand-accent)]"}`}
       >
         Auction ended
       </div>
@@ -59,12 +59,12 @@ export function CountdownTimer({
               : ""
           }`}
         >
-          <span className={`${highlight ? "text-3xl md:text-4xl" : "text-2xl"} font-bold tabular-nums text-foreground`}>
+          <span className={`${highlight ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl"} font-bold tabular-nums text-foreground`}>
             {String(value).padStart(2, "0")}
           </span>
           <span
             className={`uppercase tracking-wider ${
-              highlight ? "text-[10px] text-foreground/70 md:text-xs" : "text-xs text-muted-foreground"
+              highlight ? "text-[10px] text-foreground/70 md:text-xs" : "text-sm text-muted-foreground"
             }`}
           >
             {label}

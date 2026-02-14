@@ -731,7 +731,7 @@ export function AuctionSection() {
                     {auction ? (
                       <div className="mt-5 flex w-full justify-center">
                         <div className="inline-flex flex-col items-center justify-center gap-2 bg-transparent p-0 text-center">
-                          <div className="flex h-[64px] items-center justify-center">
+                          <div className="flex h-[96px] items-center justify-center md:h-[110px]">
                             <div className="w-full">
                               <CountdownTimer
                                 endTime={auction.endTime}
@@ -743,7 +743,7 @@ export function AuctionSection() {
                               />
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground">{auctionDateLabel}</p>
+                          <p className="text-sm font-bold text-foreground md:text-base">{auctionDateLabel}</p>
                         </div>
                       </div>
                     ) : null}
@@ -753,8 +753,8 @@ export function AuctionSection() {
                     <div>
                       <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
                         {t(
-                          "Win a unique handcrafted Shimeji minted as an NFT.",
-                          "Gana un Shimeji artesanal acuñado como NFT."
+                          "Win a unique handcrafted Shimeji minted as an NFT",
+                          "Gana un Shimeji artesanal acuñado como NFT"
                         )}
                       </p>
 
