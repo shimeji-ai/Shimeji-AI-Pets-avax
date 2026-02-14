@@ -4,13 +4,104 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="$ROOT_DIR/.env"
 INTERACTIVE=0
+UI_OUT="/dev/stdout"
 
 if [ -t 0 ] && [ -t 1 ]; then
   INTERACTIVE=1
 fi
+if [ "$INTERACTIVE" -eq 1 ] && [ -w /dev/tty ]; then
+  UI_OUT="/dev/tty"
+fi
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+ui_printf() {
+  printf "$@" >"$UI_OUT"
+}
+
+ui_echo() {
+  ui_printf "%s\n" "$*"
+}
+
+print_pet_art() {
+  cat >"$UI_OUT" <<'ART'
+      (\_/)        /\_/\
+      (o.o)       ( o.o )
+      /|_|\        > ^ <
+ART
+}
+
+print_happy_art() {
+  cat >"$UI_OUT" <<'ART'
+      (\_/)        /\_/\
+      (^.^)       (^.^)
+      /|_|\        > ^ <
+ART
+}
+
+print_sad_art() {
+  cat >"$UI_OUT" <<'ART'
+      (\_/)        /\_/\
+      (T.T)       (T.T)
+      /|_|\        > ~ <
+ART
+}
+
+progress_line() {
+  local pct="$1"
+  local label="$2"
+  local width=26
+  local filled=$((pct * width / 100))
+  local empty=$((width - filled))
+  ui_printf "\r[%s%s] %3d%% %s" \
+    "$(printf '%*s' "$filled" '' | tr ' ' '#')" \
+    "$(printf '%*s' "$empty" '' | tr ' ' '-')" \
+    "$pct" \
+    "$label"
+}
+
+run_with_loading_bar() {
+  local title="$1"
+  local detail="$2"
+  shift 2
+
+  local log_file pid rc elapsed pct
+  log_file="$(mktemp)"
+
+  ui_echo ""
+  print_pet_art
+  ui_echo "$title"
+  ui_echo "  $detail"
+
+  "$@" >"$log_file" 2>&1 &
+  pid=$!
+
+  local start_ts="$SECONDS"
+  while kill -0 "$pid" >/dev/null 2>&1; do
+    elapsed=$((SECONDS - start_ts))
+    pct=$((5 + (elapsed * 8) % 89))
+    progress_line "$pct" "$title"
+    sleep 0.2
+  done
+
+  if wait "$pid"; then
+    progress_line 100 "$title"
+    ui_echo ""
+    rm -f "$log_file"
+    return 0
+  fi
+
+  rc=$?
+  progress_line 100 "$title (failed)"
+  ui_echo ""
+  print_sad_art
+  ui_echo "Something failed during: $title"
+  ui_echo "Recent output:"
+  sed -n '1,120p' "$log_file" >"$UI_OUT"
+  rm -f "$log_file"
+  return "$rc"
 }
 
 is_wsl() {
@@ -39,50 +130,58 @@ ensure_pnpm() {
   local pnpm_version="10.24.0"
 
   if need_cmd pnpm; then
-    echo "==> pnpm ready: $(pnpm --version)"
+    ui_echo "==> pnpm ready: $(pnpm --version)"
     return
   fi
 
   if need_cmd corepack; then
-    echo "==> pnpm not found. Enabling via corepack..."
-    corepack enable >/dev/null 2>&1 || true
-    corepack prepare "pnpm@${pnpm_version}" --activate >/dev/null 2>&1 || true
+    run_with_loading_bar \
+      "Preparing pnpm" \
+      "Enabling pnpm via corepack" \
+      bash -lc "corepack enable >/dev/null 2>&1 || true; corepack prepare pnpm@${pnpm_version} --activate >/dev/null 2>&1 || true"
   fi
 
   if need_cmd pnpm; then
-    echo "==> pnpm ready: $(pnpm --version)"
+    ui_echo "==> pnpm ready: $(pnpm --version)"
     return
   fi
 
   if need_cmd npm; then
-    echo "==> pnpm not found. Installing with npm..."
-    if npm install -g "pnpm@${pnpm_version}" >/dev/null 2>&1; then
+    ui_echo "==> pnpm not found. Installing with npm..."
+    if run_with_loading_bar \
+      "Installing pnpm" \
+      "Running npm install -g pnpm@${pnpm_version}" \
+      npm install -g "pnpm@${pnpm_version}"; then
       hash -r
     elif need_cmd sudo && [ "$INTERACTIVE" -eq 1 ]; then
-      echo "==> Retrying pnpm install with sudo..."
-      sudo npm install -g "pnpm@${pnpm_version}" >/dev/null 2>&1 || true
+      ui_echo "==> Retrying pnpm install with sudo..."
+      run_with_loading_bar \
+        "Installing pnpm" \
+        "Running sudo npm install -g pnpm@${pnpm_version}" \
+        sudo npm install -g "pnpm@${pnpm_version}" || true
       hash -r
     fi
   fi
 
   if ! need_cmd pnpm; then
+    print_sad_art
     echo "Error: pnpm installation failed." >&2
     echo "Install Node.js (with corepack) or npm, then re-run ./launch.sh." >&2
     exit 1
   fi
 
-  echo "==> pnpm ready: $(pnpm --version)"
+  ui_echo "==> pnpm ready: $(pnpm --version)"
 }
 
 ensure_workspace_install() {
   if [ -d "$ROOT_DIR/node_modules" ]; then
+    ui_echo "==> Workspace dependencies already installed."
     return
   fi
-  echo "==> Installing workspace dependencies (pnpm install)..."
-  (
-    cd "$ROOT_DIR"
-    pnpm install
-  )
+  run_with_loading_bar \
+    "Installing workspace dependencies" \
+    "Running pnpm install in shimeji-xlm" \
+    bash -lc "cd \"$ROOT_DIR\" && pnpm install"
 }
 
 arrow_menu() {
@@ -98,21 +197,22 @@ arrow_menu() {
   fi
 
   while true; do
-    clear
-    echo "$title"
-    echo "Use arrow keys and Enter."
-    echo ""
+    clear >"$UI_OUT"
+    print_pet_art
+    ui_echo "$title"
+    ui_echo "Use arrow keys and Enter."
+    ui_echo ""
 
     local i
     for i in "${!options[@]}"; do
       if [ "$i" -eq "$selected" ]; then
-        printf " > %s\n" "${options[$i]}"
+        ui_printf " > %s\n" "${options[$i]}"
       else
-        printf "   %s\n" "${options[$i]}"
+        ui_printf "   %s\n" "${options[$i]}"
       fi
     done
 
-    IFS= read -rsn1 key || true
+    IFS= read -rsn1 key < /dev/tty || true
     case "$key" in
       "")
         echo "$selected"
@@ -123,7 +223,7 @@ arrow_menu() {
         return 0
         ;;
       $'\x1b')
-        IFS= read -rsn2 -t 0.1 extra || true
+        IFS= read -rsn2 -t 0.1 extra < /dev/tty || true
         case "$extra" in
           "[A")
             if [ "$selected" -eq 0 ]; then
@@ -153,10 +253,10 @@ arrow_menu() {
 
 select_network() {
   local idx
-  idx="$(arrow_menu "Select deploy network" \
-    "local (recommended for development)" \
-    "testnet" \
-    "mainnet")"
+  idx="$(arrow_menu "Choose one-command path" \
+    "local: experiment locally (chain + frontend + local deploy)" \
+    "testnet: deploy contracts to testnet (with Vercel env guidance)" \
+    "mainnet: deploy contracts to mainnet (with Vercel env guidance)")"
   case "$idx" in
     0) echo "local" ;;
     1) echo "testnet" ;;
@@ -289,29 +389,33 @@ launch_full_experience() {
 
   deploy_cmd="$(compose_deploy_command "$network" "$cred_mode")"
 
-  echo "==> Launching chain tab..."
+  ui_echo "==> Launching chain tab..."
   if open_in_new_terminal "chain" "pnpm chain"; then
     launched_chain=1
   fi
 
-  echo "==> Launching frontend tab..."
+  ui_echo "==> Launching frontend tab..."
   if open_in_new_terminal "frontend" "pnpm start"; then
     launched_front=1
   fi
 
-  echo "==> Launching deploy tab..."
+  ui_echo "==> Launching deploy tab..."
   if open_in_new_terminal "deploy" "$deploy_cmd"; then
     launched_deploy=1
   fi
 
   if [ "$launched_chain" -eq 1 ] && [ "$launched_front" -eq 1 ] && [ "$launched_deploy" -eq 1 ]; then
-    echo ""
-    echo "All tabs launched."
-    echo "- Chain: running in its own tab"
-    echo "- Frontend: running in its own tab"
-    echo "- Deploy: running in its own tab"
-    echo ""
-    echo "After deploy completes, it prints the 'First auction quickstart' steps automatically."
+    ui_echo ""
+    print_happy_art
+    ui_echo "All tabs launched."
+    ui_echo "- Chain: running in its own tab"
+    ui_echo "- Frontend: running in its own tab"
+    ui_echo "- Deploy: running in its own tab"
+    ui_echo ""
+    ui_echo "After deploy completes, it prints the 'First auction quickstart' steps automatically."
+    if [ "$network" = "testnet" ] || [ "$network" = "mainnet" ]; then
+      ui_echo "Deploy output also includes Vercel env vars to leave frontend online."
+    fi
     return 0
   fi
 
@@ -332,8 +436,138 @@ run_chain_only() {
   run_in_current_terminal "pnpm chain"
 }
 
+ensure_vercel_cli() {
+  if need_cmd vercel; then
+    ui_echo "==> vercel CLI ready: $(vercel --version 2>/dev/null | head -n1)"
+    return 0
+  fi
+
+  if ! need_cmd npm; then
+    ui_echo "npm not found. Install Node.js first to use Vercel deploy from launcher."
+    return 1
+  fi
+
+  if run_with_loading_bar \
+    "Installing Vercel CLI" \
+    "Running npm install -g vercel" \
+    npm install -g vercel; then
+    hash -r
+    ui_echo "==> vercel CLI ready."
+    return 0
+  fi
+
+  if need_cmd sudo && [ "$INTERACTIVE" -eq 1 ]; then
+    ui_echo "Retrying Vercel CLI install with sudo..."
+    if run_with_loading_bar \
+      "Installing Vercel CLI" \
+      "Running sudo npm install -g vercel" \
+      sudo npm install -g vercel; then
+      hash -r
+      ui_echo "==> vercel CLI ready."
+      return 0
+    fi
+  fi
+
+  ui_echo "Could not install Vercel CLI automatically."
+  return 1
+}
+
+run_vercel_deploy() {
+  local idx cmd
+  if ! ensure_vercel_cli; then
+    return 1
+  fi
+
+  if ! vercel whoami >/dev/null 2>&1; then
+    ui_echo "Vercel login required."
+    idx="$(arrow_menu "Authenticate with Vercel" \
+      "Login now (browser/email flow)" \
+      "Back")"
+    if [ "$idx" = "0" ]; then
+      run_in_current_terminal "cd \"$ROOT_DIR/nextjs\" && vercel login" || return 1
+    else
+      return 0
+    fi
+  fi
+
+  idx="$(arrow_menu "Vercel deploy mode (frontend)" \
+    "Production deploy (vercel --prod)" \
+    "Preview deploy (vercel)" \
+    "Back")"
+  case "$idx" in
+    0) cmd="cd \"$ROOT_DIR/nextjs\" && vercel --prod" ;;
+    1) cmd="cd \"$ROOT_DIR/nextjs\" && vercel" ;;
+    *) return 0 ;;
+  esac
+
+  ui_echo "==> Launching Vercel deploy flow..."
+  run_in_current_terminal "$cmd"
+  return 0
+}
+
+run_github_push() {
+  local repo_root branch push_cmd
+  repo_root="$(cd "$ROOT_DIR/.." && pwd)"
+  branch="$(git -C "$repo_root" branch --show-current 2>/dev/null || true)"
+  push_cmd="cd \"$repo_root\" && git push origin \"$branch\""
+
+  if [ -z "$branch" ]; then
+    ui_echo "Could not detect git branch."
+    return 1
+  fi
+
+  ui_echo "==> Current branch: $branch"
+  ui_echo "==> Working tree status:"
+  git -C "$repo_root" status --short >"$UI_OUT" 2>/dev/null || true
+
+  if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
+    local idx
+    idx="$(arrow_menu "There are uncommitted changes" \
+      "Push only existing commits on current branch" \
+      "Back")"
+    [ "$idx" = "0" ] || return 0
+  fi
+
+  ui_echo "==> Pushing branch '$branch' to origin..."
+  if run_in_current_terminal "$push_cmd"; then
+    return 0
+  fi
+
+  ui_echo "Push failed. Credentials may be required."
+  if need_cmd gh; then
+    local idx
+    idx="$(arrow_menu "GitHub authentication" \
+      "Login with browser (gh auth login --web)" \
+      "Back")"
+    if [ "$idx" = "0" ]; then
+      if run_in_current_terminal "gh auth login --web"; then
+        ui_echo "Retrying push..."
+        run_in_current_terminal "$push_cmd" || return 1
+      else
+        return 1
+      fi
+    fi
+  else
+    ui_echo "Tip: install GitHub CLI and run: gh auth login --web"
+    return 1
+  fi
+  return 0
+}
+
 run_frontend_only() {
-  run_in_current_terminal "pnpm start"
+  local idx
+  idx="$(arrow_menu "Frontend actions" \
+    "Local development (pnpm start)" \
+    "Deploy frontend to Vercel" \
+    "Push branch to GitHub" \
+    "Back")"
+
+  case "$idx" in
+    0) run_in_current_terminal "pnpm start" ;;
+    1) run_vercel_deploy ;;
+    2) run_github_push ;;
+    *) return 0 ;;
+  esac
 }
 
 run_deploy_only() {
@@ -353,13 +587,16 @@ main_menu() {
   idx="$(arrow_menu "Shimeji XLM Command Center" \
     "Full experience (frontend + chain + deploy in separate tabs)" \
     "Run chain only" \
-    "Run frontend only" \
+    "Frontend actions (local/vercel/github)" \
     "Run deploy only" \
     "Exit")"
   echo "$idx"
 }
 
 main() {
+  ui_echo ""
+  print_pet_art
+  ui_echo "Shimeji XLM launcher starting..."
   ensure_pnpm
   ensure_workspace_install
   load_root_env_file

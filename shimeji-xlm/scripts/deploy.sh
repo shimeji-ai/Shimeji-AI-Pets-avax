@@ -24,8 +24,12 @@ load_root_env_file() {
 load_root_env_file
 
 INTERACTIVE=0
+UI_OUT="/dev/stdout"
 if [ -t 0 ] && [ -t 1 ]; then
   INTERACTIVE=1
+fi
+if [ "$INTERACTIVE" -eq 1 ] && [ -w /dev/tty ]; then
+  UI_OUT="/dev/tty"
 fi
 
 arrow_menu() {
@@ -36,28 +40,28 @@ arrow_menu() {
   local key extra
 
   while true; do
-    clear
-    echo "$title"
-    echo "Use arrow keys and Enter."
-    echo ""
+    clear >"$UI_OUT"
+    printf "%s\n" "$title" >"$UI_OUT"
+    printf "%s\n" "Use arrow keys and Enter." >"$UI_OUT"
+    printf "\n" >"$UI_OUT"
 
     local i
     for i in "${!options[@]}"; do
       if [ "$i" -eq "$selected" ]; then
-        printf " > %s\n" "${options[$i]}"
+        printf " > %s\n" "${options[$i]}" >"$UI_OUT"
       else
-        printf "   %s\n" "${options[$i]}"
+        printf "   %s\n" "${options[$i]}" >"$UI_OUT"
       fi
     done
 
-    IFS= read -rsn1 key || true
+    IFS= read -rsn1 key < /dev/tty || true
     case "$key" in
       ""|$'\n')
         echo "$selected"
         return 0
         ;;
       $'\x1b')
-        IFS= read -rsn2 -t 0.1 extra || true
+        IFS= read -rsn2 -t 0.1 extra < /dev/tty || true
         case "$extra" in
           "[A")
             if [ "$selected" -eq 0 ]; then
