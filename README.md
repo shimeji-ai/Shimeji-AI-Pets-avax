@@ -34,5 +34,6 @@ npm start
 
 - EVM version instructions: `shimeji-eth/README.md`
 - Stellar version instructions: `shimeji-xlm/README.md`
+- Animation reference: `animation-reference/README.md`
 
 This root README stays intentionally brief to avoid mixing EVM and Stellar runbooks in one place.
