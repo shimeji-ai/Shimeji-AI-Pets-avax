@@ -192,6 +192,101 @@ print_chain_commands() {
   print_deploy_paths
 }
 
+deploy_command_display() {
+  printf "cd \"%s\" && pnpm run deploy" "$ROOT_DIR"
+}
+
+run_deploy_here() {
+  local rc
+  echo "==> Running deploy assistant in current terminal..."
+  set +e
+  (
+    cd "$ROOT_DIR"
+    pnpm run deploy
+  )
+  rc=$?
+  set -e
+
+  if [ "$rc" -eq 0 ]; then
+    echo "==> Deploy finished successfully."
+  else
+    echo "==> Deploy failed with code $rc."
+  fi
+  return 0
+}
+
+open_deploy_in_new_terminal() {
+  local rc=1
+  local deploy_cmd shell_cmd
+
+  deploy_cmd="$(deploy_command_display)"
+  shell_cmd="$(printf 'cd %q && pnpm run deploy; echo; echo "Deploy flow finished."; exec bash' "$ROOT_DIR")"
+
+  if is_macos && need_cmd osascript; then
+    set +e
+    osascript -e "tell application \"Terminal\" to do script \"$deploy_cmd\"" >/dev/null 2>&1
+    rc=$?
+    set -e
+    if [ "$rc" -eq 0 ]; then
+      echo "==> Opened deploy flow in a new Terminal tab/window."
+      return 0
+    fi
+  fi
+
+  if need_cmd gnome-terminal; then
+    set +e
+    gnome-terminal -- bash -lc "$shell_cmd" >/dev/null 2>&1 &
+    rc=$?
+    set -e
+    if [ "$rc" -eq 0 ]; then
+      echo "==> Opened deploy flow in a new terminal."
+      return 0
+    fi
+  fi
+
+  if need_cmd x-terminal-emulator; then
+    set +e
+    x-terminal-emulator -e bash -lc "$shell_cmd" >/dev/null 2>&1 &
+    rc=$?
+    set -e
+    if [ "$rc" -eq 0 ]; then
+      echo "==> Opened deploy flow in a new terminal."
+      return 0
+    fi
+  fi
+
+  if need_cmd konsole; then
+    set +e
+    konsole --new-tab -e bash -lc "$shell_cmd" >/dev/null 2>&1 &
+    rc=$?
+    set -e
+    if [ "$rc" -eq 0 ]; then
+      echo "==> Opened deploy flow in a new terminal tab."
+      return 0
+    fi
+  fi
+
+  if need_cmd xterm; then
+    set +e
+    xterm -e bash -lc "$shell_cmd" >/dev/null 2>&1 &
+    rc=$?
+    set -e
+    if [ "$rc" -eq 0 ]; then
+      echo "==> Opened deploy flow in a new terminal window."
+      return 0
+    fi
+  fi
+
+  if is_wsl; then
+    echo "Could not auto-open a new tab from this WSL session."
+  else
+    echo "Could not auto-open a new terminal tab/window in this environment."
+  fi
+  echo "Run this in a new tab:"
+  echo "  $(deploy_command_display)"
+  return 1
+}
+
 offer_running_chain_actions() {
   local running_name="$1"
   local choice logs_rc
@@ -204,14 +299,22 @@ offer_running_chain_actions() {
   while true; do
     echo ""
     echo "Chain assistant options:"
-    echo "1) View blocks/logs now"
-    echo "2) Turn off chain now"
-    echo "3) Do nothing and exit"
-    read -r -p "Option [3]: " choice
-    choice="${choice:-3}"
+    echo "1) Open new tab/window and run deploy assistant"
+    echo "2) Run deploy assistant here"
+    echo "3) View blocks/logs now"
+    echo "4) Turn off chain now"
+    echo "5) Do nothing and exit"
+    read -r -p "Option [5]: " choice
+    choice="${choice:-5}"
 
     case "$choice" in
       1)
+        open_deploy_in_new_terminal || true
+        ;;
+      2)
+        run_deploy_here || true
+        ;;
+      3)
         echo "Streaming logs for '$running_name' (Ctrl+C to return to menu)..."
         set +e
         run_docker_cmd logs -f "$running_name"
@@ -221,13 +324,13 @@ offer_running_chain_actions() {
           echo "Log stream ended with code $logs_rc."
         fi
         ;;
-      2)
+      4)
         run_docker_cmd stop "$running_name"
         echo "==> Chain stopped."
         print_chain_commands
         return 0
         ;;
-      3)
+      5)
         echo "Leaving chain running."
         print_chain_commands
         return 0

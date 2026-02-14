@@ -742,6 +742,35 @@ print_success_summary() {
   echo "C) Optional build attestation query (if source metadata exists):"
   echo "   stellar contract info build --contract-id \"$NFT_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
   echo "   stellar contract info build --contract-id \"$AUCTION_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
+  echo ""
+  echo "First auction quickstart:"
+  echo "1) Create your first auction (admin only)."
+  echo "   Amount units use 7 decimals for both XLM and USDC tokens."
+  echo "   - 1 XLM  => 10000000"
+  echo "   - 1 USDC => 10000000"
+  echo "   - xlm_usdc_rate uses 7 decimals (1000000 = 0.10 USDC per XLM)"
+  echo ""
+  echo "   stellar contract invoke \\"
+  echo "     --id \"$AUCTION_ID\" \\"
+  echo "     --source \"$IDENTITY\" \\"
+  echo "     --rpc-url \"$RPC_URL\" \\"
+  echo "     --network-passphrase \"$PASSPHRASE\" \\"
+  echo "     -- create_auction \\"
+  echo "     --token_uri \"ipfs://<metadata-cid>/metadata.json\" \\"
+  echo "     --starting_price_xlm 10000000 \\"
+  echo "     --starting_price_usdc 10000000 \\"
+  echo "     --xlm_usdc_rate 1000000"
+  echo ""
+  echo "2) Confirm auction exists:"
+  echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- total_auctions"
+  echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- get_auction --auction_id 0"
+  echo ""
+  echo "3) Open the auction UI:"
+  if [ "$NETWORK" = "local" ]; then
+    echo "   http://localhost:3000/auction"
+  else
+    echo "   <your deployed frontend>/auction"
+  fi
 }
 
 main() {

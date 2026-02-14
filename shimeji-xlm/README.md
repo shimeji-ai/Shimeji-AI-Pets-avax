@@ -10,23 +10,39 @@ Run from `shimeji-xlm/`:
 pnpm install
 ```
 
-Then use these commands:
+Create optional deploy credentials:
 
-1. Start chain assistant (local chain + help menu):
+```bash
+cp .env.example .env
+```
+
+Supported credential vars in `shimeji-xlm/.env`:
+- `STELLAR_MNEMONIC`
+- `STELLAR_SECRET_SEED` (or `STELLAR_SECRET_KEY`)
+- `STELLAR_IDENTITY_ALIAS`
+
+Then run the single launcher command:
+
+```bash
+pnpm run launch
+```
+
+`pnpm run launch` opens a command-center menu (arrow keys + Enter) and can run:
+
+- frontend (`pnpm start`)
+- chain assistant (`pnpm chain`)
+- deploy (`pnpm run deploy:*`)
+- full experience in separate tabs (frontend + chain + deploy)
+
+The deploy flow prints the "First auction quickstart" commands at the end.
+
+## Separate Commands (Still Available)
+
+If you prefer manual tabs/terminals, these commands continue to work:
 
 ```bash
 pnpm chain
-```
-
-2. Deploy contracts (interactive selector: local/testnet/mainnet):
-
-```bash
 pnpm run deploy
-```
-
-3. Start frontend:
-
-```bash
 pnpm start
 ```
 
