@@ -1,14 +1,27 @@
 import {
   Contract,
   TransactionBuilder,
-  Networks,
+  Account,
   BASE_FEE,
   xdr,
   nativeToScVal,
   Address,
-  SorobanRpc,
+  rpc,
 } from "@stellar/stellar-sdk";
 import { AUCTION_CONTRACT_ID, getServer, NETWORK_PASSPHRASE } from "./contracts";
+
+const READONLY_SIMULATION_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+function buildReadOnlyTx(operation: xdr.Operation) {
+  const simulationAccount = new Account(READONLY_SIMULATION_SOURCE, "0");
+  return new TransactionBuilder(simulationAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(operation)
+    .setTimeout(30)
+    .build();
+}
 
 export interface AuctionInfo {
   tokenUri: string;
@@ -73,18 +86,12 @@ export async function fetchActiveAuction(): Promise<{
   try {
     // Get total auctions
     const totalResult = await server.simulateTransaction(
-      new TransactionBuilder(
-        await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-        { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }
-      )
-        .addOperation(contract.call("total_auctions"))
-        .setTimeout(30)
-        .build()
+      buildReadOnlyTx(contract.call("total_auctions"))
     );
 
-    if (SorobanRpc.Api.isSimulationError(totalResult)) return null;
+    if (rpc.Api.isSimulationError(totalResult)) return null;
     const total = Number(
-      (totalResult as SorobanRpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
+      (totalResult as rpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
     );
     if (total === 0) return null;
 
@@ -92,18 +99,12 @@ export async function fetchActiveAuction(): Promise<{
 
     // Get auction info
     const auctionResult = await server.simulateTransaction(
-      new TransactionBuilder(
-        await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-        { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }
-      )
-        .addOperation(contract.call("get_auction", nativeToScVal(auctionId, { type: "u64" })))
-        .setTimeout(30)
-        .build()
+      buildReadOnlyTx(contract.call("get_auction", nativeToScVal(auctionId, { type: "u64" })))
     );
 
-    if (SorobanRpc.Api.isSimulationError(auctionResult)) return null;
+    if (rpc.Api.isSimulationError(auctionResult)) return null;
     const auctionData = parseScVal(
-      (auctionResult as SorobanRpc.Api.SimulateTransactionSuccessResponse).result!.retval
+      (auctionResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
     ) as Record<string, unknown>;
 
     const auction: AuctionInfo = {
@@ -120,18 +121,12 @@ export async function fetchActiveAuction(): Promise<{
     let highestBid: BidInfo | null = null;
     try {
       const bidResult = await server.simulateTransaction(
-        new TransactionBuilder(
-          await server.getAccount("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"),
-          { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }
-        )
-          .addOperation(contract.call("get_highest_bid", nativeToScVal(auctionId, { type: "u64" })))
-          .setTimeout(30)
-          .build()
+        buildReadOnlyTx(contract.call("get_highest_bid", nativeToScVal(auctionId, { type: "u64" })))
       );
 
-      if (!SorobanRpc.Api.isSimulationError(bidResult)) {
+      if (!rpc.Api.isSimulationError(bidResult)) {
         const bidData = parseScVal(
-          (bidResult as SorobanRpc.Api.SimulateTransactionSuccessResponse).result!.retval
+          (bidResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
         ) as Record<string, unknown>;
         highestBid = {
           bidder: bidData.bidder as string,
@@ -174,10 +169,10 @@ export async function buildBidXlmTx(
     .build();
 
   const sim = await server.simulateTransaction(tx);
-  if (SorobanRpc.Api.isSimulationError(sim)) {
+  if (rpc.Api.isSimulationError(sim)) {
     throw new Error("Transaction simulation failed");
   }
-  const prepared = SorobanRpc.assembleTransaction(tx, sim).build();
+  const prepared = rpc.assembleTransaction(tx, sim).build();
   return prepared.toXDR();
 }
 
@@ -206,9 +201,9 @@ export async function buildBidUsdcTx(
     .build();
 
   const sim = await server.simulateTransaction(tx);
-  if (SorobanRpc.Api.isSimulationError(sim)) {
+  if (rpc.Api.isSimulationError(sim)) {
     throw new Error("Transaction simulation failed");
   }
-  const prepared = SorobanRpc.assembleTransaction(tx, sim).build();
+  const prepared = rpc.assembleTransaction(tx, sim).build();
   return prepared.toXDR();
 }

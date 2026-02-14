@@ -1,4 +1,4 @@
-import { SorobanRpc } from "@stellar/stellar-sdk";
+import { rpc } from "@stellar/stellar-sdk";
 
 export const AUCTION_CONTRACT_ID =
   process.env.NEXT_PUBLIC_AUCTION_CONTRACT_ID ?? "";
@@ -70,11 +70,11 @@ export const USDC_ISSUER =
       ? MAINNET_USDC_ISSUER
       : TESTNET_USDC_ISSUER);
 
-let _server: SorobanRpc.Server | null = null;
+let _server: rpc.Server | null = null;
 
-export function getServer(): SorobanRpc.Server {
+export function getServer(): rpc.Server {
   if (!_server) {
-    _server = new SorobanRpc.Server(RPC_URL);
+    _server = new rpc.Server(RPC_URL);
   }
   return _server;
 }

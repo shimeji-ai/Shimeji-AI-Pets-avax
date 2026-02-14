@@ -16,6 +16,7 @@ import {
   isConnected as apiIsConnected,
   requestAccess,
 } from "@stellar/freighter-api";
+import { STELLAR_NETWORK } from "@/lib/contracts";
 
 type FreighterState = {
   isAvailable: boolean;
@@ -79,6 +80,8 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isDetecting, setIsDetecting] = useState(true);
   const detectionDone = useRef(false);
+  const autoConnectTried = useRef(false);
+  const shouldAutoConnect = STELLAR_NETWORK !== "local";
 
   const refresh = useCallback(async () => {
     try {
@@ -235,6 +238,17 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("message", onMessage);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!shouldAutoConnect) return;
+    if (isDetecting || isConnecting || !isAvailable || connected) return;
+    if (autoConnectTried.current) return;
+    autoConnectTried.current = true;
+
+    connect().catch(() => {
+      // connect already sets UI error state; this prevents unhandled rejection noise.
+    });
+  }, [connected, connect, isAvailable, isConnecting, isDetecting, shouldAutoConnect]);
 
   const value = useMemo(
     () => ({

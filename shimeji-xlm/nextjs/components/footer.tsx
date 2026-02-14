@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Twitter, MessageCircle, Github } from "lucide-react";
+import { Github } from "lucide-react";
 import Image from "next/image";
 import { UpdatesSubscribePopup } from "./updates-subscribe-popup";
 import { useLanguage } from "./language-provider";
@@ -39,19 +39,17 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
-                  aria-label="Twitter"
+                  aria-label="X"
                 >
                   <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
-                    <Twitter className="w-5 h-5" />
-                  </span>
-                </Link>
-                <Link
-                  href="#"
-                  className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
-                  aria-label="Discord"
-                >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
-                    <MessageCircle className="w-5 h-5" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M18.244 2H21.5l-7.266 8.304L22.67 22h-6.59l-5.16-7.196L4.62 22H1.36l7.773-8.89L1.08 2h6.757l4.663 6.52L18.244 2Zm-1.144 18h1.83L6.78 3.896H4.814L17.1 20Z" />
+                    </svg>
                   </span>
                 </Link>
                 <Link

@@ -9,10 +9,11 @@ import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { CurrencyToggle } from "@/components/currency-toggle";
-import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
+import { Wallet, CheckCircle, Loader2, Copy, Check } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
 import {
+  AUCTION_CONTRACT_ID,
   getServer,
   HORIZON_URL,
   NETWORK_PASSPHRASE,
@@ -23,6 +24,9 @@ import {
 
 const LOCAL_BURNER_STORAGE_KEY = "shimeji_local_burner_secret";
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
+const TOKEN_SCALE = BigInt(10_000_000);
+const MIN_INCREMENT_BPS = BigInt(500);
+const BPS_DENOMINATOR = BigInt(10_000);
 
 type WalletMode = "burner" | "freighter" | "none";
 type WalletBalances = {
@@ -30,15 +34,39 @@ type WalletBalances = {
   usdc: string;
 };
 
+function formatBidInput(value: number): string {
+  const rounded = Math.max(0, Math.round(value * 1e7) / 1e7);
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(7).replace(/\.?0+$/, "");
+}
+
+function ceilDiv(a: bigint, b: bigint): bigint {
+  const zero = BigInt(0);
+  const one = BigInt(1);
+  if (b <= zero) return zero;
+  return (a + b - one) / b;
+}
+
+function isSameBid(a: BidInfo, b: BidInfo): boolean {
+  return a.bidder === b.bidder && a.amount === b.amount && a.currency === b.currency;
+}
+
 export default function FactoryPage() {
   const [mounted, setMounted] = useState(false);
   const [currency, setCurrency] = useState<"XLM" | "USDC">("XLM");
-  const [bidAmount, setBidAmount] = useState("");
+  const [bidAmounts, setBidAmounts] = useState<{ XLM: string; USDC: string }>({
+    XLM: "500",
+    USDC: "50",
+  });
   const [isBidding, setIsBidding] = useState(false);
   const [bidSuccess, setBidSuccess] = useState(false);
   const [bidError, setBidError] = useState("");
   const [auction, setAuction] = useState<AuctionInfo | null>(null);
   const [highestBid, setHighestBid] = useState<BidInfo | null>(null);
+  const [recentOffers, setRecentOffers] = useState<BidInfo[]>([]);
+  const [copiedBidder, setCopiedBidder] = useState<string | null>(null);
+  const [currentBidCurrencyView, setCurrentBidCurrencyView] = useState<"XLM" | "USDC">("XLM");
+  const [showAuctionEndDate, setShowAuctionEndDate] = useState(false);
   const [auctionId, setAuctionId] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [walletMode, setWalletMode] = useState<WalletMode>(
@@ -56,6 +84,16 @@ export default function FactoryPage() {
   const isLocalNetwork = STELLAR_NETWORK === "local";
   const isTestnetNetwork = STELLAR_NETWORK === "testnet";
   const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
+  const auctionExplorerUrl = useMemo(() => {
+    if (!AUCTION_CONTRACT_ID) return null;
+    if (isTestnetNetwork) {
+      return `https://stellar.expert/explorer/testnet/contract/${AUCTION_CONTRACT_ID}`;
+    }
+    if (isMainnetNetwork) {
+      return `https://stellar.expert/explorer/public/contract/${AUCTION_CONTRACT_ID}`;
+    }
+    return null;
+  }, [isMainnetNetwork, isTestnetNetwork]);
 
   const loadAuction = useCallback(async () => {
     try {
@@ -117,6 +155,7 @@ export default function FactoryPage() {
 
   const hasFreighterConnection = Boolean(isConnected && publicKey);
   const hasConnectedWallet = Boolean(activePublicKey);
+  const bidAmount = bidAmounts[currency];
 
   const loadBalances = useCallback(async (address: string | null) => {
     if (!address) {
@@ -316,30 +355,82 @@ export default function FactoryPage() {
     walletMode,
   ]);
 
-  const minimumBid = auction
-    ? currency === "XLM"
-      ? Number(auction.startingPriceXlm) / 1e7
-      : Number(auction.startingPriceUsdc) / 1e7
-    : currency === "XLM"
-      ? 500
-      : 50;
+  const minimumBidByCurrency = useMemo(() => {
+    if (!auction) {
+      return { XLM: 500, USDC: 50 };
+    }
+
+    const startingXlmRaw = auction.startingPriceXlm;
+    const startingUsdcRaw = auction.startingPriceUsdc;
+    const rate = auction.xlmUsdcRate;
+
+    let minXlmRaw = startingXlmRaw;
+    let minUsdcRaw = startingUsdcRaw;
+
+    if (highestBid) {
+      const highestRaw = highestBid.amount;
+      const highestNormUsdc =
+        highestBid.currency === "Usdc"
+          ? highestRaw
+          : (highestRaw * rate) / TOKEN_SCALE;
+
+      const requiredNormUsdc =
+        highestNormUsdc + (highestNormUsdc * MIN_INCREMENT_BPS) / BPS_DENOMINATOR;
+
+      minUsdcRaw = requiredNormUsdc > minUsdcRaw ? requiredNormUsdc : minUsdcRaw;
+
+      const requiredXlmRaw =
+        rate > BigInt(0) ? ceilDiv(requiredNormUsdc * TOKEN_SCALE, rate) : minXlmRaw;
+      minXlmRaw = requiredXlmRaw > minXlmRaw ? requiredXlmRaw : minXlmRaw;
+    }
+
+    return {
+      XLM: Number(minXlmRaw) / 1e7,
+      USDC: Number(minUsdcRaw) / 1e7,
+    };
+  }, [auction, highestBid]);
+  const minimumBid = minimumBidByCurrency[currency];
+  const minimumBidText = formatBidInput(minimumBid);
+
+  useEffect(() => {
+    if (auction?.finalized) return;
+    setBidAmounts((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      (["XLM", "USDC"] as const).forEach((code) => {
+        const parsed = Number.parseFloat(prev[code]);
+        if (!prev[code] || !Number.isFinite(parsed) || parsed < minimumBidByCurrency[code]) {
+          next[code] = formatBidInput(minimumBidByCurrency[code]);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [auction, minimumBidByCurrency]);
 
   const handleBid = async () => {
     setBidError("");
     setBidSuccess(false);
-    const amount = parseFloat(bidAmount);
+    let amount = parseFloat(bidAmounts[currency]);
+    if (!amount || amount <= 0) {
+      if (minimumBid > 0) {
+        amount = minimumBid;
+        setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
+      } else {
+        setBidError(t("Enter a valid bid amount.", "Ingresa un monto válido."));
+        return;
+      }
+    }
+    if (amount < minimumBid) {
+      amount = minimumBid;
+      setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
+    }
     if (!amount || amount <= 0) {
       setBidError(t("Enter a valid bid amount.", "Ingresa un monto válido."));
       return;
     }
     if (!activePublicKey) {
       setBidError(t("Connect your wallet to place a bid.", "Conecta tu wallet para ofertar."));
-      return;
-    }
-    if (amount < minimumBid) {
-      setBidError(
-        t(`Minimum bid is ${minimumBid} ${currency}.`, `La oferta mínima es ${minimumBid} ${currency}.`)
-      );
       return;
     }
     setIsBidding(true);
@@ -374,8 +465,15 @@ export default function FactoryPage() {
       const tx = TB.fromXDR(signedXdr, NETWORK_PASSPHRASE);
       await server.sendTransaction(tx);
 
+      const submittedBid: BidInfo = {
+        bidder: bidderAddress,
+        amount: rawAmount,
+        currency: currency === "XLM" ? "Xlm" : "Usdc",
+      };
+      setRecentOffers((prev) => [submittedBid, ...prev].slice(0, 8));
+
       setBidSuccess(true);
-      setBidAmount("");
+      setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
       // Reload auction data
       setTimeout(() => {
         loadAuction();
@@ -401,8 +499,85 @@ export default function FactoryPage() {
     return `${amount.toLocaleString()} ${bid.currency === "Xlm" ? "XLM" : "USDC"}`;
   };
 
+  const formatTokenAmount = (rawUnits: bigint | number) => {
+    const value = Number(rawUnits) / 1e7;
+    if (!Number.isFinite(value)) return "0";
+    return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  };
+
+  const auctionDateLabel = useMemo(() => {
+    const sourceDate = auction ? new Date(auction.startTime * 1000) : new Date();
+    return sourceDate.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  }, [auction]);
+  const auctionEndDateLabel = useMemo(() => {
+    if (!auction) return "";
+    return new Date(auction.endTime * 1000).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, [auction]);
+  const currentBidDisplayValue = useMemo(() => {
+    if (!highestBid || !auction) {
+      return t("No bids yet", "Sin ofertas aún");
+    }
+
+    const highestCurrency = highestBid.currency === "Xlm" ? "XLM" : "USDC";
+    if (highestCurrency === currentBidCurrencyView) {
+      return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
+    }
+
+    const rate = auction.xlmUsdcRate;
+    if (rate <= BigInt(0)) {
+      return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
+    }
+
+    if (currentBidCurrencyView === "USDC" && highestBid.currency === "Xlm") {
+      const converted = (highestBid.amount * rate) / TOKEN_SCALE;
+      return `${formatTokenAmount(converted)} USDC`;
+    }
+
+    if (currentBidCurrencyView === "XLM" && highestBid.currency === "Usdc") {
+      const converted = ceilDiv(highestBid.amount * TOKEN_SCALE, rate);
+      return `${formatTokenAmount(converted)} XLM`;
+    }
+
+    return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
+  }, [auction, currentBidCurrencyView, highestBid, isSpanish]);
+
   const shortAddress = (address: string | null) =>
     address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
+
+  const copyBidderAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedBidder(address);
+      window.setTimeout(() => {
+        setCopiedBidder((current) => (current === address ? null : current));
+      }, 1400);
+    } catch {
+      setBidError(t("Could not copy address.", "No se pudo copiar la dirección."));
+    }
+  };
+
+  const latestOffers = useMemo(() => {
+    const merged: BidInfo[] = [];
+    const pushUnique = (bid: BidInfo | null) => {
+      if (!bid) return;
+      if (merged.some((entry) => isSameBid(entry, bid))) return;
+      merged.push(bid);
+    };
+
+    if (highestBid) pushUnique(highestBid);
+    recentOffers.forEach((bid) => pushUnique(bid));
+    return merged.slice(0, 4);
+  }, [highestBid, recentOffers]);
 
   const showHeaderFaucet = isLocalNetwork || isTestnetNetwork || isMainnetNetwork;
   const headerWalletLabel = isLocalNetwork
@@ -414,7 +589,7 @@ export default function FactoryPage() {
         ? shortAddress(publicKey)
           ? t(`Freighter ${shortAddress(publicKey)}`, `Freighter ${shortAddress(publicKey)}`)
           : t("Freighter", "Freighter")
-        : t("Wallet", "Wallet")
+        : t("Wallet Off", "Wallet Off")
     : "";
 
   const headerWalletButton = isLocalNetwork ? (
@@ -425,14 +600,14 @@ export default function FactoryPage() {
       className="h-9 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
       onClick={() => {
         if (walletMode === "burner") {
+          setWalletMode("none");
+          return;
+        }
+        if (walletMode === "none") {
           setWalletMode("freighter");
           return;
         }
-        if (walletMode === "freighter") {
-          setWalletMode(burnerPublicKey ? "burner" : "none");
-          return;
-        }
-        setWalletMode(burnerPublicKey ? "burner" : "freighter");
+        setWalletMode(burnerPublicKey ? "burner" : "none");
       }}
     >
       {headerWalletLabel}
@@ -452,7 +627,7 @@ export default function FactoryPage() {
             )
           : t("Load test funds from faucet.", "Cargar fondos de prueba desde faucet.")
       }
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-base hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+      className="auction-faucet-button inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-lg hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span className={isFaucetLoading ? "animate-pulse" : ""}>💸</span>
     </button>
@@ -468,102 +643,208 @@ export default function FactoryPage() {
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <NavHeader
-        showConnectButton={!isLocalNetwork || walletMode === "freighter"}
+        showConnectButton={!isLocalNetwork || walletMode !== "burner"}
         rightSlot={headerRightSlot}
       />
 
       <section className="pt-28 pb-16 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 border border-white/10 text-[var(--brand-accent)]">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-foreground">
-                {t("Auction", "Subasta")}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {t(
-                  "Bid on a handcrafted shimeji. The highest bidder wins a unique desktop companion minted as an NFT.",
-                  "Ofertá por un shimeji artesanal. El mejor postor gana una mascota de escritorio única acuñada como NFT."
-                )}
-              </p>
-            </div>
-          </div>
-
           {!mounted || loading ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
               <p className="text-muted-foreground">{t("Loading...", "Cargando...")}</p>
             </div>
           ) : hasConnectedWallet ? (
-            <div className="neural-card rounded-2xl p-6 mb-10">
-              <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                {/* Left column: Egg + auction info */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="w-[10.5rem] h-[10.5rem] flex items-center justify-center shrink-0">
+            <>
+              <div className="neural-card rounded-3xl p-6 md:p-8 mb-6">
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
                       <img
                         src="/egg-sit.png"
                         alt={t("Shimeji Egg", "Huevo Shimeji")}
-                        className="w-[9rem] h-[9rem] object-contain"
+                        className="w-full h-full object-contain"
                       />
                     </div>
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">
-                        {t("Custom Handcrafted Shimeji", "Shimeji artesanal personalizado")}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {t(
-                          "This auction awards a unique handcrafted shimeji minted as an NFT on Stellar. The winner receives a custom desktop pet with original sprites and full AI chat.",
-                          "Esta subasta otorga un shimeji único artesanal acuñado como NFT en Stellar. El ganador recibe una mascota de escritorio personalizada con sprites originales y chat AI completo."
-                        )}
-                      </p>
-                    </div>
+                    {auction ? (
+                      <div className="mt-5 flex w-full justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowAuctionEndDate((prev) => !prev)}
+                          className="inline-flex items-center justify-center bg-transparent p-0 text-center"
+                        >
+                          <div className="flex h-[64px] items-center justify-center">
+                            {showAuctionEndDate ? (
+                              <p className="px-2 text-center text-xl font-semibold leading-tight text-foreground md:text-2xl">
+                                {auctionEndDateLabel}
+                              </p>
+                            ) : (
+                              <div className="w-full">
+                                <CountdownTimer
+                                  endTime={auction.endTime}
+                                  labels={
+                                    isSpanish
+                                      ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
+                                      : undefined
+                                  }
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   {auction ? (
-                    <div className="mt-6 space-y-4">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                          {t("Time remaining", "Tiempo restante")}
-                        </p>
-                        <CountdownTimer
-                          endTime={auction.endTime}
-                          labels={
-                            isSpanish
-                              ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
-                              : undefined
+                    <div>
+                      <p className="text-sm text-muted-foreground">{auctionDateLabel}</p>
+                      <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
+                        {t(
+                          "Bid on a handcrafted shimeji. The highest bidder wins a unique desktop companion minted as an NFT.",
+                          "Ofertá por un shimeji artesanal. Gana una mascota de escritorio única acuñada como NFT."
+                        )}
+                      </p>
+
+                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-2">
+                            {t("Currency", "Moneda")}
+                          </label>
+                          <CurrencyToggle
+                            value={currency}
+                            onChange={(nextCurrency) => {
+                              setCurrency(nextCurrency);
+                              setBidError("");
+                            }}
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCurrentBidCurrencyView((prev) => (prev === "XLM" ? "USDC" : "XLM"))
                           }
-                        />
+                          className="self-start rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 sm:self-auto sm:text-right"
+                        >
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {t("Current bid", "Oferta actual")}
+                          </p>
+                          <p className="mt-0.5 text-base font-semibold text-foreground">{currentBidDisplayValue}</p>
+                        </button>
                       </div>
 
-                      {highestBid ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                            {t("Current highest bid", "Oferta más alta actual")}
-                          </p>
-                          <p className="text-2xl font-bold text-foreground">{formatBid(highestBid)}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t("by", "por")} {highestBid.bidder.slice(0, 6)}...{highestBid.bidder.slice(-4)}
-                          </p>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <input
+                          type="number"
+                          value={bidAmount}
+                          onChange={(e) =>
+                            setBidAmounts((prev) => ({ ...prev, [currency]: e.target.value }))
+                          }
+                          placeholder={minimumBidText}
+                          min={0}
+                          step="any"
+                          className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                        />
+                        <Button
+                          onClick={handleBid}
+                          disabled={isBidding || !auction || auction.finalized}
+                          className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide"
+                        >
+                          {isBidding ? (
+                            <span className="inline-flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}
+                            </span>
+                          ) : (
+                            t("OFFER!", "¡OFERTAR!")
+                          )}
+                        </Button>
+                      </div>
+
+                      <p className="mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-muted-foreground">
+                        {t("Available balance", "Saldo disponible")}:{" "}
+                        <span className="font-semibold text-foreground">
+                          {balancesLoading
+                            ? t("Loading...", "Cargando...")
+                            : `${formatBalance(currency === "XLM" ? balances.xlm : balances.usdc)} ${currency}`}
+                        </span>
+                      </p>
+                      {balancesError ? (
+                        <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
+                      ) : null}
+                      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {t("Latest offers", "Últimas ofertas")}
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {latestOffers.map((offer, index) => {
+                            const isTop = index === 0;
+                            return (
+                              <div
+                                key={`${offer.bidder}-${offer.amount.toString()}-${offer.currency}-${index}`}
+                                className={`auction-offer-row flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                                  isTop ? "auction-offer-row-top" : ""
+                                }`}
+                              >
+                                <span className="flex min-w-0 flex-1 flex-col pr-3 leading-tight">
+                                  <span className="flex min-w-0 items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => copyBidderAddress(offer.bidder)}
+                                      title={t("Copy wallet address", "Copiar dirección")}
+                                      aria-label={t("Copy wallet address", "Copiar dirección")}
+                                      className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-foreground/60 transition hover:text-foreground focus-visible:outline-none"
+                                    >
+                                      {copiedBidder === offer.bidder ? (
+                                        <Check className="h-2.5 w-2.5" />
+                                      ) : (
+                                        <Copy className="h-2.5 w-2.5" />
+                                      )}
+                                    </button>
+                                    <span
+                                      className={`min-w-0 flex-1 overflow-x-auto whitespace-nowrap pr-1 font-mono text-[11px] ${
+                                        isTop ? "font-semibold text-foreground" : "text-muted-foreground"
+                                      }`}
+                                    >
+                                      {offer.bidder}
+                                    </span>
+                                  </span>
+                                  {isTop ? (
+                                    <span className="text-[11px] uppercase tracking-wide text-foreground/75">
+                                      {t("Offer to beat", "Oferta a vencer")}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className="font-semibold text-foreground">{formatBid(offer)}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {latestOffers.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              {t("No bids yet.", "Aún no hay ofertas.")}
+                            </p>
+                          ) : null}
                         </div>
-                      ) : (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                            {t("Starting price", "Precio inicial")}
-                          </p>
-                          <p className="text-2xl font-bold text-foreground">
-                            ~${(Number(auction.startingPriceUsdc) / 1e7).toFixed(0)} USD
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {t("No bids yet. Be the first!", "Aún no hay ofertas. ¡Sé el primero!")}
-                          </p>
+                      </div>
+
+                      {bidSuccess ? (
+                        <div className="mt-3 bg-white/5 rounded-2xl p-4 border border-white/10">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-[var(--brand-accent)]" />
+                            <p className="text-sm font-semibold text-foreground">
+                              {t("Bid placed!", "¡Oferta realizada!")}
+                            </p>
+                          </div>
                         </div>
-                      )}
+                      ) : null}
+                      {bidError ? (
+                        <p className="mt-3 text-xs text-red-500">{bidError}</p>
+                      ) : null}
                     </div>
                   ) : (
-                    <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-6 text-center">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
                       <p className="text-muted-foreground">
                         {t(
                           "No active auction right now. Check back soon!",
@@ -573,170 +854,126 @@ export default function FactoryPage() {
                     </div>
                   )}
                 </div>
+              </div>
 
-                {/* Right column: Bid card */}
-                <div className="w-full lg:w-[300px]">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <h3 className="text-lg font-semibold mb-2">
-                      {t("Place a Bid", "Hacer una oferta")}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t("Connected as", "Conectado como")}{" "}
-                      {activePublicKey ? `${activePublicKey.slice(0, 6)}...${activePublicKey.slice(-4)}` : "Wallet"}
-                      {isLocalNetwork
-                        ? walletMode === "burner"
-                          ? ` (${t("Burner", "Burner")})`
-                          : ` (${t("Freighter", "Freighter")})`
-                        : "."}
-                    </p>
+              <div className="mb-10 grid gap-4 lg:grid-cols-2">
+                <div className="neural-card rounded-2xl border border-white/10 p-4">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {t("Connected as", "Conectado como")}{" "}
+                    {activePublicKey ? `${activePublicKey.slice(0, 6)}...${activePublicKey.slice(-4)}` : "Wallet"}
+                    {isLocalNetwork
+                      ? walletMode === "burner"
+                        ? ` (${t("Burner", "Burner")})`
+                        : ` (${t("Freighter", "Freighter")})`
+                      : "."}
+                  </p>
 
-                    {isLocalNetwork ? (
-                      <div className="mb-4">
-                        <label className="block text-xs text-muted-foreground mb-2">
-                          {t("Wallet mode", "Modo de wallet")}
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={walletMode === "burner" ? "default" : "outline"}
-                            className={
-                              walletMode === "burner"
-                                ? "neural-button h-8 px-3"
-                                : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                            }
-                            onClick={() => setWalletMode("burner")}
-                            disabled={!burnerPublicKey}
-                          >
-                            {t("Burner", "Burner")}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={walletMode === "freighter" ? "default" : "outline"}
-                            className={
-                              walletMode === "freighter"
-                                ? "neural-button h-8 px-3"
-                                : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                            }
-                            onClick={() => setWalletMode("freighter")}
-                          >
-                            {t("Freighter", "Freighter")}
-                          </Button>
-                        </div>
-                        {walletMode === "freighter" && !hasFreighterConnection ? (
-                          <p className="text-[11px] text-muted-foreground mt-2">
-                            {t(
-                              "Connect Freighter to load balances and bid.",
-                              "Conecta Freighter para cargar balances y ofertar."
-                            )}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-
+                  {isLocalNetwork ? (
                     <div className="mb-4">
                       <label className="block text-xs text-muted-foreground mb-2">
-                        {t("Currency", "Moneda")}
+                        {t("Wallet mode", "Modo de wallet")}
                       </label>
-                      <CurrencyToggle value={currency} onChange={setCurrency} />
-                    </div>
-
-                    <div className="mb-2">
-                      <label className="block text-xs text-muted-foreground mb-2">
-                        {t("Your bid", "Tu oferta")}
-                      </label>
-                      <input
-                        type="number"
-                        value={bidAmount}
-                        onChange={(e) => setBidAmount(e.target.value)}
-                        placeholder={`${minimumBid}`}
-                        min={0}
-                        step="any"
-                        className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {t(`Min: ${minimumBid} ${currency}`, `Mín: ${minimumBid} ${currency}`)}
-                        {highestBid ? ` (+5%)` : ""}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between py-2 text-sm border-t border-white/10 mt-3">
-                      <span>{t("Network", "Red")}</span>
-                      <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
-                    </div>
-                    <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
-                        {t("Available balances", "Saldos disponibles")}
-                      </p>
-                      <div className="flex items-center justify-between text-sm">
-                        <span>XLM</span>
-                        <span className="font-semibold">
-                          {balancesLoading ? t("Loading...", "Cargando...") : `${formatBalance(balances.xlm)} XLM`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mt-1">
-                        <span>USDC</span>
-                        <span className="font-semibold">
-                          {balancesLoading ? t("Loading...", "Cargando...") : `${formatBalance(balances.usdc)} USDC`}
-                        </span>
-                      </div>
-                      {balancesError ? (
-                        <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
-                      ) : null}
-                      <div className="mt-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
-                          onClick={handleFaucet}
-                          disabled={isFaucetLoading || (!isMainnetNetwork && !activePublicKey)}
-                          className="h-8 w-full border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                          variant={walletMode === "burner" ? "default" : "outline"}
+                          className={
+                            walletMode === "burner"
+                              ? "neural-button h-8 px-3"
+                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                          }
+                          onClick={() => setWalletMode("burner")}
+                          disabled={!burnerPublicKey}
                         >
-                          {isFaucetLoading
-                            ? t("Loading funds...", "Cargando fondos...")
-                            : isMainnetNetwork
-                              ? t("Open XLM Onramp", "Abrir Onramp XLM")
-                              : t("Faucet (XLM/USDC)", "Faucet (XLM/USDC)")}
+                          {t("Burner", "Burner")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={walletMode === "freighter" ? "default" : "outline"}
+                          className={
+                            walletMode === "freighter"
+                              ? "neural-button h-8 px-3"
+                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                          }
+                          onClick={() => setWalletMode("freighter")}
+                        >
+                          {t("Freighter", "Freighter")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={walletMode === "none" ? "default" : "outline"}
+                          className={
+                            walletMode === "none"
+                              ? "neural-button h-8 px-3"
+                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                          }
+                          onClick={() => setWalletMode("none")}
+                        >
+                          {t("Disconnect Burner", "Desconectar Burner")}
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  ) : null}
 
-                  {bidSuccess ? (
-                    <div className="mt-4 bg-white/5 rounded-2xl p-4 text-center border border-white/10">
-                      <CheckCircle className="w-6 h-6 text-[var(--brand-accent)] mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-foreground">
-                        {t("Bid placed!", "¡Oferta realizada!")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {t(
-                          "Your bid has been submitted. You'll be refunded if outbid.",
-                          "Tu oferta fue enviada. Se te reembolsará si alguien supera tu oferta."
-                        )}
+                  <div className="flex items-center justify-between py-2 text-sm border-t border-white/10 mt-2">
+                    <span>{t("Network", "Red")}</span>
+                    <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
+                  </div>
+                </div>
+
+                <div className="neural-card rounded-2xl border border-white/10 p-4 text-xs text-muted-foreground">
+                  <p className="uppercase tracking-wider mb-2">{t("On-chain verification", "Verificación on-chain")}</p>
+                  {auctionExplorerUrl ? (
+                    <div className="space-y-2">
+                      <a
+                        href={auctionExplorerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                      >
+                        {t("Auction contract on Stellar Expert", "Contrato de subasta en Stellar Expert")}
+                      </a>
+                      <p>
+                        {t("Contract ID", "ID del contrato")}:{" "}
+                        <a
+                          href={auctionExplorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono break-all underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                        >
+                          {AUCTION_CONTRACT_ID}
+                        </a>
                       </p>
                     </div>
                   ) : (
-                    <Button
-                      onClick={handleBid}
-                      disabled={isBidding || !auction || auction.finalized}
-                      className="mt-4 w-full neural-button rounded-xl py-6"
-                    >
-                      {isBidding ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}
-                        </span>
-                      ) : (
-                        t("Place Bid", "Ofertar")
+                    <p>
+                      {t(
+                        "Explorer link available on testnet/mainnet.",
+                        "Link de explorador disponible en testnet/mainnet."
                       )}
-                    </Button>
+                    </p>
                   )}
-                  {bidError ? (
-                    <p className="mt-3 text-xs text-red-500">{bidError}</p>
-                  ) : null}
+                  <p className="mt-3">
+                    {t("Escrow note: ", "Nota de escrow: ")}
+                    <a
+                      href="https://trustlesswork.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                    >
+                      Trustless Work
+                    </a>
+                    {t(
+                      " is the escrow path for auction funds (integration in progress).",
+                      " es el camino de escrow para los fondos de la subasta (integración en progreso)."
+                    )}
+                  </p>
                 </div>
               </div>
-            </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
