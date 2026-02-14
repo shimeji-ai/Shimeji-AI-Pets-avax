@@ -254,164 +254,295 @@ impl ShimejiAuction {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, testutils::Ledger, Env, String};
+    use soroban_sdk::{
+        testutils::Address as _,
+        testutils::Ledger,
+        token::{StellarAssetClient, TokenClient},
+        Env, String,
+    };
 
-    // For testing, we won't use the actual cross-contract call.
-    // Instead we test all logic except finalize's mint call.
+    struct TestEnv {
+        env: Env,
+        admin: Address,
+        client: ShimejiAuctionClient<'static>,
+        xlm: TokenClient<'static>,
+        usdc: TokenClient<'static>,
+        xlm_sac: StellarAssetClient<'static>,
+        usdc_sac: StellarAssetClient<'static>,
+    }
 
-    fn setup_auction_env() -> (Env, Address, Address, Address, Address) {
+    // Rate: 1_000_000 = $0.10 per XLM (7 decimals). So 500 XLM ≈ 50 USDC.
+    const XLM_USDC_RATE: i128 = 1_000_000;
+    const START_XLM: i128 = 500_0000000; // 500 XLM
+    const START_USDC: i128 = 50_0000000; // 50 USDC
+
+    fn setup() -> TestEnv {
         let env = Env::default();
         env.mock_all_auths();
+
         let admin = Address::generate(&env);
+
+        // Register SAC tokens
+        let xlm_issuer = Address::generate(&env);
+        let usdc_issuer = Address::generate(&env);
+        let xlm_addr = env.register_stellar_asset_contract_v2(xlm_issuer).address();
+        let usdc_addr = env.register_stellar_asset_contract_v2(usdc_issuer).address();
+
+        let xlm = TokenClient::new(&env, &xlm_addr);
+        let usdc = TokenClient::new(&env, &usdc_addr);
+        let xlm_sac = StellarAssetClient::new(&env, &xlm_addr);
+        let usdc_sac = StellarAssetClient::new(&env, &usdc_addr);
+
         let nft_contract = Address::generate(&env);
-        let usdc_token = Address::generate(&env);
-        let xlm_token = Address::generate(&env);
-        (env, admin, nft_contract, usdc_token, xlm_token)
+        let contract_id = env.register(ShimejiAuction, ());
+        let client = ShimejiAuctionClient::new(&env, &contract_id);
+        client.initialize(&admin, &nft_contract, &usdc_addr, &xlm_addr);
+
+        TestEnv { env, admin, client, xlm, usdc, xlm_sac, usdc_sac }
     }
 
-    fn init_client(
-        env: &Env,
-        admin: &Address,
-        nft_contract: &Address,
-        usdc_token: &Address,
-        xlm_token: &Address,
-    ) -> ShimejiAuctionClient<'static> {
-        let contract_id = env.register(ShimejiAuction, ());
-        let client = ShimejiAuctionClient::new(env, &contract_id);
-        client.initialize(admin, nft_contract, usdc_token, xlm_token);
-        client
+    fn fund_xlm(t: &TestEnv, to: &Address, amount: i128) {
+        t.xlm_sac.mint(to, &amount);
     }
+
+    fn fund_usdc(t: &TestEnv, to: &Address, amount: i128) {
+        t.usdc_sac.mint(to, &amount);
+    }
+
+    fn create_default_auction(t: &TestEnv) -> u64 {
+        let uri = String::from_str(&t.env, "ipfs://shimeji-metadata");
+        t.client.create_auction(&uri, &START_XLM, &START_USDC, &XLM_USDC_RATE)
+    }
+
+    // ── Happy path ─────────────────────────────────────────────
 
     #[test]
     fn test_create_auction() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+        let t = setup();
+        let id = create_default_auction(&t);
+        assert_eq!(id, 0);
+        assert_eq!(t.client.total_auctions(), 1);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        // Starting prices: 500 XLM, 50 USDC (7 decimals)
-        let auction_id = client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        assert_eq!(auction_id, 0);
-        assert_eq!(client.total_auctions(), 1);
-
-        let info = client.get_auction(&0);
-        assert_eq!(info.token_uri, uri);
+        let info = t.client.get_auction(&0);
+        assert_eq!(info.starting_price_xlm, START_XLM);
+        assert_eq!(info.starting_price_usdc, START_USDC);
         assert!(!info.finalized);
         assert_eq!(info.end_time - info.start_time, AUCTION_DURATION);
     }
 
     #[test]
-    fn test_bid_xlm() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+    fn test_bid_xlm_happy_path() {
+        let t = setup();
+        create_default_auction(&t);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
+        let bidder = Address::generate(&t.env);
+        fund_xlm(&t, &bidder, 600_0000000);
 
-        let _bidder = Address::generate(&env);
-        // Token transfer calls require SAC token setup for full integration testing.
-        // This test validates auction creation and state management.
+        t.client.bid_xlm(&0, &bidder, &600_0000000);
+
+        let bid = t.client.get_highest_bid(&0);
+        assert_eq!(bid.bidder, bidder);
+        assert_eq!(bid.amount, 600_0000000);
+        assert_eq!(bid.currency, Currency::Xlm);
+        // Bidder's XLM was transferred to contract
+        assert_eq!(t.xlm.balance(&bidder), 0);
     }
 
     #[test]
-    fn test_bid_usdc() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+    fn test_bid_usdc_happy_path() {
+        let t = setup();
+        create_default_auction(&t);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        // Similar to test_bid_xlm — state logic tested via create/get
+        let bidder = Address::generate(&t.env);
+        fund_usdc(&t, &bidder, 60_0000000);
+
+        t.client.bid_usdc(&0, &bidder, &60_0000000);
+
+        let bid = t.client.get_highest_bid(&0);
+        assert_eq!(bid.bidder, bidder);
+        assert_eq!(bid.amount, 60_0000000);
+        assert_eq!(bid.currency, Currency::Usdc);
+        assert_eq!(t.usdc.balance(&bidder), 0);
     }
 
     #[test]
-    fn test_cross_currency_comparison() {
-        // Test the normalization math
-        // Rate: 1_000_000 = $0.10 per XLM (7 decimal places)
-        let xlm_amount: i128 = 500_0000000; // 500 XLM
-        let normalized = xlm_amount * 1_000_000 / 10_000_000;
-        // 500_0000000 * 1_000_000 / 10_000_000 = 50_0000000 USDC equivalent
+    fn test_outbid_refunds_previous_bidder() {
+        let t = setup();
+        create_default_auction(&t);
+
+        let bidder1 = Address::generate(&t.env);
+        let bidder2 = Address::generate(&t.env);
+        fund_xlm(&t, &bidder1, 600_0000000);
+        fund_xlm(&t, &bidder2, 700_0000000);
+
+        t.client.bid_xlm(&0, &bidder1, &600_0000000);
+        assert_eq!(t.xlm.balance(&bidder1), 0);
+
+        // Bidder2 outbids — bidder1 should be refunded
+        t.client.bid_xlm(&0, &bidder2, &700_0000000);
+        assert_eq!(t.xlm.balance(&bidder1), 600_0000000); // refunded
+        assert_eq!(t.xlm.balance(&bidder2), 0); // locked in contract
+
+        let bid = t.client.get_highest_bid(&0);
+        assert_eq!(bid.bidder, bidder2);
+    }
+
+    #[test]
+    fn test_cross_currency_outbid() {
+        let t = setup();
+        create_default_auction(&t);
+
+        // Bidder1 bids 600 XLM (= 60 USDC equivalent at 0.10 rate)
+        let bidder1 = Address::generate(&t.env);
+        fund_xlm(&t, &bidder1, 600_0000000);
+        t.client.bid_xlm(&0, &bidder1, &600_0000000);
+
+        // Bidder2 outbids with 70 USDC (> 60 * 1.05 = 63 USDC)
+        let bidder2 = Address::generate(&t.env);
+        fund_usdc(&t, &bidder2, 70_0000000);
+        t.client.bid_usdc(&0, &bidder2, &70_0000000);
+
+        // Bidder1 refunded in XLM
+        assert_eq!(t.xlm.balance(&bidder1), 600_0000000);
+        let bid = t.client.get_highest_bid(&0);
+        assert_eq!(bid.bidder, bidder2);
+        assert_eq!(bid.currency, Currency::Usdc);
+    }
+
+    #[test]
+    fn test_finalize_no_bids() {
+        let t = setup();
+        create_default_auction(&t);
+
+        t.env.ledger().with_mut(|li| {
+            li.timestamp += AUCTION_DURATION + 1;
+        });
+
+        t.client.finalize(&0);
+        assert!(t.client.get_auction(&0).finalized);
+    }
+
+    #[test]
+    fn test_bid_exactly_at_minimum() {
+        let t = setup();
+        create_default_auction(&t);
+
+        let bidder = Address::generate(&t.env);
+        fund_xlm(&t, &bidder, START_XLM);
+
+        // Bid exactly at starting price — should succeed
+        t.client.bid_xlm(&0, &bidder, &START_XLM);
+        assert_eq!(t.client.get_highest_bid(&0).amount, START_XLM);
+    }
+
+    #[test]
+    fn test_normalization_math() {
+        // 500 XLM at rate 1_000_000 (=$0.10) → 50 USDC equivalent
+        let normalized = ShimejiAuction::normalize_to_usdc(500_0000000, &Currency::Xlm, 1_000_000);
         assert_eq!(normalized, 50_0000000);
 
-        // A 50 USDC bid should be equivalent
-        let usdc_amount: i128 = 50_0000000;
-        assert_eq!(usdc_amount, normalized);
+        // USDC passes through unchanged
+        let normalized_usdc = ShimejiAuction::normalize_to_usdc(50_0000000, &Currency::Usdc, 1_000_000);
+        assert_eq!(normalized_usdc, 50_0000000);
+
+        // Higher rate ($0.50/XLM): 100 XLM → 50 USDC
+        let normalized_high = ShimejiAuction::normalize_to_usdc(100_0000000, &Currency::Xlm, 5_000_000);
+        assert_eq!(normalized_high, 50_0000000);
+    }
+
+    // ── Edge cases ─────────────────────────────────────────────
+
+    #[test]
+    #[should_panic(expected = "bid below minimum starting price")]
+    fn test_bid_below_minimum_xlm() {
+        let t = setup();
+        create_default_auction(&t);
+
+        let bidder = Address::generate(&t.env);
+        fund_xlm(&t, &bidder, 400_0000000);
+        t.client.bid_xlm(&0, &bidder, &400_0000000); // below 500 XLM min
     }
 
     #[test]
-    fn test_total_auctions() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
-        assert_eq!(client.total_auctions(), 0);
+    #[should_panic(expected = "bid below minimum starting price")]
+    fn test_bid_below_minimum_usdc() {
+        let t = setup();
+        create_default_auction(&t);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        assert_eq!(client.total_auctions(), 1);
-
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        assert_eq!(client.total_auctions(), 2);
+        let bidder = Address::generate(&t.env);
+        fund_usdc(&t, &bidder, 40_0000000);
+        t.client.bid_usdc(&0, &bidder, &40_0000000); // below 50 USDC min
     }
 
     #[test]
-    #[should_panic(expected = "auction does not exist")]
-    fn test_get_nonexistent_auction() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
-        client.get_auction(&99);
+    #[should_panic(expected = "bid must be at least 5% higher")]
+    fn test_bid_insufficient_increment() {
+        let t = setup();
+        create_default_auction(&t);
+
+        let bidder1 = Address::generate(&t.env);
+        let bidder2 = Address::generate(&t.env);
+        fund_xlm(&t, &bidder1, 600_0000000);
+        fund_xlm(&t, &bidder2, 610_0000000);
+
+        t.client.bid_xlm(&0, &bidder1, &600_0000000);
+        // 5% of 600 = 30, min required = 630. Bidding 610 should fail.
+        t.client.bid_xlm(&0, &bidder2, &610_0000000);
     }
 
     #[test]
-    #[should_panic(expected = "no bids for this auction")]
-    fn test_get_highest_bid_no_bids() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+    #[should_panic(expected = "auction has ended")]
+    fn test_bid_after_auction_ends() {
+        let t = setup();
+        create_default_auction(&t);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        client.get_highest_bid(&0);
+        t.env.ledger().with_mut(|li| {
+            li.timestamp += AUCTION_DURATION + 1;
+        });
+
+        let bidder = Address::generate(&t.env);
+        fund_xlm(&t, &bidder, 600_0000000);
+        t.client.bid_xlm(&0, &bidder, &600_0000000);
     }
 
     #[test]
     #[should_panic(expected = "auction has not ended yet")]
     fn test_finalize_before_end() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
-
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-        client.finalize(&0);
+        let t = setup();
+        create_default_auction(&t);
+        t.client.finalize(&0);
     }
 
     #[test]
-    fn test_finalize_no_bids() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+    #[should_panic(expected = "auction already finalized")]
+    fn test_double_finalize() {
+        let t = setup();
+        create_default_auction(&t);
 
-        let uri = String::from_str(&env, "ipfs://test");
-        client.create_auction(&uri, &500_0000000, &50_0000000, &1_000_000);
-
-        // Advance time past auction end
-        env.ledger().with_mut(|li| {
-            li.timestamp = li.timestamp + AUCTION_DURATION + 1;
+        t.env.ledger().with_mut(|li| {
+            li.timestamp += AUCTION_DURATION + 1;
         });
 
-        client.finalize(&0);
-        let info = client.get_auction(&0);
-        assert!(info.finalized);
+        t.client.finalize(&0);
+        t.client.finalize(&0); // second finalize should panic
     }
 
     #[test]
-    fn test_multiple_auctions() {
-        let (env, admin, nft, usdc, xlm) = setup_auction_env();
-        let client = init_client(&env, &admin, &nft, &usdc, &xlm);
+    #[should_panic(expected = "auction does not exist")]
+    fn test_bid_nonexistent_auction() {
+        let t = setup();
+        let bidder = Address::generate(&t.env);
+        fund_xlm(&t, &bidder, 600_0000000);
+        t.client.bid_xlm(&99, &bidder, &600_0000000);
+    }
 
-        let uri1 = String::from_str(&env, "ipfs://shimeji1");
-        let uri2 = String::from_str(&env, "ipfs://shimeji2");
-
-        let id1 = client.create_auction(&uri1, &500_0000000, &50_0000000, &1_000_000);
-        let id2 = client.create_auction(&uri2, &1000_0000000, &100_0000000, &1_000_000);
-
-        assert_eq!(id1, 0);
-        assert_eq!(id2, 1);
-        assert_eq!(client.get_auction(&0).token_uri, uri1);
-        assert_eq!(client.get_auction(&1).token_uri, uri2);
+    #[test]
+    #[should_panic(expected = "already initialized")]
+    fn test_double_initialize() {
+        let t = setup();
+        let nft = Address::generate(&t.env);
+        let usdc = Address::generate(&t.env);
+        let xlm = Address::generate(&t.env);
+        t.client.initialize(&t.admin, &nft, &usdc, &xlm);
     }
 }

@@ -101,16 +101,6 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="https://x.com/ShimejiFactory"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    X / Twitter
-                  </Link>
-                </li>
-                <li>
-                  <Link
                     href="/download"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -123,16 +113,6 @@ export function Footer() {
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Privacidad" : "Privacy"}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="https://github.com/luloxi/Shimeji-AI-Pets"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    GitHub
                   </Link>
                 </li>
               </ul>

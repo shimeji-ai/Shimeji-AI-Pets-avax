@@ -437,6 +437,19 @@ body[data-theme="kawaii"] #giveaway-panel .text-\[var\(--brand-accent\)\] {
   color: #9de7ff !important;
 }
 
+body[data-theme="kawaii"] #giveaway-panel .neural-button {
+  background: rgba(157, 231, 255, 0.22) !important;
+  border-color: rgba(157, 231, 255, 0.55) !important;
+  color: #f8f7ff !important;
+  box-shadow: 0 10px 26px rgba(157, 231, 255, 0.2) !important;
+}
+
+body[data-theme="kawaii"] #giveaway-panel .neural-button:hover {
+  background: rgba(157, 231, 255, 0.36) !important;
+  border-color: rgba(157, 231, 255, 0.7) !important;
+  color: #ffffff !important;
+}
+
 body[data-theme="kawaii"] .bg-\[\#0b0f14\] {
   background: rgba(255, 255, 255, 0.7) !important;
   border-color: rgba(42, 31, 78, 0.2) !important;
