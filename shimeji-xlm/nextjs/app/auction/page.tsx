@@ -177,13 +177,19 @@ export default function FactoryPage() {
     loadBalances(activePublicKey);
   }, [activePublicKey, loadBalances, mounted]);
 
-  const ensureLocalUsdcTrustline = useCallback(async () => {
-    if (!isLocalNetwork || !burnerPublicKey || !burnerSecret || !USDC_ISSUER) return;
+  const ensureLocalUsdcTrustline = useCallback(async (): Promise<boolean> => {
+    if (!isLocalNetwork || !burnerPublicKey || !burnerSecret || !USDC_ISSUER) return false;
     const { Asset, BASE_FEE, Horizon, Keypair, Operation, TransactionBuilder } = await import(
       "@stellar/stellar-sdk"
     );
     const horizon = new Horizon.Server(HORIZON_URL.replace(/\/$/, ""));
-    const burnerAccount = await horizon.loadAccount(burnerPublicKey);
+    let burnerAccount;
+    try {
+      burnerAccount = await horizon.loadAccount(burnerPublicKey);
+    } catch {
+      // Account may still be creating right after faucet funding.
+      return false;
+    }
     const hasTrustline = burnerAccount.balances.some((entry) => {
       return (
         "asset_code" in entry &&
@@ -192,7 +198,7 @@ export default function FactoryPage() {
         entry.asset_issuer === USDC_ISSUER
       );
     });
-    if (hasTrustline) return;
+    if (hasTrustline) return true;
 
     const trustTx = new TransactionBuilder(burnerAccount, {
       fee: BASE_FEE,
@@ -208,6 +214,7 @@ export default function FactoryPage() {
 
     trustTx.sign(Keypair.fromSecret(burnerSecret));
     await horizon.submitTransaction(trustTx);
+    return true;
   }, [burnerPublicKey, burnerSecret, isLocalNetwork]);
 
   const handleFaucet = useCallback(async () => {
@@ -229,10 +236,6 @@ export default function FactoryPage() {
     setBidError("");
     setIsFaucetLoading(true);
     try {
-      if (isLocalNetwork && walletMode === "burner") {
-        await ensureLocalUsdcTrustline();
-      }
-
       const requestBody = { address: activePublicKey };
       const response = await fetch("/api/faucet", {
         method: "POST",
@@ -242,21 +245,56 @@ export default function FactoryPage() {
       const payload = (await response.json()) as {
         error?: string;
         needsTrustline?: boolean;
+        pendingAccount?: boolean;
       };
       if (!response.ok) {
         throw new Error(payload.error || t("Faucet failed.", "Falló el faucet."));
       }
 
-      if (payload.needsTrustline && isLocalNetwork && walletMode === "burner") {
-        await ensureLocalUsdcTrustline();
-        const retry = await fetch("/api/faucet", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestBody),
-        });
-        if (!retry.ok) {
-          const retryPayload = (await retry.json()) as { error?: string };
-          throw new Error(retryPayload.error || t("USDC faucet failed.", "Falló el faucet de USDC."));
+      if (payload.pendingAccount) {
+        throw new Error(
+          t(
+            "XLM funded. Account is still activating. Press Faucet again in a moment.",
+            "XLM fondeado. La cuenta todavía se está activando. Presioná Faucet otra vez en un momento."
+          )
+        );
+      }
+
+      if (payload.needsTrustline) {
+        if (isLocalNetwork && walletMode === "burner") {
+          const trustlineReady = await ensureLocalUsdcTrustline();
+          if (!trustlineReady) {
+            throw new Error(
+              t(
+                "XLM funded. Account is still activating. Press Faucet again in a moment for USDC.",
+                "XLM fondeado. La cuenta todavía se está activando. Presioná Faucet otra vez en un momento para USDC."
+              )
+            );
+          }
+          const retry = await fetch("/api/faucet", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+          });
+          const retryPayload = (await retry.json()) as { error?: string; needsTrustline?: boolean };
+          if (!retry.ok) {
+            throw new Error(retryPayload.error || t("USDC faucet failed.", "Falló el faucet de USDC."));
+          }
+          if (retryPayload.needsTrustline) {
+            throw new Error(
+              t(
+                "USDC trustline is still pending. Press Faucet again in a few seconds.",
+                "La trustline de USDC sigue pendiente. Presioná Faucet otra vez en unos segundos."
+              )
+            );
+          }
+        } else {
+          setBidError(
+            t(
+              "USDC trustline required in your wallet before receiving USDC.",
+              "Se requiere trustline de USDC en tu wallet antes de recibir USDC."
+            )
+          );
         }
       }
 

@@ -117,7 +117,11 @@ cd "$SOROBAN_DIR"
 ./scripts/install_prereqs.sh
 
 echo "==> Deploy target: $NETWORK"
-NETWORK="$NETWORK" ./scripts/deploy.sh
+if [ "$NETWORK" = "local" ]; then
+  NETWORK="$NETWORK" ./scripts/deploy.sh
+else
+  NETWORK="$NETWORK" SYNC_FRONTEND_ENV_NON_LOCAL="${SYNC_FRONTEND_ENV_NON_LOCAL:-1}" ./scripts/deploy.sh
+fi
 
 cd "$ROOT_DIR"
 if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then

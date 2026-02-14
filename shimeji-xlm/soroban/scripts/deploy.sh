@@ -20,6 +20,7 @@ set -euo pipefail
 #   DISABLE_SECRET_BACKUP=1
 #   FRONTEND_ENV_FILE=../nextjs/.env.local
 #   SYNC_FRONTEND_ENV=1
+#   SYNC_FRONTEND_ENV_NON_LOCAL=0|1
 #   TESTNET_USDC_ISSUER=GBBD...
 #   MAINNET_USDC_ISSUER=GA5Z...
 
@@ -39,6 +40,7 @@ SECRET_BACKUP_PATH="${SECRET_BACKUP_PATH:-}"
 DISABLE_SECRET_BACKUP="${DISABLE_SECRET_BACKUP:-0}"
 FRONTEND_ENV_FILE="${FRONTEND_ENV_FILE:-}"
 SYNC_FRONTEND_ENV="${SYNC_FRONTEND_ENV:-1}"
+SYNC_FRONTEND_ENV_NON_LOCAL="${SYNC_FRONTEND_ENV_NON_LOCAL:-0}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
   NETWORK="$1"
@@ -398,33 +400,14 @@ choose_identity_setup_interactive() {
 }
 
 choose_existing_identity_interactive() {
-  local choice
   echo "Identity alias '$IDENTITY' already exists."
-  echo "Choose how to continue:"
-  echo "  1) Create new wallet and replace alias '$IDENTITY' (recommended)"
-  echo "  2) Use existing alias '$IDENTITY'"
-  echo "  3) Use another existing wallet (import credentials and replace alias)"
-  echo "  4) Abort"
-  read -r -p "Choice [1]: " choice
+  if confirm "Overwrite local wallet alias '$IDENTITY' with a new wallet?" "n"; then
+    echo "==> Generating new wallet for alias '$IDENTITY'..."
+    generate_identity
+    return
+  fi
 
-  case "${choice:-1}" in
-    1)
-      echo "==> Generating new wallet for alias '$IDENTITY'..."
-      generate_identity
-      ;;
-    2)
-      echo "==> Using existing alias '$IDENTITY'."
-      ;;
-    3)
-      import_credentials_interactive || choose_existing_identity_interactive
-      ;;
-    4)
-      die "Deployment cancelled by user"
-      ;;
-    *)
-      die "Invalid choice"
-      ;;
-  esac
+  echo "==> Using existing alias '$IDENTITY'."
 }
 
 setup_identity() {
@@ -673,6 +656,18 @@ upsert_env_value() {
   mv "$tmp_file" "$env_file"
 }
 
+remove_env_value() {
+  local env_file="$1"
+  local env_key="$2"
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  awk -v key="$env_key" '
+    $0 !~ ("^" key "=") { print $0 }
+  ' "$env_file" > "$tmp_file"
+  mv "$tmp_file" "$env_file"
+}
+
 sync_frontend_env_local() {
   local frontend_dir
 
@@ -681,7 +676,7 @@ sync_frontend_env_local() {
     return
   fi
 
-  if [ "$NETWORK" != "local" ]; then
+  if [ "$NETWORK" != "local" ] && [ "$SYNC_FRONTEND_ENV_NON_LOCAL" != "1" ]; then
     FRONTEND_ENV_STATUS="skipped-non-local"
     return
   fi
@@ -700,14 +695,23 @@ sync_frontend_env_local() {
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_HORIZON_URL" "$HORIZON_URL"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "\"$PASSPHRASE\""
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK" "$NETWORK"
-  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_FRIENDBOT_URL" "$LOCAL_FRIENDBOT_URL"
-  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_USDC_ISSUER" "$USDC_ISSUER"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_USDC_ISSUER" "$USDC_ISSUER"
-  upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ISSUER_SECRET" "$LOCAL_USDC_ISSUER_SECRET"
-  upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ASSET_CODE" "$LOCAL_USDC_ASSET_CODE"
 
-  FRONTEND_ENV_STATUS="synced-local"
-  echo "==> Synced local frontend env at: $FRONTEND_ENV_FILE"
+  if [ "$NETWORK" = "local" ]; then
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_FRIENDBOT_URL" "$LOCAL_FRIENDBOT_URL"
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_USDC_ISSUER" "$USDC_ISSUER"
+    upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ISSUER_SECRET" "$LOCAL_USDC_ISSUER_SECRET"
+    upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ASSET_CODE" "$LOCAL_USDC_ASSET_CODE"
+    FRONTEND_ENV_STATUS="synced-local"
+  else
+    remove_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_FRIENDBOT_URL"
+    remove_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_USDC_ISSUER"
+    remove_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ISSUER_SECRET"
+    remove_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ASSET_CODE"
+    FRONTEND_ENV_STATUS="synced-non-local"
+  fi
+
+  echo "==> Synced frontend env at: $FRONTEND_ENV_FILE ($FRONTEND_ENV_STATUS)"
 }
 
 write_deploy_env_export_file() {
@@ -720,8 +724,10 @@ write_deploy_env_export_file() {
     printf "NEXT_PUBLIC_NFT_CONTRACT_ID=%q\n" "$NFT_ID"
     printf "NEXT_PUBLIC_AUCTION_CONTRACT_ID=%q\n" "$AUCTION_ID"
     printf "NEXT_PUBLIC_STELLAR_RPC_URL=%q\n" "$RPC_URL"
+    printf "NEXT_PUBLIC_STELLAR_HORIZON_URL=%q\n" "$HORIZON_URL"
     printf "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=%q\n" "$PASSPHRASE"
     printf "NEXT_PUBLIC_STELLAR_NETWORK=%q\n" "$NETWORK"
+    printf "NEXT_PUBLIC_USDC_ISSUER=%q\n" "$USDC_ISSUER"
   } > "$export_file"
 
   DEPLOY_ENV_EXPORT_STATUS="$export_file"
@@ -942,9 +948,17 @@ print_success_summary() {
     echo "1) Local autoconfig:"
     echo "   - $FRONTEND_ENV_FILE was updated automatically ($FRONTEND_ENV_STATUS)."
     echo "   - Keys written: NEXT_PUBLIC_NFT_CONTRACT_ID, NEXT_PUBLIC_AUCTION_CONTRACT_ID,"
-    echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK,"
-    echo "     NEXT_PUBLIC_LOCAL_USDC_ISSUER, NEXT_PUBLIC_USDC_ISSUER, LOCAL_USDC_ISSUER_SECRET, LOCAL_USDC_ASSET_CODE."
+    echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_HORIZON_URL,"
+    echo "     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK, NEXT_PUBLIC_USDC_ISSUER,"
+    echo "     NEXT_PUBLIC_LOCAL_USDC_ISSUER, LOCAL_USDC_ISSUER_SECRET, LOCAL_USDC_ASSET_CODE."
     echo "   - Local USDC issuer: $USDC_ISSUER"
+  elif [ "$FRONTEND_ENV_STATUS" = "synced-non-local" ]; then
+    echo "1) Frontend .env.local synced for $NETWORK:"
+    echo "   - $FRONTEND_ENV_FILE was updated automatically ($FRONTEND_ENV_STATUS)."
+    echo "   - Keys written: NEXT_PUBLIC_NFT_CONTRACT_ID, NEXT_PUBLIC_AUCTION_CONTRACT_ID,"
+    echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_HORIZON_URL,"
+    echo "     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK, NEXT_PUBLIC_USDC_ISSUER."
+    echo "   - Local-only keys were removed to avoid stale local faucet config."
   else
     echo "1) Local .env.local autoconfig is intentionally skipped for non-local networks."
     echo "   - Keep local values for local development."
@@ -954,16 +968,20 @@ print_success_summary() {
   echo "   - NEXT_PUBLIC_NFT_CONTRACT_ID"
   echo "   - NEXT_PUBLIC_AUCTION_CONTRACT_ID"
   echo "   - NEXT_PUBLIC_STELLAR_RPC_URL"
+  echo "   - NEXT_PUBLIC_STELLAR_HORIZON_URL"
   echo "   - NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE"
   echo "   - NEXT_PUBLIC_STELLAR_NETWORK"
+  echo "   - NEXT_PUBLIC_USDC_ISSUER"
   echo "   - NEXT_PUBLIC_BASE_URL=https://<your-domain>"
   echo ""
   echo "   Values for this deployment:"
   echo "   NEXT_PUBLIC_NFT_CONTRACT_ID=$NFT_ID"
   echo "   NEXT_PUBLIC_AUCTION_CONTRACT_ID=$AUCTION_ID"
   echo "   NEXT_PUBLIC_STELLAR_RPC_URL=$RPC_URL"
+  echo "   NEXT_PUBLIC_STELLAR_HORIZON_URL=$HORIZON_URL"
   echo "   NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=\"$PASSPHRASE\""
   echo "   NEXT_PUBLIC_STELLAR_NETWORK=$NETWORK"
+  echo "   NEXT_PUBLIC_USDC_ISSUER=$USDC_ISSUER"
   echo ""
   echo "3) Redeploy frontend after env vars are set."
   if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then
