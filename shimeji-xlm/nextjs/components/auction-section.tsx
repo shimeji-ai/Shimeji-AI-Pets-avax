@@ -947,7 +947,6 @@ export function AuctionSection() {
                           </p>
                         )}
                         <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
-                          <span className="font-semibold">{t("Escrow", "Escrow")}: </span>
                           <a
                             href="https://trustlesswork.com"
                             target="_blank"
