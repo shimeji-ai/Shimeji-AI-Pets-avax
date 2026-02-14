@@ -1,4 +1,4 @@
-# Runtime Required Sprites (Chrome + Desktop)
+# Runtime Required Sprites (Chrome + Desktop) 🐱🐰
 
 This folder contains only the sprites currently required by the active runtimes.
 

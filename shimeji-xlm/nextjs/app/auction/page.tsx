@@ -12,6 +12,7 @@ import { CurrencyToggle } from "@/components/currency-toggle";
 import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
+import { getServer, NETWORK_PASSPHRASE, STELLAR_NETWORK_LABEL } from "@/lib/contracts";
 
 export default function FactoryPage() {
   const [mounted, setMounted] = useState(false);
@@ -86,16 +87,16 @@ export default function FactoryPage() {
       // Sign with Freighter
       const freighterApi = await import("@stellar/freighter-api");
       const result = await freighterApi.signTransaction(txXdr, {
-        networkPassphrase: "Test SDF Network ; September 2015",
+        networkPassphrase: NETWORK_PASSPHRASE,
       });
       if (typeof result === "string") {
         throw new Error("Signing was cancelled");
       }
 
       // Submit
-      const { SorobanRpc, TransactionBuilder: TB } = await import("@stellar/stellar-sdk");
-      const server = new SorobanRpc.Server("https://soroban-testnet.stellar.org");
-      const tx = TB.fromXDR(result.signedTxXdr, "Test SDF Network ; September 2015");
+      const { TransactionBuilder: TB } = await import("@stellar/stellar-sdk");
+      const server = getServer();
+      const tx = TB.fromXDR(result.signedTxXdr, NETWORK_PASSPHRASE);
       await server.sendTransaction(tx);
 
       setBidSuccess(true);
@@ -257,7 +258,7 @@ export default function FactoryPage() {
 
                     <div className="flex items-center justify-between py-2 text-sm border-t border-white/10 mt-3">
                       <span>{t("Network", "Red")}</span>
-                      <span className="font-semibold">Stellar Testnet</span>
+                      <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
                     </div>
                   </div>
 

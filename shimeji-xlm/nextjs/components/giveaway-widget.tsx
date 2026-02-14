@@ -49,18 +49,6 @@ export function GiveawayWidget() {
     };
   }, [isOpen]);
 
-  function goToFeedback() {
-    const formSection = document.getElementById("feedback-form-section");
-    if (formSection) {
-      const header = document.querySelector("header.fixed");
-      const headerHeight = header instanceof HTMLElement ? header.offsetHeight + 24 : 88;
-      const rect = formSection.getBoundingClientRect();
-      const target = window.scrollY + rect.top - headerHeight;
-      window.scrollTo({ top: target, behavior: "smooth" });
-    }
-    setIsOpen(false);
-  }
-
   return (
     <div
       ref={containerRef}
@@ -85,32 +73,23 @@ export function GiveawayWidget() {
               ×
             </button>
             <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
-              {isSpanish ? "Giveaway Shimeji" : "Shimeji Giveaway"}
+              {isSpanish ? "Subasta Testnet" : "Testnet Auction"}
             </p>
             <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
-              {isSpanish ? "Gana 1 comisión personalizada." : "Win 1 custom commission."}
+              {isSpanish ? "Primer shimeji en subasta." : "First shimeji is live."}
             </p>
             <p className="mt-1 text-xs md:text-sm leading-snug text-white/90 break-words">
-              {isSpanish ? "Sigue a " : "Follow "}
-              <Link
-                href="https://x.com/ShimejiFactory"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-bold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
-              >
-                @ShimejiFactory
-              </Link>
               {isSpanish
-                ? " y deja feedback para participar."
-                : " and leave feedback to enter."}
+                ? "Oferta con XLM o USDC en la red de pruebas de Stellar."
+                : "Bid with XLM or USDC on Stellar testnet."}
             </p>
-            <button
-              type="button"
-              onClick={goToFeedback}
-              className="mt-3 h-8 rounded-lg px-3 text-xs font-bold neural-button"
+            <Link
+              href="/auction"
+              onClick={() => setIsOpen(false)}
+              className="mt-3 inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold neural-button"
             >
-              {isSpanish ? "Ir al formulario" : "Go to feedback form"}
-            </button>
+              {isSpanish ? "Ir a la subasta" : "Go to auction"}
+            </Link>
           </div>
         </div>
       </div>

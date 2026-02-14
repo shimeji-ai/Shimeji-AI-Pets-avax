@@ -1,20 +1,19 @@
-# Shimeji AI Pets Monorepo
+# Shimeji AI Pets Monorepo 🐱🐰
 
-This repository contains multiple Shimeji products:
+This monorepo contains the Shimeji runtimes and both blockchain stacks.
 
-- `chrome-extension/`: browser Shimeji runtime and chat UI.
+## Start Here
+
+- [shimeji-xlm](./shimeji-xlm/README.md): Stellar/Soroban auction + NFT stack.
+- [shimeji-eth](./shimeji-eth/README.md): EVM/Scaffold-ETH stack.
+- [animation-reference](./animation-reference/README.md): sprite standards used by extension/desktop.
+
+## Runtime Apps
+
+- `chrome-extension/`: browser runtime and chat UI.
 - `desktop/`: Electron desktop app.
-- `shimeji-eth/`: EVM version (Scaffold-ETH based, multi-chain EVM ready).
-- `shimeji-xlm/`: Stellar blockchain version (Soroban + Next.js).
-- `animation-reference/`: current sprite guidance (simple walk + full runtime set used by extension/desktop).
-- `scripts/`: release and maintenance scripts.
 
-Shimeji can be used in both ecosystems:
-
-- EVM chains via `shimeji-eth/`
-- Stellar blockchain via `shimeji-xlm/`
-
-## Quick Start
+## Quick Start (Runtime)
 
 ### Chrome extension
 
@@ -30,10 +29,9 @@ npm install
 npm start
 ```
 
-## Blockchain Versions
+## Why The Docs Are Split
 
-- EVM version instructions: `shimeji-eth/README.md`
-- Stellar version instructions: `shimeji-xlm/README.md`
-- Animation reference: `animation-reference/README.md`
-
-This root README stays intentionally brief to avoid mixing EVM and Stellar runbooks in one place.
+- Root README stays short on purpose.
+- Chain-specific runbooks live in:
+  - [shimeji-xlm/README.md](./shimeji-xlm/README.md)
+  - [shimeji-eth/README.md](./shimeji-eth/README.md)

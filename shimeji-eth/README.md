@@ -1,4 +1,4 @@
-# shimeji-eth
+# shimeji-eth 🐱🐰
 
 Ethereum implementation for Shimeji products.
 

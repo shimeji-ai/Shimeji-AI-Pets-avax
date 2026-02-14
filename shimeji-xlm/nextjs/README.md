@@ -1,30 +1,74 @@
-# Shimeji landing page
+# shimeji-xlm/nextjs 🐱🐰
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+Frontend for the Stellar auction experience.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/luloxis-projects/v0-shimeji-landing-page)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/mJ3pv4Z9PWy)
+## What This App Includes
 
-## Overview
+- Landing page + giveaway CTA.
+- Auction page (`/auction`) with Freighter wallet flow.
+- API routes for feedback/subscription/email/chat.
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+## Related Docs
 
-## Deployment
+- Contracts/deploy: [../soroban/README.md](../soroban/README.md)
+- Contract details + metadata shape: [../soroban/contracts/README.md](../soroban/contracts/README.md)
 
-Your project is live at:
+## Environment Variables
 
-**[https://vercel.com/luloxis-projects/v0-shimeji-landing-page](https://vercel.com/luloxis-projects/v0-shimeji-landing-page)**
+Create `.env.local` (or set in Vercel):
 
-## Build your app
+### Required for auction
 
-Continue building your app on:
+- `NEXT_PUBLIC_AUCTION_CONTRACT_ID`
+- `NEXT_PUBLIC_NFT_CONTRACT_ID`
+- `NEXT_PUBLIC_STELLAR_RPC_URL` (default testnet: `https://soroban-testnet.stellar.org`)
+- `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE` (testnet: `Test SDF Network ; September 2015`)
+- `NEXT_PUBLIC_STELLAR_NETWORK` (`local`, `testnet`, `mainnet`)
+- `NEXT_PUBLIC_BASE_URL` (your public domain)
 
-**[https://v0.app/chat/mJ3pv4Z9PWy](https://v0.app/chat/mJ3pv4Z9PWy)**
+### Optional for extra features
 
-## How It Works
+- `PINATA_JWT`
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+- `FEEDBACK_TO_EMAIL`
+- `EGG_REQUEST_TO_EMAIL`
+- `RESEND_AUDIENCE_UPDATES`
+- `RESEND_AUDIENCE_SHIMEJI`
+- `RESEND_AUDIENCE_COLLECTION`
+- `SUBSCRIBE_SIGNING_SECRET`
+- `OPENROUTER_API_KEY`
+- `OPENROUTER_MODEL`
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## Run Locally
+
+From `shimeji-xlm/`, install workspace deps once:
+
+```bash
+pnpm install
+```
+
+Then run the frontend:
+
+```bash
+cd nextjs
+pnpm dev
+```
+
+From repo lane root (`shimeji-xlm/`), you can also use:
+
+```bash
+pnpm start
+```
+
+## Deploy To Vercel
+
+1. Import project and set root directory to `shimeji-xlm/nextjs`.
+2. Add the environment variables listed above.
+3. Deploy.
+4. Verify `https://<domain>/auction` loads the active auction.
+
+## Notes
+
+- Auction data comes from `NEXT_PUBLIC_AUCTION_CONTRACT_ID`.
+- Giveaway CTA points to `/auction` by default.

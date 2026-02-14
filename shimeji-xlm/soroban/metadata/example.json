@@ -1,30 +1,30 @@
 {
-  "name": "Shimeji #1 — Cosmic Wanderer",
-  "description": "A mischievous desktop companion born from the Shimeji Factory portal. This shimeji embodies the spirit of cosmic wandering, playfully exploring screen edges and defying gravity.",
-  "image": "ipfs://QmExampleHash/cosmic-wanderer.png",
+  "name": "Shimeji #1 - Egg",
+  "description": "Handcrafted Shimeji companion minted on Stellar.",
+  "image": "ipfs://QmExampleAssetsCid/preview/egg-sit.png",
+  "external_url": "https://shimeji.ai",
   "attributes": [
     {
       "trait_type": "Origin",
-      "value": "Portal Auction"
+      "value": "Shimeji Auction"
     },
     {
-      "trait_type": "Personality",
-      "value": "Curious"
-    },
-    {
-      "trait_type": "Element",
-      "value": "Stardust"
-    },
-    {
-      "trait_type": "Sprite Count",
-      "display_type": "number",
-      "value": 35
+      "trait_type": "Network",
+      "value": "Stellar"
     },
     {
       "trait_type": "Generation",
       "display_type": "number",
       "value": 1
+    },
+    {
+      "trait_type": "Sprite Count",
+      "display_type": "number",
+      "value": 35
     }
   ],
-  "external_url": "https://shimeji.ai"
+  "properties": {
+    "sprites_folder": "ipfs://QmExampleAssetsCid/sprites/",
+    "cover_sprite": "egg-sit.png"
+  }
 }
