@@ -103,8 +103,8 @@ export function Header() {
               onMouseLeave={() => setIsMarketplaceHovered(false)}
             >
               <Link
-                href="/auction"
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+                href="/#auction"
+                className="header-auction-link hover:cursor-pointer text-sm transition-colors font-medium"
               >
                 {isSpanish ? "Subasta" : "Auction"}
               </Link>
@@ -175,8 +175,8 @@ export function Header() {
                 {isSpanish ? "Ayuda" : "Help"}
               </Link>
               <Link
-                href="/auction"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                href="/#auction"
+                className="header-auction-link transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Subasta" : "Auction"}

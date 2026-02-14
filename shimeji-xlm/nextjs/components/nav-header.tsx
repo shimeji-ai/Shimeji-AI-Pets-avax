@@ -53,8 +53,8 @@ export function NavHeader({ showConnectButton = false, rightSlot }: NavHeaderPro
               {isSpanish ? "Inicio" : "Home"}
             </Link>
             <Link
-              href="/auction"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              href="/#auction"
+              className="header-auction-link text-sm transition-colors font-medium"
             >
               {isSpanish ? "Subasta" : "Auction"}
             </Link>
@@ -105,8 +105,8 @@ export function NavHeader({ showConnectButton = false, rightSlot }: NavHeaderPro
                 {isSpanish ? "Inicio" : "Home"}
               </Link>
               <Link
-                href="/auction"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                href="/#auction"
+                className="header-auction-link transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Subasta" : "Auction"}

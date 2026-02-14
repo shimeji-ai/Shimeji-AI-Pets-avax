@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { NavHeader } from "@/components/nav-header";
-import { Footer } from "@/components/footer";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
 import { useFreighter } from "@/components/freighter-provider";
 import { useLanguage } from "@/components/language-provider";
@@ -52,7 +50,7 @@ function isSameBid(a: BidInfo, b: BidInfo): boolean {
   return a.bidder === b.bidder && a.amount === b.amount && a.currency === b.currency;
 }
 
-export default function FactoryPage() {
+export function AuctionSection() {
   const [mounted, setMounted] = useState(false);
   const [currency, setCurrency] = useState<"XLM" | "USDC">("XLM");
   const [bidAmounts, setBidAmounts] = useState<{ XLM: string; USDC: string }>({
@@ -636,22 +634,15 @@ export default function FactoryPage() {
     </button>
   ) : null;
 
-  const headerRightSlot = showHeaderFaucet ? (
-    <div className="flex items-center gap-2">
-      {headerWalletButton}
-      {headerFaucetButton}
-    </div>
-  ) : null;
-
   return (
-    <main className="min-h-screen overflow-x-hidden neural-shell">
-      <NavHeader
-        showConnectButton={!isLocalNetwork || walletMode !== "burner"}
-        rightSlot={headerRightSlot}
-      />
-
-      <section className="pt-28 pb-16 px-4">
-        <div className="max-w-6xl mx-auto">
+    <section id="auction" className="pt-28 pb-16 px-4">
+      <div className="max-w-6xl mx-auto">
+        {showHeaderFaucet ? (
+          <div className="mb-4 flex justify-end gap-2">
+            {headerWalletButton}
+            {headerFaucetButton}
+          </div>
+        ) : null}
           {!mounted || loading ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
@@ -919,12 +910,12 @@ export default function FactoryPage() {
                   <p className="text-muted-foreground text-center mb-4 max-w-sm">
                     {walletMode === "none"
                       ? t(
-                          "Burner wallet is disconnected. Use the Wallet button in the header to reconnect burner, or switch to a wallet.",
-                          "La wallet burner está desconectada. Usa el botón Wallet en el header para reconectar burner, o cambia a una billetera."
+                          "Burner wallet is disconnected. Use the wallet controls above to reconnect burner, or switch to a wallet.",
+                          "La wallet burner está desconectada. Usa los controles de wallet arriba para reconectar burner, o cambia a una billetera."
                         )
                       : t(
-                          "Wallet mode selected. Connect your wallet to bid, or switch back to burner from the header.",
-                          "Modo billetera seleccionado. Conecta tu billetera para ofertar, o vuelve a burner desde el header."
+                          "Wallet mode selected. Connect your wallet to bid, or switch back to burner above.",
+                          "Modo billetera seleccionado. Conecta tu billetera para ofertar, o vuelve a burner arriba."
                         )}
                   </p>
                   <div className="flex flex-wrap justify-center gap-2">
@@ -1007,10 +998,7 @@ export default function FactoryPage() {
             </div>
           )}
 
-        </div>
-      </section>
-
-      <Footer />
-    </main>
+      </div>
+    </section>
   );
 }

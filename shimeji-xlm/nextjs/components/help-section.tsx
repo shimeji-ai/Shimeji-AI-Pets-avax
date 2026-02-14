@@ -251,7 +251,7 @@ export function HelpSection() {
             </p>
             <div className="flex justify-center">
               <DownloadButton
-                href="/auction"
+                href="/#auction"
                 labelEn="GO TO AUCTION"
                 labelEs="IR A LA SUBASTA"
               />

@@ -84,7 +84,7 @@ export function GiveawayWidget() {
                 : "Bid with XLM or USDC on Stellar testnet."}
             </p>
             <Link
-              href="/auction"
+              href="/#auction"
               onClick={() => setIsOpen(false)}
               className="mt-3 inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold neural-button"
             >
