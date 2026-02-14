@@ -72,3 +72,5 @@ pnpm start
 
 - Auction data comes from `NEXT_PUBLIC_AUCTION_CONTRACT_ID`.
 - Giveaway CTA points to `/auction` by default.
+- On `local`, `/auction` auto-uses a burner wallet (browser-stored) with a faucet shortcut.
+- On `testnet`, faucet shortcut funds XLM through friendbot for the connected wallet.

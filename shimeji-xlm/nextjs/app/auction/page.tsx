@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { NavHeader } from "@/components/nav-header";
 import { Footer } from "@/components/footer";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
@@ -12,7 +12,23 @@ import { CurrencyToggle } from "@/components/currency-toggle";
 import { Sparkles, Wallet, CheckCircle, Loader2 } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
-import { getServer, NETWORK_PASSPHRASE, STELLAR_NETWORK_LABEL } from "@/lib/contracts";
+import {
+  getServer,
+  HORIZON_URL,
+  NETWORK_PASSPHRASE,
+  STELLAR_NETWORK,
+  STELLAR_NETWORK_LABEL,
+  USDC_ISSUER,
+} from "@/lib/contracts";
+
+const LOCAL_BURNER_STORAGE_KEY = "shimeji_local_burner_secret";
+const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
+
+type WalletMode = "burner" | "freighter" | "none";
+type WalletBalances = {
+  xlm: string;
+  usdc: string;
+};
 
 export default function FactoryPage() {
   const [mounted, setMounted] = useState(false);
@@ -25,9 +41,20 @@ export default function FactoryPage() {
   const [highestBid, setHighestBid] = useState<BidInfo | null>(null);
   const [auctionId, setAuctionId] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [walletMode, setWalletMode] = useState<WalletMode>(
+    STELLAR_NETWORK === "local" ? "burner" : "freighter"
+  );
+  const [burnerSecret, setBurnerSecret] = useState<string | null>(null);
+  const [burnerPublicKey, setBurnerPublicKey] = useState<string | null>(null);
+  const [balances, setBalances] = useState<WalletBalances>({ xlm: "0", usdc: "0" });
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const { isSpanish } = useLanguage();
   const { isConnected, publicKey, isAvailable } = useFreighter();
   const t = (en: string, es: string) => (isSpanish ? es : en);
+  const isLocalNetwork = STELLAR_NETWORK === "local";
+  const isTestnetNetwork = STELLAR_NETWORK === "testnet";
+  const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
 
   const loadAuction = useCallback(async () => {
     try {
@@ -49,6 +76,189 @@ export default function FactoryPage() {
     loadAuction();
   }, [loadAuction]);
 
+  useEffect(() => {
+    if (!isLocalNetwork || !mounted) return;
+
+    let cancelled = false;
+    async function setupBurner() {
+      const { Keypair } = await import("@stellar/stellar-sdk");
+      let secret = window.localStorage.getItem(LOCAL_BURNER_STORAGE_KEY);
+      if (!secret) {
+        secret = Keypair.random().secret();
+        window.localStorage.setItem(LOCAL_BURNER_STORAGE_KEY, secret);
+      }
+      const keypair = Keypair.fromSecret(secret);
+      if (cancelled) return;
+      setBurnerSecret(secret);
+      setBurnerPublicKey(keypair.publicKey());
+      setWalletMode((prev) => (prev === "none" ? "burner" : prev));
+    }
+
+    setupBurner().catch(() => {
+      setBidError(
+        isSpanish
+          ? "No se pudo inicializar la wallet burner local."
+          : "Could not initialize local burner wallet."
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLocalNetwork, isSpanish, mounted]);
+
+  const activePublicKey = useMemo(() => {
+    if (!isLocalNetwork) return publicKey;
+    if (walletMode === "burner") return burnerPublicKey;
+    if (walletMode === "freighter") return publicKey;
+    return null;
+  }, [burnerPublicKey, isLocalNetwork, publicKey, walletMode]);
+
+  const hasConnectedWallet = Boolean(activePublicKey);
+
+  const loadBalances = useCallback(async (address: string | null) => {
+    if (!address) {
+      setBalances({ xlm: "0", usdc: "0" });
+      return;
+    }
+
+    setBalancesLoading(true);
+    try {
+      const baseUrl = HORIZON_URL.replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/accounts/${address}`);
+      if (!response.ok) {
+        throw new Error("Could not load account balances.");
+      }
+      const data = (await response.json()) as {
+        balances?: Array<{
+          asset_type?: string;
+          asset_code?: string;
+          asset_issuer?: string;
+          balance?: string;
+        }>;
+      };
+
+      const xlmBalance =
+        data.balances?.find((entry) => entry.asset_type === "native")?.balance ?? "0";
+      const usdcBalance =
+        data.balances?.find(
+          (entry) => entry.asset_code === "USDC" && entry.asset_issuer === USDC_ISSUER
+        )?.balance ?? "0";
+
+      setBalances({ xlm: xlmBalance, usdc: usdcBalance });
+    } catch {
+      setBalances({ xlm: "0", usdc: "0" });
+    } finally {
+      setBalancesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    loadBalances(activePublicKey);
+  }, [activePublicKey, loadBalances, mounted]);
+
+  const ensureLocalUsdcTrustline = useCallback(async () => {
+    if (!isLocalNetwork || !burnerPublicKey || !burnerSecret || !USDC_ISSUER) return;
+    const { Asset, BASE_FEE, Horizon, Keypair, Operation, TransactionBuilder } = await import(
+      "@stellar/stellar-sdk"
+    );
+    const horizon = new Horizon.Server(HORIZON_URL.replace(/\/$/, ""));
+    const burnerAccount = await horizon.loadAccount(burnerPublicKey);
+    const hasTrustline = burnerAccount.balances.some((entry) => {
+      return (
+        "asset_code" in entry &&
+        "asset_issuer" in entry &&
+        entry.asset_code === "USDC" &&
+        entry.asset_issuer === USDC_ISSUER
+      );
+    });
+    if (hasTrustline) return;
+
+    const trustTx = new TransactionBuilder(burnerAccount, {
+      fee: BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(
+        Operation.changeTrust({
+          asset: new Asset("USDC", USDC_ISSUER),
+        })
+      )
+      .setTimeout(30)
+      .build();
+
+    trustTx.sign(Keypair.fromSecret(burnerSecret));
+    await horizon.submitTransaction(trustTx);
+  }, [burnerPublicKey, burnerSecret, isLocalNetwork]);
+
+  const handleFaucet = useCallback(async () => {
+    if (isMainnetNetwork) {
+      window.open(MAINNET_XLM_ONRAMP_URL, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (!activePublicKey) {
+      setBidError(
+        t(
+          "Connect a wallet first to use faucet.",
+          "Conecta una wallet primero para usar el faucet."
+        )
+      );
+      return;
+    }
+
+    setBidError("");
+    setIsFaucetLoading(true);
+    try {
+      if (isLocalNetwork && walletMode === "burner") {
+        await ensureLocalUsdcTrustline();
+      }
+
+      const requestBody = { address: activePublicKey };
+      const response = await fetch("/api/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      const payload = (await response.json()) as {
+        error?: string;
+        needsTrustline?: boolean;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error || t("Faucet failed.", "Falló el faucet."));
+      }
+
+      if (payload.needsTrustline && isLocalNetwork && walletMode === "burner") {
+        await ensureLocalUsdcTrustline();
+        const retry = await fetch("/api/faucet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        if (!retry.ok) {
+          const retryPayload = (await retry.json()) as { error?: string };
+          throw new Error(retryPayload.error || t("USDC faucet failed.", "Falló el faucet de USDC."));
+        }
+      }
+
+      await loadBalances(activePublicKey);
+    } catch (error) {
+      setBidError(
+        error instanceof Error ? error.message : t("Could not fund wallet.", "No se pudo fondear la wallet.")
+      );
+    } finally {
+      setIsFaucetLoading(false);
+    }
+  }, [
+    activePublicKey,
+    ensureLocalUsdcTrustline,
+    isLocalNetwork,
+    isMainnetNetwork,
+    loadBalances,
+    t,
+    walletMode,
+  ]);
+
   const minimumBid = auction
     ? currency === "XLM"
       ? Number(auction.startingPriceXlm) / 1e7
@@ -65,7 +275,7 @@ export default function FactoryPage() {
       setBidError(t("Enter a valid bid amount.", "Ingresa un monto válido."));
       return;
     }
-    if (!publicKey) {
+    if (!activePublicKey) {
       setBidError(t("Connect your wallet to place a bid.", "Conecta tu wallet para ofertar."));
       return;
     }
@@ -78,31 +288,42 @@ export default function FactoryPage() {
     setIsBidding(true);
 
     try {
+      const bidderAddress = activePublicKey;
       const rawAmount = BigInt(Math.round(amount * 1e7));
       const txXdr =
         currency === "XLM"
-          ? await buildBidXlmTx(publicKey, auctionId, rawAmount)
-          : await buildBidUsdcTx(publicKey, auctionId, rawAmount);
-
-      // Sign with Freighter
-      const freighterApi = await import("@stellar/freighter-api");
-      const result = await freighterApi.signTransaction(txXdr, {
-        networkPassphrase: NETWORK_PASSPHRASE,
-      });
-      if (typeof result === "string") {
-        throw new Error("Signing was cancelled");
-      }
+          ? await buildBidXlmTx(bidderAddress, auctionId, rawAmount)
+          : await buildBidUsdcTx(bidderAddress, auctionId, rawAmount);
 
       // Submit
-      const { TransactionBuilder: TB } = await import("@stellar/stellar-sdk");
+      const { Keypair, TransactionBuilder: TB } = await import("@stellar/stellar-sdk");
       const server = getServer();
-      const tx = TB.fromXDR(result.signedTxXdr, NETWORK_PASSPHRASE);
+      let signedXdr = txXdr;
+      if (isLocalNetwork && walletMode === "burner" && burnerSecret) {
+        const localTx = TB.fromXDR(txXdr, NETWORK_PASSPHRASE);
+        localTx.sign(Keypair.fromSecret(burnerSecret));
+        signedXdr = localTx.toXDR();
+      } else {
+        const freighterApi = await import("@stellar/freighter-api");
+        const result = await freighterApi.signTransaction(txXdr, {
+          networkPassphrase: NETWORK_PASSPHRASE,
+        });
+        if (typeof result === "string") {
+          throw new Error("Signing was cancelled");
+        }
+        signedXdr = result.signedTxXdr;
+      }
+
+      const tx = TB.fromXDR(signedXdr, NETWORK_PASSPHRASE);
       await server.sendTransaction(tx);
 
       setBidSuccess(true);
       setBidAmount("");
       // Reload auction data
-      setTimeout(() => loadAuction(), 3000);
+      setTimeout(() => {
+        loadAuction();
+        loadBalances(bidderAddress);
+      }, 3000);
     } catch (error) {
       setBidError(
         error instanceof Error ? error.message : t("Could not submit bid.", "No se pudo enviar la oferta.")
@@ -112,14 +333,83 @@ export default function FactoryPage() {
     }
   };
 
+  const formatBalance = (raw: string) => {
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return raw;
+    return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  };
+
   const formatBid = (bid: BidInfo) => {
     const amount = Number(bid.amount) / 1e7;
     return `${amount.toLocaleString()} ${bid.currency === "Xlm" ? "XLM" : "USDC"}`;
   };
 
+  const shortAddress = (address: string | null) =>
+    address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
+
+  const showHeaderFaucet = isLocalNetwork || isTestnetNetwork || isMainnetNetwork;
+  const headerWalletLabel = isLocalNetwork
+    ? walletMode === "burner"
+      ? shortAddress(burnerPublicKey)
+        ? t(`Burner ${shortAddress(burnerPublicKey)}`, `Burner ${shortAddress(burnerPublicKey)}`)
+        : t("Burner", "Burner")
+      : walletMode === "freighter"
+        ? shortAddress(publicKey)
+          ? t(`Freighter ${shortAddress(publicKey)}`, `Freighter ${shortAddress(publicKey)}`)
+          : t("Freighter", "Freighter")
+        : t("Wallet", "Wallet")
+    : "";
+
+  const headerWalletButton = isLocalNetwork ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-9 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+      onClick={() => {
+        if (walletMode === "burner") {
+          setWalletMode("none");
+          return;
+        }
+        setWalletMode("burner");
+      }}
+    >
+      {headerWalletLabel}
+    </Button>
+  ) : null;
+
+  const headerFaucetButton = showHeaderFaucet ? (
+    <button
+      type="button"
+      onClick={handleFaucet}
+      disabled={isFaucetLoading || (!isMainnetNetwork && !activePublicKey)}
+      title={
+        isMainnetNetwork
+          ? t(
+              "Open MoneyGram ramps (official Stellar ecosystem onramp).",
+              "Abrir MoneyGram ramps (onramp oficial del ecosistema Stellar)."
+            )
+          : t("Load test funds from faucet.", "Cargar fondos de prueba desde faucet.")
+      }
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-base hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <span className={isFaucetLoading ? "animate-pulse" : ""}>💸</span>
+    </button>
+  ) : null;
+
+  const headerRightSlot = showHeaderFaucet ? (
+    <div className="flex items-center gap-2">
+      {headerWalletButton}
+      {headerFaucetButton}
+    </div>
+  ) : null;
+
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
-      <NavHeader showConnectButton />
+      <NavHeader
+        showConnectButton={!isLocalNetwork || walletMode === "freighter"}
+        rightSlot={headerRightSlot}
+      />
 
       <section className="pt-28 pb-16 px-4">
         <div className="max-w-6xl mx-auto">
@@ -145,14 +435,18 @@ export default function FactoryPage() {
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
               <p className="text-muted-foreground">{t("Loading...", "Cargando...")}</p>
             </div>
-          ) : isConnected ? (
+          ) : hasConnectedWallet ? (
             <div className="neural-card rounded-2xl p-6 mb-10">
               <div className="flex flex-col lg:flex-row lg:items-start gap-6">
                 {/* Left column: Egg + auction info */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-14 h-14 flex items-center justify-center">
-                      <img src="/egg-sit.png" alt={t("Shimeji Egg", "Huevo Shimeji")} className="w-12 h-12 object-contain" />
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-[10.5rem] h-[10.5rem] flex items-center justify-center shrink-0">
+                      <img
+                        src="/egg-sit.png"
+                        alt={t("Shimeji Egg", "Huevo Shimeji")}
+                        className="w-[9rem] h-[9rem] object-contain"
+                      />
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
@@ -227,7 +521,12 @@ export default function FactoryPage() {
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
                       {t("Connected as", "Conectado como")}{" "}
-                      {publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : "Freighter"}.
+                      {activePublicKey ? `${activePublicKey.slice(0, 6)}...${activePublicKey.slice(-4)}` : "Wallet"}
+                      {isLocalNetwork
+                        ? walletMode === "burner"
+                          ? ` (${t("Burner", "Burner")})`
+                          : ` (${t("Freighter", "Freighter")})`
+                        : "."}
                     </p>
 
                     <div className="mb-4">
@@ -259,6 +558,23 @@ export default function FactoryPage() {
                     <div className="flex items-center justify-between py-2 text-sm border-t border-white/10 mt-3">
                       <span>{t("Network", "Red")}</span>
                       <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
+                    </div>
+                    <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+                        {t("Available balances", "Saldos disponibles")}
+                      </p>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>XLM</span>
+                        <span className="font-semibold">
+                          {balancesLoading ? t("Loading...", "Cargando...") : `${formatBalance(balances.xlm)} XLM`}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span>USDC</span>
+                        <span className="font-semibold">
+                          {balancesLoading ? t("Loading...", "Cargando...") : `${formatBalance(balances.usdc)} USDC`}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -299,32 +615,96 @@ export default function FactoryPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 mb-8 neural-card rounded-2xl">
               <Wallet className="w-12 h-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground text-center mb-4 max-w-sm">
-                {isAvailable ? (
-                  isSpanish
-                    ? "Conecta tu wallet Freighter para participar en la subasta."
-                    : "Connect your Freighter wallet to participate in the auction."
-                ) : (
-                  isSpanish ? (
-                    <>
-                      No detectamos Freighter.{" "}
-                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                        Instalá Freighter
-                      </a>{" "}
-                      para continuar.
-                    </>
-                  ) : (
-                    <>
-                      Freighter not detected.{" "}
-                      <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
-                        Install Freighter
-                      </a>{" "}
-                      to continue.
-                    </>
-                  )
-                )}
-              </p>
-              <FreighterConnectButton />
+              {isLocalNetwork ? (
+                <>
+                  <p className="text-muted-foreground text-center mb-4 max-w-sm">
+                    {walletMode === "none"
+                      ? t(
+                          "Burner wallet is disconnected. Use the Wallet button in the header to reconnect burner, or switch to Freighter.",
+                          "La wallet burner está desconectada. Usa el botón Wallet en el header para reconectar burner, o cambia a Freighter."
+                        )
+                      : t(
+                          "Freighter mode selected. Connect Freighter to bid, or switch back to burner from the header.",
+                          "Modo Freighter seleccionado. Conecta Freighter para ofertar, o vuelve a burner desde el header."
+                        )}
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                      onClick={() => setWalletMode("burner")}
+                      disabled={!burnerPublicKey}
+                    >
+                      {t("Use Burner", "Usar Burner")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                      onClick={() => setWalletMode("freighter")}
+                    >
+                      {t("Use Freighter", "Usar Freighter")}
+                    </Button>
+                  </div>
+                  {walletMode === "freighter" ? (
+                    <div className="mt-4">
+                      {isAvailable ? (
+                        <FreighterConnectButton />
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center">
+                          {isSpanish ? (
+                            <>
+                              No detectamos Freighter.{" "}
+                              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                                Instalá Freighter
+                              </a>
+                              .
+                            </>
+                          ) : (
+                            <>
+                              Freighter not detected.{" "}
+                              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                                Install Freighter
+                              </a>
+                              .
+                            </>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <p className="text-muted-foreground text-center mb-4 max-w-sm">
+                    {isAvailable ? (
+                      isSpanish
+                        ? "Conecta tu wallet Freighter para participar en la subasta."
+                        : "Connect your Freighter wallet to participate in the auction."
+                    ) : (
+                      isSpanish ? (
+                        <>
+                          No detectamos Freighter.{" "}
+                          <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                            Instalá Freighter
+                          </a>{" "}
+                          para continuar.
+                        </>
+                      ) : (
+                        <>
+                          Freighter not detected.{" "}
+                          <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">
+                            Install Freighter
+                          </a>{" "}
+                          to continue.
+                        </>
+                      )
+                    )}
+                  </p>
+                  <FreighterConnectButton />
+                </>
+              )}
             </div>
           )}
 

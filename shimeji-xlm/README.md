@@ -39,7 +39,9 @@ After deploy finishes, it prints the commands to create the first auction.
 
 1. Run `./shimeji-xlm/launch.sh`.
 2. In guided path, choose `testnet` or `mainnet`.
-3. Copy deploy output env vars into Vercel (`shimeji-xlm/nextjs` project).
+3. Sync contract env vars to Vercel from CLI:
+   - `cd shimeji-xlm && pnpm run vercel:env:testnet -- production`
+   - or `cd shimeji-xlm && pnpm run vercel:env:mainnet -- production`
 4. Redeploy Vercel and open `/auction`.
 
 ## Separate Commands (If You Prefer)

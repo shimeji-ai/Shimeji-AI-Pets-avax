@@ -10,7 +10,10 @@
     "deploy": "./scripts/deploy.sh",
     "deploy:local": "./scripts/deploy.sh local",
     "deploy:testnet": "./scripts/deploy.sh testnet",
-    "deploy:mainnet": "./scripts/deploy.sh mainnet"
+    "deploy:mainnet": "./scripts/deploy.sh mainnet",
+    "vercel:env": "./scripts/vercel-env-sync.sh",
+    "vercel:env:testnet": "./scripts/vercel-env-sync.sh testnet",
+    "vercel:env:mainnet": "./scripts/vercel-env-sync.sh mainnet"
   },
   "packageManager": "pnpm@10.24.0"
 }

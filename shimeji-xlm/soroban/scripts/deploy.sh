@@ -20,11 +20,19 @@ set -euo pipefail
 #   DISABLE_SECRET_BACKUP=1
 #   FRONTEND_ENV_FILE=../nextjs/.env.local
 #   SYNC_FRONTEND_ENV=1
+#   TESTNET_USDC_ISSUER=GBBD...
+#   MAINNET_USDC_ISSUER=GA5Z...
 
 NETWORK="${NETWORK:-}"
 SECRET="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
 MNEMONIC="${STELLAR_MNEMONIC:-${STELLAR_SEED_PHRASE:-}}"
 IDENTITY="${STELLAR_IDENTITY_ALIAS:-shimeji-deployer}"
+LOCAL_USDC_ISSUER="${LOCAL_USDC_ISSUER:-}"
+LOCAL_USDC_ISSUER_ALIAS="${LOCAL_USDC_ISSUER_ALIAS:-shimeji-local-usdc-issuer}"
+LOCAL_USDC_ISSUER_SECRET="${LOCAL_USDC_ISSUER_SECRET:-}"
+LOCAL_USDC_ASSET_CODE="${LOCAL_USDC_ASSET_CODE:-USDC}"
+TESTNET_USDC_ISSUER="${TESTNET_USDC_ISSUER:-GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5}"
+MAINNET_USDC_ISSUER="${MAINNET_USDC_ISSUER:-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN}"
 FORCE_IDENTITY_REIMPORT="${FORCE_IDENTITY_REIMPORT:-0}"
 MIN_MAINNET_XLM="${MIN_MAINNET_XLM:-2}"
 SECRET_BACKUP_PATH="${SECRET_BACKUP_PATH:-}"
@@ -52,6 +60,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
 PROJECT_ROOT="$(cd "$ROOT_DIR/.." && pwd)"
 ENV_CREDENTIALS_FILE="${ENV_CREDENTIALS_FILE:-$PROJECT_ROOT/.env}"
+DEPLOY_ENV_EXPORT_DIR="${DEPLOY_ENV_EXPORT_DIR:-$PROJECT_ROOT/.deploy-env}"
 
 if [ -z "$SECRET_BACKUP_PATH" ]; then
   SECRET_BACKUP_PATH="$PROJECT_ROOT/secret.txt"
@@ -62,6 +71,7 @@ fi
 
 SECRET_BACKUP_STATUS="not-written"
 FRONTEND_ENV_STATUS="not-synced"
+DEPLOY_ENV_EXPORT_STATUS="not-written"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -294,20 +304,20 @@ configure_network() {
   if [ "$NETWORK" = "local" ]; then
     RPC_URL="${STELLAR_RPC_URL:-http://localhost:8000/rpc}"
     PASSPHRASE="Standalone Network ; February 2017"
-    USDC_ISSUER="${LOCAL_USDC_ISSUER:-GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5}"
+    USDC_ISSUER="${LOCAL_USDC_ISSUER:-$TESTNET_USDC_ISSUER}"
     HORIZON_URL="http://localhost:8000"
     LOCAL_FRIENDBOT_URL="${LOCAL_FRIENDBOT_URL:-http://localhost:8000/friendbot}"
     EXPLORER_ROOT="(local network - no public explorer)"
   elif [ "$NETWORK" = "mainnet" ]; then
     RPC_URL="${STELLAR_RPC_URL:-https://mainnet.sorobanrpc.com}"
     PASSPHRASE="Public Global Stellar Network ; September 2015"
-    USDC_ISSUER="GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+    USDC_ISSUER="$MAINNET_USDC_ISSUER"
     HORIZON_URL="https://horizon.stellar.org"
     EXPLORER_ROOT="https://stellar.expert/explorer/public"
   else
     RPC_URL="${STELLAR_RPC_URL:-https://soroban-testnet.stellar.org}"
     PASSPHRASE="Test SDF Network ; September 2015"
-    USDC_ISSUER="GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+    USDC_ISSUER="$TESTNET_USDC_ISSUER"
     HORIZON_URL="https://horizon-testnet.stellar.org"
     EXPLORER_ROOT="https://stellar.expert/explorer/testnet"
   fi
@@ -489,6 +499,16 @@ get_identity_secret_key() {
   fi
 }
 
+get_alias_secret_key() {
+  local alias_name="$1"
+  local key_value
+  key_value="$(stellar -q keys secret "$alias_name" 2>/dev/null || true)"
+  key_value="$(printf "%s" "$key_value" | tr -d '\r\n\t ')"
+  if [[ "$key_value" =~ ^S[A-Z2-7]+$ ]]; then
+    printf "%s" "$key_value"
+  fi
+}
+
 get_identity_seed_phrase() {
   local phrase_value
   local words_count
@@ -588,6 +608,37 @@ fund_testnet() {
   echo "    Testnet funding requested via friendbot."
 }
 
+setup_local_usdc_issuer() {
+  if [ "$NETWORK" != "local" ]; then
+    return
+  fi
+
+  if [ -n "$LOCAL_USDC_ISSUER" ]; then
+    USDC_ISSUER="$LOCAL_USDC_ISSUER"
+    if [ -z "$LOCAL_USDC_ISSUER_SECRET" ] && stellar keys address "$LOCAL_USDC_ISSUER_ALIAS" >/dev/null 2>&1; then
+      LOCAL_USDC_ISSUER_SECRET="$(get_alias_secret_key "$LOCAL_USDC_ISSUER_ALIAS")"
+    fi
+    echo "==> Using provided local USDC issuer: $USDC_ISSUER"
+    return
+  fi
+
+  if stellar keys address "$LOCAL_USDC_ISSUER_ALIAS" >/dev/null 2>&1; then
+    echo "==> Reusing local USDC issuer alias '$LOCAL_USDC_ISSUER_ALIAS'..."
+  else
+    echo "==> Creating local USDC issuer alias '$LOCAL_USDC_ISSUER_ALIAS'..."
+    stellar keys generate "$LOCAL_USDC_ISSUER_ALIAS" --overwrite >/dev/null
+  fi
+
+  LOCAL_USDC_ISSUER="$(stellar keys address "$LOCAL_USDC_ISSUER_ALIAS")"
+  USDC_ISSUER="$LOCAL_USDC_ISSUER"
+  LOCAL_USDC_ISSUER_SECRET="$(get_alias_secret_key "$LOCAL_USDC_ISSUER_ALIAS")"
+
+  if [ -n "$LOCAL_FRIENDBOT_URL" ]; then
+    echo "==> Funding local USDC issuer account..."
+    curl -fsS "${LOCAL_FRIENDBOT_URL}?addr=$LOCAL_USDC_ISSUER" >/dev/null || true
+  fi
+}
+
 upsert_env_value() {
   local env_file="$1"
   local env_key="$2"
@@ -638,11 +689,35 @@ sync_frontend_env_local() {
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_NFT_CONTRACT_ID" "$NFT_ID"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_AUCTION_CONTRACT_ID" "$AUCTION_ID"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_RPC_URL" "$RPC_URL"
+  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_HORIZON_URL" "$HORIZON_URL"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "\"$PASSPHRASE\""
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK" "$NETWORK"
+  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_FRIENDBOT_URL" "$LOCAL_FRIENDBOT_URL"
+  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_USDC_ISSUER" "$USDC_ISSUER"
+  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_USDC_ISSUER" "$USDC_ISSUER"
+  upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ISSUER_SECRET" "$LOCAL_USDC_ISSUER_SECRET"
+  upsert_env_value "$FRONTEND_ENV_FILE" "LOCAL_USDC_ASSET_CODE" "$LOCAL_USDC_ASSET_CODE"
 
   FRONTEND_ENV_STATUS="synced-local"
   echo "==> Synced local frontend env at: $FRONTEND_ENV_FILE"
+}
+
+write_deploy_env_export_file() {
+  local export_file
+  mkdir -p "$DEPLOY_ENV_EXPORT_DIR"
+  export_file="$DEPLOY_ENV_EXPORT_DIR/${NETWORK}.env"
+
+  {
+    echo "# Generated by soroban/scripts/deploy.sh on $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+    printf "NEXT_PUBLIC_NFT_CONTRACT_ID=%q\n" "$NFT_ID"
+    printf "NEXT_PUBLIC_AUCTION_CONTRACT_ID=%q\n" "$AUCTION_ID"
+    printf "NEXT_PUBLIC_STELLAR_RPC_URL=%q\n" "$RPC_URL"
+    printf "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=%q\n" "$PASSPHRASE"
+    printf "NEXT_PUBLIC_STELLAR_NETWORK=%q\n" "$NETWORK"
+  } > "$export_file"
+
+  DEPLOY_ENV_EXPORT_STATUS="$export_file"
+  echo "==> Wrote deploy env export file: $export_file"
 }
 
 get_native_balance() {
@@ -837,6 +912,7 @@ print_success_summary() {
   echo "  Identity Alias:   $IDENTITY"
   echo "  Secret Backup:    $SECRET_BACKUP_PATH ($SECRET_BACKUP_STATUS)"
   echo "  Frontend Env Sync:$FRONTEND_ENV_STATUS"
+  echo "  Deploy Env File:  $DEPLOY_ENV_EXPORT_STATUS"
   echo "  NFT Wasm Hash:    $NFT_WASM_HASH_LOCAL"
   echo "  Auction Wasm Hash:$AUCTION_WASM_HASH_LOCAL"
   echo ""
@@ -880,6 +956,11 @@ print_success_summary() {
   echo "   NEXT_PUBLIC_STELLAR_NETWORK=$NETWORK"
   echo ""
   echo "3) Redeploy frontend after env vars are set."
+  if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then
+    echo ""
+    echo "   Optional CLI sync to Vercel:"
+    echo "   cd \"$PROJECT_ROOT\" && pnpm run vercel:env:$NETWORK -- production"
+  fi
   echo ""
   echo "Contract verification steps:"
   echo "A) Fetch on-chain wasm binaries:"
@@ -953,8 +1034,10 @@ main() {
 
   ensure_build_target
   build_contracts
+  setup_local_usdc_issuer
   derive_sac_addresses
   deploy_contracts
+  write_deploy_env_export_file
   sync_frontend_env_local
   print_success_summary
 }

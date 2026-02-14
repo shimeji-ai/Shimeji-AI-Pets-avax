@@ -11,6 +11,10 @@ die() {
   exit 1
 }
 
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
 load_root_env_file() {
   if [ ! -f "$ENV_FILE" ]; then
     return
@@ -114,3 +118,23 @@ cd "$SOROBAN_DIR"
 
 echo "==> Deploy target: $NETWORK"
 NETWORK="$NETWORK" ./scripts/deploy.sh
+
+cd "$ROOT_DIR"
+if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then
+  echo ""
+  echo "==> Optional Vercel env sync for $NETWORK:"
+  echo "    pnpm run vercel:env:$NETWORK -- production"
+  if [ "$INTERACTIVE" -eq 1 ] && need_cmd vercel; then
+    sync_choice="$(arrow_menu "Sync contract vars to Vercel now?" "Yes (production)" "Yes (preview)" "Skip")"
+    case "${sync_choice:-2}" in
+      0)
+        pnpm run "vercel:env:$NETWORK" -- production || true
+        ;;
+      1)
+        pnpm run "vercel:env:$NETWORK" -- preview || true
+        ;;
+      *)
+        ;;
+    esac
+  fi
+fi

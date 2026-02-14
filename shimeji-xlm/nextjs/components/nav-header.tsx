@@ -12,9 +12,10 @@ import { FreighterConnectButton } from "./freighter-connect-button";
 
 interface NavHeaderProps {
   showConnectButton?: boolean;
+  rightSlot?: React.ReactNode;
 }
 
-export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
+export function NavHeader({ showConnectButton = false, rightSlot }: NavHeaderProps) {
   const { isSpanish } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
@@ -75,8 +76,10 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
             <div className="hidden lg:flex items-center gap-3">
               <LanguageSwitcher />
               <DownloadButton />
+              {rightSlot}
               {showConnectButton && <FreighterConnectButton />}
             </div>
+            {rightSlot && <div className="lg:hidden">{rightSlot}</div>}
             <button
               className="inline-flex items-center justify-center lg:hidden p-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}

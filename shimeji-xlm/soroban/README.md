@@ -156,6 +156,15 @@ The script prints:
 - Explorer links (contract + admin account)
 - Frontend env vars for Vercel (and local env auto-sync status for `local`)
 - Contract verification commands (fetch wasm + hash comparison + optional build attestation)
+- A generated env file at `shimeji-xlm/.deploy-env/<network>.env` for Vercel CLI sync
+
+After `testnet` or `mainnet` deploy, you can sync to Vercel from `shimeji-xlm/`:
+
+```bash
+pnpm run vercel:env:testnet -- production
+# or
+pnpm run vercel:env:mainnet -- production
+```
 
 Testnet USDC issuer is already configured in the deploy script as:
 
