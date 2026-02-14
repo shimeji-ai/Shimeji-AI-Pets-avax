@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Bell } from "lucide-react";
-import { EmailSubscribeModal } from "~~/components/email-subscribe-modal";
+import Link from "next/link";
 import { useLanguage } from "~~/components/language-provider";
 import { Button } from "~~/components/ui/button";
 
@@ -12,26 +10,17 @@ interface UpdatesSubscribePopupProps {
 }
 
 export function UpdatesSubscribePopup({ buttonClassName = "", buttonVariant = "default" }: UpdatesSubscribePopupProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { isSpanish } = useLanguage();
+  const updatesXUrl = "https://x.com/ShimejiAIPets";
 
   return (
-    <>
-      <Button onClick={() => setIsModalOpen(true)} variant={buttonVariant} className={buttonClassName}>
-        <Bell className="w-4 h-4 mr-2" />
+    <Button asChild variant={buttonVariant} className={`${buttonClassName} cursor-pointer`.trim()}>
+      <Link href={updatesXUrl} target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4 fill-current" aria-hidden="true">
+          <path d="M18.244 2H21.5l-7.266 8.304L22.67 22h-6.59l-5.16-7.196L4.62 22H1.36l7.773-8.89L1.08 2h6.757l4.663 6.52L18.244 2Zm-1.144 18h1.83L6.78 3.896H4.814L17.1 20Z" />
+        </svg>
         {isSpanish ? "Suscribirme a novedades" : "Subscribe for Updates"}
-      </Button>
-
-      <EmailSubscribeModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        type="updates"
-        title={isSpanish ? "Enterate de todo" : "Stay in the Loop"}
-        subtitle={
-          isSpanish ? "Recibí avisos de nuevas funciones y shimejis" : "Get notified about new features and shimejis"
-        }
-        buttonText={isSpanish ? "Suscribirme" : "Subscribe"}
-      />
-    </>
+      </Link>
+    </Button>
   );
 }
