@@ -7,6 +7,7 @@ import type { Metadata, Viewport } from "next";
 import { ScaffoldEthAppWithProviders } from "~~/components/ScaffoldEthAppWithProviders";
 import { LanguageProvider } from "~~/components/language-provider";
 import { SiteShimejiMascot } from "~~/components/site-shimeji-mascot";
+import { createPageMetadata } from "~~/lib/metadata";
 import "~~/styles/globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -30,9 +31,12 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "Shimeji AI Pets | AI Pets for Your Browser",
-  description:
-    "Animated browser pets with AI chat. Choose a personality, talk to your shimeji, or connect an AI agent with onchain tools.",
+  ...createPageMetadata({
+    title: "Shimeji AI Pets on Ethereum | AI Desktop Pets & NFTs",
+    description:
+      "Animated desktop pets with AI chat, Ethereum wallet integration, and NFT-ready experiences.",
+    path: "/",
+  }),
   generator: "v0.app",
   icons: {
     icon: [

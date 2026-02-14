@@ -1,8 +1,10 @@
 import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
 export const metadata = getMetadata({
-  title: "Block Explorer",
-  description: "Block Explorer created with 🏗 Scaffold-ETH 2",
+  title: "Local Block Explorer",
+  description:
+    "Inspect local Ethereum blocks and transactions for Shimeji AI Pets development.",
+  imageRelativePath: "/bunny-hero.png",
 });
 
 const BlockExplorerLayout = ({ children }: { children: React.ReactNode }) => {

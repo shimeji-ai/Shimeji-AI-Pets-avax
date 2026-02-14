@@ -11,6 +11,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 import { FreighterProvider } from "@/components/freighter-provider";
 import { SiteShimejiMascot } from "@/components/site-shimeji-mascot";
+import { createPageMetadata } from "@/lib/metadata";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -33,9 +34,12 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "Shimeji AI Pets | AI Pets for Your Browser",
-  description:
-    "Animated browser pets with AI chat. Choose a personality, talk to your shimeji, or connect an AI agent with onchain tools.",
+  ...createPageMetadata({
+    title: "Shimeji AI Pets on Stellar | AI Desktop Pets & NFT Auctions",
+    description:
+      "Animated desktop pets with AI chat, Stellar NFT auctions, and wallet-powered experiences for collectors.",
+    path: "/",
+  }),
   generator: "v0.app",
   icons: {
     icon: [

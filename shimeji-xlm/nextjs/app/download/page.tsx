@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import DownloadClient from "./DownloadClient";
+import { createPageMetadata } from "@/lib/metadata";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Download | Shimeji AI Pets on Stellar",
+  description:
+    "Download Shimeji AI Pets for browser and desktop, then connect your AI companion in minutes.",
+  path: "/download",
+});
 
 export default function DownloadPage() {
   return <DownloadClient />;

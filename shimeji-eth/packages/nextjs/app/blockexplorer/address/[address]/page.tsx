@@ -1,11 +1,13 @@
 import fs from "fs";
 import path from "path";
+import type { Metadata } from "next";
 import { Address } from "viem";
 import { foundry } from "viem/chains";
 import { AddressComponent } from "~~/app/blockexplorer/_components/AddressComponent";
 import deployedContracts from "~~/contracts/deployedContracts";
 import { isZeroAddress } from "~~/utils/scaffold-eth/common";
 import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
+import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 
 type PageProps = {
   params: Promise<{ address: Address }>;
@@ -86,6 +88,18 @@ const getContractData = async (address: Address) => {
 export function generateStaticParams() {
   // An workaround to enable static exports in Next.js, generating single dummy page.
   return [{ address: "0x0000000000000000000000000000000000000000" }];
+}
+
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const params = await props.params;
+  const address = params?.address;
+  const shortAddress = address ? `${address.slice(0, 8)}...${address.slice(-6)}` : "Address";
+
+  return getMetadata({
+    title: `Address ${shortAddress}`,
+    description: "Inspect contract bytecode and activity for addresses in the local block explorer.",
+    imageRelativePath: "/bunny-hero.png",
+  });
 }
 
 const AddressPage = async (props: PageProps) => {
