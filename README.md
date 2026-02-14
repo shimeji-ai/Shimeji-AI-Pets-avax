@@ -27,6 +27,10 @@ That unified launcher can run chain + frontend + deploy flow, and guide deployme
 - `chrome-extension/`: browser runtime and chat UI.
 - `desktop/`: Electron desktop app.
 
+## NFT Unlocks
+
+Some desktop and Chrome skins are planned as unlockables tied to auctioned NFTs. Those characters can evolve from placeholder states (egg, space portal, etc.) to final forms once the final animation art is uploaded to IPFS and linked in NFT metadata.
+
 ## Quick Start (Runtime)
 
 ### Chrome extension
