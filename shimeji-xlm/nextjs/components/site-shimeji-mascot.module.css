@@ -145,3 +145,20 @@
   opacity: 0.55;
   cursor: default;
 }
+
+@media (max-width: 768px) {
+  .bubble {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 90px;
+    width: auto;
+    max-width: none;
+  }
+
+  .bubbleRight,
+  .bubbleLeft {
+    left: 12px;
+    right: 12px;
+  }
+}

@@ -109,6 +109,20 @@ export function SiteShimejiMascot() {
     const spriteW = 72;
     const margin = 14;
     const speedPxPerSec = 46;
+    const mobileMq = window.matchMedia("(max-width: 768px)");
+    let isMobile = mobileMq.matches;
+
+    const handleMobileChange = (event: MediaQueryListEvent) => {
+      isMobile = event.matches;
+      if (event.matches) {
+        setBubbleSide("left");
+      }
+    };
+
+    if (isMobile) {
+      setBubbleSide("left");
+    }
+    mobileMq.addEventListener("change", handleMobileChange);
 
     const tick = (t: number) => {
       if (!wrapRef.current) {
@@ -124,29 +138,36 @@ export function SiteShimejiMascot() {
       const minX = margin;
       const maxX = Math.max(margin, vw - spriteW - margin);
 
-      if (!openRef.current) {
-        x += dir * speedPxPerSec * dt;
-        if (x <= minX) {
-          x = minX;
-          dir = 1;
-        } else if (x >= maxX) {
-          x = maxX;
-          dir = -1;
-        }
-
-        if (t - lastFrameT > 170) {
-          lastFrameT = t;
-          frameIdx = (frameIdx + 1) % frames.walk.length;
-          const nextSrc = frames.walk[frameIdx];
-          if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
-        }
-      } else {
+      if (isMobile) {
+        // Keep mascot static on mobile, docked to one side.
+        x = maxX;
+        dir = -1;
         if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
-      }
+      } else {
+        if (!openRef.current) {
+          x += dir * speedPxPerSec * dt;
+          if (x <= minX) {
+            x = minX;
+            dir = 1;
+          } else if (x >= maxX) {
+            x = maxX;
+            dir = -1;
+          }
 
-      if (t - lastSideT > 250) {
-        lastSideT = t;
-        setBubbleSide(x > vw / 2 ? "left" : "right");
+          if (t - lastFrameT > 170) {
+            lastFrameT = t;
+            frameIdx = (frameIdx + 1) % frames.walk.length;
+            const nextSrc = frames.walk[frameIdx];
+            if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
+          }
+        } else {
+          if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
+        }
+
+        if (t - lastSideT > 250) {
+          lastSideT = t;
+          setBubbleSide(x > vw / 2 ? "left" : "right");
+        }
       }
 
       wrapRef.current.style.transform = `translate3d(${Math.round(clamp(x, minX, maxX))}px, 0, 0)`;
@@ -156,7 +177,10 @@ export function SiteShimejiMascot() {
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      mobileMq.removeEventListener("change", handleMobileChange);
+    };
   }, [frames.stand, frames.walk]);
 
   function ensureGreeting() {

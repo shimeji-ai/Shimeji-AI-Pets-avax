@@ -92,7 +92,6 @@ export function AuctionSection() {
   const [recentOffers, setRecentOffers] = useState<BidInfo[]>([]);
   const [copiedBidder, setCopiedBidder] = useState<string | null>(null);
   const [currentBidCurrencyView, setCurrentBidCurrencyView] = useState<"XLM" | "USDC">("XLM");
-  const [showAuctionEndDate, setShowAuctionEndDate] = useState(false);
   const [auctionId, setAuctionId] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [walletMode, setWalletMode] = useState<WalletMode>(
@@ -536,16 +535,6 @@ export function AuctionSection() {
     const end = formatShortDateTime(endDate, includeYear);
     return `${start} - ${end}`;
   }, [auction]);
-  const auctionEndDateLabel = useMemo(() => {
-    if (!auction) return "";
-    return new Date(auction.endTime * 1000).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, [auction]);
   const currentBidDisplayValue = useMemo(() => {
     if (!highestBid || !auction) {
       return t("No bids yet", "Sin ofertas aún");
@@ -738,37 +727,27 @@ export function AuctionSection() {
                     </div>
                     {auction ? (
                       <div className="mt-5 flex w-full justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setShowAuctionEndDate((prev) => !prev)}
-                          className="inline-flex items-center justify-center bg-transparent p-0 text-center"
-                        >
+                        <div className="inline-flex flex-col items-center justify-center gap-2 bg-transparent p-0 text-center">
                           <div className="flex h-[64px] items-center justify-center">
-                            {showAuctionEndDate ? (
-                              <p className="px-2 text-center text-xl font-semibold leading-tight text-foreground md:text-2xl">
-                                {auctionEndDateLabel}
-                              </p>
-                            ) : (
-                              <div className="w-full">
-                                <CountdownTimer
-                                  endTime={auction.endTime}
-                                  labels={
-                                    isSpanish
-                                      ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
-                                      : undefined
-                                  }
-                                />
-                              </div>
-                            )}
+                            <div className="w-full">
+                              <CountdownTimer
+                                endTime={auction.endTime}
+                                labels={
+                                  isSpanish
+                                    ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
+                                    : undefined
+                                }
+                              />
+                            </div>
                           </div>
-                        </button>
+                          <p className="text-xs text-muted-foreground">{auctionDateLabel}</p>
+                        </div>
                       </div>
                     ) : null}
                   </div>
 
                   {auction ? (
                     <div>
-                      <p className="text-sm text-muted-foreground">{auctionDateLabel}</p>
                       <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
                         {t(
                           "Win a unique handcrafted Shimeji minted as an NFT.",
