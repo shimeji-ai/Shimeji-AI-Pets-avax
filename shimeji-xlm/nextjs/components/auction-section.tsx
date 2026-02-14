@@ -772,7 +772,7 @@ export function AuctionSection() {
                       <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
                         {t(
                           "Win a unique handcrafted Shimeji minted as an NFT.",
-                          "Gana un Shimeji artesanal único acuñado como NFT."
+                          "Gana un Shimeji artesanal acuñado como NFT."
                         )}
                       </p>
 
