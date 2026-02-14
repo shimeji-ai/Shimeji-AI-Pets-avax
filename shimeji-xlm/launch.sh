@@ -325,8 +325,20 @@ compose_deploy_command() {
 open_in_new_terminal() {
   local label="$1"
   local run_cmd="$2"
-  local wrapped
-  wrapped="${run_cmd}; echo; echo \"[${label}] session ready. Close this tab when done.\"; exec bash"
+  local wrapped script_file distro mac_cmd escaped
+
+  script_file="/tmp/shimeji-launch-${label}-$$-$(date +%s).sh"
+  {
+    echo "#!/usr/bin/env bash"
+    printf "cd %q\n" "$ROOT_DIR"
+    printf "%s\n" "$run_cmd"
+    echo "echo"
+    printf "echo %q\n" "[${label}] session ready. Close this tab when done."
+    echo "exec bash"
+  } > "$script_file"
+  chmod +x "$script_file"
+
+  wrapped="bash \"$script_file\""
 
   if [ -n "${TMUX:-}" ] && need_cmd tmux; then
     tmux new-window -n "$label" "cd \"$ROOT_DIR\" && $wrapped" >/dev/null 2>&1
@@ -334,14 +346,16 @@ open_in_new_terminal() {
   fi
 
   if is_wsl && need_cmd cmd.exe; then
-    local distro
     distro="${WSL_DISTRO_NAME:-}"
-    cmd.exe /C start "" wt -w 0 new-tab wsl.exe -d "$distro" --cd "$ROOT_DIR" bash -lc "$wrapped" >/dev/null 2>&1
+    if [ -n "$distro" ]; then
+      cmd.exe /C start "" wt -w 0 new-tab wsl.exe -d "$distro" --cd "$ROOT_DIR" bash "$script_file" >/dev/null 2>&1
+    else
+      cmd.exe /C start "" wt -w 0 new-tab wsl.exe --cd "$ROOT_DIR" bash "$script_file" >/dev/null 2>&1
+    fi
     return $?
   fi
 
   if is_macos && need_cmd osascript; then
-    local mac_cmd escaped
     mac_cmd="$(printf 'cd %q && %s' "$ROOT_DIR" "$wrapped")"
     escaped="${mac_cmd//\\/\\\\}"
     escaped="${escaped//\"/\\\"}"
