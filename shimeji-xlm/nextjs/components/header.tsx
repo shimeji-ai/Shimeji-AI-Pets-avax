@@ -9,9 +9,15 @@ import { SparkleAnimation } from "./sparkle-animation";
 import DownloadButton from "./download-button";
 import { LanguageSwitcher } from "./language-switcher";
 import { useLanguage } from "./language-provider";
+import { FreighterConnectButton } from "./freighter-connect-button";
+import { useFreighter } from "./freighter-provider";
+import { STELLAR_NETWORK } from "@/lib/contracts";
+
+const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 
 export function Header() {
   const { isSpanish } = useLanguage();
+  const { publicKey } = useFreighter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
@@ -19,6 +25,26 @@ export function Header() {
   const [isFaqHovered, setIsFaqHovered] = useState(false);
   const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
   const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
+  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
+  const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
+
+  const handleFaucet = async () => {
+    if (isMainnetNetwork) {
+      window.open(MAINNET_XLM_ONRAMP_URL, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (!publicKey) return;
+    setIsFaucetLoading(true);
+    try {
+      await fetch("/api/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: publicKey }),
+      });
+    } finally {
+      setIsFaucetLoading(false);
+    }
+  };
 
   return (
     <header className="fixed top-4 left-4 right-4 z-50">
@@ -122,6 +148,24 @@ export function Header() {
               <DownloadButton />
               <SparkleAnimation isHovering={isDownloadAppHovered} />
             </div>
+            <FreighterConnectButton />
+            <button
+              type="button"
+              onClick={handleFaucet}
+              disabled={isFaucetLoading || (!isMainnetNetwork && !publicKey)}
+              title={
+                isMainnetNetwork
+                  ? isSpanish
+                    ? "Abrir MoneyGram ramps (onramp oficial del ecosistema Stellar)."
+                    : "Open MoneyGram ramps (official Stellar ecosystem onramp)."
+                  : isSpanish
+                    ? "Cargar fondos de prueba desde faucet."
+                    : "Load test funds from faucet."
+              }
+              className="auction-faucet-button inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-lg hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className={isFaucetLoading ? "animate-pulse" : ""}>💸</span>
+            </button>
           </div>
 
           <button
@@ -186,6 +230,23 @@ export function Header() {
               </div>
               <div className="flex flex-col gap-2 pt-4">
                 <DownloadButton />
+                <FreighterConnectButton />
+                <button
+                  type="button"
+                  onClick={handleFaucet}
+                  disabled={isFaucetLoading || (!isMainnetNetwork && !publicKey)}
+                  className="auction-faucet-button inline-flex h-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className={isFaucetLoading ? "animate-pulse" : ""}>
+                    {isMainnetNetwork
+                      ? isSpanish
+                        ? "Rampa XLM"
+                        : "XLM Ramp"
+                      : isSpanish
+                        ? "Faucet"
+                        : "Faucet"}
+                  </span>
+                </button>
               </div>
             </nav>
           </div>

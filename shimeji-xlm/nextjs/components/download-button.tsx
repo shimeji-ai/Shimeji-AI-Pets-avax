@@ -40,7 +40,7 @@ const StyledWrapper = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 13rem;
+    width: 9.75rem;
     overflow: hidden;
     height: 3rem;
     background-size: 300% 300%;
@@ -63,7 +63,7 @@ const StyledWrapper = styled.div`
 
   @media (max-width: 640px) {
     .btn {
-      width: 100%;
+      width: 75%;
       margin: 0 auto;
     }
   }

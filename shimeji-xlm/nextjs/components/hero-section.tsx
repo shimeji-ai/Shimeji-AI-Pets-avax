@@ -17,17 +17,17 @@ export function HeroSection() {
   return (
     <section className="relative neural-hero min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden pt-24">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="relative flex flex-col items-center text-center lg:flex-row lg:justify-center lg:items-start w-full">
+        <div className="relative flex w-full flex-col items-center text-center gap-8 lg:flex-row lg:items-center lg:justify-center lg:gap-12">
           {/* Left content (h1, info cards, CTA) */}
-          <div className="flex flex-col items-center text-center lg:items-start lg:text-left lg:mr-10">
+          <div className="flex max-w-3xl flex-col items-center text-center">
             {/* Large background typography */}
-            <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance lg:text-left">
+            <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance">
               {isSpanish ? "Sistema de Mascotas IA" : "AI pets system"}
             </h1>
 
             {/* Info cards */}
-            <div className="flex flex-col sm:flex-row items-start justify-between w-full max-w-4xl mt-8 gap-8">
-              <div className="max-w-sm text-left sm:text-left">
+            <div className="mt-8 flex w-full justify-center">
+              <div className="max-w-xl text-center">
                 <p className="text-lg leading-relaxed text-muted-foreground">
                   {isSpanish ? (
                     <>
@@ -52,7 +52,7 @@ export function HeroSection() {
             </div>
 
             {/* CTA */}
-            <div className="mt-12 flex flex-row gap-3">
+            <div className="mt-12 flex flex-row flex-wrap justify-center gap-3">
               <div
                 className="relative"
                 onMouseEnter={() => setIsHowItWorksHovered(true)}
@@ -89,10 +89,10 @@ export function HeroSection() {
           </div>
 
           {/* Right content (ShimejiCharacter) */}
-          <div className="relative mt-8 lg:mt-0">
+          <div className="relative">
             <div className="relative">
               <div className="absolute inset-x-0 -bottom-6 mx-auto h-16 w-52 rounded-2xl neural-outline bg-white/5 blur-[2px]" />
-              <ShimejiCharacter />
+              <ShimejiCharacter mirror />
             </div>
           </div>
         </div>

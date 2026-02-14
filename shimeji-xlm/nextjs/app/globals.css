@@ -403,12 +403,17 @@ body[data-theme="kawaii"] .header-auction-link:hover {
   box-shadow: 0 8px 18px rgba(255, 187, 0, 0.28);
 }
 
-.language-switcher-option {
-  min-width: 36px;
+.language-switcher-shell {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.06);
 }
 
-.language-switcher-option.is-active {
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+.language-switcher-toggle {
+  color: var(--foreground);
+}
+
+.language-switcher-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 body[data-theme="pink"] .currency-toggle-shell {
@@ -455,21 +460,13 @@ body[data-theme="kawaii"] .language-switcher-shell {
     0 8px 18px rgba(42, 31, 78, 0.2);
 }
 
-body[data-theme="kawaii"] .language-switcher-option {
+body[data-theme="kawaii"] .language-switcher-toggle {
   color: #3f3167 !important;
 }
 
-body[data-theme="kawaii"] .language-switcher-option:hover:not(.is-active) {
+body[data-theme="kawaii"] .language-switcher-toggle:hover {
   background: rgba(147, 231, 255, 0.45) !important;
   color: #2a1f4e !important;
-}
-
-body[data-theme="kawaii"] .language-switcher-option.is-active {
-  color: #08293f !important;
-  background: linear-gradient(135deg, #93e7ff, #51cbff) !important;
-  box-shadow:
-    0 8px 18px rgba(65, 185, 255, 0.34),
-    0 0 0 1px rgba(147, 231, 255, 0.45);
 }
 
 body[data-theme="kawaii"] .auction-faucet-button {

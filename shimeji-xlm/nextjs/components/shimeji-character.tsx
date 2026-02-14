@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "./language-provider";
 
-export function ShimejiCharacter() {
+type ShimejiCharacterProps = {
+  mirror?: boolean;
+};
+
+export function ShimejiCharacter({ mirror = false }: ShimejiCharacterProps) {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isJumping, setIsJumping] = useState(false);
   const { isSpanish } = useLanguage();
@@ -26,9 +30,13 @@ export function ShimejiCharacter() {
     <div
       className="relative transition-all duration-500 ease-out"
       style={{
-        transform: `translate(${position.x}px, ${position.y}px) ${
-          isJumping ? "translateY(-30px)" : ""
-        }`,
+        transform: [
+          `translate(${position.x}px, ${position.y}px)`,
+          isJumping ? "translateY(-30px)" : "",
+          mirror ? "scaleX(-1)" : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
       }}
     >
       <div className="relative">
