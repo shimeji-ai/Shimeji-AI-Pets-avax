@@ -268,14 +268,16 @@ select_network() {
 select_credential_mode() {
   local idx
   idx="$(arrow_menu "Select deploy credential mode" \
-    "Use .env credentials or existing alias (recommended)" \
+    "Create or choose wallet inside deploy wizard (recommended)" \
+    "Use .env credentials or existing alias automatically" \
     "Type seed phrase in deploy tab/terminal" \
     "Type secret key in deploy tab/terminal" \
     "Cancel")"
   case "$idx" in
-    0) echo "env-or-alias" ;;
-    1) echo "prompt-seed" ;;
-    2) echo "prompt-secret" ;;
+    0) echo "wallet-wizard" ;;
+    1) echo "env-or-alias" ;;
+    2) echo "prompt-seed" ;;
+    3) echo "prompt-secret" ;;
     *) echo "cancel" ;;
   esac
 }
@@ -291,6 +293,9 @@ compose_deploy_command() {
   fi
 
   case "$cred_mode" in
+    wallet-wizard)
+      deploy_cmd="${wait_local}pnpm run deploy:${network}"
+      ;;
     env-or-alias)
       deploy_cmd="${wait_local}pnpm run deploy:${network}"
       ;;

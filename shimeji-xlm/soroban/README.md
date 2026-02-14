@@ -75,13 +75,13 @@ What this does:
 - On `local`, funds the account using local friendbot (requires local chain running).
 - On `testnet`, auto-funds the deployer account.
 - On `mainnet`, shows the address plus QR (if `qrencode` is installed), then waits for funding.
-- On first successful identity setup, writes `secret.txt` with secret key + seed phrase (`chmod 600`).
+- On first successful identity setup, writes `../secret.txt` (`shimeji-xlm/secret.txt`) with secret key + seed phrase (`chmod 600`).
 - Auto-updates `nextjs/.env.local` only when deploying to `local`.
 - Prints Vercel env values for all networks.
 
 Security note:
 
-- `secret.txt` is ignored by git via `shimeji-xlm/soroban/.gitignore`.
+- `secret.txt` is ignored by git via `shimeji-xlm/.gitignore`.
 - You can disable this auto-backup file with `DISABLE_SECRET_BACKUP=1`.
 
 Recommended flow:

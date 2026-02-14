@@ -58,12 +58,13 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
+PROJECT_ROOT="$(cd "$ROOT_DIR/.." && pwd)"
 
 if [ -z "$SECRET_BACKUP_PATH" ]; then
-  SECRET_BACKUP_PATH="$ROOT_DIR/secret.txt"
+  SECRET_BACKUP_PATH="$PROJECT_ROOT/secret.txt"
 fi
 if [ -z "$FRONTEND_ENV_FILE" ]; then
-  FRONTEND_ENV_FILE="$ROOT_DIR/../nextjs/.env.local"
+  FRONTEND_ENV_FILE="$PROJECT_ROOT/nextjs/.env.local"
 fi
 
 SECRET_BACKUP_STATUS="not-written"
@@ -258,6 +259,48 @@ choose_identity_setup_interactive() {
   esac
 }
 
+choose_existing_identity_interactive() {
+  local choice
+  echo "Identity alias '$IDENTITY' already exists."
+  echo "Choose how to continue:"
+  echo "  1) Create new wallet and replace alias '$IDENTITY' (recommended)"
+  echo "  2) Use existing alias '$IDENTITY'"
+  echo "  3) Import 12/24-word seed phrase (replace alias)"
+  echo "  4) Import secret key (S...) (replace alias)"
+  echo "  5) Abort"
+  read -r -p "Choice [1]: " choice
+
+  case "${choice:-1}" in
+    1)
+      echo "==> Generating new wallet for alias '$IDENTITY'..."
+      generate_identity
+      ;;
+    2)
+      echo "==> Using existing alias '$IDENTITY'."
+      ;;
+    3)
+      read -r -p "Paste 12/24-word seed phrase: " MNEMONIC
+      [ -z "$MNEMONIC" ] && die "Seed phrase cannot be empty"
+      echo "==> Importing mnemonic into alias '$IDENTITY'..."
+      import_mnemonic "$MNEMONIC"
+      ;;
+    4)
+      local secret_input
+      read -r -s -p "Paste secret key (S...): " secret_input
+      echo
+      [ -z "$secret_input" ] && die "Secret key cannot be empty"
+      echo "==> Importing secret key into alias '$IDENTITY'..."
+      import_secret "$secret_input"
+      ;;
+    5)
+      die "Deployment cancelled by user"
+      ;;
+    *)
+      die "Invalid choice"
+      ;;
+  esac
+}
+
 setup_identity() {
   if [ "$INTERACTIVE" -eq 1 ] && [ -z "${STELLAR_IDENTITY_ALIAS:-}" ]; then
     IDENTITY="$(prompt_default "Identity alias" "$IDENTITY")"
@@ -298,11 +341,7 @@ setup_identity() {
         fi
       fi
     elif [ "$INTERACTIVE" -eq 1 ]; then
-      if confirm "Use existing alias '$IDENTITY'?" "y"; then
-        echo "==> Using existing alias '$IDENTITY'."
-      else
-        choose_identity_setup_interactive
-      fi
+      choose_existing_identity_interactive
     else
       echo "==> Using existing alias '$IDENTITY'."
     fi

@@ -26,6 +26,8 @@ What this single command does:
   - full experience in separate tabs (chain + frontend + deploy)
   - frontend actions for local dev, Vercel deploy, and GitHub push
 - If Vercel/GitHub credentials are needed, launcher guides browser login flow.
+- Deploy wizard can create a new wallet as first option and save backup to `shimeji-xlm/secret.txt` (gitignored).
+- Local/testnet wallets are auto-funded; mainnet shows wallet address + QR and waits for funding.
 
 After deploy finishes, it prints the commands to create the first auction.
 
