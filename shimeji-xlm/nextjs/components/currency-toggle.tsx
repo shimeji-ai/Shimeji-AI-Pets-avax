@@ -14,7 +14,7 @@ export function CurrencyToggle({ value, onChange }: CurrencyToggleProps) {
           onClick={() => onChange(currency)}
           className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
             value === currency
-              ? "bg-[var(--brand-accent)] text-white"
+              ? "bg-[var(--brand-accent)] text-[#fff8ff]"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
