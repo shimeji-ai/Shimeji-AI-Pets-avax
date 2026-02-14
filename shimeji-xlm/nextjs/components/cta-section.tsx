@@ -36,7 +36,7 @@ export function CtaSection() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />
-              <Link href="/factory">
+              <Link href="/auction">
                 <Button
                   variant="outline"
                   className="gap-2 rounded-xl neural-button-outline hover:cursor-pointer"

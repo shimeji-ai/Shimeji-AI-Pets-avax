@@ -22,16 +22,31 @@ export function HeroSection() {
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left lg:mr-10">
             {/* Large background typography */}
             <h1 className="text-[11vw] sm:text-[9vw] lg:text-[6.5vw] font-semibold leading-none tracking-tight text-balance lg:text-left">
-              Chatty NFT Companions
+              {isSpanish ? "Sistema de Mascotas IA" : "AI pets system"}
             </h1>
 
             {/* Info cards */}
             <div className="flex flex-col sm:flex-row items-start justify-between w-full max-w-4xl mt-8 gap-8">
               <div className="max-w-sm text-left sm:text-left">
                 <p className="text-lg leading-relaxed text-muted-foreground">
-                  {isSpanish
-                    ? "Animaciones NFT para tu navegador: mascotas decorativas que chatean con IA o despiertan como agentes OpenClaw para hacer tareas online y onchain."
-                    : "Decorative NFT pets for your browser that chat through Ollama/OpenRouter or awaken as OpenClaw agents to handle online and onchain errands."}
+                  {isSpanish ? (
+                    <>
+                      Mascotas animadas para tu navegador: chatean con IA con OpenRouter u Ollama, despiertan como
+                      agentes OpenClaw para hacer tareas online y onchain, y su apariencia es personalizable con NFTs
+                      únicos.{" "}
+                      <Link href="/download" prefetch={false} className="underline font-medium">
+                        Pruébalas gratis
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      Animated pets for your browser that chat through Ollama/OpenRouter or awaken as OpenClaw
+                      agents to handle online and onchain errands. Their appearance is customizable with unique NFTs.{" "}
+                      <Link href="/download" prefetch={false} className="underline font-medium">
+                        Try them for free
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -59,7 +74,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsViewCollectionHovered(true)}
                 onMouseLeave={() => setIsViewCollectionHovered(false)}
               >
-                <Link href="/factory">
+                <Link href="/auction">
                   <Button
                     size="lg"
                     className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
