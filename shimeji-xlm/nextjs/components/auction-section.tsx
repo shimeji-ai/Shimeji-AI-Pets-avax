@@ -665,9 +665,6 @@ export function AuctionSection() {
           <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
         </span>
       </div>
-      <p className="text-muted-foreground text-center max-w-sm">
-        {t("Connect your wallet to participate in the auction.", "Conecta tu billetera para participar en la subasta.")}
-      </p>
       {!isAvailable ? (
         <p className="text-xs text-muted-foreground text-center max-w-md">
           {isSpanish ? (
