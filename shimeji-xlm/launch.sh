@@ -17,6 +17,14 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+drain_tty_input() {
+  local _
+  if [ "$INTERACTIVE" -ne 1 ] || [ ! -r /dev/tty ]; then
+    return
+  fi
+  while IFS= read -rsn1 -t 0.01 _ < /dev/tty; do :; done
+}
+
 ui_printf() {
   printf "$@" >"$UI_OUT"
 }
@@ -195,6 +203,7 @@ arrow_menu() {
     echo "0"
     return 0
   fi
+  drain_tty_input
 
   while true; do
     clear >"$UI_OUT"
@@ -373,17 +382,25 @@ run_in_current_terminal() {
 
 print_manual_commands() {
   local deploy_cmd="$1"
-  echo ""
-  echo "Could not open tabs automatically in this terminal environment."
-  echo "Run these in 3 separate tabs:"
-  echo "  Tab 1: cd \"$ROOT_DIR\" && pnpm chain"
-  echo "  Tab 2: cd \"$ROOT_DIR\" && pnpm start"
-  echo "  Tab 3: cd \"$ROOT_DIR\" && $deploy_cmd"
-  echo ""
+  local network="$2"
+
+  ui_echo ""
+  ui_echo "Could not open tabs automatically in this terminal environment."
+  if [ "$network" = "local" ]; then
+    ui_echo "Run these in 3 separate tabs:"
+    ui_echo "  Tab 1: cd \"$ROOT_DIR\" && pnpm chain"
+    ui_echo "  Tab 2: cd \"$ROOT_DIR\" && pnpm start"
+    ui_echo "  Tab 3: cd \"$ROOT_DIR\" && $deploy_cmd"
+  else
+    ui_echo "Run these in 2 separate tabs:"
+    ui_echo "  Tab 1: cd \"$ROOT_DIR\" && pnpm start"
+    ui_echo "  Tab 2: cd \"$ROOT_DIR\" && $deploy_cmd"
+  fi
+  ui_echo ""
 }
 
 launch_full_experience() {
-  local network cred_mode deploy_cmd
+  local network cred_mode deploy_cmd deploy_rc
   local launched_chain=0 launched_front=0 launched_deploy=0
 
   network="$(select_network)"
@@ -394,8 +411,13 @@ launch_full_experience() {
 
   deploy_cmd="$(compose_deploy_command "$network" "$cred_mode")"
 
-  ui_echo "==> Launching chain tab..."
-  if open_in_new_terminal "chain" "pnpm chain"; then
+  if [ "$network" = "local" ]; then
+    ui_echo "==> Launching chain tab..."
+    if open_in_new_terminal "chain" "pnpm chain"; then
+      launched_chain=1
+    fi
+  else
+    ui_echo "==> Chain tab not required for $network."
     launched_chain=1
   fi
 
@@ -404,9 +426,22 @@ launch_full_experience() {
     launched_front=1
   fi
 
-  ui_echo "==> Launching deploy tab..."
-  if open_in_new_terminal "deploy" "$deploy_cmd"; then
-    launched_deploy=1
+  if [ "$cred_mode" = "wallet-wizard" ]; then
+    ui_echo "==> Running deploy wizard in this terminal (wallet onboarding)..."
+    set +e
+    run_in_current_terminal "$deploy_cmd"
+    deploy_rc=$?
+    set -e
+    if [ "$deploy_rc" -eq 0 ]; then
+      launched_deploy=1
+    else
+      ui_echo "Deploy wizard exited with code $deploy_rc."
+    fi
+  else
+    ui_echo "==> Launching deploy tab..."
+    if open_in_new_terminal "deploy" "$deploy_cmd"; then
+      launched_deploy=1
+    fi
   fi
 
   if [ "$launched_chain" -eq 1 ] && [ "$launched_front" -eq 1 ] && [ "$launched_deploy" -eq 1 ]; then
@@ -424,7 +459,7 @@ launch_full_experience() {
     return 0
   fi
 
-  print_manual_commands "$deploy_cmd"
+  print_manual_commands "$deploy_cmd" "$network"
 
   if [ "$INTERACTIVE" -eq 1 ]; then
     local idx
@@ -608,7 +643,10 @@ main() {
 
   while true; do
     case "$(main_menu)" in
-      0) launch_full_experience ;;
+      0)
+        launch_full_experience
+        break
+        ;;
       1) run_chain_only ;;
       2) run_frontend_only ;;
       3) run_deploy_only ;;
@@ -619,6 +657,7 @@ main() {
     if [ "$INTERACTIVE" -ne 1 ]; then
       break
     fi
+    drain_tty_input
   done
 }
 
