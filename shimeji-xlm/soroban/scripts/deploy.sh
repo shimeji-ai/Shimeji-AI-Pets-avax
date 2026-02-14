@@ -616,7 +616,15 @@ setup_local_usdc_issuer() {
   if [ -n "$LOCAL_USDC_ISSUER" ]; then
     USDC_ISSUER="$LOCAL_USDC_ISSUER"
     if [ -z "$LOCAL_USDC_ISSUER_SECRET" ] && stellar keys address "$LOCAL_USDC_ISSUER_ALIAS" >/dev/null 2>&1; then
-      LOCAL_USDC_ISSUER_SECRET="$(get_alias_secret_key "$LOCAL_USDC_ISSUER_ALIAS")"
+      local alias_address
+      alias_address="$(stellar keys address "$LOCAL_USDC_ISSUER_ALIAS")"
+      if [ "$alias_address" = "$LOCAL_USDC_ISSUER" ]; then
+        LOCAL_USDC_ISSUER_SECRET="$(get_alias_secret_key "$LOCAL_USDC_ISSUER_ALIAS")"
+      fi
+    fi
+    if [ -z "$LOCAL_USDC_ISSUER_SECRET" ]; then
+      die "LOCAL_USDC_ISSUER is set to '$LOCAL_USDC_ISSUER' but LOCAL_USDC_ISSUER_SECRET is missing.
+Provide LOCAL_USDC_ISSUER_SECRET (for that issuer), or unset LOCAL_USDC_ISSUER to auto-create a local issuer during deploy."
     fi
     echo "==> Using provided local USDC issuer: $USDC_ISSUER"
     return
@@ -934,7 +942,9 @@ print_success_summary() {
     echo "1) Local autoconfig:"
     echo "   - $FRONTEND_ENV_FILE was updated automatically ($FRONTEND_ENV_STATUS)."
     echo "   - Keys written: NEXT_PUBLIC_NFT_CONTRACT_ID, NEXT_PUBLIC_AUCTION_CONTRACT_ID,"
-    echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK."
+    echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK,"
+    echo "     NEXT_PUBLIC_LOCAL_USDC_ISSUER, NEXT_PUBLIC_USDC_ISSUER, LOCAL_USDC_ISSUER_SECRET, LOCAL_USDC_ASSET_CODE."
+    echo "   - Local USDC issuer: $USDC_ISSUER"
   else
     echo "1) Local .env.local autoconfig is intentionally skipped for non-local networks."
     echo "   - Keep local values for local development."

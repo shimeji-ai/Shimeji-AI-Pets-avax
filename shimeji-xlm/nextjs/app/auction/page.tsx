@@ -47,6 +47,7 @@ export default function FactoryPage() {
   const [burnerSecret, setBurnerSecret] = useState<string | null>(null);
   const [burnerPublicKey, setBurnerPublicKey] = useState<string | null>(null);
   const [balances, setBalances] = useState<WalletBalances>({ xlm: "0", usdc: "0" });
+  const [balancesError, setBalancesError] = useState("");
   const [balancesLoading, setBalancesLoading] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const { isSpanish } = useLanguage();
@@ -114,19 +115,31 @@ export default function FactoryPage() {
     return null;
   }, [burnerPublicKey, isLocalNetwork, publicKey, walletMode]);
 
+  const hasFreighterConnection = Boolean(isConnected && publicKey);
   const hasConnectedWallet = Boolean(activePublicKey);
 
   const loadBalances = useCallback(async (address: string | null) => {
     if (!address) {
       setBalances({ xlm: "0", usdc: "0" });
+      setBalancesError("");
       return;
     }
 
     setBalancesLoading(true);
+    setBalancesError("");
     try {
       const baseUrl = HORIZON_URL.replace(/\/$/, "");
       const response = await fetch(`${baseUrl}/accounts/${address}`);
       if (!response.ok) {
+        if (response.status === 404) {
+          setBalances({ xlm: "0", usdc: "0" });
+          setBalancesError(
+            isSpanish
+              ? "La cuenta no existe en esta red todavía. Usa Faucet para fondearla."
+              : "This account does not exist on this network yet. Use Faucet to fund it."
+          );
+          return;
+        }
         throw new Error("Could not load account balances.");
       }
       const data = (await response.json()) as {
@@ -146,12 +159,18 @@ export default function FactoryPage() {
         )?.balance ?? "0";
 
       setBalances({ xlm: xlmBalance, usdc: usdcBalance });
+      setBalancesError("");
     } catch {
       setBalances({ xlm: "0", usdc: "0" });
+      setBalancesError(
+        isSpanish
+          ? "No se pudieron cargar los balances para esta red."
+          : "Could not load balances for this network."
+      );
     } finally {
       setBalancesLoading(false);
     }
-  }, []);
+  }, [isSpanish]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -368,10 +387,14 @@ export default function FactoryPage() {
       className="h-9 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
       onClick={() => {
         if (walletMode === "burner") {
-          setWalletMode("none");
+          setWalletMode("freighter");
           return;
         }
-        setWalletMode("burner");
+        if (walletMode === "freighter") {
+          setWalletMode(burnerPublicKey ? "burner" : "none");
+          return;
+        }
+        setWalletMode(burnerPublicKey ? "burner" : "freighter");
       }}
     >
       {headerWalletLabel}
@@ -529,6 +552,51 @@ export default function FactoryPage() {
                         : "."}
                     </p>
 
+                    {isLocalNetwork ? (
+                      <div className="mb-4">
+                        <label className="block text-xs text-muted-foreground mb-2">
+                          {t("Wallet mode", "Modo de wallet")}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={walletMode === "burner" ? "default" : "outline"}
+                            className={
+                              walletMode === "burner"
+                                ? "neural-button h-8 px-3"
+                                : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                            }
+                            onClick={() => setWalletMode("burner")}
+                            disabled={!burnerPublicKey}
+                          >
+                            {t("Burner", "Burner")}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={walletMode === "freighter" ? "default" : "outline"}
+                            className={
+                              walletMode === "freighter"
+                                ? "neural-button h-8 px-3"
+                                : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                            }
+                            onClick={() => setWalletMode("freighter")}
+                          >
+                            {t("Freighter", "Freighter")}
+                          </Button>
+                        </div>
+                        {walletMode === "freighter" && !hasFreighterConnection ? (
+                          <p className="text-[11px] text-muted-foreground mt-2">
+                            {t(
+                              "Connect Freighter to load balances and bid.",
+                              "Conecta Freighter para cargar balances y ofertar."
+                            )}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     <div className="mb-4">
                       <label className="block text-xs text-muted-foreground mb-2">
                         {t("Currency", "Moneda")}
@@ -574,6 +642,25 @@ export default function FactoryPage() {
                         <span className="font-semibold">
                           {balancesLoading ? t("Loading...", "Cargando...") : `${formatBalance(balances.usdc)} USDC`}
                         </span>
+                      </div>
+                      {balancesError ? (
+                        <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
+                      ) : null}
+                      <div className="mt-3">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={handleFaucet}
+                          disabled={isFaucetLoading || (!isMainnetNetwork && !activePublicKey)}
+                          className="h-8 w-full border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+                        >
+                          {isFaucetLoading
+                            ? t("Loading funds...", "Cargando fondos...")
+                            : isMainnetNetwork
+                              ? t("Open XLM Onramp", "Abrir Onramp XLM")
+                              : t("Faucet (XLM/USDC)", "Faucet (XLM/USDC)")}
+                        </Button>
                       </div>
                     </div>
                   </div>

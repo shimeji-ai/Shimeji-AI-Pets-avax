@@ -15,6 +15,14 @@ Root-level instructions for coding agents working in this monorepo.
 
 For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` first.
 
+## shimeji-xlm Framework Note
+
+- Treat `shimeji-xlm` as a launcher-first workflow:
+  - `./shimeji-xlm/launch.sh` is the canonical onboarding entrypoint.
+  - `shimeji-xlm/scripts/chain.sh`, `shimeji-xlm/scripts/deploy.sh`, and `shimeji-xlm/scripts/start.sh` are the core local/testnet/mainnet flow scripts.
+  - `shimeji-xlm/scripts/vercel-env-sync.sh` is the canonical Vercel env sync path after non-local deploys.
+- When changing `shimeji-xlm` onboarding/deploy flow, keep script behavior and docs aligned in the same task (`shimeji-xlm/README.md`, `shimeji-xlm/nextjs/README.md`, `shimeji-xlm/soroban/README.md`, `shimeji-xlm/AGENTS.md` as needed).
+
 ## Token-Efficient Workflow
 
 1. Use targeted search first: `rg <pattern> <path>`.

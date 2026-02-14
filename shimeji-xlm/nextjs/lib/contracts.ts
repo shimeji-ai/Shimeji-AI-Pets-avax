@@ -23,8 +23,23 @@ function inferNetwork(passphrase: string): "local" | "testnet" | "mainnet" | "cu
   return "custom";
 }
 
-export const STELLAR_NETWORK =
-  (process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? inferNetwork(NETWORK_PASSPHRASE)).toLowerCase();
+function normalizeNetwork(value: string): "local" | "testnet" | "mainnet" | "custom" {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "local" || normalized === "standalone" || normalized === "localhost" || normalized === "dev" || normalized === "development") {
+    return "local";
+  }
+  if (normalized === "testnet" || normalized === "test" || normalized === "futurenet") {
+    return "testnet";
+  }
+  if (normalized === "mainnet" || normalized === "main" || normalized === "public") {
+    return "mainnet";
+  }
+  return "custom";
+}
+
+export const STELLAR_NETWORK = normalizeNetwork(
+  process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? inferNetwork(NETWORK_PASSPHRASE)
+);
 
 export const STELLAR_NETWORK_LABEL =
   STELLAR_NETWORK === "local"

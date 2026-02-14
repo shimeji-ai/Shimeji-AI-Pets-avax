@@ -22,14 +22,28 @@ const DEFAULT_TESTNET_FRIENDBOT = "https://friendbot.stellar.org";
 const LOCAL_DEFAULT_HORIZON = "http://localhost:8000";
 const LOCAL_DEFAULT_FRIENDBOT = "http://localhost:8000/friendbot";
 
+function normalizeNetwork(value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "local" || normalized === "standalone" || normalized === "localhost" || normalized === "dev" || normalized === "development") {
+    return "local";
+  }
+  if (normalized === "testnet" || normalized === "test" || normalized === "futurenet") {
+    return "testnet";
+  }
+  if (normalized === "mainnet" || normalized === "main" || normalized === "public") {
+    return "mainnet";
+  }
+  return normalized;
+}
+
 function isLocalNetwork() {
-  const configuredNetwork = (process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "").toLowerCase();
+  const configuredNetwork = normalizeNetwork(process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "");
   const passphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? TESTNET_PASSPHRASE;
   return configuredNetwork === "local" || passphrase === LOCAL_PASSPHRASE;
 }
 
 function isTestnetNetwork() {
-  const configuredNetwork = (process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "").toLowerCase();
+  const configuredNetwork = normalizeNetwork(process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? "");
   const passphrase = process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ?? TESTNET_PASSPHRASE;
   return configuredNetwork === "testnet" || passphrase === TESTNET_PASSPHRASE;
 }
