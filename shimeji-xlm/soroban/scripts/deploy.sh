@@ -43,14 +43,6 @@ if [ $# -gt 0 ]; then
   exit 1
 fi
 
-# Tolerate wrapped/copy-pasted values from terminals or env files.
-if [ -n "$SECRET" ]; then
-  SECRET="$(printf "%s" "$SECRET" | tr -d '[:space:]')"
-fi
-if [ -n "$MNEMONIC" ]; then
-  MNEMONIC="$(printf "%s" "$MNEMONIC" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
-fi
-
 INTERACTIVE=0
 if [ -t 0 ] && [ -t 1 ]; then
   INTERACTIVE=1
@@ -59,6 +51,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
 PROJECT_ROOT="$(cd "$ROOT_DIR/.." && pwd)"
+ENV_CREDENTIALS_FILE="${ENV_CREDENTIALS_FILE:-$PROJECT_ROOT/.env}"
 
 if [ -z "$SECRET_BACKUP_PATH" ]; then
   SECRET_BACKUP_PATH="$PROJECT_ROOT/secret.txt"
@@ -77,6 +70,153 @@ need_cmd() {
 die() {
   echo "Error: $*" >&2
   exit 1
+}
+
+normalize_secret() {
+  local raw="${1:-}"
+  printf "%s" "$raw" | tr -d '[:space:]'
+}
+
+normalize_mnemonic() {
+  local raw="${1:-}"
+  printf "%s" "$raw" | tr '\r\n\t' '   ' | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//'
+}
+
+# Tolerate wrapped/copy-pasted values from terminals or env files.
+SECRET="$(normalize_secret "$SECRET")"
+MNEMONIC="$(normalize_mnemonic "$MNEMONIC")"
+
+read_masked_line() {
+  local prompt_text="$1"
+  local value=""
+  local ch=""
+
+  if [ "$INTERACTIVE" -ne 1 ]; then
+    printf ""
+    return 0
+  fi
+
+  printf "%s" "$prompt_text"
+  while IFS= read -rsn1 ch < /dev/tty; do
+    case "$ch" in
+      $'\n'|$'\r')
+        printf "\n"
+        break
+        ;;
+      $'\177'|$'\b')
+        if [ -n "$value" ]; then
+          value="${value%?}"
+          printf "\b \b"
+        fi
+        ;;
+      *)
+        value+="$ch"
+        printf "*"
+        ;;
+    esac
+  done
+  printf "%s" "$value"
+}
+
+load_credentials_from_env_file() {
+  local loaded_secret loaded_mnemonic
+
+  if [ ! -f "$ENV_CREDENTIALS_FILE" ]; then
+    return 1
+  fi
+
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_CREDENTIALS_FILE"
+  set +a
+
+  loaded_secret="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
+  loaded_mnemonic="${STELLAR_MNEMONIC:-${STELLAR_SEED_PHRASE:-}}"
+
+  loaded_secret="$(normalize_secret "$loaded_secret")"
+  loaded_mnemonic="$(normalize_mnemonic "$loaded_mnemonic")"
+
+  if [ -n "$loaded_secret" ]; then
+    SECRET="$loaded_secret"
+    MNEMONIC=""
+    return 0
+  fi
+
+  if [ -n "$loaded_mnemonic" ]; then
+    MNEMONIC="$loaded_mnemonic"
+    SECRET=""
+    return 0
+  fi
+
+  return 1
+}
+
+import_credentials_interactive() {
+  local choice
+  local secret_input mnemonic_input answer
+
+  while true; do
+    echo "Choose credential input method:"
+    echo "  1) Load from .env file (and wait until it is filled)"
+    echo "  2) Paste secret key now (masked with *)"
+    echo "  3) Paste seed phrase now (masked with *)"
+    echo "  4) Back"
+    echo "Examples:"
+    echo "  Secret key: SHJKFDSFKL..."
+    echo "  Seed phrase: cannon bridge local ..."
+    read -r -p "Choice [1]: " choice
+
+    case "${choice:-1}" in
+      1)
+        echo "Open and edit: $ENV_CREDENTIALS_FILE"
+        echo "Add one of:"
+        echo "  STELLAR_SECRET_SEED=\"SHJKFDSFKL...\""
+        echo "  STELLAR_MNEMONIC=\"cannon bridge local ...\""
+        while true; do
+          if load_credentials_from_env_file; then
+            if [ -n "$SECRET" ]; then
+              echo "==> Loaded secret key from .env."
+              import_secret "$SECRET"
+            else
+              echo "==> Loaded seed phrase from .env."
+              import_mnemonic "$MNEMONIC"
+            fi
+            return 0
+          fi
+          read -r -p "Credentials not found yet. Press [Enter] to re-check .env or type 'cancel': " answer
+          if [ "$answer" = "cancel" ]; then
+            break
+          fi
+        done
+        ;;
+      2)
+        secret_input="$(read_masked_line "Paste secret key (S...) > ")"
+        secret_input="$(normalize_secret "$secret_input")"
+        [ -z "$secret_input" ] && { echo "Secret key cannot be empty."; continue; }
+        SECRET="$secret_input"
+        MNEMONIC=""
+        echo "==> Importing secret key into alias '$IDENTITY'..."
+        import_secret "$SECRET"
+        return 0
+        ;;
+      3)
+        mnemonic_input="$(read_masked_line "Paste 12/24-word seed phrase > ")"
+        mnemonic_input="$(normalize_mnemonic "$mnemonic_input")"
+        [ -z "$mnemonic_input" ] && { echo "Seed phrase cannot be empty."; continue; }
+        MNEMONIC="$mnemonic_input"
+        SECRET=""
+        echo "==> Importing mnemonic into alias '$IDENTITY'..."
+        import_mnemonic "$MNEMONIC"
+        return 0
+        ;;
+      4)
+        return 1
+        ;;
+      *)
+        echo "Invalid choice."
+        ;;
+    esac
+  done
 }
 
 prompt_default() {
@@ -226,9 +366,8 @@ choose_identity_setup_interactive() {
   echo "Identity alias '$IDENTITY' is not ready yet."
   echo "Choose how to continue:"
   echo "  1) Create new wallet (recommended)"
-  echo "  2) Import 12/24-word seed phrase"
-  echo "  3) Import secret key (S...)"
-  echo "  4) Abort"
+  echo "  2) Use existing wallet (import credentials)"
+  echo "  3) Abort"
   read -r -p "Choice [1]: " choice
 
   case "${choice:-1}" in
@@ -237,20 +376,9 @@ choose_identity_setup_interactive() {
       generate_identity
       ;;
     2)
-      read -r -p "Paste 12/24-word seed phrase: " MNEMONIC
-      [ -z "$MNEMONIC" ] && die "Seed phrase cannot be empty"
-      echo "==> Importing mnemonic into alias '$IDENTITY'..."
-      import_mnemonic "$MNEMONIC"
+      import_credentials_interactive || choose_identity_setup_interactive
       ;;
     3)
-      local secret_input
-      read -r -s -p "Paste secret key (S...): " secret_input
-      echo
-      [ -z "$secret_input" ] && die "Secret key cannot be empty"
-      echo "==> Importing secret key into alias '$IDENTITY'..."
-      import_secret "$secret_input"
-      ;;
-    4)
       die "Deployment cancelled by user"
       ;;
     *)
@@ -265,9 +393,8 @@ choose_existing_identity_interactive() {
   echo "Choose how to continue:"
   echo "  1) Create new wallet and replace alias '$IDENTITY' (recommended)"
   echo "  2) Use existing alias '$IDENTITY'"
-  echo "  3) Import 12/24-word seed phrase (replace alias)"
-  echo "  4) Import secret key (S...) (replace alias)"
-  echo "  5) Abort"
+  echo "  3) Use another existing wallet (import credentials and replace alias)"
+  echo "  4) Abort"
   read -r -p "Choice [1]: " choice
 
   case "${choice:-1}" in
@@ -279,20 +406,9 @@ choose_existing_identity_interactive() {
       echo "==> Using existing alias '$IDENTITY'."
       ;;
     3)
-      read -r -p "Paste 12/24-word seed phrase: " MNEMONIC
-      [ -z "$MNEMONIC" ] && die "Seed phrase cannot be empty"
-      echo "==> Importing mnemonic into alias '$IDENTITY'..."
-      import_mnemonic "$MNEMONIC"
+      import_credentials_interactive || choose_existing_identity_interactive
       ;;
     4)
-      local secret_input
-      read -r -s -p "Paste secret key (S...): " secret_input
-      echo
-      [ -z "$secret_input" ] && die "Secret key cannot be empty"
-      echo "==> Importing secret key into alias '$IDENTITY'..."
-      import_secret "$secret_input"
-      ;;
-    5)
       die "Deployment cancelled by user"
       ;;
     *)

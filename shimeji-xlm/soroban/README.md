@@ -70,8 +70,11 @@ From this folder (`shimeji-xlm/soroban`), you can deploy with either mnemonic wo
 What this does:
 
 - Lets you pick `local`, `testnet` or `mainnet`.
-- Lets you create a new wallet alias if you do not have one.
-- Lets you import a seed phrase or secret key interactively.
+- Lets you create a new wallet or use an existing wallet alias.
+- For existing wallets, asks credential source first:
+  - load from `shimeji-xlm/.env` (waits and re-checks until values exist)
+  - type secret key masked with `*`
+  - type seed phrase masked with `*`
 - On `local`, funds the account using local friendbot (requires local chain running).
 - On `testnet`, auto-funds the deployer account.
 - On `mainnet`, shows the address plus QR (if `qrencode` is installed), then waits for funding.

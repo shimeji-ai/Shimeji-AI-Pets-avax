@@ -22,6 +22,8 @@ That unified launcher can run chain + frontend + deploy flow, and guide deployme
 - testnet
 - mainnet
 
+It is intended as a simple framework to quickly test and get the project online on Stellar ⭐✨🪄.
+
 ## Runtime Apps
 
 - `chrome-extension/`: browser runtime and chat UI.

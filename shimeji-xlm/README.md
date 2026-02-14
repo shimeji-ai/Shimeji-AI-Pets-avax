@@ -10,6 +10,8 @@ From repo root, run one command:
 ./shimeji-xlm/launch.sh
 ```
 
+This script is intentionally a simple framework to test quickly and get Shimeji online on Stellar ⭐✨🪄.
+
 What this single command does:
 
 - Installs `pnpm` automatically if missing (via `corepack` or `npm`).
@@ -28,6 +30,7 @@ What this single command does:
 - If Vercel/GitHub credentials are needed, launcher guides browser login flow.
 - Deploy wizard can create a new wallet as first option and save backup to `shimeji-xlm/secret.txt` (gitignored).
 - Local/testnet wallets are auto-funded; mainnet shows wallet address + QR and waits for funding.
+- Existing wallet onboarding supports `.env` wait/reload flow or masked (`*`) typed secret key/seed phrase input.
 
 After deploy finishes, it prints the commands to create the first auction.
 
