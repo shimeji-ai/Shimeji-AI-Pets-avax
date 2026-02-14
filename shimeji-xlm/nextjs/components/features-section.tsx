@@ -83,22 +83,52 @@ export function FeaturesSection() {
                           ? "Multi shimejis"
                           : feature.title === "Handcrafted Sprites"
                             ? "Sprites hechos a mano"
-                            : "Integración con Stellar"
+                            : "Subastas en Stellar"
                     : feature.title}
                 </h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {isSpanish
-                    ? feature.title === "AI Chat with Personality"
-                      ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
-                      : feature.title === "AI Agent Mode"
-                        ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
-                        : feature.title === "Multi Shimeji"
-                          ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
-                          : feature.title === "Handcrafted Sprites"
-                            ? "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
-                            : "Conecta una billetera Stellar para reservar huevos y manejar pagos en la red Stellar."
-                    : feature.description}
-                </p>
+                {feature.title === "Stellar Wallet Integration" ? (
+                  <div className="space-y-3">
+                    <p className="text-muted-foreground leading-relaxed">
+                      {isSpanish
+                        ? "Los shimejis se subastan onchain en Stellar y los fondos se gestionan con escrow de Trustless Work."
+                        : "Shimejis are auctioned onchain on Stellar, with funds secured through Trustless Work escrow."}
+                    </p>
+                    <a
+                      href="https://stellar.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition hover:bg-white/10"
+                    >
+                      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                        {isSpanish ? "Subasta" : "Auction"}
+                      </span>
+                      <span className="font-semibold text-foreground">Stellar</span>
+                    </a>
+                    <a
+                      href="https://trustlesswork.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-xl border border-white/10 bg-white/5 px-3 py-2 transition hover:bg-white/10"
+                    >
+                      <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
+                        Escrow
+                      </span>
+                      <span className="font-semibold text-foreground">Trustless Work</span>
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {isSpanish
+                      ? feature.title === "AI Chat with Personality"
+                        ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
+                        : feature.title === "AI Agent Mode"
+                          ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
+                          : feature.title === "Multi Shimeji"
+                            ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
+                            : "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
+                      : feature.description}
+                  </p>
+                )}
               </div>
             ))}
           </div>

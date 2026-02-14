@@ -913,31 +913,16 @@ export function AuctionSection() {
                       </div>
 
                       <div className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-4 text-xs text-muted-foreground backdrop-blur-sm">
-                        <p className="mb-2 uppercase tracking-wider">
-                          {t("On-chain verification", "Verificación on-chain")}
-                        </p>
                         {auctionExplorerUrl ? (
-                          <div className="space-y-2">
-                            <a
-                              href={auctionExplorerUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
-                            >
-                              {t("Auction contract on Stellar Expert", "Contrato de subasta en Stellar Expert")}
-                            </a>
-                            <p>
-                              {t("Contract ID", "ID del contrato")}:{" "}
-                              <a
-                                href={auctionExplorerUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-mono break-all underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
-                              >
-                                {AUCTION_CONTRACT_ID}
-                              </a>
-                            </p>
-                          </div>
+                          <a
+                            href={auctionExplorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                          >
+                            <span className="text-muted-foreground">{t("View on Stellar Expert", "Ver en Stellar Expert")}</span>
+                            <span className="font-mono text-foreground">{AUCTION_CONTRACT_ID}</span>
+                          </a>
                         ) : (
                           <p>
                             {t(
