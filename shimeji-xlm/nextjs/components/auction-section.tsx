@@ -566,6 +566,9 @@ export function AuctionSection() {
   const shortAddress = (address: string | null) =>
     address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
 
+  const shortBidderAddress = (address: string) =>
+    address.length <= 8 ? address : `${address.slice(0, 4)}...${address.slice(-4)}`;
+
   const copyBidderAddress = async (address: string) => {
     try {
       await navigator.clipboard.writeText(address);
@@ -868,7 +871,7 @@ export function AuctionSection() {
                                         isTop ? "font-semibold text-foreground" : "text-muted-foreground"
                                       }`}
                                     >
-                                      {offer.bidder}
+                                      {shortBidderAddress(offer.bidder)}
                                     </span>
                                   </span>
                                   {isTop ? (
