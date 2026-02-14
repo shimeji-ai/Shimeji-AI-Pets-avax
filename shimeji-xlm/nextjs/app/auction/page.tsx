@@ -768,6 +768,10 @@ export default function FactoryPage() {
                             ? t("Loading...", "Cargando...")
                             : `${formatBalance(currency === "XLM" ? balances.xlm : balances.usdc)} ${currency}`}
                         </span>
+                        <span className="auction-network-badge ml-2 inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] align-middle">
+                          <span>{t("Network", "Red")}:</span>
+                          <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
+                        </span>
                       </p>
                       {balancesError ? (
                         <p className="mt-2 text-[11px] text-amber-300/90">{balancesError}</p>
@@ -856,76 +860,9 @@ export default function FactoryPage() {
                 </div>
               </div>
 
-              <div className="mb-10 grid gap-4 lg:grid-cols-2">
-                <div className="neural-card rounded-2xl border border-white/10 p-4">
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {t("Connected as", "Conectado como")}{" "}
-                    {activePublicKey ? `${activePublicKey.slice(0, 6)}...${activePublicKey.slice(-4)}` : "Wallet"}
-                    {isLocalNetwork
-                      ? walletMode === "burner"
-                        ? ` (${t("Burner", "Burner")})`
-                        : ` (${t("Freighter", "Freighter")})`
-                      : "."}
-                  </p>
-
-                  {isLocalNetwork ? (
-                    <div className="mb-4">
-                      <label className="block text-xs text-muted-foreground mb-2">
-                        {t("Wallet mode", "Modo de wallet")}
-                      </label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={walletMode === "burner" ? "default" : "outline"}
-                          className={
-                            walletMode === "burner"
-                              ? "neural-button h-8 px-3"
-                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                          }
-                          onClick={() => setWalletMode("burner")}
-                          disabled={!burnerPublicKey}
-                        >
-                          {t("Burner", "Burner")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={walletMode === "freighter" ? "default" : "outline"}
-                          className={
-                            walletMode === "freighter"
-                              ? "neural-button h-8 px-3"
-                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                          }
-                          onClick={() => setWalletMode("freighter")}
-                        >
-                          {t("Freighter", "Freighter")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={walletMode === "none" ? "default" : "outline"}
-                          className={
-                            walletMode === "none"
-                              ? "neural-button h-8 px-3"
-                              : "h-8 px-3 border-white/20 bg-white/10 text-foreground hover:bg-white/20"
-                          }
-                          onClick={() => setWalletMode("none")}
-                        >
-                          {t("Disconnect Burner", "Desconectar Burner")}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                </div>
-
+              <div className="mb-10">
                 <div className="neural-card rounded-2xl border border-white/10 p-4 text-xs text-muted-foreground">
                   <p className="uppercase tracking-wider mb-2">{t("On-chain verification", "Verificación on-chain")}</p>
-                  <div className="mb-3 flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[11px]">
-                    <span>{t("Network", "Red")}</span>
-                    <span className="font-semibold">{STELLAR_NETWORK_LABEL}</span>
-                  </div>
                   {auctionExplorerUrl ? (
                     <div className="space-y-2">
                       <a
@@ -956,7 +893,7 @@ export default function FactoryPage() {
                       )}
                     </p>
                   )}
-                  <p className="auction-escrow-note mt-3 rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
+                  <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
                     <span className="font-semibold">{t("Escrow", "Escrow")}: </span>
                     <a
                       href="https://trustlesswork.com"
