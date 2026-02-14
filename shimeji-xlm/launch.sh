@@ -400,7 +400,7 @@ print_manual_commands() {
 }
 
 launch_full_experience() {
-  local network cred_mode deploy_cmd deploy_rc
+  local network cred_mode deploy_cmd deploy_rc idx
   local launched_chain=0 launched_front=0 launched_deploy=0
 
   network="$(select_network)"
@@ -410,6 +410,30 @@ launch_full_experience() {
   fi
 
   deploy_cmd="$(compose_deploy_command "$network" "$cred_mode")"
+
+  if [ "$cred_mode" = "wallet-wizard" ]; then
+    ui_echo "==> Wallet onboarding mode: running in this terminal (no auto tabs)."
+    if [ "$network" = "local" ]; then
+      ui_echo "==> For local deploy, start chain in another terminal first: pnpm chain"
+    fi
+    set +e
+    run_in_current_terminal "$deploy_cmd"
+    deploy_rc=$?
+    set -e
+    if [ "$deploy_rc" -ne 0 ]; then
+      ui_echo "Deploy wizard exited with code $deploy_rc."
+      return "$deploy_rc"
+    fi
+    if [ "$INTERACTIVE" -eq 1 ]; then
+      idx="$(arrow_menu "Deploy finished" \
+        "Start frontend now in this terminal (pnpm start)" \
+        "Exit launcher")"
+      if [ "$idx" = "0" ]; then
+        run_in_current_terminal "pnpm start"
+      fi
+    fi
+    return 0
+  fi
 
   if [ "$network" = "local" ]; then
     ui_echo "==> Launching chain tab..."
@@ -426,22 +450,9 @@ launch_full_experience() {
     launched_front=1
   fi
 
-  if [ "$cred_mode" = "wallet-wizard" ]; then
-    ui_echo "==> Running deploy wizard in this terminal (wallet onboarding)..."
-    set +e
-    run_in_current_terminal "$deploy_cmd"
-    deploy_rc=$?
-    set -e
-    if [ "$deploy_rc" -eq 0 ]; then
-      launched_deploy=1
-    else
-      ui_echo "Deploy wizard exited with code $deploy_rc."
-    fi
-  else
-    ui_echo "==> Launching deploy tab..."
-    if open_in_new_terminal "deploy" "$deploy_cmd"; then
-      launched_deploy=1
-    fi
+  ui_echo "==> Launching deploy tab..."
+  if open_in_new_terminal "deploy" "$deploy_cmd"; then
+    launched_deploy=1
   fi
 
   if [ "$launched_chain" -eq 1 ] && [ "$launched_front" -eq 1 ] && [ "$launched_deploy" -eq 1 ]; then

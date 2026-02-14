@@ -31,6 +31,7 @@ What this single command does:
 - Deploy wizard can create a new wallet as first option and save backup to `shimeji-xlm/secret.txt` (gitignored).
 - Local/testnet wallets are auto-funded; mainnet shows wallet address + QR and waits for funding.
 - Existing wallet onboarding supports `.env` wait/reload flow or masked (`*`) typed secret key/seed phrase input.
+- Wallet onboarding mode runs in the current terminal (avoids auto-opening dead tabs).
 
 After deploy finishes, it prints the commands to create the first auction.
 
