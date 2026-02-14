@@ -1,52 +1,33 @@
-# shimeji-xlm 🐱🐰
+# shimeji-xlm 🐱🐰✨
 
-Stellar/Soroban version of Shimeji auctions + NFT minting.
+Stellar/Soroban realm for Shimeji auctions + NFT minting 🪄
 
-## Mandatory (Run Everything)
+## One Spell (Recommended) 🔮
 
-From repo root, run one command:
+From repo root:
 
 ```bash
 ./shimeji-xlm/launch.sh
 ```
 
-This script is intentionally a simple framework to test quickly and get Shimeji online on Stellar ⭐✨🪄.
+Follow the wizard and let the magic happen ✨
 
-What this single command does:
-
-- Installs `pnpm` automatically if missing (via `corepack` or `npm`).
-- Installs workspace dependencies if needed.
-- Opens a command center (arrow keys + Enter).
-- Lets you choose one guided path:
-  - local experimentation
-  - testnet contracts deployment
-  - mainnet contracts deployment
-- Can launch:
-  - chain (`pnpm chain`)
-  - frontend (`pnpm start`)
-  - deploy (`pnpm run deploy:*`)
-  - full experience in separate tabs (chain + frontend + deploy)
-  - frontend actions for local dev, Vercel deploy, and GitHub push
-- If Vercel/GitHub credentials are needed, launcher guides browser login flow.
-- Deploy wizard can create a new wallet as first option and save backup to `shimeji-xlm/secret.txt` (gitignored).
-- Local/testnet wallets are auto-funded; mainnet shows wallet address + QR and waits for funding.
-- Existing wallet onboarding supports `.env` wait/reload flow or masked (`*`) typed secret key/seed phrase input.
-- Wallet onboarding mode runs in the current terminal (avoids auto-opening dead tabs).
-
-After deploy finishes, it prints the commands to create the first auction.
-
-## Mandatory (Put It Online)
+## Put It Online 🌐
 
 1. Run `./shimeji-xlm/launch.sh`.
-2. In guided path, choose `testnet` or `mainnet`.
-3. Sync contract env vars to Vercel from CLI:
-   - `cd shimeji-xlm && pnpm run vercel:env:testnet -- production`
-   - or `cd shimeji-xlm && pnpm run vercel:env:mainnet -- production`
-4. Redeploy Vercel and open `/auction`.
+2. Choose `testnet` or `mainnet`.
+3. Sync Vercel vars:
 
-## Separate Commands (If You Prefer)
+```bash
+cd shimeji-xlm
+pnpm run vercel:env:testnet -- production
+# or
+pnpm run vercel:env:mainnet -- production
+```
 
-You can still run each part manually:
+4. Redeploy on Vercel and open `/auction`.
+
+## Manual Mode (Optional) ⚙️
 
 ```bash
 cd shimeji-xlm
@@ -55,22 +36,7 @@ pnpm run deploy
 pnpm start
 ```
 
-## Optional (Credentials In .env)
-
-Only if you want deploy credentials preloaded:
-
-```bash
-cd shimeji-xlm
-cp .env.example .env
-```
-
-Optional vars:
-
-- `STELLAR_MNEMONIC`
-- `STELLAR_SECRET_SEED` (or `STELLAR_SECRET_KEY`)
-- `STELLAR_IDENTITY_ALIAS`
-
-## Docs
+## More Docs 📚
 
 - Web app: [nextjs/README.md](./nextjs/README.md)
 - Soroban deploy + tooling: [soroban/README.md](./soroban/README.md)
