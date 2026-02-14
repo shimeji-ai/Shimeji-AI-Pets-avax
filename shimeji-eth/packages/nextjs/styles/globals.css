@@ -275,6 +275,31 @@ body[data-theme="kawaii"] .neural-outline {
   border: 1px solid rgba(42, 31, 78, 0.2);
 }
 
+.footer-updates-button {
+  color: var(--foreground) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.footer-updates-button svg {
+  color: currentColor !important;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.footer-updates-button:hover:not(:disabled) {
+  color: var(--foreground) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    0 10px 24px rgba(134, 240, 255, 0.24),
+    0 0 0 1px rgba(134, 240, 255, 0.28);
+  transform: translateY(-1px);
+}
+
 body[data-theme="kawaii"] .footer-updates-button {
   background: #2a1f4e;
   border: 1px solid rgba(255, 255, 255, 0.25);
@@ -290,11 +315,11 @@ body[data-theme="kawaii"] .footer-updates-button svg {
 }
 
 body[data-theme="kawaii"] .footer-updates-button:hover {
-  background: #4f3c7f;
-  color: #ffffff !important;
+  background: #6f5ba0 !important;
+  color: #fff8ff !important;
   box-shadow:
     0 14px 34px rgba(42, 31, 78, 0.45),
-    0 0 28px rgba(255, 255, 255, 0.4);
+    0 0 28px rgba(255, 255, 255, 0.55);
 }
 
 .neural-hero {
