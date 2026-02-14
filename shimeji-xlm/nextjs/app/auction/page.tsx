@@ -717,6 +717,7 @@ export default function FactoryPage() {
                             value={currency}
                             onChange={(nextCurrency) => {
                               setCurrency(nextCurrency);
+                              setCurrentBidCurrencyView(nextCurrency);
                               setBidError("");
                             }}
                           />
