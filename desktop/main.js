@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, screen, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell, screen, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -105,6 +105,7 @@ app.on('ready', () => {
 let overlayWindow = null;
 let settingsWindow = null;
 let tray = null;
+const BROWSER_CHOICES = ['system', 'chrome', 'chromium', 'brave', 'edge', 'in-app', 'cancel'];
 
 function getCharactersDir() {
   return path.join(__dirname, '..', 'chrome-extension', 'characters');
@@ -211,6 +212,186 @@ function createSettingsWindow() {
 
   settingsWindow.on('closed', () => {
     settingsWindow = null;
+  });
+}
+
+function parseSafeHttpUrl(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || '').trim());
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+function getBrowserChoiceDialogText(locale = 'en', context = 'external-link') {
+  const isEs = locale === 'es';
+  const buttons = [
+    isEs ? 'Navegador predeterminado (Recomendado)' : 'Default browser (Recommended)',
+    'Google Chrome',
+    'Chromium',
+    'Brave',
+    'Microsoft Edge',
+    isEs ? 'Navegador integrado de Shimeji (Opcional)' : 'Shimeji in-app browser (Optional)',
+    isEs ? 'Cancelar' : 'Cancel'
+  ];
+
+  if (context === 'nft-auction') {
+    return {
+      title: isEs ? 'Abrir subasta NFT' : 'Open NFT auction',
+      message: isEs
+        ? 'Elegí dónde abrir "Conseguí tu Shimeji NFT".'
+        : 'Choose where to open "Get your Shimeji NFT".',
+      detail: isEs
+        ? 'Para usar wallets como Freighter, lo ideal es tu navegador habitual con la extensión ya instalada.'
+        : 'For wallets like Freighter, it is best to use your usual browser with the extension already installed.',
+      buttons
+    };
+  }
+
+  return {
+    title: isEs ? 'Abrir enlace externo' : 'Open external link',
+    message: isEs ? 'Elegí un navegador para abrir este enlace.' : 'Choose a browser to open this link.',
+    detail: isEs
+      ? 'Recomendado: navegador predeterminado para mantener tus extensiones activas.'
+      : 'Recommended: default browser to keep your extensions available.',
+    buttons
+  };
+}
+
+function getWindowsBrowserExecutables(browserKey) {
+  const roots = [
+    process.env.PROGRAMFILES,
+    process.env['PROGRAMFILES(X86)'],
+    process.env.LOCALAPPDATA
+  ].filter(Boolean);
+  const templates = {
+    chrome: ['Google', 'Chrome', 'Application', 'chrome.exe'],
+    chromium: ['Chromium', 'Application', 'chrome.exe'],
+    brave: ['BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'],
+    edge: ['Microsoft', 'Edge', 'Application', 'msedge.exe']
+  };
+  const tail = templates[browserKey];
+  if (!tail) return [];
+  return roots.map((root) => path.join(root, ...tail));
+}
+
+function getBrowserLaunchAttempts(browserKey, targetUrl) {
+  if (IS_WINDOWS) {
+    const attempts = [];
+    const seen = new Set();
+    const executables = getWindowsBrowserExecutables(browserKey);
+    executables.forEach((exePath) => {
+      if (!exePath || seen.has(exePath)) return;
+      seen.add(exePath);
+      if (fs.existsSync(exePath)) {
+        attempts.push({ command: exePath, args: [targetUrl] });
+      }
+    });
+
+    const aliases = {
+      chrome: 'chrome',
+      chromium: 'chromium',
+      brave: 'brave',
+      edge: 'msedge'
+    };
+    const alias = aliases[browserKey];
+    if (alias) {
+      attempts.push({ command: 'cmd', args: ['/c', 'start', '', alias, targetUrl] });
+    }
+    return attempts;
+  }
+
+  if (IS_MAC) {
+    const appNames = {
+      chrome: 'Google Chrome',
+      chromium: 'Chromium',
+      brave: 'Brave Browser',
+      edge: 'Microsoft Edge'
+    };
+    const appName = appNames[browserKey];
+    if (!appName) return [];
+    return [{ command: 'open', args: ['-a', appName, targetUrl] }];
+  }
+
+  const linuxCommands = {
+    chrome: ['google-chrome-stable', 'google-chrome', 'chrome'],
+    chromium: ['chromium-browser', 'chromium'],
+    brave: ['brave-browser', 'brave'],
+    edge: ['microsoft-edge-stable', 'microsoft-edge', 'msedge']
+  };
+  const commands = linuxCommands[browserKey] || [];
+  return commands.map((command) => ({ command, args: [targetUrl] }));
+}
+
+function spawnDetachedProcess(command, args = []) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+
+    try {
+      const child = spawn(command, args, {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      });
+      child.once('error', () => finish(false));
+      child.once('spawn', () => {
+        try {
+          child.unref();
+        } catch {}
+        finish(true);
+      });
+      setTimeout(() => finish(true), 500);
+    } catch {
+      finish(false);
+    }
+  });
+}
+
+async function launchInSpecificBrowser(browserKey, targetUrl) {
+  const attempts = getBrowserLaunchAttempts(browserKey, targetUrl);
+  for (const attempt of attempts) {
+    // eslint-disable-next-line no-await-in-loop
+    const launched = await spawnDetachedProcess(attempt.command, attempt.args);
+    if (launched) return true;
+  }
+  return false;
+}
+
+function openInAppBrowser(targetUrl, parentWindow = null) {
+  const browserWindow = new BrowserWindow({
+    width: 1240,
+    height: 820,
+    minWidth: 960,
+    minHeight: 640,
+    autoHideMenuBar: true,
+    title: 'Shimeji Browser',
+    parent: parentWindow && !parentWindow.isDestroyed() ? parentWindow : undefined,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  browserWindow.webContents.setWindowOpenHandler(({ url }) => {
+    const safeUrl = parseSafeHttpUrl(url);
+    if (safeUrl) {
+      shell.openExternal(safeUrl).catch(() => {});
+    }
+    return { action: 'deny' };
+  });
+
+  browserWindow.loadURL(targetUrl).catch(() => {
+    if (!browserWindow.isDestroyed()) {
+      browserWindow.close();
+    }
   });
 }
 
@@ -2557,6 +2738,68 @@ ipcMain.handle('list-ollama-models', async (event, payload = {}) => {
       return { ok: false, error: message, models: [], url: resolvedUrl };
     }
     return { ok: false, error: `OLLAMA_CONNECT:${resolvedUrl}`, models: [], url: resolvedUrl };
+  }
+});
+
+ipcMain.handle('open-url-with-browser-choice', async (event, payload = {}) => {
+  const targetUrl = parseSafeHttpUrl(payload?.url);
+  if (!targetUrl) {
+    return { ok: false, error: 'INVALID_URL' };
+  }
+
+  const locale = payload?.locale === 'es' ? 'es' : 'en';
+  const context = String(payload?.context || 'external-link');
+  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+  const parentWindow = sourceWindow && !sourceWindow.isDestroyed() ? sourceWindow : null;
+  const copy = getBrowserChoiceDialogText(locale, context);
+
+  try {
+    const selection = await dialog.showMessageBox(parentWindow || undefined, {
+      type: 'question',
+      title: copy.title,
+      message: copy.message,
+      detail: copy.detail,
+      buttons: copy.buttons,
+      defaultId: 0,
+      cancelId: 6,
+      noLink: true
+    });
+
+    const choice = BROWSER_CHOICES[selection.response] || 'cancel';
+    if (choice === 'cancel') {
+      return { ok: false, cancelled: true };
+    }
+
+    if (choice === 'system') {
+      await shell.openExternal(targetUrl);
+      return { ok: true, browser: 'system' };
+    }
+
+    if (choice === 'in-app') {
+      openInAppBrowser(targetUrl, parentWindow);
+      return { ok: true, browser: 'in-app' };
+    }
+
+    const launched = await launchInSpecificBrowser(choice, targetUrl);
+    if (launched) {
+      return { ok: true, browser: choice };
+    }
+
+    const isEs = locale === 'es';
+    await dialog.showMessageBox(parentWindow || undefined, {
+      type: 'warning',
+      title: isEs ? 'Navegador no encontrado' : 'Browser not found',
+      message: isEs
+        ? 'No se encontró ese navegador en este sistema.'
+        : 'That browser was not found on this system.',
+      detail: isEs
+        ? 'Se abrirá el enlace en tu navegador predeterminado.'
+        : 'The link will be opened in your default browser.'
+    });
+    await shell.openExternal(targetUrl);
+    return { ok: true, browser: 'system', fallbackFrom: choice };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'OPEN_URL_FAILED' };
   }
 });
 

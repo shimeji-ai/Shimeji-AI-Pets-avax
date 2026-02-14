@@ -1,4 +1,4 @@
-# Shimeji Chrome Extension
+# Shimeji Chrome Extension 🐱🐰
 
 A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. The mascot either follows your mouse pointer or wanders around the browser window when idle. Connect a Stellar wallet (Freighter) to link your Factory account and future eggs.
 

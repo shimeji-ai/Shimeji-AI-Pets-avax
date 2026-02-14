@@ -36,20 +36,42 @@ load_root_env_file() {
 }
 
 ensure_pnpm() {
+  local pnpm_version="10.24.0"
+
   if need_cmd pnpm; then
+    echo "==> pnpm ready: $(pnpm --version)"
     return
   fi
 
   if need_cmd corepack; then
     echo "==> pnpm not found. Enabling via corepack..."
     corepack enable >/dev/null 2>&1 || true
-    corepack prepare pnpm@10.24.0 --activate >/dev/null 2>&1 || true
+    corepack prepare "pnpm@${pnpm_version}" --activate >/dev/null 2>&1 || true
+  fi
+
+  if need_cmd pnpm; then
+    echo "==> pnpm ready: $(pnpm --version)"
+    return
+  fi
+
+  if need_cmd npm; then
+    echo "==> pnpm not found. Installing with npm..."
+    if npm install -g "pnpm@${pnpm_version}" >/dev/null 2>&1; then
+      hash -r
+    elif need_cmd sudo && [ "$INTERACTIVE" -eq 1 ]; then
+      echo "==> Retrying pnpm install with sudo..."
+      sudo npm install -g "pnpm@${pnpm_version}" >/dev/null 2>&1 || true
+      hash -r
+    fi
   fi
 
   if ! need_cmd pnpm; then
-    echo "Error: pnpm is required." >&2
+    echo "Error: pnpm installation failed." >&2
+    echo "Install Node.js (with corepack) or npm, then re-run ./launch.sh." >&2
     exit 1
   fi
+
+  echo "==> pnpm ready: $(pnpm --version)"
 }
 
 ensure_workspace_install() {

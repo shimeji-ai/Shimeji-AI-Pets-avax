@@ -4,10 +4,13 @@ const CHARACTER_OPTIONS = [
   { id: 'shimeji', labelEn: 'Shimeji', labelEs: 'Shimeji' },
   { id: 'bunny', labelEn: 'Bunny', labelEs: 'Conejo' },
   { id: 'kitten', labelEn: 'Kitten', labelEs: 'Gatito' },
-  { id: 'egg', labelEn: 'Egg', labelEs: 'Huevo' },
   { id: 'ghost', labelEn: 'Ghost', labelEs: 'Fantasma' },
   { id: 'blob', labelEn: 'Blob', labelEs: 'Blob' },
   { id: 'lobster', labelEn: 'Lobster', labelEs: 'Langosta' }
+];
+
+const BUILTIN_NFT_CHARACTERS = [
+  { id: 'egg', name: 'Egg' }
 ];
 
 const PERSONALITY_OPTIONS = [
@@ -78,6 +81,8 @@ let selectedShimejiIndex = 0;
 let currentConfig = {};
 let uiLanguage = null;
 let resolvedPopupTheme = 'neural';
+let nftCharacters = [...BUILTIN_NFT_CHARACTERS];
+let nftCharacterIds = new Set(BUILTIN_NFT_CHARACTERS.map((item) => item.id).filter(Boolean));
 
 const enabledToggle = document.getElementById('all-sites-toggle');
 const enabledToggleRow = document.getElementById('all-sites-toggle-row');
@@ -127,6 +132,23 @@ function isSpanishLocale() {
 
 function t(en, es) {
   return isSpanishLocale() ? es : en;
+}
+
+function refreshNftCharacterCatalog(rawNfts) {
+  const mergedMap = new Map();
+  BUILTIN_NFT_CHARACTERS.forEach((item) => {
+    if (item?.id) mergedMap.set(item.id, item);
+  });
+  const synced = Array.isArray(rawNfts) ? rawNfts : [];
+  synced.forEach((item) => {
+    if (item?.id) mergedMap.set(item.id, item);
+  });
+  nftCharacters = Array.from(mergedMap.values());
+  nftCharacterIds = new Set(nftCharacters.map((item) => item.id).filter(Boolean));
+}
+
+function isNftCharacterId(value) {
+  return nftCharacterIds.has(String(value || ''));
 }
 
 const IS_WINDOWS_PLATFORM = /win/i.test(`${navigator.platform || navigator.userAgent || ''}`);
@@ -227,6 +249,24 @@ function setPopupLabels() {
   if (addShimejiBtn) addShimejiBtn.setAttribute('aria-label', t('Add shimeji', 'Agregar shimeji'));
 }
 
+async function openExternalUrlWithBrowserChoice(url, context = 'external-link') {
+  const safeUrl = String(url || '').trim();
+  if (!safeUrl) return;
+
+  if (window.shimejiApi?.openUrlWithBrowserChoice) {
+    try {
+      await window.shimejiApi.openUrlWithBrowserChoice({
+        url: safeUrl,
+        locale: getUiLanguage(),
+        context
+      });
+      return;
+    } catch {}
+  }
+
+  window.open(safeUrl, '_blank', 'noopener,noreferrer');
+}
+
 // Store API config in memory for restoration when adding new shimejis
 let globalApiConfig = {
   openrouterApiKey: '',
@@ -287,9 +327,16 @@ function normalizeShimejiIds(list) {
     const chatBgColor = shimeji?.chatBgColor || preset.bg;
     const chatBubbleStyle = shimeji?.chatBubbleStyle || preset.bubble || 'glass';
     const id = `shimeji-${index + 1}`;
+    const character = shimeji?.character || CHARACTER_OPTIONS[0]?.id || 'shimeji';
+    const inferredSource = isNftCharacterId(character) ? 'nft' : 'free';
+    const characterSource = shimeji?.characterSource === 'nft' || shimeji?.characterSource === 'free'
+      ? shimeji.characterSource
+      : inferredSource;
     return {
       ...shimeji,
       id,
+      character,
+      characterSource,
       mode: normalizeMode(shimeji?.mode),
       standardProvider: shimeji?.standardProvider || 'openrouter',
       chatTheme: shimeji?.chatTheme || preset.id,
@@ -407,6 +454,7 @@ function addShimeji() {
   const newShimeji = {
     id: `shimeji-${newIndex + 1}`,
     character: CHARACTER_OPTIONS[newIndex % CHARACTER_OPTIONS.length].id,
+    characterSource: 'free',
     size: 'medium',
     personality: 'random',
     chatTheme: configSource?.chatTheme || 'pastel',
@@ -489,9 +537,12 @@ function renderShimejiSelector() {
 function renderSelectField(field, labelText, options, value, { disabled = false, className = '' } = {}) {
   const wrapper = document.createElement('div');
   wrapper.className = `ai-field${className ? ` ${className}` : ''}${disabled ? ' is-disabled' : ''}`;
-  const label = document.createElement('label');
-  label.className = 'ai-label';
-  label.textContent = labelText;
+  if (labelText) {
+    const label = document.createElement('label');
+    label.className = 'ai-label';
+    label.textContent = labelText;
+    wrapper.appendChild(label);
+  }
   const select = document.createElement('select');
   select.className = 'ai-select';
   select.dataset.field = field;
@@ -502,11 +553,108 @@ function renderSelectField(field, labelText, options, value, { disabled = false,
     option.textContent = isSpanishLocale()
       ? (opt.labelEs || opt.labelEn || opt.label || opt.value)
       : (opt.labelEn || opt.labelEs || opt.label || opt.value);
+    if (opt.disabled) option.disabled = true;
     select.appendChild(option);
   });
   select.value = value ?? (options[0]?.value || '');
-  wrapper.appendChild(label);
   wrapper.appendChild(select);
+  return wrapper;
+}
+
+function renderCharacterField(shimeji) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'ai-field character-field full-width';
+
+  const label = document.createElement('label');
+  label.className = 'ai-label';
+  label.textContent = t('Character', 'Personaje');
+
+  const toggleRow = document.createElement('div');
+  toggleRow.className = 'character-source-toggle';
+
+  const isNft = isNftCharacterId(shimeji.character);
+  const source = shimeji.characterSource || (isNft ? 'nft' : 'free');
+
+  const freeBtn = document.createElement('button');
+  freeBtn.type = 'button';
+  freeBtn.className = 'character-source-btn';
+  freeBtn.dataset.action = 'character-source';
+  freeBtn.dataset.source = 'free';
+  freeBtn.textContent = t('Free', 'Free');
+  if (source === 'free') freeBtn.classList.add('active');
+
+  const nftBtn = document.createElement('button');
+  nftBtn.type = 'button';
+  nftBtn.className = 'character-source-btn';
+  nftBtn.dataset.action = 'character-source';
+  nftBtn.dataset.source = 'nft';
+  nftBtn.textContent = t('NFT', 'NFT');
+  if (source === 'nft') nftBtn.classList.add('active');
+
+  toggleRow.appendChild(freeBtn);
+  toggleRow.appendChild(nftBtn);
+
+  const freeOptions = CHARACTER_OPTIONS.map((opt) => ({
+    value: opt.id,
+    labelEn: opt.labelEn,
+    labelEs: opt.labelEs
+  }));
+  const freeFallback = freeOptions[0]?.value || 'shimeji';
+  const freeSelect = renderSelectField(
+    'character',
+    '',
+    freeOptions,
+    source === 'free' && !isNft ? shimeji.character : freeFallback
+  );
+  const freeSelectEl = freeSelect.querySelector('select');
+  if (freeSelectEl) freeSelectEl.dataset.source = 'free';
+  freeSelect.classList.add('character-select');
+  if (source === 'nft') freeSelect.classList.add('hidden');
+
+  const nftOptions = nftCharacters
+    .filter((nft) => nft?.id)
+    .map((nft) => {
+      const isBuiltinEgg = String(nft.id || '').toLowerCase() === 'egg';
+      const label = isBuiltinEgg
+        ? t('Egg', 'Huevo')
+        : (nft.name || nft.id || 'NFT');
+      return {
+        value: nft.id,
+        labelEn: label,
+        labelEs: label
+      };
+    });
+  if (nftOptions.length === 0) {
+    nftOptions.push({
+      value: '',
+      labelEn: t('No NFT characters', 'Sin personajes NFT'),
+      labelEs: t('No NFT characters', 'Sin personajes NFT'),
+      disabled: true
+    });
+  }
+  const nftSelect = renderSelectField(
+    'character',
+    '',
+    nftOptions,
+    source === 'nft' && isNft ? shimeji.character : (nftOptions[0]?.value || '')
+  );
+  const nftSelectEl = nftSelect.querySelector('select');
+  if (nftSelectEl) nftSelectEl.dataset.source = 'nft';
+  nftSelect.classList.add('character-select');
+  if (source !== 'nft') nftSelect.classList.add('hidden');
+
+  const ctaInline = document.createElement('a');
+  ctaInline.href = 'https://www.shimeji.dev/auction';
+  ctaInline.target = '_blank';
+  ctaInline.rel = 'noopener noreferrer';
+  ctaInline.className = 'shimeji-nft-cta inline';
+  ctaInline.textContent = t('Get a Shimeji NFT', 'Conseguí un Shimeji NFT');
+
+  wrapper.appendChild(label);
+  wrapper.appendChild(toggleRow);
+  wrapper.appendChild(freeSelect);
+  wrapper.appendChild(nftSelect);
+  wrapper.appendChild(ctaInline);
   return wrapper;
 }
 
@@ -643,6 +791,7 @@ async function refreshOllamaModelsForShimeji(index) {
 }
 
 function renderShimejiCards() {
+  refreshNftCharacterCatalog(currentConfig?.nftCharacters);
   shimejiList.innerHTML = '';
   if (shimejiEmpty) {
     shimejiEmpty.style.display = shimejis.length === 0 ? 'block' : 'none';
@@ -697,7 +846,7 @@ function renderShimejiCards() {
     const grid = document.createElement('div');
     grid.className = 'shimeji-grid';
 
-    grid.appendChild(renderSelectField('character', t('Character', 'Personaje'), CHARACTER_OPTIONS.map(opt => ({ value: opt.id, labelEn: opt.labelEn, labelEs: opt.labelEs })), shimeji.character || 'shimeji'));
+    grid.appendChild(renderCharacterField(shimeji));
     grid.appendChild(renderSelectField('personality', t('Personality', 'Personalidad'), PERSONALITY_OPTIONS, shimeji.personality || 'cryptid'));
     grid.appendChild(renderSelectField('size', t('Size', 'Tamaño'), SIZE_OPTIONS, shimeji.size || 'medium'));
     grid.appendChild(renderToggleField('soundEnabled', t('Notifications', 'Notificaciones'), shimeji.soundEnabled !== false));
@@ -905,6 +1054,7 @@ function applyConfig(next) {
   const previousLanguage = getUiLanguage();
   const previousPopupTheme = currentConfig.popupTheme || 'random';
   currentConfig = { ...currentConfig, ...next };
+  refreshNftCharacterCatalog(currentConfig?.nftCharacters);
   if (next.shimejiLanguage !== undefined) {
     uiLanguage = next.shimejiLanguage === 'es' ? 'es' : (next.shimejiLanguage === 'en' ? 'en' : detectBrowserLanguage());
   } else if (!uiLanguage) {
@@ -1038,8 +1188,36 @@ function registerHandlers() {
   if (addShimejiBtn) addShimejiBtn.addEventListener('click', addShimeji);
 
   if (shimejiList) {
-    shimejiList.addEventListener('click', (event) => {
+    shimejiList.addEventListener('click', async (event) => {
       const target = event.target;
+      if (!(target instanceof Element)) return;
+      const nftCtaLink = target.closest('a.shimeji-nft-cta');
+      if (nftCtaLink) {
+        event.preventDefault();
+        event.stopPropagation();
+        await openExternalUrlWithBrowserChoice(nftCtaLink.href, 'nft-auction');
+        return;
+      }
+
+      const sourceBtn = target.closest('[data-action="character-source"]');
+      if (sourceBtn) {
+        const card = sourceBtn.closest('.shimeji-card');
+        if (!card) return;
+        const index = Number(card.dataset.index);
+        if (Number.isNaN(index)) return;
+        const source = sourceBtn.dataset.source;
+        if (source === 'free') {
+          const nextFree = CHARACTER_OPTIONS[0]?.id || 'shimeji';
+          updateShimejiConfig(index, { characterSource: 'free', character: nextFree });
+        } else if (source === 'nft') {
+          const patch = { characterSource: 'nft' };
+          const nextNft = nftCharacters[0]?.id;
+          if (nextNft) patch.character = nextNft;
+          updateShimejiConfig(index, patch);
+        }
+        return;
+      }
+
       const refreshBtn = target.closest('[data-action="refresh-ollama-models"]');
       if (refreshBtn) {
         const card = refreshBtn.closest('.shimeji-card');
@@ -1062,6 +1240,7 @@ function registerHandlers() {
 
     shimejiList.addEventListener('change', (event) => {
       const target = event.target;
+      if (!(target instanceof Element)) return;
       if (!target || target.disabled) return;
       const field = target.dataset.field;
       if (!field) return;
@@ -1131,6 +1310,10 @@ function registerHandlers() {
       }
 
       const patch = { [field]: value };
+      if (field === 'character') {
+        const source = target.dataset.source;
+        patch.characterSource = source === 'nft' || isNftCharacterId(value) ? 'nft' : 'free';
+      }
       if (field === 'chatThemeColor' || field === 'chatBgColor' || field === 'chatBubbleStyle') {
         patch.chatThemePreset = 'custom';
       }
@@ -1271,6 +1454,7 @@ async function init() {
     shimejis = [{
       id: 'shimeji-1',
       character: 'shimeji',
+      characterSource: 'free',
       size: 'medium',
       personality: 'random',
       chatTheme: 'pastel',

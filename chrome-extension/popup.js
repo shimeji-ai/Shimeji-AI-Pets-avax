@@ -2047,7 +2047,7 @@ if (securityHint) securityHint.textContent = t(
     toggleRowWrap.className = "character-toggle-row";
     toggleRowWrap.appendChild(toggleRow);
     const ctaInline = document.createElement("a");
-    ctaInline.href = "https://www.shimeji.dev/factory";
+    ctaInline.href = "https://www.shimeji.dev/auction";
     ctaInline.target = "_blank";
     ctaInline.rel = "noopener noreferrer";
     ctaInline.className = "shimeji-nft-cta inline";

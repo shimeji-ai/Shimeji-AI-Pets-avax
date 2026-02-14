@@ -2,113 +2,59 @@
 
 Stellar/Soroban version of Shimeji auctions + NFT minting.
 
-## Start Here (Simple Flow)
+## Mandatory (Run Everything)
 
-Run from `shimeji-xlm/`:
+From repo root, run one command:
 
 ```bash
-pnpm install
+./shimeji-xlm/launch.sh
 ```
 
-Create optional deploy credentials:
+What this single command does:
+
+- Installs `pnpm` automatically if missing (via `corepack` or `npm`).
+- Installs workspace dependencies if needed.
+- Opens a command center (arrow keys + Enter).
+- Can launch:
+  - chain (`pnpm chain`)
+  - frontend (`pnpm start`)
+  - deploy (`pnpm run deploy:*`)
+  - full experience in separate tabs (chain + frontend + deploy)
+
+After deploy finishes, it prints the commands to create the first auction.
+
+## Mandatory (Put It Online)
+
+1. Run `./shimeji-xlm/launch.sh`.
+2. In deploy flow, choose `testnet` or `mainnet`.
+3. Copy deploy output env vars into Vercel (`shimeji-xlm/nextjs` project).
+4. Redeploy Vercel and open `/auction`.
+
+## Separate Commands (If You Prefer)
+
+You can still run each part manually:
 
 ```bash
-cp .env.example .env
-```
-
-Supported credential vars in `shimeji-xlm/.env`:
-- `STELLAR_MNEMONIC`
-- `STELLAR_SECRET_SEED` (or `STELLAR_SECRET_KEY`)
-- `STELLAR_IDENTITY_ALIAS`
-
-Then run the single launcher command:
-
-```bash
-pnpm run launch
-```
-
-`pnpm run launch` opens a command-center menu (arrow keys + Enter) and can run:
-
-- frontend (`pnpm start`)
-- chain assistant (`pnpm chain`)
-- deploy (`pnpm run deploy:*`)
-- full experience in separate tabs (frontend + chain + deploy)
-
-The deploy flow prints the "First auction quickstart" commands at the end.
-
-## Separate Commands (Still Available)
-
-If you prefer manual tabs/terminals, these commands continue to work:
-
-```bash
+cd shimeji-xlm
 pnpm chain
 pnpm run deploy
 pnpm start
 ```
 
-Open `http://localhost:3000/auction`.
+## Optional (Credentials In .env)
 
-## What `pnpm chain` Guides You Through
-
-`pnpm chain` now acts as a chain assistant:
-
-- Prepares prerequisites (Stellar CLI, Rust target).
-- Helps you resolve Docker automatically when missing.
-- Shows `pnpm chain --logs` to view blocks/logs.
-- Shows `pnpm chain --status` to check status.
-- Shows `pnpm chain --off` to stop chain.
-- Prints deploy command suggestions: `pnpm run deploy:local`, `pnpm run deploy:testnet`, `pnpm run deploy:mainnet`.
-
-If chain is already running, it offers a menu to view logs, stop chain, or exit without changes.
-
-## Deploy Modes
-
-### Local
+Only if you want deploy credentials preloaded:
 
 ```bash
-pnpm chain
-pnpm run deploy:local
-pnpm start
+cd shimeji-xlm
+cp .env.example .env
 ```
 
-`pnpm run deploy:local` updates `nextjs/.env.local` automatically.
+Optional vars:
 
-### Testnet
-
-```bash
-pnpm run deploy:testnet
-pnpm start
-```
-
-Use deploy output values in `nextjs/.env.local`:
-
-- `NEXT_PUBLIC_NFT_CONTRACT_ID`
-- `NEXT_PUBLIC_AUCTION_CONTRACT_ID`
-- `NEXT_PUBLIC_STELLAR_RPC_URL`
-- `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE`
-- `NEXT_PUBLIC_STELLAR_NETWORK=testnet`
-- `NEXT_PUBLIC_BASE_URL=http://localhost:3000`
-
-### Mainnet + Vercel
-
-1. Deploy contracts:
-
-```bash
-pnpm run deploy:mainnet
-```
-
-2. In Vercel, set **Root Directory** to `shimeji-xlm/nextjs`.
-3. Add env vars from deploy output:
-
-```env
-NEXT_PUBLIC_NFT_CONTRACT_ID=...
-NEXT_PUBLIC_AUCTION_CONTRACT_ID=...
-NEXT_PUBLIC_STELLAR_RPC_URL=...
-NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=...
-NEXT_PUBLIC_STELLAR_NETWORK=mainnet
-NEXT_PUBLIC_BASE_URL=https://your-domain.com
-```
-4. Redeploy and verify `/auction`.
+- `STELLAR_MNEMONIC`
+- `STELLAR_SECRET_SEED` (or `STELLAR_SECRET_KEY`)
+- `STELLAR_IDENTITY_ALIAS`
 
 ## Docs
 

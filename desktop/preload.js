@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('shimejiApi', {
 
   // Settings
   openSettings: () => ipcRenderer.send('open-settings'),
+  openUrlWithBrowserChoice: (payload) => ipcRenderer.invoke('open-url-with-browser-choice', payload),
 
   // Mouse events control for click-through overlay
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore)

@@ -8,6 +8,20 @@ This monorepo contains the Shimeji runtimes and both blockchain stacks.
 - [shimeji-eth](./shimeji-eth/README.md): EVM/Scaffold-ETH stack.
 - [animation-reference](./animation-reference/README.md): sprite standards used by extension/desktop.
 
+## One Command (Shimeji XLM)
+
+From repo root:
+
+```bash
+./shimeji-xlm/launch.sh
+```
+
+That unified launcher can run chain + frontend + deploy flow, and guide deployments for:
+
+- local
+- testnet
+- mainnet
+
 ## Runtime Apps
 
 - `chrome-extension/`: browser runtime and chat UI.
