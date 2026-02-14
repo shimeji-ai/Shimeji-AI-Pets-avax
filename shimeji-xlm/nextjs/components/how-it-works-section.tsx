@@ -33,10 +33,10 @@ const steps = [
   {
     icon: Sparkles,
     step: "04",
-    titleEn: "Commission a Custom Shimeji",
-    titleEs: "Encarga un shimeji único",
-    descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
-    descriptionEs: "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano con sprites únicos.",
+    titleEn: "Win a Custom Shimeji",
+    titleEs: "Ganá un shimeji único",
+    descriptionEn: "Bid in the auction to win a handcrafted pet minted as an NFT with unique sprites.",
+    descriptionEs: "Ofertá en la subasta para ganar una mascota artesanal acuñada como NFT con sprites únicos.",
   },
 ];
 
@@ -109,9 +109,9 @@ export function HowItWorksSection() {
                             href="/factory"
                             className="font-semibold underline decoration-2 underline-offset-2"
                           >
-                            Compra un huevo en Factory
+                            Ofertá en la subasta
                           </Link>
-                          , define una intención y recibe una mascota hecha a mano
+                          {" "}para ganar una mascota artesanal acuñada como NFT
                           con sprites únicos.
                         </>
                       ) : (
@@ -120,9 +120,9 @@ export function HowItWorksSection() {
                             href="/factory"
                             className="font-semibold underline decoration-2 underline-offset-2"
                           >
-                            Buy an egg in the Factory
+                            Bid in the auction
                           </Link>
-                          , set an intention, and receive a handcrafted pet with
+                          {" "}to win a handcrafted pet minted as an NFT with
                           unique sprites.
                         </>
                       )

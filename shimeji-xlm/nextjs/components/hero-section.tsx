@@ -65,7 +65,7 @@ export function HeroSection() {
                     className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
                   >
                     <Wand2 className="w-4 h-4" />
-                    {isSpanish ? "Visitar Fábrica" : "Visit Factory"}
+                    {isSpanish ? "Ver Subasta" : "View Auction"}
                   </Button>
                 </Link>
                 <SparkleAnimation isHovering={isViewCollectionHovered} />

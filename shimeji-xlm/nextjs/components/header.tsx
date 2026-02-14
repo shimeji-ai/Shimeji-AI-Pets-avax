@@ -106,7 +106,7 @@ export function Header() {
                 href="/factory"
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
-                {isSpanish ? "Fábrica" : "Factory"}
+                {isSpanish ? "Subasta" : "Auction"}
               </Link>
               <SparkleAnimation isHovering={isMarketplaceHovered} />
             </div>
@@ -179,7 +179,7 @@ export function Header() {
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                {isSpanish ? "Fábrica" : "Factory"}
+                {isSpanish ? "Subasta" : "Auction"}
               </Link>
               <div className="pt-2">
                 <LanguageSwitcher />

@@ -246,14 +246,14 @@ export function HelpSection() {
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish
-                ? "Conseguí un Shimeji NFT en el Factory para acceder a skins exclusivos y personalizar tu shimeji."
-                : "Grab a Shimeji NFT in the Factory to access exclusive skins and personalize your shimeji."}
+                ? "Conseguí un Shimeji NFT en la subasta para acceder a skins exclusivos y personalizar tu shimeji."
+                : "Win a Shimeji NFT at auction to access exclusive skins and personalize your shimeji."}
             </p>
             <div className="flex justify-center">
               <DownloadButton
                 href="/factory"
-                labelEn="GO TO FACTORY"
-                labelEs="IR AL FACTORY"
+                labelEn="GO TO AUCTION"
+                labelEs="IR A LA SUBASTA"
               />
             </div>
           </div>

@@ -2,7 +2,8 @@
 pragma solidity ^0.8.19;
 
 import "./DeployHelpers.s.sol";
-import { DeployYourContract } from "./DeployYourContract.s.sol";
+import "../contracts/ShimejiNFT.sol";
+import "../contracts/ShimejiFactory.sol";
 
 /**
  * @notice Main deployment script for all contracts
@@ -11,15 +12,14 @@ import { DeployYourContract } from "./DeployYourContract.s.sol";
  * Example: yarn deploy # runs this script(without`--file` flag)
  */
 contract DeployScript is ScaffoldETHDeploy {
-    function run() external {
-        // Deploys all your contracts sequentially
-        // Add new deployments here when needed
+    function run() external ScaffoldEthDeployerRunner {
+        // 1. Deploy NFT contract
+        ShimejiNFT nft = new ShimejiNFT(deployer);
 
-        DeployYourContract deployYourContract = new DeployYourContract();
-        deployYourContract.run();
+        // 2. Deploy Factory with reference to NFT
+        ShimejiFactory factory = new ShimejiFactory(address(nft), deployer);
 
-        // Deploy another contract
-        // DeployMyContract myContract = new DeployMyContract();
-        // myContract.run();
+        // 3. Transfer NFT ownership to Factory so it can mint
+        nft.transferOwnership(address(factory));
     }
 }

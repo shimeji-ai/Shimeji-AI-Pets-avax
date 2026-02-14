@@ -31,8 +31,8 @@ export function CtaSection() {
             </p>
             <p className="mb-8 max-w-lg mx-auto text-muted-foreground/80">
               {isSpanish
-                ? "La extensión es gratis e incluye una mascota por defecto. Consigue un huevo en Factory si quieres algo hecho a medida."
-                : "The extension is free and includes a default mascot. Get an egg in the Factory if you want something custom."}
+                ? "La extensión es gratis e incluye una mascota por defecto. Participá en la subasta para conseguir un shimeji personalizado."
+                : "The extension is free and includes a default mascot. Join the auction to get a custom shimeji."}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />
@@ -42,7 +42,7 @@ export function CtaSection() {
                   className="gap-2 rounded-xl neural-button-outline hover:cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  {isSpanish ? "Visitar Fábrica" : "Visit Factory"}
+                  {isSpanish ? "Ver Subasta" : "View Auction"}
                 </Button>
               </Link>
               <Link

@@ -1,0 +1,30 @@
+{
+  "name": "Shimeji #1 — Cosmic Wanderer",
+  "description": "A mischievous desktop companion born from the Shimeji Factory portal. This shimeji embodies the spirit of cosmic wandering, playfully exploring screen edges and defying gravity.",
+  "image": "ipfs://QmExampleHash/cosmic-wanderer.png",
+  "attributes": [
+    {
+      "trait_type": "Origin",
+      "value": "Portal Auction"
+    },
+    {
+      "trait_type": "Personality",
+      "value": "Curious"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Stardust"
+    },
+    {
+      "trait_type": "Sprite Count",
+      "display_type": "number",
+      "value": 35
+    },
+    {
+      "trait_type": "Generation",
+      "display_type": "number",
+      "value": 1
+    }
+  ],
+  "external_url": "https://shimeji.ai"
+}

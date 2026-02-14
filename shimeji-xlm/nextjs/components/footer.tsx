@@ -96,7 +96,7 @@ export function Footer() {
                     href="/factory"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {isSpanish ? "Fábrica" : "Factory"}
+                    {isSpanish ? "Subasta" : "Auction"}
                   </Link>
                 </li>
                 <li>

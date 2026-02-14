@@ -55,7 +55,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
               href="/factory"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
-              {isSpanish ? "Fábrica" : "Factory"}
+              {isSpanish ? "Subasta" : "Auction"}
             </Link>
             <Link
               href="/collection"
@@ -106,7 +106,7 @@ export function NavHeader({ showConnectButton = false }: NavHeaderProps) {
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                {isSpanish ? "Fábrica" : "Factory"}
+                {isSpanish ? "Subasta" : "Auction"}
               </Link>
               <Link
                 href="/collection"

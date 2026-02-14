@@ -147,6 +147,26 @@ const SOUND_ASSET_PATHS = {
   error: 'assets/shimeji-error.wav'
 };
 
+const TERMINAL_ATTENTION_PATTERNS = [
+  /press\s+enter\s+to\s+continue/i,
+  /would\s+you\s+like\s+to/i,
+  /\b(y\/n|yes\/no)\b/i,
+  /\bconfirm\b/i,
+  /\bcontinue\?/i,
+  /\bselect\s+an\s+option\b/i,
+  /\bwaiting\s+for\s+input\b/i,
+  /\bwhat\s+would\s+you\s+like\b/i,
+  /\bapprove\b/i
+];
+
+function stripTerminalControlText(raw) {
+  return String(raw || '')
+    .replace(/\u001b\[[0-9;?=><!]*[A-Za-z]/g, '')
+    .replace(/\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g, '')
+    .replace(/\u001b[@-Z\\-_]/g, '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+}
+
 let sharedAudioCtx = null;
 const sharedSoundBuffers = { success: null, error: null };
 let sharedSoundBuffersLoaded = false;
@@ -440,6 +460,10 @@ class Shimeji {
     this.terminalLastClosedNotice = 0;
     this.terminalFitTimer = null;
     this.terminalLastSize = { cols: 0, rows: 0 };
+    this.terminalIdleNotifyTimer = null;
+    this.terminalOutputActive = false;
+    this.terminalLastAttentionAt = 0;
+    this.terminalLastPromptAttentionAt = 0;
     this.closedChatNoticeUntil = 0;
     this.closedChatNoticeTimer = null;
     this.boundRelayHandler = (event) => this.onRelayEvent(event);
@@ -2434,6 +2458,8 @@ class Shimeji {
   async sendTerminalInput(data) {
     const payload = String(data || '');
     if (!payload) return;
+    this.terminalOutputActive = true;
+    this.clearTerminalIdleNotifyTimer();
     const ready = await this.ensureTerminalSession();
     if (!ready) return;
     let result;
@@ -2456,6 +2482,8 @@ class Shimeji {
     const line = String(lineText || '');
     if (!line.trim()) return;
     this.pushTerminalCommandToHistory(line);
+    this.terminalOutputActive = true;
+    this.clearTerminalIdleNotifyTimer();
     const ready = await this.ensureTerminalSession();
     if (!ready) return;
     let result;
@@ -2500,6 +2528,7 @@ class Shimeji {
     const chunk = String(payload.data || '');
     if (!chunk) return;
     this.terminalView.write(chunk);
+    this.handleTerminalAttentionSignals(chunk);
     if (!this.chatOpen) {
       const now = Date.now();
       if (now - this.terminalLastClosedNotice >= 1300) {
@@ -2512,6 +2541,7 @@ class Shimeji {
   handleTerminalSessionExit(payload) {
     if (!payload || payload.shimejiId !== this.id) return;
     this.terminalSessionReady = false;
+    this.clearTerminalAttentionState();
     const parsed = Number.parseInt(`${payload.code}`, 10);
     const hasCode = Number.isFinite(parsed);
     const isError = hasCode ? parsed !== 0 : false;
@@ -2540,16 +2570,19 @@ class Shimeji {
       return;
     }
     if (state === 'closing') {
+      this.clearTerminalAttentionState();
       this.setTerminalStatus(t('Terminal closing...', 'Cerrando terminal...'));
       return;
     }
     if (state === 'closed') {
       this.terminalSessionReady = false;
+      this.clearTerminalAttentionState();
       this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
       return;
     }
     if (state === 'error') {
       this.terminalSessionReady = false;
+      this.clearTerminalAttentionState();
       const errorText = payload.error ? `Error: ${payload.error}` : t('Terminal error', 'Error de terminal');
       this.setTerminalStatus(errorText, { error: true });
       if (this.terminalView) {
@@ -2561,11 +2594,91 @@ class Shimeji {
   stopTerminalSession(reason = 'TERMINAL_SESSION_STOPPED_BY_UI') {
     this.terminalSessionReady = false;
     this.terminalSessionStarting = null;
+    this.clearTerminalAttentionState();
     this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
     if (window.shimejiApi?.terminalSessionStop) {
       window.shimejiApi.terminalSessionStop({ shimejiId: this.id, reason }).catch(() => {});
     } else if (window.shimejiApi?.terminalCloseSession) {
       window.shimejiApi.terminalCloseSession({ shimejiId: this.id }).catch(() => {});
+    }
+  }
+
+  clearTerminalIdleNotifyTimer() {
+    if (!this.terminalIdleNotifyTimer) return;
+    clearTimeout(this.terminalIdleNotifyTimer);
+    this.terminalIdleNotifyTimer = null;
+  }
+
+  clearTerminalAttentionState() {
+    this.clearTerminalIdleNotifyTimer();
+    this.terminalOutputActive = false;
+    this.terminalLastPromptAttentionAt = 0;
+  }
+
+  maybeNotifyTerminalAttention({ kind = 'success', durationMs = 3200, cooldownMs = 2400 } = {}) {
+    const now = Date.now();
+    if (now - this.terminalLastAttentionAt < cooldownMs) return;
+    this.terminalLastAttentionAt = now;
+    if (this.config.terminalNotifyOnFinish !== false) {
+      this.playNotificationSound(kind);
+    }
+    if (!this.chatOpen) {
+      this.notifyClosedChatActivity(durationMs);
+    }
+  }
+
+  scheduleTerminalIdleAttention() {
+    this.clearTerminalIdleNotifyTimer();
+    this.terminalIdleNotifyTimer = setTimeout(() => {
+      this.terminalIdleNotifyTimer = null;
+      if (!this.terminalSessionReady) return;
+      if (!this.terminalOutputActive) return;
+      this.terminalOutputActive = false;
+      this.maybeNotifyTerminalAttention({
+        kind: 'success',
+        durationMs: 3000,
+        cooldownMs: 4200
+      });
+    }, 1500);
+  }
+
+  chunkLooksLikeTerminalPrompt(chunk) {
+    const plain = stripTerminalControlText(chunk).replace(/\r/g, '\n');
+    if (!plain.trim()) return false;
+    const tail = plain.split('\n').slice(-6).join('\n');
+    return TERMINAL_ATTENTION_PATTERNS.some((regex) => regex.test(tail));
+  }
+
+  handleTerminalAttentionSignals(chunk) {
+    const raw = String(chunk || '');
+    if (!raw) return;
+
+    const plain = stripTerminalControlText(raw);
+    if (/\S/.test(plain)) {
+      this.terminalOutputActive = true;
+      this.scheduleTerminalIdleAttention();
+    }
+
+    if (raw.includes('\x07')) {
+      this.maybeNotifyTerminalAttention({
+        kind: 'success',
+        durationMs: 3200,
+        cooldownMs: 1200
+      });
+    }
+
+    if (this.chunkLooksLikeTerminalPrompt(raw)) {
+      const now = Date.now();
+      if (now - this.terminalLastPromptAttentionAt >= 1800) {
+        this.terminalLastPromptAttentionAt = now;
+        this.terminalOutputActive = false;
+        this.clearTerminalIdleNotifyTimer();
+        this.maybeNotifyTerminalAttention({
+          kind: 'success',
+          durationMs: 3800,
+          cooldownMs: 1800
+        });
+      }
     }
   }
 
