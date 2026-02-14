@@ -375,6 +375,14 @@ body[data-theme="kawaii"] .neural-button:hover {
   box-shadow: 0 8px 18px rgba(255, 187, 0, 0.28);
 }
 
+.language-switcher-option {
+  min-width: 36px;
+}
+
+.language-switcher-option.is-active {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.14);
+}
+
 body[data-theme="pink"] .currency-toggle-shell {
   border-color: rgba(255, 206, 232, 0.52);
   background: rgba(36, 10, 24, 0.38);
@@ -408,6 +416,31 @@ body[data-theme="kawaii"] .currency-toggle-option.is-active {
   opacity: 1;
   box-shadow:
     0 10px 20px rgba(65, 185, 255, 0.36),
+    0 0 0 1px rgba(147, 231, 255, 0.45);
+}
+
+body[data-theme="kawaii"] .language-switcher-shell {
+  border-color: rgba(42, 31, 78, 0.7) !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(42, 31, 78, 0.2),
+    0 8px 18px rgba(42, 31, 78, 0.2);
+}
+
+body[data-theme="kawaii"] .language-switcher-option {
+  color: #3f3167 !important;
+}
+
+body[data-theme="kawaii"] .language-switcher-option:hover:not(.is-active) {
+  background: rgba(147, 231, 255, 0.45) !important;
+  color: #2a1f4e !important;
+}
+
+body[data-theme="kawaii"] .language-switcher-option.is-active {
+  color: #08293f !important;
+  background: linear-gradient(135deg, #93e7ff, #51cbff) !important;
+  box-shadow:
+    0 8px 18px rgba(65, 185, 255, 0.34),
     0 0 0 1px rgba(147, 231, 255, 0.45);
 }
 
