@@ -637,13 +637,7 @@ export function AuctionSection() {
   return (
     <section id="auction" className="pt-28 pb-16 px-4">
       <div className="max-w-6xl mx-auto">
-        {showHeaderFaucet ? (
-          <div className="mb-4 flex justify-end gap-2">
-            {headerWalletButton}
-            {headerFaucetButton}
-          </div>
-        ) : null}
-          {!mounted || loading ? (
+        {!mounted || loading ? (
             <div className="text-center py-16">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-transparent mb-4"></div>
               <p className="text-muted-foreground">{t("Loading...", "Cargando...")}</p>
