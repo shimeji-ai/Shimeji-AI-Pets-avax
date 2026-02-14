@@ -6,6 +6,7 @@ import { Footer } from "@/components/footer";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
 import { useFreighter } from "@/components/freighter-provider";
 import { useLanguage } from "@/components/language-provider";
+import { ShimejiCharacter } from "@/components/shimeji-character";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { CurrencyToggle } from "@/components/currency-toggle";
@@ -662,11 +663,7 @@ export default function FactoryPage() {
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
                   <div className="flex flex-col items-center text-center">
                     <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
-                      <img
-                        src="/egg-sit.png"
-                        alt={t("Shimeji Egg", "Huevo Shimeji")}
-                        className="w-full h-full object-contain"
-                      />
+                      <ShimejiCharacter />
                     </div>
                     {auction ? (
                       <div className="mt-5 flex w-full justify-center">
