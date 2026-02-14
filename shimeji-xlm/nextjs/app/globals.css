@@ -435,6 +435,29 @@ body[data-theme="kawaii"] .auction-faucet-button:disabled {
     0 6px 14px rgba(16, 51, 74, 0.2);
 }
 
+.auction-escrow-note {
+  background: rgba(255, 191, 51, 0.36);
+  border-color: rgba(255, 187, 0, 0.62);
+}
+
+.auction-escrow-link {
+  font-weight: 700;
+  text-decoration-color: currentColor;
+}
+
+body[data-theme="kawaii"] .auction-escrow-note {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(42, 31, 78, 0.4) !important;
+  box-shadow:
+    0 8px 20px rgba(42, 31, 78, 0.14),
+    inset 0 0 0 1px rgba(42, 31, 78, 0.1);
+}
+
+body[data-theme="kawaii"] .auction-escrow-link {
+  color: #2a1f4e !important;
+  text-decoration-color: rgba(42, 31, 78, 0.8) !important;
+}
+
 .auction-bid-button {
   position: relative;
   overflow: hidden;

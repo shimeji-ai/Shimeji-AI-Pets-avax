@@ -23,6 +23,22 @@ set -euo pipefail
 #   SYNC_FRONTEND_ENV_NON_LOCAL=0|1
 #   TESTNET_USDC_ISSUER=GBBD...
 #   MAINNET_USDC_ISSUER=GA5Z...
+#   ENABLE_TRUSTLESS_ESCROW=1|0 (default 1)
+#   TRUSTLESS_ESCROW_XLM_ADDRESS=G...|C...
+#   TRUSTLESS_ESCROW_USDC_ADDRESS=G...|C...
+#   LOCAL_TRUSTLESS_ESCROW_ALIAS=shimeji-local-trustless-escrow
+#   AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL=1|0 (default 1 for testnet fallback vault)
+#   ENABLE_ONCHAIN_SOURCE_VERIFICATION=1|0 (default 1)
+#   REQUIRE_ONCHAIN_SOURCE_VERIFICATION=1|0 (default 0)
+#   CONTRACT_SOURCE_REPO=github:<owner>/<repo>
+#   CONTRACT_SOURCE_COMMIT=<git-sha>
+#   CONTRACT_SOURCE_SUBPATH=shimeji-xlm/soroban
+#   STELLAR_RPC_HEADERS="X-API-Key: <value>" (optional for private RPC providers)
+#   AUTO_CREATE_INITIAL_AUCTION=1|0 (default 1)
+#   INITIAL_AUCTION_MIN_CURRENCY=usdc|xlm (default usdc)
+#   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
+#   INITIAL_AUCTION_XLM_USDC_RATE=1000000 (7 decimals; 1_000_000 => 0.10 USDC per XLM)
+#   INITIAL_AUCTION_TOKEN_URI=ipfs://...
 
 NETWORK="${NETWORK:-}"
 SECRET="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
@@ -34,6 +50,12 @@ LOCAL_USDC_ISSUER_SECRET="${LOCAL_USDC_ISSUER_SECRET:-}"
 LOCAL_USDC_ASSET_CODE="${LOCAL_USDC_ASSET_CODE:-USDC}"
 TESTNET_USDC_ISSUER="${TESTNET_USDC_ISSUER:-GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5}"
 MAINNET_USDC_ISSUER="${MAINNET_USDC_ISSUER:-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN}"
+ENABLE_TRUSTLESS_ESCROW="${ENABLE_TRUSTLESS_ESCROW:-1}"
+TRUSTLESS_ESCROW_XLM_ADDRESS="${TRUSTLESS_ESCROW_XLM_ADDRESS:-}"
+TRUSTLESS_ESCROW_USDC_ADDRESS="${TRUSTLESS_ESCROW_USDC_ADDRESS:-$TRUSTLESS_ESCROW_XLM_ADDRESS}"
+LOCAL_TRUSTLESS_ESCROW_ALIAS="${LOCAL_TRUSTLESS_ESCROW_ALIAS:-shimeji-local-trustless-escrow}"
+LOCAL_TRUSTLESS_ESCROW_ADDRESS="${LOCAL_TRUSTLESS_ESCROW_ADDRESS:-}"
+AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL="${AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL:-1}"
 FORCE_IDENTITY_REIMPORT="${FORCE_IDENTITY_REIMPORT:-0}"
 MIN_MAINNET_XLM="${MIN_MAINNET_XLM:-2}"
 SECRET_BACKUP_PATH="${SECRET_BACKUP_PATH:-}"
@@ -41,6 +63,17 @@ DISABLE_SECRET_BACKUP="${DISABLE_SECRET_BACKUP:-0}"
 FRONTEND_ENV_FILE="${FRONTEND_ENV_FILE:-}"
 SYNC_FRONTEND_ENV="${SYNC_FRONTEND_ENV:-1}"
 SYNC_FRONTEND_ENV_NON_LOCAL="${SYNC_FRONTEND_ENV_NON_LOCAL:-0}"
+ENABLE_ONCHAIN_SOURCE_VERIFICATION="${ENABLE_ONCHAIN_SOURCE_VERIFICATION:-1}"
+REQUIRE_ONCHAIN_SOURCE_VERIFICATION="${REQUIRE_ONCHAIN_SOURCE_VERIFICATION:-0}"
+CONTRACT_SOURCE_REPO="${CONTRACT_SOURCE_REPO:-}"
+CONTRACT_SOURCE_COMMIT="${CONTRACT_SOURCE_COMMIT:-}"
+CONTRACT_SOURCE_SUBPATH="${CONTRACT_SOURCE_SUBPATH:-shimeji-xlm/soroban}"
+STELLAR_RPC_HEADERS="${STELLAR_RPC_HEADERS:-}"
+AUTO_CREATE_INITIAL_AUCTION="${AUTO_CREATE_INITIAL_AUCTION:-1}"
+INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
+INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
+INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1000000}"
+INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
   NETWORK="$1"
@@ -74,6 +107,19 @@ fi
 SECRET_BACKUP_STATUS="not-written"
 FRONTEND_ENV_STATUS="not-synced"
 DEPLOY_ENV_EXPORT_STATUS="not-written"
+TRUSTLESS_ESCROW_STATUS="disabled"
+SOURCE_META_STATUS="not-set"
+SOURCE_PUBLICATION_STATUS="not-run"
+SOURCE_WASM_VERIFY_STATUS="not-run"
+SOURCE_BUILD_INFO_STATUS="not-run"
+SOURCE_VERIFICATION_STATUS="not-run"
+RPC_API_KEY_STATUS="not-used"
+NFT_WASM_HASH_ONCHAIN=""
+AUCTION_WASM_HASH_ONCHAIN=""
+INITIAL_AUCTION_STATUS="not-run"
+INITIAL_AUCTION_ID=""
+INITIAL_AUCTION_STARTING_XLM=""
+INITIAL_AUCTION_STARTING_USDC=""
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -339,6 +385,271 @@ hash_file() {
   fi
 
   die "Neither sha256sum nor shasum was found in PATH"
+}
+
+escape_for_double_quotes() {
+  local raw="${1:-}"
+  printf "%s" "$raw" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+extract_github_slug_from_remote() {
+  local remote_url="$1"
+  local slug=""
+
+  case "$remote_url" in
+    https://github.com/*)
+      slug="${remote_url#https://github.com/}"
+      ;;
+    git@github.com:*)
+      slug="${remote_url#git@github.com:}"
+      ;;
+    ssh://git@github.com/*)
+      slug="${remote_url#ssh://git@github.com/}"
+      ;;
+  esac
+
+  slug="${slug%.git}"
+  slug="${slug#/}"
+  if [[ "$slug" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+    printf "github:%s" "$slug"
+  fi
+}
+
+detect_contract_source_repo() {
+  local remote_url
+  remote_url="$(git -C "$PROJECT_ROOT" remote get-url origin 2>/dev/null || true)"
+  if [ -z "$remote_url" ]; then
+    return 0
+  fi
+  extract_github_slug_from_remote "$remote_url"
+}
+
+detect_contract_source_commit() {
+  git -C "$PROJECT_ROOT" rev-parse HEAD 2>/dev/null || true
+}
+
+valid_source_repo_value() {
+  local value="$1"
+  [[ "$value" =~ ^github:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+}
+
+normalize_currency() {
+  local raw="$1"
+  printf "%s" "$raw" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]'
+}
+
+human_amount_to_stroops() {
+  local amount="$1"
+  local parsed=""
+
+  parsed="$(awk -v v="$amount" '
+    BEGIN {
+      if (v !~ /^[0-9]+([.][0-9]+)?$/) { exit 1 }
+      split(v, parts, ".")
+      intp = parts[1]
+      frac = (length(parts) >= 2 ? parts[2] : "")
+      if (length(frac) > 7) { frac = substr(frac, 1, 7) }
+      while (length(frac) < 7) { frac = frac "0" }
+      gsub(/^0+/, "", intp)
+      if (intp == "") { intp = "0" }
+      out = intp frac
+      gsub(/^0+/, "", out)
+      if (out == "") { out = "0" }
+      print out
+    }
+  ' 2>/dev/null)" || true
+
+  if [ -z "$parsed" ] || [ "$parsed" = "0" ]; then
+    return 1
+  fi
+
+  printf "%s" "$parsed"
+}
+
+prepare_initial_auction_config() {
+  local default_amount
+  local choice
+
+  INITIAL_AUCTION_MIN_CURRENCY="$(normalize_currency "$INITIAL_AUCTION_MIN_CURRENCY")"
+
+  if [ "$AUTO_CREATE_INITIAL_AUCTION" != "1" ]; then
+    INITIAL_AUCTION_STATUS="disabled"
+    return
+  fi
+
+  if [ "$INTERACTIVE" -eq 1 ]; then
+    if ! confirm "Create initial auction automatically right after deploy?" "y"; then
+      AUTO_CREATE_INITIAL_AUCTION="0"
+      INITIAL_AUCTION_STATUS="disabled-by-user"
+      return
+    fi
+
+    echo "Set minimum bid currency for initial auction:"
+    echo "  1) USDC"
+    echo "  2) XLM"
+    if [ "$INITIAL_AUCTION_MIN_CURRENCY" = "xlm" ]; then
+      read -r -p "Choice [2]: " choice
+      choice="${choice:-2}"
+    else
+      read -r -p "Choice [1]: " choice
+      choice="${choice:-1}"
+    fi
+    case "$choice" in
+      2) INITIAL_AUCTION_MIN_CURRENCY="xlm" ;;
+      *) INITIAL_AUCTION_MIN_CURRENCY="usdc" ;;
+    esac
+
+    if [ "$INITIAL_AUCTION_MIN_CURRENCY" = "xlm" ]; then
+      default_amount="500"
+    else
+      default_amount="50"
+    fi
+    INITIAL_AUCTION_MIN_AMOUNT="$(prompt_default "Initial minimum amount (${INITIAL_AUCTION_MIN_CURRENCY^^})" "${INITIAL_AUCTION_MIN_AMOUNT:-$default_amount}")"
+    INITIAL_AUCTION_XLM_USDC_RATE="$(prompt_default "XLM/USDC rate (7 decimals, 1000000 = 0.10)" "$INITIAL_AUCTION_XLM_USDC_RATE")"
+    INITIAL_AUCTION_TOKEN_URI="$(prompt_default "Initial auction token URI" "$INITIAL_AUCTION_TOKEN_URI")"
+  fi
+
+  case "$INITIAL_AUCTION_MIN_CURRENCY" in
+    usdc|xlm) ;;
+    *) die "INITIAL_AUCTION_MIN_CURRENCY must be usdc or xlm. Current value: $INITIAL_AUCTION_MIN_CURRENCY" ;;
+  esac
+
+  if ! [[ "$INITIAL_AUCTION_XLM_USDC_RATE" =~ ^[0-9]+$ ]] || [ "$INITIAL_AUCTION_XLM_USDC_RATE" -le 0 ]; then
+    die "INITIAL_AUCTION_XLM_USDC_RATE must be a positive integer (7 decimals)."
+  fi
+
+  local min_amount_stroops
+  min_amount_stroops="$(human_amount_to_stroops "$INITIAL_AUCTION_MIN_AMOUNT")" || die "INITIAL_AUCTION_MIN_AMOUNT must be a positive number (up to 7 decimals)."
+
+  if [ "$INITIAL_AUCTION_MIN_CURRENCY" = "usdc" ]; then
+    INITIAL_AUCTION_STARTING_USDC="$min_amount_stroops"
+    INITIAL_AUCTION_STARTING_XLM="$(( (min_amount_stroops * 10000000 + INITIAL_AUCTION_XLM_USDC_RATE - 1) / INITIAL_AUCTION_XLM_USDC_RATE ))"
+  else
+    INITIAL_AUCTION_STARTING_XLM="$min_amount_stroops"
+    INITIAL_AUCTION_STARTING_USDC="$(( (min_amount_stroops * INITIAL_AUCTION_XLM_USDC_RATE + 10000000 - 1) / 10000000 ))"
+  fi
+
+  if [ -z "$INITIAL_AUCTION_TOKEN_URI" ]; then
+    die "INITIAL_AUCTION_TOKEN_URI cannot be empty when AUTO_CREATE_INITIAL_AUCTION=1."
+  fi
+
+  INITIAL_AUCTION_STATUS="ready"
+}
+
+is_api_key_error_output() {
+  local output_file="$1"
+  grep -Eqi "(401|403|forbidden|unauthorized|api[ _-]?key|access denied)" "$output_file"
+}
+
+prompt_and_configure_rpc_api_key() {
+  local verify_target="$1"
+  local header_name api_key escaped_headers
+
+  if [ "$INTERACTIVE" -ne 1 ]; then
+    return 1
+  fi
+  if [ "$NETWORK" = "local" ]; then
+    return 1
+  fi
+  if ! confirm "Verification for ${verify_target} may require an RPC API key. Configure now?" "y"; then
+    RPC_API_KEY_STATUS="skipped"
+    return 1
+  fi
+
+  read -r -p "RPC API header name [X-API-Key]: " header_name
+  header_name="${header_name:-X-API-Key}"
+
+  api_key="$(read_masked_line "RPC API key value > ")"
+  api_key="$(printf "%s" "$api_key" | tr -d '\r\n')"
+  if [ -z "$api_key" ]; then
+    echo "Empty API key. Skipping API header setup."
+    RPC_API_KEY_STATUS="empty"
+    return 1
+  fi
+
+  STELLAR_RPC_HEADERS="$header_name: $api_key"
+  export STELLAR_RPC_HEADERS
+  RPC_API_KEY_STATUS="session-only"
+  echo "==> Using RPC header for this session: $header_name"
+
+  if confirm "Save STELLAR_RPC_HEADERS to $ENV_CREDENTIALS_FILE for future deploys?" "n"; then
+    touch "$ENV_CREDENTIALS_FILE"
+    escaped_headers="$(escape_for_double_quotes "$STELLAR_RPC_HEADERS")"
+    upsert_env_value "$ENV_CREDENTIALS_FILE" "STELLAR_RPC_HEADERS" "\"$escaped_headers\""
+    RPC_API_KEY_STATUS="saved-to-env"
+    echo "==> Saved STELLAR_RPC_HEADERS in $ENV_CREDENTIALS_FILE"
+  fi
+
+  return 0
+}
+
+prepare_source_verification() {
+  local prompted_repo
+  local escaped_repo escaped_commit escaped_subpath
+
+  if [ "$ENABLE_ONCHAIN_SOURCE_VERIFICATION" != "1" ]; then
+    SOURCE_META_STATUS="disabled"
+    SOURCE_PUBLICATION_STATUS="disabled"
+    return
+  fi
+
+  if [ -z "$CONTRACT_SOURCE_REPO" ]; then
+    CONTRACT_SOURCE_REPO="$(detect_contract_source_repo)"
+    if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+      SOURCE_META_STATUS="auto-repo"
+    fi
+  fi
+
+  if [ -z "$CONTRACT_SOURCE_COMMIT" ]; then
+    CONTRACT_SOURCE_COMMIT="$(detect_contract_source_commit)"
+    if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+      SOURCE_META_STATUS="auto-repo+commit"
+    fi
+  fi
+
+  if [ -n "$CONTRACT_SOURCE_REPO" ] && ! valid_source_repo_value "$CONTRACT_SOURCE_REPO"; then
+    die "CONTRACT_SOURCE_REPO must use format github:<owner>/<repo>. Current value: $CONTRACT_SOURCE_REPO"
+  fi
+
+  if [ "$NETWORK" != "local" ] && [ -z "$CONTRACT_SOURCE_REPO" ] && [ "$INTERACTIVE" -eq 1 ]; then
+    echo "No source repository metadata detected for explorer publication."
+    if confirm "Set CONTRACT_SOURCE_REPO now (recommended so explorer can show source links)?" "y"; then
+      read -r -p "CONTRACT_SOURCE_REPO (github:<owner>/<repo>) > " prompted_repo
+      prompted_repo="$(printf "%s" "$prompted_repo" | tr -d '[:space:]')"
+      if [ -n "$prompted_repo" ]; then
+        if ! valid_source_repo_value "$prompted_repo"; then
+          die "Invalid CONTRACT_SOURCE_REPO format: $prompted_repo (expected github:<owner>/<repo>)"
+        fi
+        CONTRACT_SOURCE_REPO="$prompted_repo"
+        SOURCE_META_STATUS="prompted-repo"
+      fi
+    fi
+  fi
+
+  if [ -n "$CONTRACT_SOURCE_REPO" ] && [ "$INTERACTIVE" -eq 1 ] && [ "$NETWORK" != "local" ]; then
+    if confirm "Persist source verification defaults in $ENV_CREDENTIALS_FILE?" "n"; then
+      touch "$ENV_CREDENTIALS_FILE"
+      escaped_repo="$(escape_for_double_quotes "$CONTRACT_SOURCE_REPO")"
+      escaped_commit="$(escape_for_double_quotes "$CONTRACT_SOURCE_COMMIT")"
+      escaped_subpath="$(escape_for_double_quotes "$CONTRACT_SOURCE_SUBPATH")"
+      upsert_env_value "$ENV_CREDENTIALS_FILE" "CONTRACT_SOURCE_REPO" "\"$escaped_repo\""
+      if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+        upsert_env_value "$ENV_CREDENTIALS_FILE" "CONTRACT_SOURCE_COMMIT" "\"$escaped_commit\""
+      fi
+      upsert_env_value "$ENV_CREDENTIALS_FILE" "CONTRACT_SOURCE_SUBPATH" "\"$escaped_subpath\""
+      echo "==> Saved source verification defaults to $ENV_CREDENTIALS_FILE"
+    fi
+  fi
+
+  if [ -n "$CONTRACT_SOURCE_REPO" ] && [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+    if [ "$SOURCE_META_STATUS" = "not-set" ]; then
+      SOURCE_META_STATUS="configured"
+    fi
+  elif [ -n "$CONTRACT_SOURCE_REPO" ]; then
+    SOURCE_META_STATUS="repo-only"
+  else
+    SOURCE_META_STATUS="missing-repo"
+  fi
 }
 
 identity_exists() {
@@ -630,6 +941,46 @@ Provide LOCAL_USDC_ISSUER_SECRET (for that issuer), or unset LOCAL_USDC_ISSUER t
   fi
 }
 
+prepare_trustless_escrow_config() {
+  if [ "$ENABLE_TRUSTLESS_ESCROW" != "1" ]; then
+    TRUSTLESS_ESCROW_STATUS="disabled"
+    return
+  fi
+
+  if [ "$NETWORK" = "local" ]; then
+    TRUSTLESS_ESCROW_STATUS="local-mock-pending-deploy"
+    return
+  fi
+
+  if [ -z "$TRUSTLESS_ESCROW_XLM_ADDRESS" ] || [ -z "$TRUSTLESS_ESCROW_USDC_ADDRESS" ]; then
+    if [ "$NETWORK" = "testnet" ] && [ "$AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL" = "1" ]; then
+      TRUSTLESS_ESCROW_STATUS="testnet-fallback-vault-pending-deploy"
+      return
+    fi
+
+    if [ "$NETWORK" = "mainnet" ] && [ "$INTERACTIVE" -eq 1 ] && [ "$AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL" = "1" ]; then
+      echo "Trustless escrow destination addresses are missing for mainnet."
+      if confirm "Auto-deploy fallback escrow vault contract on mainnet and route bids there?" "n"; then
+        TRUSTLESS_ESCROW_STATUS="mainnet-fallback-vault-pending-deploy"
+        return
+      fi
+    fi
+
+    die "Trustless escrow is enabled but destination addresses are missing.
+Set both:
+  TRUSTLESS_ESCROW_XLM_ADDRESS=<Trustless Work escrow destination for XLM bids>
+  TRUSTLESS_ESCROW_USDC_ADDRESS=<Trustless Work escrow destination for USDC bids>
+
+Or allow testnet fallback vault auto-deploy:
+  AUTO_DEPLOY_TRUSTLESS_ESCROW_NON_LOCAL=1
+
+If you want to deploy without Trustless escrow routing, set:
+  ENABLE_TRUSTLESS_ESCROW=0"
+  fi
+
+  TRUSTLESS_ESCROW_STATUS="configured-external"
+}
+
 upsert_env_value() {
   local env_file="$1"
   local env_key="$2"
@@ -696,6 +1047,15 @@ sync_frontend_env_local() {
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "\"$PASSPHRASE\""
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK" "$NETWORK"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_USDC_ISSUER" "$USDC_ISSUER"
+  if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_ESCROW_PROVIDER" "trustless_work"
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS" "$TRUSTLESS_ESCROW_XLM_ADDRESS"
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS" "$TRUSTLESS_ESCROW_USDC_ADDRESS"
+  else
+    upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_ESCROW_PROVIDER" "internal"
+    remove_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS"
+    remove_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS"
+  fi
 
   if [ "$NETWORK" = "local" ]; then
     upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_LOCAL_FRIENDBOT_URL" "$LOCAL_FRIENDBOT_URL"
@@ -728,6 +1088,25 @@ write_deploy_env_export_file() {
     printf "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=%q\n" "$PASSPHRASE"
     printf "NEXT_PUBLIC_STELLAR_NETWORK=%q\n" "$NETWORK"
     printf "NEXT_PUBLIC_USDC_ISSUER=%q\n" "$USDC_ISSUER"
+    if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+      printf "NEXT_PUBLIC_ESCROW_PROVIDER=%q\n" "trustless_work"
+      printf "NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS=%q\n" "$TRUSTLESS_ESCROW_XLM_ADDRESS"
+      printf "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS=%q\n" "$TRUSTLESS_ESCROW_USDC_ADDRESS"
+    else
+      printf "NEXT_PUBLIC_ESCROW_PROVIDER=%q\n" "internal"
+    fi
+    if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+      printf "CONTRACT_SOURCE_REPO=%q\n" "$CONTRACT_SOURCE_REPO"
+    fi
+    if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+      printf "CONTRACT_SOURCE_COMMIT=%q\n" "$CONTRACT_SOURCE_COMMIT"
+    fi
+    printf "ENABLE_ONCHAIN_SOURCE_VERIFICATION=%q\n" "$ENABLE_ONCHAIN_SOURCE_VERIFICATION"
+    printf "AUTO_CREATE_INITIAL_AUCTION=%q\n" "$AUTO_CREATE_INITIAL_AUCTION"
+    printf "INITIAL_AUCTION_MIN_CURRENCY=%q\n" "$INITIAL_AUCTION_MIN_CURRENCY"
+    printf "INITIAL_AUCTION_MIN_AMOUNT=%q\n" "$INITIAL_AUCTION_MIN_AMOUNT"
+    printf "INITIAL_AUCTION_XLM_USDC_RATE=%q\n" "$INITIAL_AUCTION_XLM_USDC_RATE"
+    printf "INITIAL_AUCTION_TOKEN_URI=%q\n" "$INITIAL_AUCTION_TOKEN_URI"
   } > "$export_file"
 
   DEPLOY_ENV_EXPORT_STATUS="$export_file"
@@ -829,25 +1208,54 @@ ensure_build_target() {
 }
 
 build_contracts() {
+  local -a build_args
+
   echo "==> Building contracts..."
   cd "$ROOT_DIR"
-  stellar contract build
+  build_args=(contract build)
+
+  if [ "$ENABLE_ONCHAIN_SOURCE_VERIFICATION" = "1" ]; then
+    if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+      build_args+=(--meta "source_repo=$CONTRACT_SOURCE_REPO")
+    fi
+    if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+      build_args+=(--meta "source_repo_commit=$CONTRACT_SOURCE_COMMIT")
+    fi
+    if [ -n "$CONTRACT_SOURCE_SUBPATH" ]; then
+      build_args+=(--meta "source_repo_path=$CONTRACT_SOURCE_SUBPATH")
+    fi
+  fi
+
+  stellar "${build_args[@]}"
+
+  if [ "$ENABLE_ONCHAIN_SOURCE_VERIFICATION" != "1" ]; then
+    SOURCE_PUBLICATION_STATUS="disabled"
+  elif [ "$NETWORK" = "local" ]; then
+    SOURCE_PUBLICATION_STATUS="local-network"
+  elif [ -n "$CONTRACT_SOURCE_REPO" ]; then
+    SOURCE_PUBLICATION_STATUS="metadata-attached"
+  else
+    SOURCE_PUBLICATION_STATUS="missing-source-repo"
+  fi
 
   WASM_DIR_V1="$ROOT_DIR/target/wasm32v1-none/release"
   WASM_DIR_LEGACY="$ROOT_DIR/target/wasm32-unknown-unknown/release"
 
-  if [[ -f "$WASM_DIR_V1/shimeji_nft.wasm" && -f "$WASM_DIR_V1/shimeji_auction.wasm" ]]; then
+  if [[ -f "$WASM_DIR_V1/shimeji_nft.wasm" && -f "$WASM_DIR_V1/shimeji_auction.wasm" && -f "$WASM_DIR_V1/shimeji_escrow_vault.wasm" ]]; then
     NFT_WASM="$WASM_DIR_V1/shimeji_nft.wasm"
     AUCTION_WASM="$WASM_DIR_V1/shimeji_auction.wasm"
-  elif [[ -f "$WASM_DIR_LEGACY/shimeji_nft.wasm" && -f "$WASM_DIR_LEGACY/shimeji_auction.wasm" ]]; then
+    ESCROW_VAULT_WASM="$WASM_DIR_V1/shimeji_escrow_vault.wasm"
+  elif [[ -f "$WASM_DIR_LEGACY/shimeji_nft.wasm" && -f "$WASM_DIR_LEGACY/shimeji_auction.wasm" && -f "$WASM_DIR_LEGACY/shimeji_escrow_vault.wasm" ]]; then
     NFT_WASM="$WASM_DIR_LEGACY/shimeji_nft.wasm"
     AUCTION_WASM="$WASM_DIR_LEGACY/shimeji_auction.wasm"
+    ESCROW_VAULT_WASM="$WASM_DIR_LEGACY/shimeji_escrow_vault.wasm"
   else
-    die "Could not find built WASM artifacts in target directories"
+    die "Could not find built WASM artifacts (shimeji_nft.wasm, shimeji_auction.wasm, shimeji_escrow_vault.wasm) in target directories"
   fi
 
   NFT_WASM_HASH_LOCAL="$(hash_file "$NFT_WASM")"
   AUCTION_WASM_HASH_LOCAL="$(hash_file "$AUCTION_WASM")"
+  ESCROW_VAULT_WASM_HASH_LOCAL="$(hash_file "$ESCROW_VAULT_WASM")"
 }
 
 derive_sac_addresses() {
@@ -903,6 +1311,71 @@ deploy_contracts() {
     --usdc_token "$USDC_TOKEN" \
     --xlm_token "$XLM_TOKEN"
 
+  if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+    if [ "$NETWORK" = "local" ]; then
+      echo "==> Deploying local mock escrow vault (Trustless Work dev parity)..."
+      ESCROW_VAULT_ID="$(stellar contract deploy \
+        --wasm "$ESCROW_VAULT_WASM" \
+        --source "$IDENTITY" \
+        --rpc-url "$RPC_URL" \
+        --network-passphrase "$PASSPHRASE")"
+      echo "  Local Escrow Vault: $ESCROW_VAULT_ID"
+
+      stellar contract invoke \
+        --id "$ESCROW_VAULT_ID" \
+        --source "$IDENTITY" \
+        --rpc-url "$RPC_URL" \
+        --network-passphrase "$PASSPHRASE" \
+        -- initialize --admin "$ADMIN"
+
+      TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
+      TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
+      TRUSTLESS_ESCROW_STATUS="local-mock-enabled"
+    else
+      if [ -z "$TRUSTLESS_ESCROW_XLM_ADDRESS" ] || [ -z "$TRUSTLESS_ESCROW_USDC_ADDRESS" ]; then
+        echo "==> Deploying fallback escrow vault on $NETWORK (Trustless routing enabled)..."
+        ESCROW_VAULT_ID="$(stellar contract deploy \
+          --wasm "$ESCROW_VAULT_WASM" \
+          --source "$IDENTITY" \
+          --rpc-url "$RPC_URL" \
+          --network-passphrase "$PASSPHRASE")"
+        echo "  Fallback Escrow Vault: $ESCROW_VAULT_ID"
+
+        stellar contract invoke \
+          --id "$ESCROW_VAULT_ID" \
+          --source "$IDENTITY" \
+          --rpc-url "$RPC_URL" \
+          --network-passphrase "$PASSPHRASE" \
+          -- initialize --admin "$ADMIN"
+
+        TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
+        TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
+        TRUSTLESS_ESCROW_STATUS="${NETWORK}-fallback-vault-enabled"
+      else
+        TRUSTLESS_ESCROW_STATUS="trustless-enabled"
+      fi
+    fi
+
+    echo "==> Configuring auction contract to settle into Trustless escrow destinations..."
+    stellar contract invoke \
+      --id "$AUCTION_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- configure_trustless_escrow \
+      --xlm_destination "$TRUSTLESS_ESCROW_XLM_ADDRESS" \
+      --usdc_destination "$TRUSTLESS_ESCROW_USDC_ADDRESS"
+  else
+    echo "==> Using internal auction escrow mode (Trustless escrow disabled)."
+    stellar contract invoke \
+      --id "$AUCTION_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- configure_internal_escrow
+    TRUSTLESS_ESCROW_STATUS="internal"
+  fi
+
   echo "==> Setting auction contract as NFT minter..."
   stellar contract invoke \
     --id "$NFT_ID" \
@@ -910,6 +1383,236 @@ deploy_contracts() {
     --rpc-url "$RPC_URL" \
     --network-passphrase "$PASSPHRASE" \
     -- set_minter --minter "$AUCTION_ID"
+}
+
+read_total_auctions() {
+  local raw
+  raw="$(stellar contract invoke \
+    --id "$AUCTION_ID" \
+    --source "$IDENTITY" \
+    --rpc-url "$RPC_URL" \
+    --network-passphrase "$PASSPHRASE" \
+    -- total_auctions 2>/dev/null || true)"
+  printf "%s\n" "$raw" | tr -d '\r' | awk '/^[0-9]+$/ {print $1}' | tail -n1
+}
+
+create_initial_auction_if_enabled() {
+  local total_before
+  local create_output
+
+  if [ "$AUTO_CREATE_INITIAL_AUCTION" != "1" ]; then
+    [ "$INITIAL_AUCTION_STATUS" = "not-run" ] && INITIAL_AUCTION_STATUS="disabled"
+    return
+  fi
+
+  total_before="$(read_total_auctions)"
+  if [ -z "$total_before" ]; then
+    INITIAL_AUCTION_STATUS="could-not-read-total"
+    return
+  fi
+
+  if [ "$total_before" != "0" ]; then
+    INITIAL_AUCTION_STATUS="skipped-existing-auctions"
+    return
+  fi
+
+  echo "==> Creating initial auction automatically..."
+  create_output="$(stellar contract invoke \
+    --id "$AUCTION_ID" \
+    --source "$IDENTITY" \
+    --rpc-url "$RPC_URL" \
+    --network-passphrase "$PASSPHRASE" \
+    -- create_auction \
+    --token_uri "$INITIAL_AUCTION_TOKEN_URI" \
+    --starting_price_xlm "$INITIAL_AUCTION_STARTING_XLM" \
+    --starting_price_usdc "$INITIAL_AUCTION_STARTING_USDC" \
+    --xlm_usdc_rate "$INITIAL_AUCTION_XLM_USDC_RATE" 2>&1)" || {
+      INITIAL_AUCTION_STATUS="failed-create"
+      echo "==> Failed to create initial auction:"
+      echo "$create_output"
+      return
+    }
+
+  INITIAL_AUCTION_ID="$(printf "%s\n" "$create_output" | tr -d '\r' | awk '/^[0-9]+$/ {print $1}' | tail -n1)"
+  if [ -z "$INITIAL_AUCTION_ID" ]; then
+    INITIAL_AUCTION_ID="0"
+  fi
+
+  INITIAL_AUCTION_STATUS="created"
+  echo "  Initial auction created with id: $INITIAL_AUCTION_ID"
+  echo "  Start price: ${INITIAL_AUCTION_STARTING_USDC} stroops USDC / ${INITIAL_AUCTION_STARTING_XLM} stroops XLM"
+}
+
+run_build_info_query_with_optional_api_key() {
+  local contract_id="$1"
+  local contract_label="$2"
+  local output_file="$3"
+  local attempt=0
+
+  while true; do
+    if stellar contract info build \
+      --contract-id "$contract_id" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" >"$output_file" 2>&1; then
+      return 0
+    fi
+
+    if [ "$attempt" -ge 1 ]; then
+      return 1
+    fi
+
+    if ! is_api_key_error_output "$output_file"; then
+      return 1
+    fi
+
+    if ! prompt_and_configure_rpc_api_key "$contract_label"; then
+      return 1
+    fi
+
+    attempt=$((attempt + 1))
+  done
+}
+
+fetch_contract_wasm_with_optional_api_key() {
+  local contract_id="$1"
+  local contract_label="$2"
+  local output_wasm="$3"
+  local output_log="$4"
+  local attempt=0
+
+  while true; do
+    if stellar contract fetch \
+      --id "$contract_id" \
+      --out-file "$output_wasm" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" >"$output_log" 2>&1; then
+      return 0
+    fi
+
+    if [ "$attempt" -ge 1 ]; then
+      return 1
+    fi
+
+    if ! is_api_key_error_output "$output_log"; then
+      return 1
+    fi
+
+    if ! prompt_and_configure_rpc_api_key "$contract_label"; then
+      return 1
+    fi
+
+    attempt=$((attempt + 1))
+  done
+}
+
+verify_deployed_contracts_onchain() {
+  local tmp_dir
+  local nft_onchain_wasm
+  local auction_onchain_wasm
+  local nft_fetch_log
+  local auction_fetch_log
+  local nft_build_info_file
+  local auction_build_info_file
+  local need_strict_failure=0
+
+  if [ "$ENABLE_ONCHAIN_SOURCE_VERIFICATION" != "1" ]; then
+    SOURCE_WASM_VERIFY_STATUS="disabled"
+    SOURCE_BUILD_INFO_STATUS="disabled"
+    SOURCE_VERIFICATION_STATUS="disabled"
+    return
+  fi
+
+  if [ "$REQUIRE_ONCHAIN_SOURCE_VERIFICATION" = "1" ]; then
+    need_strict_failure=1
+  fi
+
+  tmp_dir="$(mktemp -d)"
+  nft_onchain_wasm="$tmp_dir/shimeji_nft_onchain.wasm"
+  auction_onchain_wasm="$tmp_dir/shimeji_auction_onchain.wasm"
+  nft_fetch_log="$tmp_dir/shimeji_nft_fetch.log"
+  auction_fetch_log="$tmp_dir/shimeji_auction_fetch.log"
+  nft_build_info_file="$tmp_dir/shimeji_nft_build_info.txt"
+  auction_build_info_file="$tmp_dir/shimeji_auction_build_info.txt"
+
+  echo "==> Verifying deployed contracts on-chain..."
+
+  if ! fetch_contract_wasm_with_optional_api_key "$NFT_ID" "NFT contract wasm fetch" "$nft_onchain_wasm" "$nft_fetch_log"; then
+    SOURCE_WASM_VERIFY_STATUS="fetch-failed"
+    SOURCE_VERIFICATION_STATUS="failed-fetch"
+    if [ -f "$nft_fetch_log" ]; then
+      echo "Verification fetch error (NFT):"
+      sed -n '1,20p' "$nft_fetch_log"
+    fi
+    rm -rf "$tmp_dir"
+    if [ "$need_strict_failure" -eq 1 ]; then
+      die "On-chain verification failed while fetching NFT wasm."
+    fi
+    return
+  fi
+
+  if ! fetch_contract_wasm_with_optional_api_key "$AUCTION_ID" "Auction contract wasm fetch" "$auction_onchain_wasm" "$auction_fetch_log"; then
+    SOURCE_WASM_VERIFY_STATUS="fetch-failed"
+    SOURCE_VERIFICATION_STATUS="failed-fetch"
+    if [ -f "$auction_fetch_log" ]; then
+      echo "Verification fetch error (Auction):"
+      sed -n '1,20p' "$auction_fetch_log"
+    fi
+    rm -rf "$tmp_dir"
+    if [ "$need_strict_failure" -eq 1 ]; then
+      die "On-chain verification failed while fetching auction wasm."
+    fi
+    return
+  fi
+
+  NFT_WASM_HASH_ONCHAIN="$(hash_file "$nft_onchain_wasm")"
+  AUCTION_WASM_HASH_ONCHAIN="$(hash_file "$auction_onchain_wasm")"
+
+  if [ "$NFT_WASM_HASH_LOCAL" = "$NFT_WASM_HASH_ONCHAIN" ] && [ "$AUCTION_WASM_HASH_LOCAL" = "$AUCTION_WASM_HASH_ONCHAIN" ]; then
+    SOURCE_WASM_VERIFY_STATUS="ok"
+  else
+    SOURCE_WASM_VERIFY_STATUS="hash-mismatch"
+    SOURCE_VERIFICATION_STATUS="failed-hash"
+    rm -rf "$tmp_dir"
+    if [ "$need_strict_failure" -eq 1 ]; then
+      die "On-chain wasm hashes do not match local build artifacts."
+    fi
+    return
+  fi
+
+  if [ "$NETWORK" = "local" ]; then
+    SOURCE_BUILD_INFO_STATUS="skipped-local"
+    SOURCE_VERIFICATION_STATUS="verified-hash-local"
+    rm -rf "$tmp_dir"
+    return
+  fi
+
+  if run_build_info_query_with_optional_api_key "$NFT_ID" "NFT contract build info" "$nft_build_info_file" \
+    && run_build_info_query_with_optional_api_key "$AUCTION_ID" "Auction contract build info" "$auction_build_info_file"; then
+    SOURCE_BUILD_INFO_STATUS="ok"
+    SOURCE_VERIFICATION_STATUS="verified-hash+build-info"
+  else
+    SOURCE_BUILD_INFO_STATUS="unavailable"
+    SOURCE_VERIFICATION_STATUS="verified-hash-only"
+    echo "==> Build attestation info is not available yet."
+    if [ -s "$nft_build_info_file" ]; then
+      echo "    NFT build info response:"
+      sed -n '1,15p' "$nft_build_info_file"
+    fi
+    if [ -s "$auction_build_info_file" ]; then
+      echo "    Auction build info response:"
+      sed -n '1,15p' "$auction_build_info_file"
+    fi
+    echo "    Explorer can still index source metadata if source_repo is attached."
+    echo "    Check later with:"
+    echo "    stellar contract info build --contract-id \"$NFT_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
+    echo "    stellar contract info build --contract-id \"$AUCTION_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
+    if [ "$need_strict_failure" -eq 1 ]; then
+      rm -rf "$tmp_dir"
+      die "Strict verification requested but build attestation info is unavailable."
+    fi
+  fi
+
+  rm -rf "$tmp_dir"
 }
 
 print_success_summary() {
@@ -922,13 +1625,47 @@ print_success_summary() {
   echo "  Auction Contract: $AUCTION_ID"
   echo "  XLM SAC:          $XLM_TOKEN"
   echo "  USDC SAC:         $USDC_TOKEN"
+  if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+    echo "  Escrow Provider:  trustless_work ($TRUSTLESS_ESCROW_STATUS)"
+    echo "  Escrow XLM Dest:  $TRUSTLESS_ESCROW_XLM_ADDRESS"
+    echo "  Escrow USDC Dest: $TRUSTLESS_ESCROW_USDC_ADDRESS"
+  else
+    echo "  Escrow Provider:  internal"
+  fi
+  echo "  Initial Auction:  $INITIAL_AUCTION_STATUS"
+  if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
+    echo "  - Auction ID:     $INITIAL_AUCTION_ID"
+    echo "  - Min USDC:       $INITIAL_AUCTION_STARTING_USDC (7 decimals)"
+    echo "  - Min XLM:        $INITIAL_AUCTION_STARTING_XLM (7 decimals)"
+  fi
   echo "  Admin:            $ADMIN"
   echo "  Identity Alias:   $IDENTITY"
   echo "  Secret Backup:    $SECRET_BACKUP_PATH ($SECRET_BACKUP_STATUS)"
   echo "  Frontend Env Sync:$FRONTEND_ENV_STATUS"
   echo "  Deploy Env File:  $DEPLOY_ENV_EXPORT_STATUS"
+  echo "  Source Meta:      $SOURCE_META_STATUS"
+  if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+    echo "  Source Repo:      $CONTRACT_SOURCE_REPO"
+  fi
+  if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+    echo "  Source Commit:    $CONTRACT_SOURCE_COMMIT"
+  fi
+  if [ -n "$STELLAR_RPC_HEADERS" ]; then
+    echo "  RPC API Header:   configured ($RPC_API_KEY_STATUS)"
+  else
+    echo "  RPC API Header:   not configured"
+  fi
   echo "  NFT Wasm Hash:    $NFT_WASM_HASH_LOCAL"
   echo "  Auction Wasm Hash:$AUCTION_WASM_HASH_LOCAL"
+  if [ -n "$NFT_WASM_HASH_ONCHAIN" ]; then
+    echo "  NFT On-chain Hash:$NFT_WASM_HASH_ONCHAIN"
+  fi
+  if [ -n "$AUCTION_WASM_HASH_ONCHAIN" ]; then
+    echo "  Auction On-chain: $AUCTION_WASM_HASH_ONCHAIN"
+  fi
+  echo "  Verification:     $SOURCE_VERIFICATION_STATUS"
+  echo "  - Hash Check:     $SOURCE_WASM_VERIFY_STATUS"
+  echo "  - Build Info:     $SOURCE_BUILD_INFO_STATUS"
   echo ""
   if [ "$NETWORK" = "local" ]; then
     echo "Explorer links:"
@@ -940,6 +1677,10 @@ print_success_summary() {
     echo "  NFT Contract:     $EXPLORER_ROOT/contract/$NFT_ID"
     echo "  Auction Contract: $EXPLORER_ROOT/contract/$AUCTION_ID"
     echo "  Admin Account:    $EXPLORER_ROOT/account/$ADMIN"
+    if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+      echo "  Source Repo Meta: $CONTRACT_SOURCE_REPO"
+      echo "  Expected result: explorer 'Source Code' section can link to the repository."
+    fi
   fi
   echo ""
   echo "Frontend linkage (shimeji-xlm/nextjs):"
@@ -950,6 +1691,7 @@ print_success_summary() {
     echo "   - Keys written: NEXT_PUBLIC_NFT_CONTRACT_ID, NEXT_PUBLIC_AUCTION_CONTRACT_ID,"
     echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_HORIZON_URL,"
     echo "     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK, NEXT_PUBLIC_USDC_ISSUER,"
+    echo "     NEXT_PUBLIC_ESCROW_PROVIDER, NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS, NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS,"
     echo "     NEXT_PUBLIC_LOCAL_USDC_ISSUER, LOCAL_USDC_ISSUER_SECRET, LOCAL_USDC_ASSET_CODE."
     echo "   - Local USDC issuer: $USDC_ISSUER"
   elif [ "$FRONTEND_ENV_STATUS" = "synced-non-local" ]; then
@@ -957,7 +1699,8 @@ print_success_summary() {
     echo "   - $FRONTEND_ENV_FILE was updated automatically ($FRONTEND_ENV_STATUS)."
     echo "   - Keys written: NEXT_PUBLIC_NFT_CONTRACT_ID, NEXT_PUBLIC_AUCTION_CONTRACT_ID,"
     echo "     NEXT_PUBLIC_STELLAR_RPC_URL, NEXT_PUBLIC_STELLAR_HORIZON_URL,"
-    echo "     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK, NEXT_PUBLIC_USDC_ISSUER."
+    echo "     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE, NEXT_PUBLIC_STELLAR_NETWORK, NEXT_PUBLIC_USDC_ISSUER,"
+    echo "     NEXT_PUBLIC_ESCROW_PROVIDER, NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS, NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS."
     echo "   - Local-only keys were removed to avoid stale local faucet config."
   else
     echo "1) Local .env.local autoconfig is intentionally skipped for non-local networks."
@@ -972,6 +1715,9 @@ print_success_summary() {
   echo "   - NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE"
   echo "   - NEXT_PUBLIC_STELLAR_NETWORK"
   echo "   - NEXT_PUBLIC_USDC_ISSUER"
+  echo "   - NEXT_PUBLIC_ESCROW_PROVIDER"
+  echo "   - NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS (if trustless_work)"
+  echo "   - NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS (if trustless_work)"
   echo "   - NEXT_PUBLIC_BASE_URL=https://<your-domain>"
   echo ""
   echo "   Values for this deployment:"
@@ -982,6 +1728,13 @@ print_success_summary() {
   echo "   NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=\"$PASSPHRASE\""
   echo "   NEXT_PUBLIC_STELLAR_NETWORK=$NETWORK"
   echo "   NEXT_PUBLIC_USDC_ISSUER=$USDC_ISSUER"
+  if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+    echo "   NEXT_PUBLIC_ESCROW_PROVIDER=trustless_work"
+    echo "   NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS=$TRUSTLESS_ESCROW_XLM_ADDRESS"
+    echo "   NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS=$TRUSTLESS_ESCROW_USDC_ADDRESS"
+  else
+    echo "   NEXT_PUBLIC_ESCROW_PROVIDER=internal"
+  fi
   echo ""
   echo "3) Redeploy frontend after env vars are set."
   if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then
@@ -990,41 +1743,58 @@ print_success_summary() {
     echo "   cd \"$PROJECT_ROOT\" && pnpm run vercel:env:$NETWORK -- production"
   fi
   echo ""
-  echo "Contract verification steps:"
-  echo "A) Fetch on-chain wasm binaries:"
+  echo "Contract verification:"
+  echo "A) Automatic checks executed in this deploy:"
+  echo "   - On-chain wasm fetch + hash comparison"
+  echo "   - Build info query for source/attestation metadata"
+  echo "   - Result: $SOURCE_VERIFICATION_STATUS"
+  echo ""
+  echo "B) Explorer source publication metadata:"
+  if [ -n "$CONTRACT_SOURCE_REPO" ]; then
+    echo "   - source_repo=$CONTRACT_SOURCE_REPO (embedded in wasm via build --meta)"
+  else
+    echo "   - source_repo metadata was not set."
+    echo "   - Set CONTRACT_SOURCE_REPO=github:<owner>/<repo> in shimeji-xlm/.env to publish source linkage."
+  fi
+  if [ -n "$CONTRACT_SOURCE_COMMIT" ]; then
+    echo "   - source_repo_commit=$CONTRACT_SOURCE_COMMIT"
+  fi
+  echo ""
+  echo "C) Re-run verification commands manually:"
   echo "   stellar contract fetch --id \"$NFT_ID\" --out-file /tmp/shimeji_nft_onchain.wasm --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
   echo "   stellar contract fetch --id \"$AUCTION_ID\" --out-file /tmp/shimeji_auction_onchain.wasm --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
-  echo ""
-  echo "B) Compare on-chain vs local build hashes:"
   echo "   sha256sum \"$NFT_WASM\" /tmp/shimeji_nft_onchain.wasm || shasum -a 256 \"$NFT_WASM\" /tmp/shimeji_nft_onchain.wasm"
   echo "   sha256sum \"$AUCTION_WASM\" /tmp/shimeji_auction_onchain.wasm || shasum -a 256 \"$AUCTION_WASM\" /tmp/shimeji_auction_onchain.wasm"
-  echo ""
-  echo "   Expected local hashes from this deploy:"
-  echo "   - NFT:     $NFT_WASM_HASH_LOCAL"
-  echo "   - Auction: $AUCTION_WASM_HASH_LOCAL"
-  echo ""
-  echo "C) Optional build attestation query (if source metadata exists):"
   echo "   stellar contract info build --contract-id \"$NFT_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
   echo "   stellar contract info build --contract-id \"$AUCTION_ID\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\""
   echo ""
-  echo "First auction quickstart:"
-  echo "1) Create your first auction (admin only)."
-  echo "   Amount units use 7 decimals for both XLM and USDC tokens."
-  echo "   - 500 XLM  => 5000000000"
-  echo "   - 50 USDC => 500000000"
-  echo "   - xlm_usdc_rate uses 7 decimals (1000000 = 0.10 USDC per XLM)"
+  echo "D) If your RPC provider requires API key headers:"
+  echo "   - Set STELLAR_RPC_HEADERS in shimeji-xlm/.env (example: STELLAR_RPC_HEADERS=\"X-API-Key: <key>\")"
+  echo "   - The deploy wizard can also prompt for this key automatically when verification requests are denied."
   echo ""
-  echo "   stellar contract invoke \\"
-  echo "     --id \"$AUCTION_ID\" \\"
-  echo "     --source \"$IDENTITY\" \\"
-  echo "     --rpc-url \"$RPC_URL\" \\"
-  echo "     --network-passphrase \"$PASSPHRASE\" \\"
-  echo "     -- create_auction \\"
-  echo "     --token_uri \"ipfs://<metadata-cid>/metadata.json\" \\"
-  echo "     --starting_price_xlm 5000000000 \\"
-  echo "     --starting_price_usdc 500000000 \\"
-  echo "     --xlm_usdc_rate 1000000"
-  echo ""
+  echo "Auction quickstart:"
+  if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
+    echo "1) Initial auction already created automatically."
+    echo "   - auction_id: $INITIAL_AUCTION_ID"
+    echo "   - token_uri: $INITIAL_AUCTION_TOKEN_URI"
+    echo "   - starting_price_xlm: $INITIAL_AUCTION_STARTING_XLM"
+    echo "   - starting_price_usdc: $INITIAL_AUCTION_STARTING_USDC"
+    echo "   - xlm_usdc_rate: $INITIAL_AUCTION_XLM_USDC_RATE"
+    echo ""
+  else
+    echo "1) No auction auto-created. Create one manually (admin only):"
+    echo "   stellar contract invoke \\"
+    echo "     --id \"$AUCTION_ID\" \\"
+    echo "     --source \"$IDENTITY\" \\"
+    echo "     --rpc-url \"$RPC_URL\" \\"
+    echo "     --network-passphrase \"$PASSPHRASE\" \\"
+    echo "     -- create_auction \\"
+    echo "     --token_uri \"ipfs://<metadata-cid>/metadata.json\" \\"
+    echo "     --starting_price_xlm 5000000000 \\"
+    echo "     --starting_price_usdc 500000000 \\"
+    echo "     --xlm_usdc_rate 1000000"
+    echo ""
+  fi
   echo "2) Confirm auction exists:"
   echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- total_auctions"
   echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- get_auction --auction_id 0"
@@ -1047,6 +1817,8 @@ main() {
   echo "  Network:    $NETWORK"
   echo "  RPC:        $RPC_URL"
   echo "  Passphrase: $PASSPHRASE"
+  echo "  Verify Src: $ENABLE_ONCHAIN_SOURCE_VERIFICATION (strict=$REQUIRE_ONCHAIN_SOURCE_VERIFICATION)"
+  echo "  AutoAuction:$AUTO_CREATE_INITIAL_AUCTION (min=${INITIAL_AUCTION_MIN_AMOUNT} ${INITIAL_AUCTION_MIN_CURRENCY})"
   echo ""
 
   setup_identity
@@ -1061,10 +1833,15 @@ main() {
   fi
 
   ensure_build_target
+  prepare_source_verification
+  prepare_initial_auction_config
   build_contracts
   setup_local_usdc_issuer
+  prepare_trustless_escrow_config
   derive_sac_addresses
   deploy_contracts
+  create_initial_auction_if_enabled
+  verify_deployed_contracts_onchain
   write_deploy_env_export_file
   sync_frontend_env_local
   print_success_summary

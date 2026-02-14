@@ -956,19 +956,19 @@ export default function FactoryPage() {
                       )}
                     </p>
                   )}
-                  <p className="mt-3">
-                    {t("Escrow note: ", "Nota de escrow: ")}
+                  <p className="auction-escrow-note mt-3 rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
+                    <span className="font-semibold">{t("Escrow", "Escrow")}: </span>
                     <a
                       href="https://trustlesswork.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                      className="auction-escrow-link underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
                     >
                       Trustless Work
                     </a>
                     {t(
-                      " is the escrow path for auction funds (integration in progress).",
-                      " es el camino de escrow para los fondos de la subasta (integración en progreso)."
+                      " is integrated as escrow for auction funds.",
+                      " está integrado como escrow para los fondos de la subasta."
                     )}
                   </p>
                 </div>

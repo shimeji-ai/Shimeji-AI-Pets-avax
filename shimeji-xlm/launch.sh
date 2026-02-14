@@ -477,7 +477,8 @@ launch_full_experience() {
     ui_echo "- Frontend: running in its own tab"
     ui_echo "- Deploy: running in its own tab"
     ui_echo ""
-    ui_echo "After deploy completes, it prints the 'First auction quickstart' steps automatically."
+    ui_echo "After deploy completes, it auto-creates the first auction (default) and prints the details."
+    ui_echo "Deploy flow now also runs guided on-chain verification and source publication metadata checks."
     if [ "$network" = "testnet" ] || [ "$network" = "mainnet" ]; then
       ui_echo "Deploy output also includes Vercel env vars to leave frontend online."
     fi

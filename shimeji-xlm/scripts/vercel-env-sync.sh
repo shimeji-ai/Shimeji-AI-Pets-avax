@@ -98,6 +98,12 @@ upsert_vercel_env() {
   echo "  synced $key -> $TARGET_ENV"
 }
 
+remove_vercel_env() {
+  local key="$1"
+  vercel env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
+  echo "  removed $key from $TARGET_ENV"
+}
+
 cd "$NEXTJS_DIR"
 echo "==> Syncing env vars from $ENV_FILE to Vercel ($TARGET_ENV)..."
 upsert_vercel_env "NEXT_PUBLIC_NFT_CONTRACT_ID" "${NEXT_PUBLIC_NFT_CONTRACT_ID:-}"
@@ -107,6 +113,14 @@ upsert_vercel_env "NEXT_PUBLIC_STELLAR_HORIZON_URL" "${NEXT_PUBLIC_STELLAR_HORIZ
 upsert_vercel_env "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "${NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE:-}"
 upsert_vercel_env "NEXT_PUBLIC_STELLAR_NETWORK" "${NEXT_PUBLIC_STELLAR_NETWORK:-}"
 upsert_vercel_env "NEXT_PUBLIC_USDC_ISSUER" "${NEXT_PUBLIC_USDC_ISSUER:-}"
+upsert_vercel_env "NEXT_PUBLIC_ESCROW_PROVIDER" "${NEXT_PUBLIC_ESCROW_PROVIDER:-}"
+if [ "${NEXT_PUBLIC_ESCROW_PROVIDER:-}" = "trustless_work" ]; then
+  upsert_vercel_env "NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS" "${NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS:-}"
+  upsert_vercel_env "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS" "${NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS:-}"
+else
+  remove_vercel_env "NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS"
+  remove_vercel_env "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS"
+fi
 upsert_vercel_env "NEXT_PUBLIC_BASE_URL" "${NEXT_PUBLIC_BASE_URL:-}"
 
 echo "==> Vercel env sync complete."

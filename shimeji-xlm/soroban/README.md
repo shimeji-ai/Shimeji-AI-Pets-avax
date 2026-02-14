@@ -25,6 +25,7 @@ pnpm chain            # local blockchain
 pnpm run deploy:local  # local deploy (+ local frontend env sync)
 pnpm run deploy:testnet
 pnpm run deploy:mainnet
+pnpm run test:networks # local + testnet checks (mainnet prepared but skipped)
 ```
 
 ## Quick Setup (Recommended)
@@ -80,6 +81,11 @@ What this does:
 - On `mainnet`, shows the address plus QR (if `qrencode` is installed), then waits for funding.
 - On first successful identity setup, writes `../secret.txt` (`shimeji-xlm/secret.txt`) with secret key + seed phrase (`chmod 600`).
 - Auto-updates `nextjs/.env.local` only when deploying to `local`.
+- Embeds source metadata into contract WASM (when configured) so explorers can show code links.
+- Runs post-deploy on-chain verification automatically (fetch/hash + build info query).
+- If RPC rejects verification requests, can prompt for API key header and save it to `shimeji-xlm/.env`.
+- If Trustless escrow addresses are missing on testnet, auto-deploys a fallback escrow vault and wires it automatically.
+- Auto-creates the first auction by default right after deploy (minimum configurable in USDC or XLM).
 - Prints Vercel env values for all networks.
 
 Security note:
@@ -155,7 +161,7 @@ The script prints:
 - `USDC SAC`
 - Explorer links (contract + admin account)
 - Frontend env vars for Vercel (and local env auto-sync status for `local`)
-- Contract verification commands (fetch wasm + hash comparison + optional build attestation)
+- Contract verification results (automatic) plus manual re-run commands
 - A generated env file at `shimeji-xlm/.deploy-env/<network>.env` for Vercel CLI sync
 
 After `testnet` or `mainnet` deploy, you can sync to Vercel from `shimeji-xlm/`:
@@ -169,6 +175,23 @@ pnpm run vercel:env:mainnet -- production
 Testnet USDC issuer is already configured in the deploy script as:
 
 `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`
+
+Optional `.env` keys for source publication + verification (`shimeji-xlm/.env`):
+
+```bash
+ENABLE_ONCHAIN_SOURCE_VERIFICATION=1
+REQUIRE_ONCHAIN_SOURCE_VERIFICATION=0
+CONTRACT_SOURCE_REPO=github:luloxi/Shimeji-AI-Pets
+CONTRACT_SOURCE_COMMIT=
+CONTRACT_SOURCE_SUBPATH=shimeji-xlm/soroban
+AUTO_CREATE_INITIAL_AUCTION=1
+INITIAL_AUCTION_MIN_CURRENCY=usdc
+INITIAL_AUCTION_MIN_AMOUNT=50
+INITIAL_AUCTION_XLM_USDC_RATE=1000000
+INITIAL_AUCTION_TOKEN_URI=ipfs://shimeji/default-auction.json
+# only if your RPC provider needs auth:
+# STELLAR_RPC_HEADERS="X-API-Key: <your_key>"
+```
 
 ## Deploy To Mainnet
 
@@ -190,9 +213,10 @@ Mainnet uses:
 - Network passphrase: `Public Global Stellar Network ; September 2015`
 - The passphrase is fixed by Stellar network design (it is not changed per year).
 
-## Create The First Auction
+## Create The First Auction (Manual Override)
 
-After deployment, create the first auction from the same folder:
+By default, deploy now auto-creates the first auction.
+Use these commands only if you disable auto-creation or want additional auctions.
 
 ### Testnet
 

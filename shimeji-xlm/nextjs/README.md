@@ -22,8 +22,13 @@ Create `.env.local` (or set in Vercel):
 - `NEXT_PUBLIC_AUCTION_CONTRACT_ID`
 - `NEXT_PUBLIC_NFT_CONTRACT_ID`
 - `NEXT_PUBLIC_STELLAR_RPC_URL` (default testnet: `https://soroban-testnet.stellar.org`)
+- `NEXT_PUBLIC_STELLAR_HORIZON_URL` (default testnet: `https://horizon-testnet.stellar.org`)
 - `NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE` (testnet: `Test SDF Network ; September 2015`)
 - `NEXT_PUBLIC_STELLAR_NETWORK` (`local`, `testnet`, `mainnet`)
+- `NEXT_PUBLIC_USDC_ISSUER`
+- `NEXT_PUBLIC_ESCROW_PROVIDER` (`trustless_work` or `internal`)
+- `NEXT_PUBLIC_TRUSTLESS_ESCROW_XLM_ADDRESS` (required if provider is `trustless_work`)
+- `NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS` (required if provider is `trustless_work`)
 - `NEXT_PUBLIC_BASE_URL` (your public domain)
 
 ### Optional for extra features

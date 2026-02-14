@@ -117,6 +117,8 @@ cd "$SOROBAN_DIR"
 ./scripts/install_prereqs.sh
 
 echo "==> Deploy target: $NETWORK"
+echo "==> Guided on-chain verification is enabled by default (configure via shimeji-xlm/.env)."
+echo "==> Initial auction auto-creation is enabled by default (minimum configurable in shimeji-xlm/.env)."
 if [ "$NETWORK" = "local" ]; then
   NETWORK="$NETWORK" ./scripts/deploy.sh
 else

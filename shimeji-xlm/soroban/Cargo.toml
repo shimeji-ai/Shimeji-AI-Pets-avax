@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "contracts/shimeji-nft",
     "contracts/shimeji-auction",
+    "contracts/shimeji-escrow-vault",
 ]
 
 [workspace.dependencies]

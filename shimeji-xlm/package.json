@@ -11,6 +11,10 @@
     "deploy:local": "./scripts/deploy.sh local",
     "deploy:testnet": "./scripts/deploy.sh testnet",
     "deploy:mainnet": "./scripts/deploy.sh mainnet",
+    "test:networks": "./scripts/test-networks.sh",
+    "test:local": "./scripts/test-networks.sh --local-only",
+    "test:testnet": "./scripts/test-networks.sh --testnet-only",
+    "test:mainnet": "./scripts/test-networks.sh --mainnet-only",
     "vercel:env": "./scripts/vercel-env-sync.sh",
     "vercel:env:testnet": "./scripts/vercel-env-sync.sh testnet",
     "vercel:env:mainnet": "./scripts/vercel-env-sync.sh mainnet"

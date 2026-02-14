@@ -2,7 +2,7 @@
 
 Stellar/Soroban realm for Shimeji auctions + NFT minting 🪄
 
-Escrow path for bids: Trustless Work 🛡️ (rolling in)
+Escrow path for bids: Trustless Work 🛡️
 
 ## One Spell (Recommended) 🔮
 
@@ -13,6 +13,9 @@ From repo root:
 ```
 
 Follow the wizard and let the magic happen ✨
+
+It now also does guided on-chain verification + source publication metadata for Stellar explorers 🧭
+And it auto-creates the first auction by default so `/auction` goes live immediately 🎯
 
 ## Put It Online 🌐
 

@@ -12,6 +12,11 @@ Instructions for working inside `shimeji-xlm/`.
   - `scripts/deploy.sh` for local/testnet/mainnet contract deployment.
   - `scripts/start.sh` for frontend local dev.
   - `scripts/vercel-env-sync.sh` for syncing deployment env vars to Vercel.
+- Deploy flow includes guided on-chain verification:
+  - embeds `source_repo` metadata in WASM builds when configured.
+  - performs post-deploy hash/build-info verification.
+  - may prompt for `STELLAR_RPC_HEADERS` API key if RPC provider requires it.
+- Deploy flow auto-creates an initial auction by default; minimum can be defined in USDC or XLM via env (`AUTO_CREATE_INITIAL_AUCTION`, `INITIAL_AUCTION_MIN_*`).
 - Keep `README.md`, `nextjs/README.md`, and `soroban/README.md` consistent with script behavior whenever onboarding/deploy flows change.
 
 ## Token-Efficient Workflow
@@ -45,5 +50,6 @@ cargo test
 
 - If contract interfaces/IDs change, update frontend env/config references in the same task.
 - Keep network-specific values configurable via env.
+- Keep source verification settings configurable in `shimeji-xlm/.env` (`CONTRACT_SOURCE_REPO`, `ENABLE_ONCHAIN_SOURCE_VERIFICATION`, `STELLAR_RPC_HEADERS`).
 - Do not commit secrets.
 - Keep diffs focused; avoid unrelated formatting churn.

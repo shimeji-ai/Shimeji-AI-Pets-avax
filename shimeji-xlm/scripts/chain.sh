@@ -177,9 +177,9 @@ print_testnet_fallback() {
 
 print_deploy_paths() {
   echo "After pnpm chain, deploy with one of these:"
-  echo "  - Local dev:  pnpm run deploy:local   (then pnpm start)"
-  echo "  - Testnet:    pnpm run deploy:testnet (then pnpm start)"
-  echo "  - Mainnet:    pnpm run deploy:mainnet"
+  echo "  - Local dev:  pnpm run deploy:local   (guided deploy + auto-first-auction + verification, then pnpm start)"
+  echo "  - Testnet:    pnpm run deploy:testnet (guided source publication + auto-first-auction + verification, then pnpm start)"
+  echo "  - Mainnet:    pnpm run deploy:mainnet (guided source publication + auto-first-auction + verification)"
   echo "                then copy deploy output env vars to Vercel and redeploy web"
 }
 
