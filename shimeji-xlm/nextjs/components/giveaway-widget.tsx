@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "./language-provider";
 
@@ -9,6 +8,18 @@ export function GiveawayWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
+
+  const handleGoToAuction = () => {
+    setIsOpen(false);
+    window.requestAnimationFrame(() => {
+      const auctionSection = document.getElementById("auction");
+      if (!auctionSection) return;
+      auctionSection.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (window.location.hash !== "#auction") {
+        window.history.replaceState(null, "", "/#auction");
+      }
+    });
+  };
 
   useEffect(() => {
     timerRef.current = window.setTimeout(() => {
@@ -83,13 +94,13 @@ export function GiveawayWidget() {
                 ? "Oferta con XLM o USDC en la red de pruebas de Stellar."
                 : "Bid with XLM or USDC on Stellar testnet."}
             </p>
-            <Link
-              href="/#auction"
-              onClick={() => setIsOpen(false)}
+            <button
+              type="button"
+              onClick={handleGoToAuction}
               className="mt-3 inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold neural-button"
             >
               {isSpanish ? "Ir a la subasta" : "Go to auction"}
-            </Link>
+            </button>
           </div>
         </div>
       </div>
