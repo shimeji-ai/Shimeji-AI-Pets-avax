@@ -918,9 +918,9 @@ export function AuctionSection() {
                             href={auctionExplorerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                            className="inline-flex max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-foreground underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
                           >
-                            <span className="text-muted-foreground">{t("View on Stellar Expert", "Ver en Stellar Expert")}</span>
+                            <span>{t("View on Stellar Expert", "Ver en Stellar Expert")}</span>
                             <span className="font-mono text-foreground">{AUCTION_CONTRACT_ID}</span>
                           </a>
                         ) : (
