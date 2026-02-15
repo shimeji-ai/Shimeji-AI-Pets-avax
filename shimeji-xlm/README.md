@@ -1,4 +1,4 @@
-# shimeji-xlm
+# shimeji-xlm 🐱🐰
 
 Stellar/Soroban auctions + NFT minting. Escrow via Trustless Work.
 

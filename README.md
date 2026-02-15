@@ -1,4 +1,4 @@
-# Shimeji AI Pets
+# Shimeji AI Pets 🐱🐰
 
 Animated desktop pets with AI chat and NFT auctions on Stellar.
 
