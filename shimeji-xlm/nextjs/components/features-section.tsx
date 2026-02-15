@@ -46,6 +46,34 @@ export function FeaturesSection() {
     <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
+          {/* Auction highlight banner */}
+          <div className="auction-highlight-banner mb-12 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                  {isSpanish ? "Shimejis únicos en subasta" : "Unique Shimejis at Auction"}
+                </h3>
+                <p className="text-foreground/80 leading-relaxed mb-1">
+                  {isSpanish
+                    ? "Cada shimeji personalizado se anima a mano con sprites únicos y se subasta onchain como NFT en "
+                    : "Each custom shimeji is hand-animated with unique sprites and auctioned onchain as an NFT on "}
+                  <a
+                    href="https://stellar.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline decoration-2 underline-offset-2"
+                  >
+                    Stellar
+                  </a>
+                  .
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <AuctionButton />
+              </div>
+            </div>
+          </div>
+
           <div className="text-center mb-16">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
               {isSpanish ? "Capacidades" : "Capabilities"}
@@ -78,45 +106,6 @@ export function FeaturesSection() {
                 </p>
               </div>
             ))}
-          </div>
-
-          {/* Auction highlight banner */}
-          <div className="auction-highlight-banner mt-8 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  {isSpanish ? "Shimejis únicos en subasta" : "Unique Shimejis at Auction"}
-                </h3>
-                <p className="text-foreground/80 leading-relaxed mb-1">
-                  {isSpanish
-                    ? "Cada shimeji personalizado se anima a mano con sprites únicos y se subasta onchain como NFT en "
-                    : "Each custom shimeji is hand-animated with unique sprites and auctioned onchain as an NFT on "}
-                  <a
-                    href="https://stellar.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold underline decoration-2 underline-offset-2"
-                  >
-                    Stellar
-                  </a>
-                  {isSpanish
-                    ? ". Los fondos se manejan con escrow de "
-                    : ". Funds are handled with "}
-                  <a
-                    href="https://trustlesswork.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold underline decoration-2 underline-offset-2"
-                  >
-                    Trustless Work
-                  </a>
-                  {isSpanish ? "." : " escrow."}
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <AuctionButton />
-              </div>
-            </div>
           </div>
         </div>
       </ScrollAnimation>
