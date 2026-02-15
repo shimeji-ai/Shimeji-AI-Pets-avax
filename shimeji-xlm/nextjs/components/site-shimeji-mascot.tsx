@@ -41,6 +41,8 @@ export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const actorRef = useRef<HTMLDivElement | null>(null);
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const [showMascot, setShowMascot] = useState(false);
 
@@ -67,6 +69,7 @@ export function SiteShimejiMascot() {
       const target = event.target as Node | null;
       if (!target) return;
       if (actorRef.current?.contains(target)) return;
+      if (bubbleRef.current?.contains(target)) return;
       setOpen(false);
     }
 
@@ -77,6 +80,12 @@ export function SiteShimejiMascot() {
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, [open]);
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const messagesRef = useRef<Msg[]>([]);
@@ -249,6 +258,7 @@ export function SiteShimejiMascot() {
 
       {open && (
         <div
+          ref={bubbleRef}
           className={`${styles.bubble} ${styles.bubbleFixed} ${bubbleSide === "left" ? styles.bubbleLeft : styles.bubbleRight}`}
           onClick={e => e.stopPropagation()}
         >
@@ -279,6 +289,7 @@ export function SiteShimejiMascot() {
             </div>
             <div className={styles.inputRow}>
               <input
+                ref={inputRef}
                 className={styles.input}
                 value={input}
                 onChange={e => setInput(e.target.value)}
