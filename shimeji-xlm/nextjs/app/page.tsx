@@ -24,8 +24,8 @@ export default function Home() {
       <AuctionSection />
       <HeroSection />
       <div className="bg-transparent">
-        <HowItWorksSection />
         <FeaturesSection />
+        <HowItWorksSection />
         <SubscribeSection />
         <FAQSection />
         <CtaSection />
