@@ -763,7 +763,9 @@ export function AuctionSection() {
                           className="flex flex-col items-center justify-center bg-transparent p-0 text-center cursor-pointer self-center"
                         >
                           {showDate ? (
-                            <p className="text-lg font-black text-foreground sm:text-xl">{auctionDateLabel}</p>
+                            <p className="text-lg font-black text-foreground sm:text-xl">
+                              {formatShortDateTime(new Date(auction.endTime * 1000), false)}
+                            </p>
                           ) : (
                             <CountdownTimer
                               endTime={auction.endTime}
