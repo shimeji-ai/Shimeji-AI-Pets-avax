@@ -14,11 +14,14 @@ MAC_ASSET_ARM64="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0-arm64-mac.zip"
 MAC_ASSET_UNIVERSAL="${ROOT_DIR}/desktop/dist/Shimeji Desktop-0.1.0-mac-universal.zip"
 EXT_SOURCE_DIR="${ROOT_DIR}/chrome-extension"
 EXT_ZIP="${ROOT_DIR}/shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip"
+FF_EXT_SOURCE_DIR="${ROOT_DIR}/firefox-extension"
+FF_EXT_ZIP="${ROOT_DIR}/shimeji-eth/packages/nextjs/public/shimeji-firefox-extension.zip"
 TEMP_DIR="$(mktemp -d)"
 WIN_CANONICAL="${TEMP_DIR}/shimeji-desktop-windows-portable.exe"
 LINUX_CANONICAL="${TEMP_DIR}/shimeji-desktop-linux.AppImage"
 MAC_CANONICAL="${TEMP_DIR}/shimeji-desktop-macos.zip"
 EXT_CANONICAL="${TEMP_DIR}/shimeji-chrome-extension.zip"
+FF_EXT_CANONICAL="${TEMP_DIR}/shimeji-firefox-extension.zip"
 
 cleanup() {
   rm -rf "$TEMP_DIR"
@@ -70,11 +73,22 @@ if [[ ! -d "$EXT_SOURCE_DIR" ]]; then
   exit 1
 fi
 
-# Always regenerate extension zip from the current chrome-extension folder.
+if [[ ! -d "$FF_EXT_SOURCE_DIR" ]]; then
+  echo "Missing extension directory: $FF_EXT_SOURCE_DIR" >&2
+  exit 1
+fi
+
+# Always regenerate extension zips from the current extension folders.
 rm -f "$EXT_ZIP"
 (
   cd "$EXT_SOURCE_DIR"
   zip -rq "$EXT_ZIP" . -x ".git/*" "node_modules/*"
+)
+
+rm -f "$FF_EXT_ZIP"
+(
+  cd "$FF_EXT_SOURCE_DIR"
+  zip -rq "$FF_EXT_ZIP" . -x ".git/*" "node_modules/*"
 )
 
 cp -f "$WIN_ASSET" "$WIN_CANONICAL"
@@ -83,6 +97,7 @@ if [[ -n "$MAC_ASSET" ]]; then
   cp -f "$MAC_ASSET" "$MAC_CANONICAL"
 fi
 cp -f "$EXT_ZIP" "$EXT_CANONICAL"
+cp -f "$FF_EXT_ZIP" "$FF_EXT_CANONICAL"
 
 if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
   gh release create "$TAG" -R "$REPO" --title "$TITLE" --notes "Automated desktop asset upload."
@@ -93,6 +108,7 @@ UPLOAD_ARGS=(
   "$WIN_CANONICAL"
   "$LINUX_CANONICAL"
   "$EXT_CANONICAL"
+  "$FF_EXT_CANONICAL"
   --clobber
   -R "$REPO"
 )
@@ -110,3 +126,4 @@ if [[ -n "$MAC_ASSET" ]]; then
   echo "macOS:   https://github.com/${REPO}/releases/download/${TAG}/shimeji-desktop-macos.zip"
 fi
 echo "Chrome:  https://github.com/${REPO}/releases/download/${TAG}/shimeji-chrome-extension.zip"
+echo "Firefox: https://github.com/${REPO}/releases/download/${TAG}/shimeji-firefox-extension.zip"

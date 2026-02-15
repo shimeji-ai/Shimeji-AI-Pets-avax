@@ -12,6 +12,8 @@ const MAC_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-desktop-macos.zip";
 const CHROME_RELEASE_URL =
   "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-chrome-extension.zip";
+const FIREFOX_RELEASE_URL =
+  "https://github.com/luloxi/Shimeji-AI-Pets/releases/latest/download/shimeji-firefox-extension.zip";
 
 export function DownloadSection() {
   const { isSpanish } = useLanguage();
@@ -37,21 +39,40 @@ export function DownloadSection() {
             <h3 className="text-2xl font-semibold mb-4">
               {isSpanish ? "Extensión de Navegador" : "Browser Extension"}
             </h3>
-            <div className="text-left mb-4">
-              <p className="mb-2 text-muted-foreground">
-                {isSpanish ? "Seguí estos pasos para instalar:" : "Follow these steps to install:"}
-              </p>
-              <div className="text-sm text-muted-foreground">
-                {isSpanish
-                  ? "Descargá la extensión, descomprimí, activá el modo desarrollador en `chrome://extensions` y cargá la carpeta."
-                  : "Click download, unzip, enable Developer Mode in `chrome://extensions`, then load the folder."}
+            <div className="text-left mb-6 space-y-5">
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">
+                  Chrome / Edge / Brave / Opera
+                </p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Compatible con Chrome y navegadores basados en Chromium. Descargá, descomprimí, activá el modo desarrollador en la página de extensiones y cargá la carpeta."
+                    : "Works with Chrome and Chromium-based browsers. Download, unzip, enable Developer Mode in your extensions page, then load the folder."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={CHROME_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar para Chrome" : "Download for Chrome"}
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-muted-foreground font-medium">Firefox</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Descargá, descomprimí, abrí `about:debugging`, hacé clic en \"Este Firefox\" y cargá el manifest.json de la carpeta."
+                    : "Download, unzip, open `about:debugging`, click \"This Firefox\", then load the manifest.json from the folder."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={FIREFOX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar para Firefox" : "Download for Firefox"}
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
-            <Button asChild className="neural-button">
-              <a href={CHROME_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                {isSpanish ? "¡DESCARGAR!" : "DOWNLOAD!"}
-              </a>
-            </Button>
           </div>
 
           <div className="neural-card rounded-2xl p-8 text-center">
