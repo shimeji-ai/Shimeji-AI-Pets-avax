@@ -114,12 +114,12 @@ export function ProjectFeedbackBox() {
             ? "Deja tu feedback y agrega tu usuario de X opcionalmente. Para participar en el giveaway, sigue a "
             : "Leave feedback and optionally add your X username. For giveaway eligibility, please follow "}
           <Link
-            href="https://x.com/ShimejiFactory"
+            href="https://x.com/ShimejiAIPets"
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold underline decoration-2 underline-offset-2"
           >
-            @ShimejiFactory
+            @ShimejiAIPets
           </Link>
           {isSpanish ? " en X." : " on X."}
         </p>
@@ -149,8 +149,8 @@ export function ProjectFeedbackBox() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-xs text-muted-foreground">
               {isSpanish
-                ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @ShimejiFactory en X."
-                : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @ShimejiFactory on X."}
+                ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @ShimejiAIPets en X."
+                : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @ShimejiAIPets on X."}
             </p>
             <Button
               type="submit"

@@ -29,7 +29,7 @@ export function SubscribeSection() {
             </div>
             <div className="flex-shrink-0">
               <a
-                href="https://x.com/ShimejiFactory"
+                href="https://x.com/ShimejiAIPets"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="neural-button rounded-xl px-6 py-3 text-lg inline-flex items-center gap-2 font-semibold"

@@ -35,7 +35,7 @@ export function Footer() {
               </p>
               <div className="flex gap-3">
                 <Link
-                  href="https://x.com/ShimejiFactory"
+                  href="https://x.com/ShimejiAIPets"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"

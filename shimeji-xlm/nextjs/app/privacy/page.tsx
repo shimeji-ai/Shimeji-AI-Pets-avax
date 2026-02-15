@@ -93,12 +93,12 @@ export default function PrivacyPage() {
                   <>
                     Si tienes preguntas, contáctanos en X/Twitter{" "}
                     <a
-                      href="https://x.com/ShimejiFactory"
+                      href="https://x.com/ShimejiAIPets"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
                     >
-                      @ShimejiFactory
+                      @ShimejiAIPets
                     </a>
                     .
                   </>
@@ -106,12 +106,12 @@ export default function PrivacyPage() {
                   <>
                     If you have questions, contact us on X/Twitter{" "}
                     <a
-                      href="https://x.com/ShimejiFactory"
+                      href="https://x.com/ShimejiAIPets"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="font-semibold underline decoration-2 underline-offset-2 text-[var(--brand-accent)] hover:opacity-80"
                     >
-                      @ShimejiFactory
+                      @ShimejiAIPets
                     </a>
                     .
                   </>

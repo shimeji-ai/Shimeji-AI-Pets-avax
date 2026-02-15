@@ -14,7 +14,7 @@ export function UpdatesSubscribePopup({
   buttonVariant = "default",
 }: UpdatesSubscribePopupProps) {
   const { isSpanish } = useLanguage();
-  const updatesXUrl = "https://x.com/ShimejiFactory";
+  const updatesXUrl = "https://x.com/ShimejiAIPets";
 
   return (
     <Button asChild variant={buttonVariant} className={`${buttonClassName} cursor-pointer`.trim()}>
