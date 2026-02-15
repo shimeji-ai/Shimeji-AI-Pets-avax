@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/header";
 import { AuctionSection } from "@/components/auction-section";
-import { HeroSection } from "@/components/hero-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
 import { CtaSection } from "@/components/cta-section";
@@ -21,7 +20,6 @@ export default function Home() {
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <Header />
       <AuctionSection />
-      <HeroSection />
       <div className="bg-transparent">
         <FeaturesSection />
         <HowItWorksSection />
