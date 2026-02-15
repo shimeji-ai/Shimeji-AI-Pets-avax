@@ -227,74 +227,76 @@ export function SiteShimejiMascot() {
   if (!showMascot) return null;
 
   return (
-    <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
-      <div
-        ref={actorRef}
-        className={styles.actor}
-        onClick={() => {
-          setOpen(v => {
-            const next = !v;
-            if (next) ensureGreeting();
-            return next;
-          });
-        }}
-        role="button"
-        tabIndex={0}
-        title={isSpanish ? "Hablá con Shimeji" : "Talk to Shimeji"}
-      >
-        {open && (
-          <div
-            className={`${styles.bubble} ${bubbleSide === "left" ? styles.bubbleLeft : styles.bubbleRight}`}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className={styles.bubbleHeader}>
-              <div className={styles.title}>Shimeji</div>
-              <button
-                className={styles.closeBtn}
-                type="button"
-                onClick={e => {
-                  e.stopPropagation();
-                  setOpen(false);
+    <>
+      <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
+        <div
+          ref={actorRef}
+          className={styles.actor}
+          onClick={() => {
+            setOpen(v => {
+              const next = !v;
+              if (next) ensureGreeting();
+              return next;
+            });
+          }}
+          role="button"
+          tabIndex={0}
+          title={isSpanish ? "Hablá con Shimeji" : "Talk to Shimeji"}
+        >
+          <img className={styles.sprite} src={frames.walk[0]} alt="" ref={imgRef} draggable={false} />
+        </div>
+      </div>
+
+      {open && (
+        <div
+          className={`${styles.bubble} ${styles.bubbleFixed} ${bubbleSide === "left" ? styles.bubbleLeft : styles.bubbleRight}`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className={styles.bubbleHeader}>
+            <div className={styles.title}>Shimeji</div>
+            <button
+              className={styles.closeBtn}
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                setOpen(false);
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className={styles.bubbleBody}>
+            <div className={styles.messages}>
+              {messages.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`${styles.msg} ${m.role === "user" ? styles.msgUser : styles.msgAssistant}`}
+                >
+                  {m.content}
+                </div>
+              ))}
+            </div>
+            <div className={styles.inputRow}>
+              <input
+                className={styles.input}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter") send();
                 }}
-                aria-label="Close"
-              >
-                ×
+                placeholder={
+                  isSpanish ? "Preguntame sobre Shimeji AI Pets..." : "Ask about Shimeji AI Pets..."
+                }
+                disabled={sending}
+              />
+              <button className={styles.sendBtn} type="button" onClick={send} disabled={sending || !input.trim()}>
+                {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
               </button>
             </div>
-            <div className={styles.bubbleBody}>
-              <div className={styles.messages}>
-                {messages.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={`${styles.msg} ${m.role === "user" ? styles.msgUser : styles.msgAssistant}`}
-                  >
-                    {m.content}
-                  </div>
-                ))}
-              </div>
-              <div className={styles.inputRow}>
-                <input
-                  className={styles.input}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") send();
-                  }}
-                  placeholder={
-                    isSpanish ? "Preguntame sobre Shimeji AI Pets..." : "Ask about Shimeji AI Pets..."
-                  }
-                  disabled={sending}
-                />
-                <button className={styles.sendBtn} type="button" onClick={send} disabled={sending || !input.trim()}>
-                  {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
-                </button>
-              </div>
-            </div>
           </div>
-        )}
-
-        <img className={styles.sprite} src={frames.walk[0]} alt="" ref={imgRef} draggable={false} />
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -105,7 +105,6 @@ const ConnectWalletButton = styled.button`
     );
   background-origin: border-box;
   background-clip: content-box, border-box;
-  will-change: transform;
 
   @media (max-width: 640px) {
     width: 90%;
@@ -157,7 +156,7 @@ const ConnectWalletButton = styled.button`
     left: -50%;
     width: 170%;
     height: 500%;
-    opacity: 0.45;
+    opacity: 0.5;
     animation: wallet-anim-star 60s linear infinite;
   }
 

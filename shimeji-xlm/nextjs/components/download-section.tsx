@@ -43,8 +43,8 @@ export function DownloadSection() {
               </p>
               <div className="text-sm text-muted-foreground">
                 {isSpanish
-                  ? "Paso 1: también podés descargar la app desktop para Windows, macOS o Linux. Paso 2: descargá la extensión, descomprimí, activá el modo desarrollador en `chrome://extensions` y cargá la carpeta."
-                  : "Step 1: you can also download the desktop app for Windows, macOS, or Linux. Step 2: click download, unzip, enable Developer Mode in `chrome://extensions`, then load the folder."}
+                  ? "Descargá la extensión, descomprimí, activá el modo desarrollador en `chrome://extensions` y cargá la carpeta."
+                  : "Click download, unzip, enable Developer Mode in `chrome://extensions`, then load the folder."}
               </div>
             </div>
             <Button asChild className="neural-button">
@@ -56,11 +56,7 @@ export function DownloadSection() {
 
           <div className="neural-card rounded-2xl p-8 text-center">
             <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Versión Desktop" : "Desktop Version"}</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {isSpanish
-                ? "La app desktop puede interactuar con terminales locales como WSL, PowerShell y Terminal de macOS."
-                : "The desktop app can interact with local terminals like WSL, PowerShell, and macOS Terminal."}
-            </p>
+           
             <div className="text-left mb-6 space-y-5">
               <div>
                 <p className="mb-2 text-muted-foreground font-medium">
@@ -80,6 +76,21 @@ export function DownloadSection() {
                 </div>
               </div>
               <div>
+                <p className="mb-2 text-muted-foreground font-medium">{isSpanish ? "macOS" : "macOS"}</p>
+                <div className="text-sm text-muted-foreground">
+                  {isSpanish
+                    ? "Build macOS en formato .zip. Descargá, descomprimí y abrí la app. Si Gatekeeper bloquea la app, permitila desde Configuración > Privacidad y seguridad."
+                    : "macOS build in .zip format. Download, extract, and open the app. If Gatekeeper blocks it, allow it from Settings > Privacy & Security."}
+                </div>
+                <div className="mt-3">
+                  <Button asChild className="neural-button w-full">
+                    <a href={MAC_RELEASE_URL} target="_blank" rel="noopener noreferrer">
+                      {isSpanish ? "Descargar macOS (.zip)" : "Download macOS (.zip)"}
+                    </a>
+                  </Button>
+                </div>
+              </div>
+              <div>
                 <p className="mb-2 text-muted-foreground font-medium">
                   {isSpanish ? "Linux AppImage" : "Linux AppImage"}
                 </p>
@@ -92,21 +103,6 @@ export function DownloadSection() {
                   <Button asChild className="neural-button w-full">
                     <a href={LINUX_RELEASE_URL} target="_blank" rel="noopener noreferrer">
                       {isSpanish ? "Descargar AppImage" : "Download AppImage"}
-                    </a>
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <p className="mb-2 text-muted-foreground font-medium">{isSpanish ? "macOS" : "macOS"}</p>
-                <div className="text-sm text-muted-foreground">
-                  {isSpanish
-                    ? "Build macOS en formato .zip. Descargá, descomprimí y abrí la app. Si Gatekeeper bloquea la app, permitila desde Configuración > Privacidad y seguridad."
-                    : "macOS build in .zip format. Download, extract, and open the app. If Gatekeeper blocks it, allow it from Settings > Privacy & Security."}
-                </div>
-                <div className="mt-3">
-                  <Button asChild className="neural-button w-full">
-                    <a href={MAC_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                      {isSpanish ? "Descargar macOS (.zip)" : "Download macOS (.zip)"}
                     </a>
                   </Button>
                 </div>

@@ -31,8 +31,6 @@
 }
 
 .bubble {
-  position: absolute;
-  bottom: 86px;
   width: min(340px, calc(100vw - 24px));
   background: #050507;
   border: 1px solid rgba(255, 154, 216, 0.35);
@@ -42,12 +40,18 @@
   pointer-events: auto;
 }
 
+.bubbleFixed {
+  position: fixed;
+  bottom: 90px;
+  z-index: 61;
+}
+
 .bubbleRight {
-  left: 8px;
+  left: 24px;
 }
 
 .bubbleLeft {
-  right: 8px;
+  right: 24px;
 }
 
 .bubbleHeader {
@@ -147,8 +151,7 @@
 }
 
 @media (max-width: 768px) {
-  .bubble {
-    position: fixed;
+  .bubbleFixed {
     left: 12px;
     right: 12px;
     bottom: 90px;

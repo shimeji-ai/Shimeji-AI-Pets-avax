@@ -755,11 +755,6 @@ export function AuctionSection() {
                               )}
                             </div>
                           </div>
-                          <p className="text-xs text-muted-foreground md:text-sm">
-                            {showDate
-                              ? t("Tap to see countdown", "Toca para ver cuenta regresiva")
-                              : t("Tap to see date", "Toca para ver fecha")}
-                          </p>
                         </button>
                       </div>
                     ) : null}
@@ -787,7 +782,7 @@ export function AuctionSection() {
                           onClick={() =>
                             setCurrentBidCurrencyView((prev) => (prev === "XLM" ? "USDC" : "XLM"))
                           }
-                          className="self-start rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10 sm:self-auto sm:text-right"
+                          className="self-start px-3 py-2 text-left transition sm:self-auto sm:text-right cursor-pointer"
                         >
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             {t("Current bid", "Oferta actual")}
@@ -912,7 +907,8 @@ export function AuctionSection() {
                             className="inline-flex max-w-full flex-wrap items-center gap-2 text-[11px] text-foreground underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
                           >
                             <span>{t("View on Stellar Expert", "Ver en Stellar Expert")}</span>
-                            <span className="font-mono text-foreground break-all">{AUCTION_CONTRACT_ID}</span>
+                            <span className="font-mono text-foreground break-all hidden sm:inline">{AUCTION_CONTRACT_ID}</span>
+                            <span className="font-mono text-foreground sm:hidden">{AUCTION_CONTRACT_ID.length > 8 ? `${AUCTION_CONTRACT_ID.slice(0, 4)}...${AUCTION_CONTRACT_ID.slice(-4)}` : AUCTION_CONTRACT_ID}</span>
                           </a>
                         ) : (
                           <p>
