@@ -735,7 +735,7 @@ export function AuctionSection() {
                         Shimeji #{auctionId}
                       </p>
                     ) : null}
-                    <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
+                    <div className="w-[15rem] h-[15rem] md:w-[24rem] md:h-[24rem] lg:w-[28rem] lg:h-[28rem] flex items-end justify-center">
                       <ShimejiCharacter />
                     </div>
                   </div>

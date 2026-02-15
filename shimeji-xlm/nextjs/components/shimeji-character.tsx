@@ -44,7 +44,7 @@ export function ShimejiCharacter({ mirror = false }: ShimejiCharacterProps) {
         <img
           src="/bunny-hero.png"
           alt={isSpanish ? "Icono del conejo Shimeji" : "Shimeji bunny icon"}
-          className="w-60 h-60 sm:w-72 sm:h-72 lg:w-80 lg:h-80 object-contain drop-shadow-2xl"
+          className="w-60 h-60 sm:w-72 sm:h-72 md:w-80 md:h-80 lg:w-[26rem] lg:h-[26rem] object-contain drop-shadow-2xl"
         />
 
         {/* Floating sparkles on jump */}
