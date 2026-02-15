@@ -22,7 +22,6 @@ export function Header() {
   const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
   const [isFeaturesHovered, setIsFeaturesHovered] = useState(false);
-  const [isFaqHovered, setIsFaqHovered] = useState(false);
   const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
   const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
@@ -101,21 +100,6 @@ export function Header() {
                 {isSpanish ? "Características" : "Features"}
               </ScrollLink>
               <SparkleAnimation isHovering={isFeaturesHovered} />
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsFaqHovered(true)}
-              onMouseLeave={() => setIsFaqHovered(false)}
-            >
-              <ScrollLink
-                to="faq"
-                smooth={true}
-                duration={1500}
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                FAQ
-              </ScrollLink>
-              <SparkleAnimation isHovering={isFaqHovered} />
             </div>
             <Link
               href="/help"
@@ -201,15 +185,6 @@ export function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
-              <ScrollLink
-                to="faq"
-                smooth={true}
-                duration={1500}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                FAQ
               </ScrollLink>
               <Link
                 href="/help"

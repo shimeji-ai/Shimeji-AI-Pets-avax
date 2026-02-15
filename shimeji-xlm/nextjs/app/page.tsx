@@ -4,7 +4,6 @@ import { AuctionSection } from "@/components/auction-section";
 import { HeroSection } from "@/components/hero-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
-import { FAQSection } from "@/components/faq-section";
 import { CtaSection } from "@/components/cta-section";
 import { SubscribeSection } from "@/components/subscribe-section";
 import { Footer } from "@/components/footer";
@@ -27,7 +26,6 @@ export default function Home() {
         <FeaturesSection />
         <HowItWorksSection />
         <SubscribeSection />
-        <FAQSection />
         <CtaSection />
       </div>
       <Footer />
