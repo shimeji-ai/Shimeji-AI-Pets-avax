@@ -1,45 +1,37 @@
 "use client";
 
-import { MessageSquare, Bot, Sparkles, Palette, ArrowLeftRight, ShieldCheck } from "lucide-react";
+import { MessageSquare, Bot, Sparkles } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
+import AuctionButton from "./auction-button";
 
 const features = [
   {
     icon: MessageSquare,
-    title: "AI Chat with Personality",
-    description:
+    titleEn: "AI Chat with Personality",
+    titleEs: "Chat IA con personalidad",
+    descriptionEn:
       "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
+    descriptionEs:
+      "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir.",
   },
   {
     icon: Bot,
-    title: "AI Agent Mode",
-    description:
+    titleEn: "AI Agent Mode",
+    titleEs: "Modo agente IA",
+    descriptionEn:
       "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
+    descriptionEs:
+      "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
   },
   {
     icon: Sparkles,
-    title: "Multi Shimeji",
-    description:
+    titleEn: "Multi Shimeji",
+    titleEs: "Multi shimejis",
+    descriptionEn:
       "Run up to five pets at once, each with its own personality and brain.",
-  },
-  {
-    icon: Palette,
-    title: "Handcrafted Sprites",
-    description:
-      "Win a custom shimeji at auction. Each one is hand-animated with unique sprites.",
-  },
-  {
-    icon: ArrowLeftRight,
-    title: "Deployed on Stellar Network",
-    description:
-      "Shimeji auctions are deployed on the Stellar network.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Trustless Work Escrow",
-    description:
-      "Auction funds are handled with Trustless Work escrow.",
+    descriptionEs:
+      "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro.",
   },
 ];
 
@@ -71,7 +63,7 @@ export function FeaturesSection() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((feature) => (
               <div
-                key={feature.title}
+                key={feature.titleEn}
                 className="group neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 transition-colors text-[var(--brand-accent)]">
@@ -79,95 +71,55 @@ export function FeaturesSection() {
                 </div>
 
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {isSpanish
-                    ? feature.title === "AI Chat with Personality"
-                      ? "Chat IA con personalidad"
-                      : feature.title === "AI Agent Mode"
-                        ? "Modo agente IA"
-                        : feature.title === "Multi Shimeji"
-                          ? "Multi shimejis"
-                          : feature.title === "Handcrafted Sprites"
-                            ? "Sprites hechos a mano"
-                            : feature.title === "Deployed on Stellar Network"
-                              ? "Deployado en Stellar Network"
-                              : "Escrow con Trustless Work"
-                    : feature.title}
+                  {isSpanish ? feature.titleEs : feature.titleEn}
                 </h3>
-                {feature.title === "Deployed on Stellar Network" ? (
-                  <p className="text-muted-foreground leading-relaxed">
-                    {isSpanish ? (
-                      <>
-                        Se subastan onchain como NFTs en{" "}
-                        <a
-                          href="https://stellar.org"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
-                          Stellar
-                        </a>
-                        .
-                      </>
-                    ) : (
-                      <>
-                        Shimejis are auctioned onchain as NFTs on{" "}
-                        <a
-                          href="https://stellar.org"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
-                          Stellar
-                        </a>
-                        .
-                      </>
-                    )}
-                  </p>
-                ) : feature.title === "Trustless Work Escrow" ? (
-                  <p className="text-muted-foreground leading-relaxed">
-                    {isSpanish ? (
-                      <>
-                        Los fondos de la subasta usan escrow de{" "}
-                        <a
-                          href="https://trustlesswork.com"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
-                          Trustless Work
-                        </a>
-                        .
-                      </>
-                    ) : (
-                      <>
-                        Auction funds use{" "}
-                        <a
-                          href="https://trustlesswork.com"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold underline decoration-2 underline-offset-2"
-                        >
-                          Trustless Work
-                        </a>{" "}
-                        as escrow.
-                      </>
-                    )}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground leading-relaxed">
-                    {isSpanish
-                      ? feature.title === "AI Chat with Personality"
-                        ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
-                        : feature.title === "AI Agent Mode"
-                          ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
-                          : feature.title === "Multi Shimeji"
-                            ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
-                            : "Ganá un shimeji personalizado en la subasta. Cada uno se anima a mano con sprites únicos."
-                      : feature.description}
-                  </p>
-                )}
+                <p className="text-muted-foreground leading-relaxed">
+                  {isSpanish ? feature.descriptionEs : feature.descriptionEn}
+                </p>
               </div>
             ))}
+          </div>
+
+          {/* Auction highlight banner */}
+          <div className="mt-8 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="flex-1 text-center md:text-left">
+                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                  {isSpanish ? "Shimejis únicos en subasta" : "Unique Shimejis at Auction"}
+                </h3>
+                <p className="text-foreground/80 leading-relaxed mb-1">
+                  {isSpanish
+                    ? "Cada shimeji personalizado se anima a mano con sprites únicos y se subasta onchain como NFT en "
+                    : "Each custom shimeji is hand-animated with unique sprites and auctioned onchain as an NFT on "}
+                  <a
+                    href="https://stellar.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline decoration-2 underline-offset-2"
+                  >
+                    Stellar
+                  </a>
+                  {isSpanish
+                    ? ". Los fondos se manejan con escrow de "
+                    : ". Funds are handled with "}
+                  <a
+                    href="https://trustlesswork.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold underline decoration-2 underline-offset-2"
+                  >
+                    Trustless Work
+                  </a>
+                  {isSpanish ? "." : " escrow."}
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <AuctionButton
+                  labelEn="GO TO AUCTION"
+                  labelEs="IR A LA SUBASTA"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </ScrollAnimation>
