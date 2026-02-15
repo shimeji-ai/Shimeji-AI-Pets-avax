@@ -593,6 +593,32 @@ body[data-theme="kawaii"] .auction-escrow-link {
   box-shadow: none;
 }
 
+.cta-auction-button {
+  position: relative;
+  border: double 4px transparent;
+  background-image:
+    linear-gradient(#0b0f14, #0b0f14),
+    linear-gradient(
+      120deg,
+      rgba(92, 255, 146, 0.72),
+      rgba(255, 255, 255, 0.16) 40%,
+      rgba(92, 255, 146, 0.72) 100%
+    );
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+  background-size: 300% 300%;
+  animation: cta-auction-gradient 5s ease infinite;
+  color: #dbffe9;
+  text-shadow: 0 0 6px rgba(92, 255, 146, 0.62);
+  letter-spacing: 2px;
+}
+
+@keyframes cta-auction-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .auction-offer-row {
   border-color: rgba(128, 184, 255, 0.42);
   background: rgba(88, 151, 255, 0.2);

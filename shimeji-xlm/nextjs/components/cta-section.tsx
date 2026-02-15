@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ShoppingBag, Github } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import DownloadButton from "./download-button";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
@@ -36,27 +35,12 @@ export function CtaSection() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <DownloadButton />
-              <Link href="/#auction">
-                <Button
-                  variant="outline"
-                  className="gap-2 rounded-xl neural-button-outline hover:cursor-pointer"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  {isSpanish ? "Ver Subasta" : "View Auction"}
-                </Button>
-              </Link>
               <Link
-                href="https://github.com/luloxi/Shimeji-AI-Pets"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/#auction"
+                className="cta-auction-button inline-flex items-center justify-center gap-2 rounded-[5rem] px-6 h-12 text-sm font-extrabold tracking-widest cursor-pointer transition-transform hover:scale-105"
               >
-                <Button
-                  variant="outline"
-                  className="gap-2 rounded-xl neural-button-outline hover:cursor-pointer"
-                >
-                  <Github className="w-4 h-4" />
-                  GitHub
-                </Button>
+                <ShoppingBag className="w-4 h-4" />
+                {isSpanish ? "VER SUBASTA" : "VIEW AUCTION"}
               </Link>
             </div>
           </div>
