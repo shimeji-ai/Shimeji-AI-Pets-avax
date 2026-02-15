@@ -73,18 +73,16 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-8">
             <div
               className="relative"
-              onMouseEnter={() => setIsGetStartedHovered(true)}
-              onMouseLeave={() => setIsGetStartedHovered(false)}
+              onMouseEnter={() => setIsMarketplaceHovered(true)}
+              onMouseLeave={() => setIsMarketplaceHovered(false)}
             >
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={1500}
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              <Link
+                href="/#auction"
+                className="header-auction-link hover:cursor-pointer text-sm transition-colors font-medium"
               >
-                {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
-              <SparkleAnimation isHovering={isGetStartedHovered} />
+                {isSpanish ? "Subasta" : "Auction"}
+              </Link>
+              <SparkleAnimation isHovering={isMarketplaceHovered} />
             </div>
             <div
               className="relative"
@@ -101,25 +99,27 @@ export function Header() {
               </ScrollLink>
               <SparkleAnimation isHovering={isFeaturesHovered} />
             </div>
+            <div
+              className="relative"
+              onMouseEnter={() => setIsGetStartedHovered(true)}
+              onMouseLeave={() => setIsGetStartedHovered(false)}
+            >
+              <ScrollLink
+                to="get-started"
+                smooth={true}
+                duration={1500}
+                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
+              >
+                {isSpanish ? "Empezar" : "Get Started"}
+              </ScrollLink>
+              <SparkleAnimation isHovering={isGetStartedHovered} />
+            </div>
             <Link
               href="/help"
               className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               {isSpanish ? "Ayuda" : "Help"}
             </Link>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsMarketplaceHovered(true)}
-              onMouseLeave={() => setIsMarketplaceHovered(false)}
-            >
-              <Link
-                href="/#auction"
-                className="header-auction-link hover:cursor-pointer text-sm transition-colors font-medium"
-              >
-                {isSpanish ? "Subasta" : "Auction"}
-              </Link>
-              <SparkleAnimation isHovering={isMarketplaceHovered} />
-            </div>
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
@@ -168,15 +168,13 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden px-6 pb-6 border-t border-border">
             <nav className="flex flex-col gap-4 pt-4">
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={1500}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+              <Link
+                href="/#auction"
+                className="header-auction-link transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
+                {isSpanish ? "Subasta" : "Auction"}
+              </Link>
               <ScrollLink
                 to="features"
                 smooth={true}
@@ -186,19 +184,21 @@ export function Header() {
               >
                 {isSpanish ? "Características" : "Features"}
               </ScrollLink>
+              <ScrollLink
+                to="get-started"
+                smooth={true}
+                duration={1500}
+                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {isSpanish ? "Empezar" : "Get Started"}
+              </ScrollLink>
               <Link
                 href="/help"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {isSpanish ? "Ayuda" : "Help"}
-              </Link>
-              <Link
-                href="/#auction"
-                className="header-auction-link transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Subasta" : "Auction"}
               </Link>
               <div className="pt-2">
                 <LanguageSwitcher />

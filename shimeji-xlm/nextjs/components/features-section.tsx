@@ -2,7 +2,6 @@
 
 import { MessageSquare, Bot, Sparkles, Palette, ArrowLeftRight, ShieldCheck } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
-import { ProjectFeedbackBox } from "./project-feedback-box";
 import { useLanguage } from "./language-provider";
 
 const features = [
@@ -170,8 +169,6 @@ export function FeaturesSection() {
               </div>
             ))}
           </div>
-
-          <ProjectFeedbackBox />
         </div>
       </ScrollAnimation>
     </section>
