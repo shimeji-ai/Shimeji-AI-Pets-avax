@@ -125,6 +125,8 @@ export function AuctionSection() {
     try {
       const data = await fetchActiveAuction();
       if (data) {
+        console.log("[loadAuction] highestBid:", data.highestBid);
+        console.log("[loadAuction] recentBids:", data.recentBids.length, data.recentBids);
         setAuction(data.auction);
         setHighestBid(data.highestBid);
         setRecentOffers(data.recentBids);
@@ -584,6 +586,8 @@ export function AuctionSection() {
   };
 
   const latestOffers = useMemo(() => {
+    console.log("[latestOffers] highestBid:", highestBid ? `${highestBid.bidder.slice(0,8)}... ${highestBid.amount} ${highestBid.currency}` : "null");
+    console.log("[latestOffers] recentOffers count:", recentOffers.length, recentOffers.map(o => `${o.bidder.slice(0,8)}... ${o.amount} ${o.currency}`));
     const merged: BidInfo[] = [];
     const pushUnique = (bid: BidInfo | null) => {
       if (!bid) return;
@@ -594,7 +598,9 @@ export function AuctionSection() {
     recentOffers.forEach((bid) => pushUnique(bid));
     if (highestBid) {
       const rest = merged.filter((entry) => !isSameBid(entry, highestBid));
-      return [highestBid, ...rest].slice(0, 4);
+      const result = [highestBid, ...rest].slice(0, 4);
+      console.log("[latestOffers] result:", result.length, result.map(o => `${o.bidder.slice(0,8)}... ${o.amount} ${o.currency}`));
+      return result;
     }
 
     return [...merged]
@@ -732,32 +738,6 @@ export function AuctionSection() {
                     <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
                       <ShimejiCharacter />
                     </div>
-                    {auction ? (
-                      <div className="mt-5 flex w-full justify-center">
-                        <button
-                          type="button"
-                          onClick={() => setShowDate((prev) => !prev)}
-                          className="inline-flex flex-col items-center justify-center gap-2 bg-transparent p-0 text-center cursor-pointer"
-                        >
-                          <div className="flex h-[96px] items-center justify-center md:h-[110px]">
-                            <div className="w-full">
-                              {showDate ? (
-                                <p className="text-2xl font-black text-foreground md:text-3xl">{auctionDateLabel}</p>
-                              ) : (
-                                <CountdownTimer
-                                  endTime={auction.endTime}
-                                  labels={
-                                    isSpanish
-                                      ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
-                                      : undefined
-                                  }
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
 
                   {auction ? (
@@ -776,6 +756,26 @@ export function AuctionSection() {
                             }}
                           />
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowDate((prev) => !prev)}
+                          className="flex flex-col items-center justify-center bg-transparent p-0 text-center cursor-pointer self-center"
+                        >
+                          {showDate ? (
+                            <p className="text-lg font-black text-foreground sm:text-xl">{auctionDateLabel}</p>
+                          ) : (
+                            <CountdownTimer
+                              endTime={auction.endTime}
+                              compact
+                              labels={
+                                isSpanish
+                                  ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
+                                  : undefined
+                              }
+                            />
+                          )}
+                        </button>
 
                         <button
                           type="button"

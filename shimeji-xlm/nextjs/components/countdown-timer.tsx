@@ -6,12 +6,14 @@ interface CountdownTimerProps {
   endTime: number; // Unix timestamp in seconds
   labels?: { days: string; hours: string; minutes: string; seconds: string };
   highlight?: boolean;
+  compact?: boolean;
 }
 
 export function CountdownTimer({
   endTime,
   labels = { days: "days", hours: "hrs", minutes: "min", seconds: "sec" },
   highlight = false,
+  compact = false,
 }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
 
@@ -43,8 +45,20 @@ export function CountdownTimer({
     );
   }
 
+  const gapClass = compact ? "gap-2" : highlight ? "gap-2 sm:gap-3" : "gap-3";
+  const numberClass = compact
+    ? "text-xl sm:text-2xl"
+    : highlight
+      ? "text-3xl md:text-4xl"
+      : "text-4xl md:text-5xl";
+  const labelClass = compact
+    ? "text-[9px] text-muted-foreground"
+    : highlight
+      ? "text-[10px] text-foreground/70 md:text-xs"
+      : "text-sm text-muted-foreground";
+
   return (
-    <div className={`flex justify-center ${highlight ? "gap-2 sm:gap-3" : "gap-3"}`}>
+    <div className={`flex justify-center ${gapClass}`}>
       {[
         { value: timeLeft.d, label: labels.days },
         { value: timeLeft.h, label: labels.hours },
@@ -59,14 +73,10 @@ export function CountdownTimer({
               : ""
           }`}
         >
-          <span className={`${highlight ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl"} font-bold tabular-nums text-foreground`}>
+          <span className={`${numberClass} font-bold tabular-nums text-foreground`}>
             {String(value).padStart(2, "0")}
           </span>
-          <span
-            className={`uppercase tracking-wider ${
-              highlight ? "text-[10px] text-foreground/70 md:text-xs" : "text-sm text-muted-foreground"
-            }`}
-          >
+          <span className={`uppercase tracking-wider ${labelClass}`}>
             {label}
           </span>
         </div>
