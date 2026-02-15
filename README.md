@@ -1,57 +1,34 @@
-# Shimeji AI Pets Monorepo 🐱🐰
+# Shimeji AI Pets
 
-This monorepo contains the Shimeji runtimes and both blockchain stacks.
+Animated desktop pets with AI chat and NFT auctions on Stellar.
 
-## Start Here
+## Structure
 
-- [shimeji-xlm](./shimeji-xlm/README.md): Stellar/Soroban auction + NFT stack.
-- [shimeji-eth](./shimeji-eth/README.md): EVM/Scaffold-ETH stack.
-- [animation-reference](./animation-reference/README.md): sprite standards used by extension/desktop.
+| Directory | Description |
+|---|---|
+| [shimeji-xlm](./shimeji-xlm/README.md) | Stellar/Soroban auction + NFT stack |
+| [shimeji-eth](./shimeji-eth/README.md) | EVM/Scaffold-ETH stack |
+| [chrome-extension](./chrome-extension/) | Browser runtime and chat UI |
+| [desktop](./desktop/) | Electron desktop app |
+| [animation-reference](./animation-reference/README.md) | Sprite standards for extension/desktop |
 
-## One Command (Shimeji XLM)
-
-From repo root:
+## Quick Start (Stellar)
 
 ```bash
 ./shimeji-xlm/launch.sh
 ```
 
-That unified launcher can run chain + frontend + deploy flow, and guide deployments for:
+Unified launcher for local, testnet, and mainnet deployment.
 
-- local
-- testnet
-- mainnet
-
-It is intended as a simple framework to quickly test and get the project online on Stellar ⭐✨🪄.
-
-## Runtime Apps
-
-- `chrome-extension/`: browser runtime and chat UI.
-- `desktop/`: Electron desktop app.
-
-## NFT Unlocks
-
-Some desktop and Chrome skins are planned as unlockables tied to auctioned NFTs. Those characters can evolve from placeholder states (egg, space portal, etc.) to final forms once the final animation art is uploaded to IPFS and linked in NFT metadata.
-
-## Quick Start (Runtime)
+## Quick Start (Runtimes)
 
 ### Chrome extension
 
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Load unpacked `chrome-extension/`.
+1. Open `chrome://extensions`, enable Developer mode.
+2. Load unpacked `chrome-extension/`.
 
 ### Desktop app
 
 ```bash
-cd desktop
-npm install
-npm start
+cd desktop && npm install && npm start
 ```
-
-## Why The Docs Are Split
-
-- Root README stays short on purpose.
-- Chain-specific runbooks live in:
-  - [shimeji-xlm/README.md](./shimeji-xlm/README.md)
-  - [shimeji-eth/README.md](./shimeji-eth/README.md)

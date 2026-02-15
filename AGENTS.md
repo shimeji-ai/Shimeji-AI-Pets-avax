@@ -1,56 +1,45 @@
 # AGENTS
 
-## Scope
-
-Root-level instructions for coding agents working in this monorepo.
-
 ## Repo Map
 
-- `chrome-extension/`: browser runtime.
-- `desktop/`: Electron runtime.
-- `shimeji-eth/`: Ethereum app/contracts.
-- `shimeji-xlm/`: Stellar app/contracts.
-- `animation-reference/`: sprite reference for currently supported animation sets.
-- `legacy/`: local-only archive, ignored by git.
+| Directory | Description |
+|---|---|
+| `chrome-extension/` | Browser runtime |
+| `desktop/` | Electron runtime |
+| `shimeji-eth/` | Ethereum app/contracts |
+| `shimeji-xlm/` | Stellar app/contracts (any Stellar wallet supported) |
+| `animation-reference/` | Sprite reference for supported animation sets |
+| `legacy/` | Local-only archive, ignored by git |
 
 For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` first.
 
-## shimeji-xlm Framework Note
+## shimeji-xlm Notes
 
-- Treat `shimeji-xlm` as a launcher-first workflow:
-  - `./shimeji-xlm/launch.sh` is the canonical onboarding entrypoint.
-  - `shimeji-xlm/scripts/chain.sh`, `shimeji-xlm/scripts/deploy.sh`, and `shimeji-xlm/scripts/start.sh` are the core local/testnet/mainnet flow scripts.
-  - `shimeji-xlm/scripts/vercel-env-sync.sh` is the canonical Vercel env sync path after non-local deploys.
-- When changing `shimeji-xlm` onboarding/deploy flow, keep script behavior and docs aligned in the same task (`shimeji-xlm/README.md`, `shimeji-xlm/nextjs/README.md`, `shimeji-xlm/soroban/README.md`, `shimeji-xlm/AGENTS.md` as needed).
+- `./shimeji-xlm/launch.sh` is the canonical entrypoint (chain + deploy + frontend).
+- Core scripts: `scripts/chain.sh`, `scripts/deploy.sh`, `scripts/start.sh`, `scripts/vercel-env-sync.sh`.
+- The auction lives on the homepage (no separate `/auction` route).
+- Wallet integration uses `@creit.tech/stellar-wallets-kit` with `allowAllModules()` — supports Freighter, Lobstr, and any Stellar-compatible wallet.
+- When changing deploy flow, keep docs aligned: `shimeji-xlm/README.md`, `nextjs/README.md`, `soroban/README.md`, `AGENTS.md`.
 
 ## Token-Efficient Workflow
 
-1. Use targeted search first: `rg <pattern> <path>`.
-2. Read only files that are directly relevant to the task.
-3. Avoid broad scans of large/generated trees (`node_modules`, build outputs, cached artifacts).
-4. Prefer minimal diffs and minimal output in explanations.
-5. Validate only the changed scope (targeted lint/test/build), not full-repo checks unless requested.
+1. Use targeted search first.
+2. Read only files directly relevant to the task.
+3. Avoid broad scans of `node_modules`, build outputs, cached artifacts.
+4. Prefer minimal diffs.
+5. Validate only the changed scope unless full-repo checks are requested.
 
-## Release-First Push Policy (Root)
+## Release-First Push Policy
 
-When the user asks to push to GitHub:
+When pushing changes that include desktop/extension deliverables (`desktop/**`, `chrome-extension/**`):
 
-1. Detect whether changes include desktop/extension deliverables:
-   - `desktop/**`
-   - `chrome-extension/**`
-   - `shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip`
-2. If yes, publish release assets before `git push`:
-   - `./scripts/publish_release_assets.sh`
-3. Required release assets:
-   - `shimeji-desktop-windows-portable.exe`
-   - `shimeji-desktop-linux.AppImage`
-   - `shimeji-chrome-extension.zip`
-4. Keep `/download` and `/downloads` pointing to GitHub Releases `latest` URLs.
-5. Never commit desktop binaries (`.exe`, `.AppImage`) to git.
-6. If release upload fails, stop and report blocker instead of pushing partial distribution updates.
+1. Publish release assets first: `./scripts/publish_release_assets.sh`
+2. Required assets: `shimeji-desktop-windows-portable.exe`, `shimeji-desktop-linux.AppImage`, `shimeji-chrome-extension.zip`
+3. Never commit desktop binaries to git.
+4. If release upload fails, stop and report instead of pushing.
 
 ## Guardrails
 
 - Never use destructive git commands unless explicitly requested.
 - Preserve unrelated user changes in dirty worktrees.
-- Keep docs and commands accurate to the current folder being edited.
+- Keep docs accurate to the current folder being edited.

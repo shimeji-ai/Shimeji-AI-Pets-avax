@@ -1,10 +1,10 @@
-# shimeji-xlm 🐱🐰✨
+# shimeji-xlm
 
-Stellar/Soroban realm for Shimeji auctions + NFT minting 🪄
+Stellar/Soroban auctions + NFT minting. Escrow via Trustless Work.
 
-Escrow path for bids: Trustless Work 🛡️
+Supports any Stellar-compatible wallet (Freighter, Lobstr, etc.).
 
-## One Spell (Recommended) 🔮
+## Quick Start
 
 From repo root:
 
@@ -12,27 +12,21 @@ From repo root:
 ./shimeji-xlm/launch.sh
 ```
 
-Follow the wizard and let the magic happen ✨
+The launcher handles chain + frontend + deploy for local, testnet, or mainnet. It also runs on-chain verification and auto-creates the first auction so the homepage auction section goes live immediately.
 
-It now also does guided on-chain verification + source publication metadata for Stellar explorers 🧭
-And it auto-creates the first auction by default so `/auction` goes live immediately 🎯
+## Deploy to Vercel
 
-## Put It Online 🌐
-
-1. Run `./shimeji-xlm/launch.sh`.
-2. Choose `testnet` or `mainnet`.
-3. Sync Vercel vars:
+1. Run `./shimeji-xlm/launch.sh`, choose `testnet` or `mainnet`.
+2. Sync env vars:
 
 ```bash
 cd shimeji-xlm
-pnpm run vercel:env:testnet -- production
-# or
-pnpm run vercel:env:mainnet -- production
+pnpm run vercel:env:testnet -- production   # or mainnet
 ```
 
-4. Redeploy on Vercel and open `/auction`.
+3. Redeploy on Vercel.
 
-## Manual Mode (Optional) ⚙️
+## Manual Mode
 
 ```bash
 cd shimeji-xlm
@@ -41,9 +35,8 @@ pnpm run deploy
 pnpm start
 ```
 
-## More Docs 📚
+## More Docs
 
-- Web app: [nextjs/README.md](./nextjs/README.md)
-- Soroban deploy + tooling: [soroban/README.md](./soroban/README.md)
-- Contracts + metadata format: [soroban/contracts/README.md](./soroban/contracts/README.md)
-- Metadata example JSON: [soroban/metadata/example.json](./soroban/metadata/example.json)
+- [nextjs/README.md](./nextjs/README.md) — Web app
+- [soroban/README.md](./soroban/README.md) — Deploy + tooling
+- [soroban/contracts/README.md](./soroban/contracts/README.md) — Contracts + metadata format
