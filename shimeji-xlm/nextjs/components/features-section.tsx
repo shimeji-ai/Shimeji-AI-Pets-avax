@@ -13,7 +13,7 @@ const features = [
     descriptionEn:
       "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
     descriptionEs:
-      "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir.",
+      "Tu shimeji te responde con la personalidad que elijas.",
   },
   {
     icon: Bot,
@@ -22,7 +22,7 @@ const features = [
     descriptionEn:
       "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
     descriptionEs:
-      "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
+      "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
   },
   {
     icon: Sparkles,
@@ -31,7 +31,7 @@ const features = [
     descriptionEn:
       "Run up to five pets at once, each with its own personality and brain.",
     descriptionEs:
-      "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro.",
+      "Muestra hasta cinco mascotas a la vez, cada uno con su apariencia y cerebro.",
   },
 ];
 
@@ -51,7 +51,7 @@ export function FeaturesSection() {
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  {isSpanish ? "Shimejis únicos en subasta" : "Unique Shimejis at Auction"}
+                  {isSpanish ? "Hermosas, Útiles e Interactivas" : "Beautiful, Useful, Interactive"}
                 </h3>
                 <p className="text-foreground/80 leading-relaxed mb-1">
                   {isSpanish

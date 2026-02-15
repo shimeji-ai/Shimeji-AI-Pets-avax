@@ -169,13 +169,13 @@ async function fetchRecentBidsFromHorizon(
 ): Promise<BidInfo[]> {
   const baseUrl = HORIZON_URL.replace(/\/$/, "");
   let cursor: string | undefined;
-  const maxPages = 10;
+  const maxPages = 40;
   const found: BidInfo[] = [];
   const seen = new Set<string>();
   const startThreshold = auctionStartTime - 2;
 
   for (let page = 0; page < maxPages && found.length < limit; page += 1) {
-    const url = new URL(`${baseUrl}/accounts/${AUCTION_CONTRACT_ID}/operations`);
+    const url = new URL(`${baseUrl}/operations`);
     url.searchParams.set("order", "desc");
     url.searchParams.set("limit", "200");
     url.searchParams.set("join", "transactions");
@@ -184,11 +184,15 @@ async function fetchRecentBidsFromHorizon(
     }
 
     const response = await fetch(url.toString(), { cache: "no-store" });
-    if (!response.ok) break;
+    if (!response.ok) {
+      console.log(`[bids] Horizon page ${page} fetch failed: ${response.status}`);
+      break;
+    }
     const payload = (await response.json()) as {
       _embedded?: { records?: HorizonInvokeHostFunctionOperation[] };
     };
     const records = payload._embedded?.records ?? [];
+    console.log(`[bids] Page ${page}: ${records.length} records, startThreshold=${startThreshold}`);
     if (records.length === 0) break;
     let pageHasRecentRecords = false;
 
@@ -200,6 +204,7 @@ async function fetchRecentBidsFromHorizon(
         pageHasRecentRecords = true;
       }
       if (Number.isFinite(createdAtSeconds) && createdAtSeconds < startThreshold) {
+        console.log(`[bids] Skipping old record: created_at=${record.created_at} (${createdAtSeconds} < ${startThreshold})`);
         continue;
       }
 
@@ -209,13 +214,20 @@ async function fetchRecentBidsFromHorizon(
         record.id ??
         record.transaction_hash ??
         `${record.created_at ?? ""}-${bid.bidder}-${bid.amount.toString()}-${bid.currency}`;
-      if (seen.has(key)) continue;
+      if (seen.has(key)) {
+        console.log(`[bids] Duplicate key: ${key}`);
+        continue;
+      }
       seen.add(key);
       found.push(bid);
+      console.log(`[bids] Found bid: bidder=${bid.bidder.slice(0,8)}... amount=${bid.amount} currency=${bid.currency}`);
       if (found.length >= limit) break;
     }
 
-    if (!pageHasRecentRecords) break;
+    if (!pageHasRecentRecords) {
+      console.log(`[bids] No recent records on page ${page}, stopping`);
+      break;
+    }
 
     cursor = records[records.length - 1].paging_token;
     if (!cursor) break;
