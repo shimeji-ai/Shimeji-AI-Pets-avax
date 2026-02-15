@@ -37,9 +37,9 @@ const steps = [
     step: "04",
     titleEn: "Commission a Custom Shimeji",
     titleEs: "Encarga un shimeji único",
-    descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet with unique sprites.",
+    descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet.",
     descriptionEs:
-      "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano con sprites únicos.",
+      "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano.",
   },
 ];
 
@@ -100,14 +100,14 @@ export function HowItWorksSection() {
                         <Link href="/factory" className="font-semibold underline decoration-2 underline-offset-2">
                           Compra un huevo en Factory
                         </Link>
-                        , define una intención y recibe una mascota hecha a mano con sprites únicos.
+                        , define una intención y recibe una mascota hecha a mano.
                       </>
                     ) : (
                       <>
                         <Link href="/factory" className="font-semibold underline decoration-2 underline-offset-2">
                           Buy an egg in the Factory
                         </Link>
-                        , set an intention, and receive a handcrafted pet with unique sprites.
+                        , set an intention, and receive a handcrafted pet.
                       </>
                     )
                   ) : isSpanish ? (

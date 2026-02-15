@@ -21,7 +21,7 @@ Project context (high level):
 - You can chat with your Shimeji using AI via providers like OpenRouter.
 - The extension is free and includes 5 free pets (Shimeji, Bunny, Kitten, Ghost, Blob).
 - There is a live egg auction on /#auction where users bid with XLM or USDC.
-- The winning bid gets a handcrafted custom desktop pet with unique sprites (and optional NFT aspects on the project site).
+- The winning bid gets a handcrafted custom desktop pet (and optional NFT aspects on the project site).
 
 Style:
 - Friendly, concise, and practical. Avoid hype.

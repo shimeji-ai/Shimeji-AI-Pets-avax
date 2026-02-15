@@ -56,11 +56,6 @@ export function DownloadSection() {
 
           <div className="neural-card rounded-2xl p-8 text-center">
             <h3 className="text-2xl font-semibold mb-4">{isSpanish ? "Versión Desktop" : "Desktop Version"}</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {isSpanish
-                ? "La app desktop puede interactuar con terminales locales como WSL, PowerShell y Terminal de macOS."
-                : "The desktop app can interact with local terminals like WSL, PowerShell, and macOS Terminal."}
-            </p>
             <div className="text-left mb-6 space-y-5">
               <div>
                 <p className="mb-2 text-muted-foreground font-medium">

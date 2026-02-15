@@ -55,8 +55,8 @@ export function FeaturesSection() {
                 </h3>
                 <p className="text-foreground/80 leading-relaxed mb-1">
                   {isSpanish
-                    ? "Cada shimeji personalizado se anima a mano con sprites únicos y se subasta onchain como NFT en "
-                    : "Each custom shimeji is hand-animated with unique sprites and auctioned onchain as an NFT on "}
+                    ? "Cada shimeji personalizado se anima a mano y se subasta onchain como NFT en "
+                    : "Each custom shimeji is hand-animated and auctioned onchain as an NFT on "}
                   <a
                     href="https://stellar.org"
                     target="_blank"

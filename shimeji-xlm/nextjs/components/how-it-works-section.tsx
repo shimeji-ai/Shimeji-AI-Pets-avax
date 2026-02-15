@@ -35,8 +35,8 @@ const steps = [
     step: "04",
     titleEn: "Win a Custom Shimeji",
     titleEs: "Ganá un shimeji único",
-    descriptionEn: "Bid in the auction to win a handcrafted pet minted as an NFT with unique sprites.",
-    descriptionEs: "Ofertá en la subasta para ganar una mascota artesanal acuñada como NFT con sprites únicos.",
+    descriptionEn: "Bid in the auction to win a handcrafted pet minted as an NFT.",
+    descriptionEs: "Ofertá en la subasta para ganar una mascota artesanal acuñada como NFT.",
   },
 ];
 
@@ -124,8 +124,7 @@ export function HowItWorksSection() {
                           >
                             Bid in the auction
                           </Link>
-                          {" "}to win a handcrafted pet minted as an NFT with
-                          unique sprites.
+                          {" "}to win a handcrafted pet minted as an NFT.
                         </>
                       )
                     ) : (

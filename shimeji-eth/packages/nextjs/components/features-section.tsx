@@ -54,8 +54,8 @@ export function FeaturesSection() {
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
-                ? "Más que una mascota: un mascota con IA que conversa, opina y actúa cuando lo necesitas"
-                : "More than a mascot — a pet that chats, reacts, and acts when you need it"}
+                ? "Una mascota con IA que conversa, opina y actúa cuando lo necesitas"
+                : "A pet that chats, reacts, and acts when you need it"}
             </p>
           </div>
 
@@ -85,11 +85,11 @@ export function FeaturesSection() {
                 <p className="text-muted-foreground leading-relaxed">
                   {isSpanish
                     ? feature.title === "AI Chat with Personality"
-                      ? "Tu shimeji te responde con la personalidad que elijas: acogedora, filosófica, caótica o noir."
+                      ? "Tu shimeji te responde con la personalidad que elijas."
                       : feature.title === "AI Agent Mode"
-                        ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
+                        ? "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
                         : feature.title === "Multi Shimeji"
-                          ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
+                          ? "Muestra hasta cinco mascotas a la vez, cada uno con su apariencia y cerebro."
                           : feature.title === "Handcrafted Sprites"
                             ? "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
                             : "Conecta tu wallet de Ethereum para reservar huevos y manejar pagos onchain."
