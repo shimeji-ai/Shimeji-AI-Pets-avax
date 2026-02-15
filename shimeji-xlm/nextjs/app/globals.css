@@ -303,6 +303,12 @@ body[data-theme="kawaii"] .footer-updates-button svg {
   stroke: currentColor;
 }
 
+body[data-theme="kawaii"] .auction-highlight-banner {
+  border-color: rgba(40, 180, 90, 0.6);
+  background: rgba(40, 180, 90, 0.18);
+  box-shadow: 0 0 24px rgba(40, 180, 90, 0.15);
+}
+
 body[data-theme="kawaii"] .footer-updates-button:hover {
   background: #6f5ba0 !important;
   color: #fff8ff !important;

@@ -81,7 +81,7 @@ export function FeaturesSection() {
           </div>
 
           {/* Auction highlight banner */}
-          <div className="mt-8 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
+          <div className="auction-highlight-banner mt-8 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="flex-1 text-center md:text-left">
                 <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
