@@ -114,10 +114,7 @@ export function FeaturesSection() {
                 </p>
               </div>
               <div className="flex-shrink-0">
-                <AuctionButton
-                  labelEn="GO TO AUCTION"
-                  labelEs="IR A LA SUBASTA"
-                />
+                <AuctionButton />
               </div>
             </div>
           </div>
