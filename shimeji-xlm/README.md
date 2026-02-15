@@ -26,13 +26,17 @@ pnpm run vercel:env:testnet -- production   # or mainnet
 
 3. Redeploy on Vercel.
 
-## Manual Mode
+## Manual Mode (3 terminals)
 
 ```bash
-cd shimeji-xlm
-pnpm chain
-pnpm run deploy
-pnpm start
+# Terminal 1 — local chain
+cd shimeji-xlm && pnpm chain
+
+# Terminal 2 — deploy contracts
+cd shimeji-xlm && pnpm run deploy
+
+# Terminal 3 — frontend dev server
+cd shimeji-xlm && pnpm start
 ```
 
 ## More Docs
