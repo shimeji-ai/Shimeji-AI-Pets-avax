@@ -182,12 +182,7 @@ export function SubscribeSection() {
               className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             />
 
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-xs text-muted-foreground">
-                {isSpanish
-                  ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @ShimejiAIPets en X."
-                  : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @ShimejiAIPets on X."}
-              </p>
+            <div className="flex justify-end">
               <Button
                 type="submit"
                 disabled={isSubmitting}
