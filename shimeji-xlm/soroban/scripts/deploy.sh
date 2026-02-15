@@ -37,7 +37,7 @@ set -euo pipefail
 #   AUTO_CREATE_INITIAL_AUCTION=1|0 (default 1)
 #   INITIAL_AUCTION_MIN_CURRENCY=usdc|xlm (default usdc)
 #   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
-#   INITIAL_AUCTION_XLM_USDC_RATE=1000000 (7 decimals; 1_000_000 => 0.10 USDC per XLM)
+#   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
 
 NETWORK="${NETWORK:-}"
@@ -72,7 +72,7 @@ STELLAR_RPC_HEADERS="${STELLAR_RPC_HEADERS:-}"
 AUTO_CREATE_INITIAL_AUCTION="${AUTO_CREATE_INITIAL_AUCTION:-1}"
 INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
 INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
-INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1000000}"
+INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1600000}"
 INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
@@ -466,6 +466,55 @@ human_amount_to_stroops() {
   printf "%s" "$parsed"
 }
 
+fetch_xlm_usdc_rate() {
+  local price rate
+
+  # Try CoinGecko first
+  if need_cmd curl && need_cmd jq; then
+    price="$(curl -sf --max-time 10 \
+      'https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd' \
+      2>/dev/null | jq -r '.stellar.usd // empty' 2>/dev/null)" || true
+
+    if [ -n "$price" ] && [ "$price" != "null" ]; then
+      rate="$(echo "$price * 10000000" | bc 2>/dev/null | sed 's/\..*//')" || true
+      if [ -n "$rate" ] && [ "$rate" -gt 0 ] 2>/dev/null; then
+        echo "Fetched XLM/USD rate from CoinGecko: \$${price} (${rate} stroops)" >&2
+        printf "%s" "$rate"
+        return 0
+      fi
+    fi
+  fi
+
+  # Fallback: Stellar SDEX (Horizon orderbook)
+  if need_cmd curl && need_cmd jq; then
+    local horizon_base
+    case "$NETWORK" in
+      mainnet) horizon_base="https://horizon.stellar.org" ;;
+      *)       horizon_base="https://horizon-testnet.stellar.org" ;;
+    esac
+    local usdc_issuer
+    case "$NETWORK" in
+      mainnet) usdc_issuer="$MAINNET_USDC_ISSUER" ;;
+      *)       usdc_issuer="$TESTNET_USDC_ISSUER" ;;
+    esac
+    price="$(curl -sf --max-time 10 \
+      "${horizon_base}/order_book?selling_asset_type=native&buying_asset_type=credit_alphanum4&buying_asset_code=USDC&buying_asset_issuer=${usdc_issuer}&limit=1" \
+      2>/dev/null | jq -r '.asks[0].price // empty' 2>/dev/null)" || true
+
+    if [ -n "$price" ] && [ "$price" != "null" ]; then
+      rate="$(echo "$price * 10000000" | bc 2>/dev/null | sed 's/\..*//')" || true
+      if [ -n "$rate" ] && [ "$rate" -gt 0 ] 2>/dev/null; then
+        echo "Fetched XLM/USDC rate from Stellar DEX: ${price} (${rate} stroops)" >&2
+        printf "%s" "$rate"
+        return 0
+      fi
+    fi
+  fi
+
+  echo "Could not fetch live XLM rate, using env/default value." >&2
+  return 1
+}
+
 prepare_initial_auction_config() {
   local default_amount
   local choice
@@ -505,7 +554,12 @@ prepare_initial_auction_config() {
       default_amount="50"
     fi
     INITIAL_AUCTION_MIN_AMOUNT="$(prompt_default "Initial minimum amount (${INITIAL_AUCTION_MIN_CURRENCY^^})" "${INITIAL_AUCTION_MIN_AMOUNT:-$default_amount}")"
-    INITIAL_AUCTION_XLM_USDC_RATE="$(prompt_default "XLM/USDC rate (7 decimals, 1000000 = 0.10)" "$INITIAL_AUCTION_XLM_USDC_RATE")"
+    local live_rate
+    live_rate="$(fetch_xlm_usdc_rate)" || true
+    if [ -n "$live_rate" ]; then
+      INITIAL_AUCTION_XLM_USDC_RATE="$live_rate"
+    fi
+    INITIAL_AUCTION_XLM_USDC_RATE="$(prompt_default "XLM/USDC rate (7 decimals, 1600000 = 0.16)" "$INITIAL_AUCTION_XLM_USDC_RATE")"
     INITIAL_AUCTION_TOKEN_URI="$(prompt_default "Initial auction token URI" "$INITIAL_AUCTION_TOKEN_URI")"
   fi
 
@@ -513,6 +567,15 @@ prepare_initial_auction_config() {
     usdc|xlm) ;;
     *) die "INITIAL_AUCTION_MIN_CURRENCY must be usdc or xlm. Current value: $INITIAL_AUCTION_MIN_CURRENCY" ;;
   esac
+
+  # Auto-fetch rate if still at default value in non-interactive mode
+  if [ "$INTERACTIVE" -ne 1 ] && [ "$INITIAL_AUCTION_XLM_USDC_RATE" = "1000000" ]; then
+    local live_rate
+    live_rate="$(fetch_xlm_usdc_rate)" || true
+    if [ -n "$live_rate" ]; then
+      INITIAL_AUCTION_XLM_USDC_RATE="$live_rate"
+    fi
+  fi
 
   if ! [[ "$INITIAL_AUCTION_XLM_USDC_RATE" =~ ^[0-9]+$ ]] || [ "$INITIAL_AUCTION_XLM_USDC_RATE" -le 0 ]; then
     die "INITIAL_AUCTION_XLM_USDC_RATE must be a positive integer (7 decimals)."

@@ -8,7 +8,6 @@ import { FAQSection } from "@/components/faq-section";
 import { CtaSection } from "@/components/cta-section";
 import { SubscribeSection } from "@/components/subscribe-section";
 import { Footer } from "@/components/footer";
-import { GiveawayWidget } from "@/components/giveaway-widget";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
@@ -23,7 +22,6 @@ export default function Home() {
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <Header />
       <AuctionSection />
-      <GiveawayWidget />
       <HeroSection />
       <div className="bg-transparent">
         <HowItWorksSection />

@@ -92,6 +92,7 @@ export function AuctionSection() {
   const [recentOffers, setRecentOffers] = useState<BidInfo[]>([]);
   const [copiedBidder, setCopiedBidder] = useState<string | null>(null);
   const [currentBidCurrencyView, setCurrentBidCurrencyView] = useState<"XLM" | "USDC">("XLM");
+  const [showDate, setShowDate] = useState(false);
   const [auctionId, setAuctionId] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [walletMode, setWalletMode] = useState<WalletMode>(
@@ -491,6 +492,7 @@ export function AuctionSection() {
         amount: rawAmount,
         currency: currency === "XLM" ? "Xlm" : "Usdc",
       };
+      setHighestBid(submittedBid);
       setRecentOffers((prev) => [submittedBid, ...prev].slice(0, 8));
 
       setBidSuccess(true);
@@ -722,40 +724,50 @@ export function AuctionSection() {
               <div className="mb-6 rounded-3xl p-1 md:p-2">
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
                   <div className="flex flex-col items-center text-center">
+                    {auction ? (
+                      <p className="auction-shimeji-id text-2xl font-black uppercase tracking-tight sm:text-3xl">
+                        Shimeji #{auctionId}
+                      </p>
+                    ) : null}
                     <div className="w-[15rem] h-[15rem] md:w-[20rem] md:h-[20rem] flex items-center justify-center">
                       <ShimejiCharacter />
                     </div>
                     {auction ? (
                       <div className="mt-5 flex w-full justify-center">
-                        <div className="inline-flex flex-col items-center justify-center gap-2 bg-transparent p-0 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowDate((prev) => !prev)}
+                          className="inline-flex flex-col items-center justify-center gap-2 bg-transparent p-0 text-center cursor-pointer"
+                        >
                           <div className="flex h-[96px] items-center justify-center md:h-[110px]">
                             <div className="w-full">
-                              <CountdownTimer
-                                endTime={auction.endTime}
-                                labels={
-                                  isSpanish
-                                    ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
-                                    : undefined
-                                }
-                              />
+                              {showDate ? (
+                                <p className="text-2xl font-black text-foreground md:text-3xl">{auctionDateLabel}</p>
+                              ) : (
+                                <CountdownTimer
+                                  endTime={auction.endTime}
+                                  labels={
+                                    isSpanish
+                                      ? { days: "días", hours: "hrs", minutes: "min", seconds: "seg" }
+                                      : undefined
+                                  }
+                                />
+                              )}
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-foreground md:text-base">{auctionDateLabel}</p>
-                        </div>
+                          <p className="text-xs text-muted-foreground md:text-sm">
+                            {showDate
+                              ? t("Tap to see countdown", "Toca para ver cuenta regresiva")
+                              : t("Tap to see date", "Toca para ver fecha")}
+                          </p>
+                        </button>
                       </div>
                     ) : null}
                   </div>
 
                   {auction ? (
                     <div>
-                      <p className="mt-1 max-w-3xl text-xl font-semibold leading-tight text-foreground md:text-2xl">
-                        {t(
-                          "Win a unique handcrafted Shimeji minted as an NFT",
-                          "Gana un Shimeji artesanal acuñado como NFT"
-                        )}
-                      </p>
-
-                      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                           <label className="block text-xs text-muted-foreground mb-2">
                             {t("Currency", "Moneda")}
@@ -780,7 +792,7 @@ export function AuctionSection() {
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             {t("Current bid", "Oferta actual")}
                           </p>
-                          <p className="mt-0.5 text-base font-semibold text-foreground">{currentBidDisplayValue}</p>
+                          <p className="mt-0.5 text-2xl font-black uppercase tracking-tight text-foreground sm:text-3xl">{currentBidDisplayValue}</p>
                         </button>
                       </div>
 
@@ -817,7 +829,7 @@ export function AuctionSection() {
 
                       {hasConnectedWallet ? (
                         <>
-                          <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground">
+                          <p className="mt-2 rounded-lg border border-white/10 bg-transparent px-3 py-2 text-xs text-muted-foreground break-words">
                             {t("Available balance", "Saldo disponible")}:{" "}
                             <span className="font-semibold text-foreground">
                               {balancesLoading
@@ -897,10 +909,10 @@ export function AuctionSection() {
                             href={auctionExplorerUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex max-w-full flex-nowrap items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] text-foreground underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
+                            className="inline-flex max-w-full flex-wrap items-center gap-2 text-[11px] text-foreground underline decoration-muted-foreground/50 underline-offset-4 hover:text-foreground"
                           >
                             <span>{t("View on Stellar Expert", "Ver en Stellar Expert")}</span>
-                            <span className="font-mono text-foreground">{AUCTION_CONTRACT_ID}</span>
+                            <span className="font-mono text-foreground break-all">{AUCTION_CONTRACT_ID}</span>
                           </a>
                         ) : (
                           <p>
@@ -910,7 +922,7 @@ export function AuctionSection() {
                             )}
                           </p>
                         )}
-                        <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border border-amber-400/60 bg-amber-300/20 px-3 py-2 text-foreground">
+                        <p className="auction-escrow-note mt-3 inline-block max-w-full rounded-lg border px-3 py-2 text-foreground">
                           <a
                             href="https://trustlesswork.com"
                             target="_blank"

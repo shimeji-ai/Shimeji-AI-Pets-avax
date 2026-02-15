@@ -108,7 +108,8 @@ const ConnectWalletButton = styled.button`
   will-change: transform;
 
   @media (max-width: 640px) {
-    width: 75%;
+    width: 90%;
+    min-width: 15rem;
     margin: 0 auto;
   }
 

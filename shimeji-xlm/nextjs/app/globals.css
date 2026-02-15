@@ -397,10 +397,10 @@ body[data-theme="kawaii"] .header-auction-link:hover {
 }
 
 .currency-toggle-option.is-active {
-  background: linear-gradient(135deg, #ffd978, #ffbf33);
+  background: linear-gradient(135deg, #5cff92, #33cc66);
   border-color: transparent;
-  color: #1a1203 !important;
-  box-shadow: 0 8px 18px rgba(255, 187, 0, 0.28);
+  color: #0a1f10 !important;
+  box-shadow: 0 8px 18px rgba(92, 255, 146, 0.28);
 }
 
 .language-switcher-shell {
@@ -494,8 +494,8 @@ body[data-theme="kawaii"] .auction-faucet-button:disabled {
 }
 
 .auction-escrow-note {
-  background: rgba(255, 191, 51, 0.36);
-  border-color: rgba(255, 187, 0, 0.62);
+  background: rgba(92, 255, 146, 0.15);
+  border-color: rgba(92, 255, 146, 0.5);
 }
 
 .auction-network-badge {
@@ -595,9 +595,9 @@ body[data-theme="kawaii"] .auction-escrow-link {
 }
 
 .auction-offer-row-top {
-  border-color: rgba(255, 221, 129, 0.95);
-  background: rgba(255, 191, 51, 0.62);
-  box-shadow: 0 0 18px rgba(251, 191, 36, 0.34);
+  border-color: rgba(92, 255, 146, 0.85);
+  background: rgba(92, 255, 146, 0.25);
+  box-shadow: 0 0 18px rgba(92, 255, 146, 0.3);
 }
 
 body[data-theme="pink"] .auction-offer-row {
@@ -606,9 +606,9 @@ body[data-theme="pink"] .auction-offer-row {
 }
 
 body[data-theme="pink"] .auction-offer-row-top {
-  border-color: rgba(255, 219, 155, 0.92);
-  background: rgba(255, 194, 87, 0.62);
-  box-shadow: 0 0 18px rgba(255, 181, 70, 0.34);
+  border-color: rgba(92, 255, 146, 0.85);
+  background: rgba(92, 255, 146, 0.25);
+  box-shadow: 0 0 18px rgba(92, 255, 146, 0.3);
 }
 
 body[data-theme="kawaii"] .auction-offer-row {
@@ -617,9 +617,9 @@ body[data-theme="kawaii"] .auction-offer-row {
 }
 
 body[data-theme="kawaii"] .auction-offer-row-top {
-  border-color: rgba(191, 126, 0, 0.66);
-  background: rgba(255, 210, 120, 0.88);
-  box-shadow: 0 0 20px rgba(240, 171, 0, 0.34);
+  border-color: rgba(40, 180, 90, 0.66);
+  background: rgba(92, 255, 146, 0.35);
+  box-shadow: 0 0 20px rgba(40, 180, 90, 0.3);
 }
 
 .auction-countdown-card {
@@ -974,6 +974,14 @@ body[data-theme="kawaii"] .text-white\/90 {
 
 body[data-theme="kawaii"] .text-muted-foreground\/80 {
   color: rgba(42, 31, 78, 0.75) !important;
+}
+
+.auction-shimeji-id {
+  color: #fff;
+}
+
+body[data-theme="kawaii"] .auction-shimeji-id {
+  color: #1a1a2e;
 }
 
 /* Force hide burger menu on desktop */
