@@ -92,7 +92,7 @@ export function Header() {
               <ScrollLink
                 to="features"
                 smooth={true}
-                duration={1500}
+                duration={700}
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Características" : "Features"}
@@ -107,7 +107,7 @@ export function Header() {
               <ScrollLink
                 to="get-started"
                 smooth={true}
-                duration={1500}
+                duration={700}
                 className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
               >
                 {isSpanish ? "Empezar" : "Get Started"}
@@ -178,7 +178,7 @@ export function Header() {
               <ScrollLink
                 to="features"
                 smooth={true}
-                duration={1500}
+                duration={700}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -187,7 +187,7 @@ export function Header() {
               <ScrollLink
                 to="get-started"
                 smooth={true}
-                duration={1500}
+                duration={700}
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
