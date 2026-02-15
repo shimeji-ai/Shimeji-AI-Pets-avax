@@ -55,8 +55,8 @@ export function FeaturesSection() {
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
-                ? "Más que una mascota: un mascota con IA que conversa, opina y actúa cuando lo necesitas"
-                : "More than a mascot — a pet that chats, reacts, and acts when you need it"}
+                ? "Una mascota con IA que conversa, opina y actúa cuando lo necesitas"
+                : "A pet that chats, reacts, and acts when you need it"}
             </p>
           </div>
 
