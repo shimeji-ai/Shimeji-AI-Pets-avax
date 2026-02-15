@@ -169,13 +169,13 @@ async function fetchRecentBidsFromHorizon(
 ): Promise<BidInfo[]> {
   const baseUrl = HORIZON_URL.replace(/\/$/, "");
   let cursor: string | undefined;
-  const maxPages = 40;
+  const maxPages = 10;
   const found: BidInfo[] = [];
   const seen = new Set<string>();
   const startThreshold = auctionStartTime - 2;
 
   for (let page = 0; page < maxPages && found.length < limit; page += 1) {
-    const url = new URL(`${baseUrl}/operations`);
+    const url = new URL(`${baseUrl}/accounts/${AUCTION_CONTRACT_ID}/operations`);
     url.searchParams.set("order", "desc");
     url.searchParams.set("limit", "200");
     url.searchParams.set("join", "transactions");
