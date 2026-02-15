@@ -399,6 +399,7 @@ body[data-theme="kawaii"] .header-auction-link:hover {
   min-width: 76px;
   border: 1px solid transparent;
   background: transparent;
+  cursor: pointer;
 }
 
 .currency-toggle-option.is-active {

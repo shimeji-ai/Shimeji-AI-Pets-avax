@@ -129,11 +129,12 @@ const ConnectWalletButton = styled.button`
   .stars-container {
     position: absolute;
     inset: 0;
-    z-index: -1;
+    z-index: 1;
     overflow: hidden;
     border-radius: 5rem;
     transition: 0.5s;
     backdrop-filter: blur(1rem);
+    background-color: #0b0f14;
   }
 
   .stars {
@@ -188,11 +189,6 @@ const ConnectWalletButton = styled.button`
 
   .circle:nth-of-type(2) {
     background: rgba(255, 255, 255, 0.2);
-  }
-
-  &:hover .stars-container {
-    z-index: 1;
-    background-color: #0b0f14;
   }
 
   &:hover:not(:disabled) {
