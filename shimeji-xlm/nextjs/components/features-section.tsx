@@ -27,7 +27,7 @@ const features = [
     icon: Palette,
     title: "Handcrafted Sprites",
     description:
-      "Commission a custom shimeji through the Factory. Each egg is hand-animated with unique art.",
+      "Win a custom shimeji at auction. Each one is hand-animated with unique sprites.",
   },
   {
     icon: ArrowLeftRight,
@@ -162,7 +162,7 @@ export function FeaturesSection() {
                           ? "Conecta un gateway OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
                           : feature.title === "Multi Shimeji"
                             ? "Muestra hasta cinco mascotas a la vez, cada uno con su personalidad y cerebro."
-                            : "Encarga un shimeji personalizado en Factory. Cada huevo se anima a mano con arte único."
+                            : "Ganá un shimeji personalizado en la subasta. Cada uno se anima a mano con sprites únicos."
                       : feature.description}
                   </p>
                 )}
