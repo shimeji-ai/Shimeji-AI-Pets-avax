@@ -316,9 +316,7 @@ export function HelpSection() {
       <ScrollAnimation variants={variants}>
         <div className="w-full mx-auto">
           <div className="text-center mb-12">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Opciones" : "Settings"}
-            </p>
+            
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
               {isSpanish ? "Qué hace cada ajuste" : "What each setting does"}
             </h2>
