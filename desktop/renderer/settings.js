@@ -250,6 +250,7 @@ function setPopupLabels() {
   setText('popup-theme-note', t('Applies instantly to desktop settings.', 'Se aplica al instante en la configuración de desktop.'));
   setText('popup-language-label', t('Language', 'Idioma'));
   setText('popup-language-note', t('Changes labels in settings and chat UI.', 'Cambia etiquetas en configuración y en la UI del chat.'));
+  setText('link-feedback', t('Feedback', 'Feedback'));
   setText('link-privacy', t('Privacy', 'Privacidad'));
 
   if (addShimejiBtn) addShimejiBtn.setAttribute('aria-label', t('Add shimeji', 'Agregar shimeji'));

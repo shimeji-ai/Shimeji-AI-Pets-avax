@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HelpSection } from "@/components/help-section";
 import { FAQSection } from "@/components/faq-section";
+import { ProjectFeedbackBox } from "@/components/project-feedback-box";
 import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
@@ -16,6 +17,9 @@ export default function HelpPage() {
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <HelpSection />
       <FAQSection />
+      <div id="feedback">
+        <ProjectFeedbackBox />
+      </div>
       <Footer />
     </main>
   );

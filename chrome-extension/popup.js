@@ -533,6 +533,7 @@ const masterkeyActionsRow = document.getElementById("masterkey-actions-row");
 const securityLockBanner = document.getElementById("security-lock-banner");
 const securityLockTitle = document.getElementById("security-lock-title");
 const securityLockText = document.getElementById("security-lock-text");
+const linkFeedback = document.getElementById("link-feedback");
 const linkPrivacy = document.getElementById("link-privacy");
 const labelEnabledPage = document.getElementById("label-enabled-page");
 const labelEnabledAllSites = document.getElementById("label-enabled-all-sites");
@@ -1033,6 +1034,7 @@ function buildShimejiPreview(shimeji) {
     if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
     if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
     if (addShimejiBtn) addShimejiBtn.textContent = "+";
+    if (linkFeedback) linkFeedback.textContent = t("Feedback", "Feedback");
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
     if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this site", "Habilitado en este sitio");
     if (labelEnabledAllSites) labelEnabledAllSites.textContent = t("Enabled on all sites", "Habilitado en todos los sitios");

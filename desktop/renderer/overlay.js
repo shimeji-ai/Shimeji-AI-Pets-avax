@@ -3334,6 +3334,12 @@ class Shimeji {
     const value = String(text || '');
     if (!value) return false;
     try {
+      if (window.shimejiApi?.clipboardWriteText) {
+        window.shimejiApi.clipboardWriteText(value);
+        return true;
+      }
+    } catch (err) {}
+    try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(value);
         return true;

@@ -1,6 +1,10 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
 contextBridge.exposeInMainWorld('shimejiApi', {
+  // Clipboard (native Electron)
+  clipboardReadText: () => clipboard.readText(),
+  clipboardWriteText: (text) => clipboard.writeText(String(text || '')),
+
   // Config
   getConfig: () => ipcRenderer.invoke('get-config'),
   updateConfig: (payload) => ipcRenderer.send('update-config', payload),

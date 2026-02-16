@@ -85,6 +85,35 @@
       }
 
       term.open(this.container);
+
+      // Handle copy/paste shortcuts inside xterm (xterm captures keys before DOM)
+      term.attachCustomKeyEventHandler((event) => {
+        if (event.type !== 'keydown') return true;
+        const key = event.key;
+
+        // Ctrl+Shift+C or Ctrl+C with selection: copy
+        if (event.ctrlKey && (key === 'C' || key === 'c')) {
+          const selected = this.getSelectedText();
+          if (selected) {
+            event.preventDefault();
+            this.copyText(selected);
+            return false;
+          }
+          // Ctrl+C without selection: send interrupt (let xterm handle it)
+          if (!event.shiftKey) return true;
+          return false;
+        }
+
+        // Ctrl+Shift+V or Ctrl+V: paste
+        if (event.ctrlKey && (key === 'V' || key === 'v')) {
+          event.preventDefault();
+          this.pasteTextFromClipboard();
+          return false;
+        }
+
+        return true;
+      });
+
       term.onData((data) => {
         if (isFunction(this.options.onData)) {
           this.options.onData(data);
@@ -185,6 +214,12 @@
       const value = String(text || '');
       if (!value) return;
       try {
+        if (window.shimejiApi?.clipboardWriteText) {
+          window.shimejiApi.clipboardWriteText(value);
+          return;
+        }
+      } catch {}
+      try {
         if (navigator.clipboard?.writeText) {
           await navigator.clipboard.writeText(value);
           return;
@@ -195,18 +230,29 @@
       } catch {}
     }
 
-    async pasteTextFromClipboard() {
+    pasteTextFromClipboard() {
       if (!this.term && !isFunction(this.options.onData)) return;
       try {
-        if (!navigator.clipboard?.readText) return;
-        const text = await navigator.clipboard.readText();
+        let text = '';
+        if (window.shimejiApi?.clipboardReadText) {
+          text = window.shimejiApi.clipboardReadText();
+        } else if (navigator.clipboard?.readText) {
+          // Fallback (may not work on Windows Electron)
+          navigator.clipboard.readText().then((t) => {
+            const normalized = normalizeText(t);
+            if (!normalized) return;
+            if (this.term) { this.term.paste(normalized); return; }
+            if (isFunction(this.options.onData)) this.options.onData(normalized);
+          }).catch(() => {});
+          return;
+        }
         const normalized = normalizeText(text);
         if (!normalized) return;
         if (this.term) {
           this.term.paste(normalized);
           return;
         }
-        this.options.onData(normalized);
+        if (isFunction(this.options.onData)) this.options.onData(normalized);
       } catch {}
     }
 

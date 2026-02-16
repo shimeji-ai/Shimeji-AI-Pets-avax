@@ -84,6 +84,14 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
+                    href="/help#feedback"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Feedback" : "Feedback"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/privacy"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
