@@ -101,41 +101,7 @@ export function SubscribeSection() {
   return (
     <section id="subscribe" className="py-12 md:py-14 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Follow on X */}
-        <div className="neural-card rounded-3xl p-8 md:p-12">
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[var(--brand-accent)]">
-                <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-              </div>
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl md:text-3xl font-semibold mb-2">
-                {isSpanish ? "Mantente al día" : "Stay in the Loop"}
-              </h2>
-              <p className="text-muted-foreground">
-                {isSpanish
-                  ? "Seguinos en X para enterarte de nuevas funciones y lanzamientos de la plataforma."
-                  : "Follow us on X to stay updated on new features and platform launches."}
-              </p>
-            </div>
-            <div className="flex-shrink-0">
-              <a
-                href="https://x.com/ShimejiAIPets"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="neural-button rounded-xl px-6 py-3 text-lg inline-flex items-center gap-2 font-semibold"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                {isSpanish ? "Seguinos en X" : "Follow us on X"}
-              </a>
-            </div>
-          </div>
-        </div>
+        {/* Follow on X removed: button moved next to feedback submit */}
 
         {/* Feedback form */}
         <div className="neural-card rounded-3xl p-6 md:p-8 border border-white/10">
@@ -162,17 +128,30 @@ export function SubscribeSection() {
               onChange={(event) => setTwitterUsername(event.target.value)}
               placeholder={
                 isSpanish
-                  ? "Usuario de X (opcional) ej: @tuusuario"
-                  : "X username (optional) e.g. @yourhandle"
+                  ? "(opcional) Usuario de X ej: @tuusuario"
+                  : "(optional) X username e.g. @yourhandle"
               }
               className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             />
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center gap-3">
+              <a
+                href="https://x.com/ShimejiAIPets"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="neural-button rounded-xl px-6 py-3 text-base font-semibold inline-flex items-center gap-2 bg-[#1d9bf0] text-white hover:bg-[#1483d6]"
+                aria-label={isSpanish ? "Seguinos en X" : "Follow us on X"}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                {isSpanish ? "Seguinos en X" : "Follow us on X"}
+              </a>
+
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="neural-button rounded-xl px-6"
+                className="neural-button rounded-xl px-6 py-6 text-base font-semibold inline-flex items-center gap-2"
               >
                 {isSubmitting
                   ? isSpanish
