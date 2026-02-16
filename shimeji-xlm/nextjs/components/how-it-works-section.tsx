@@ -20,9 +20,9 @@ const steps = [
     titleEn: "Set Up Your AI",
     titleEs: "Configurá tu IA",
     descriptionEn:
-      "Open settings, configure a provider (OpenRouter, Ollama, or OpenClaw) and start chatting. On desktop you also get a built-in terminal.",
+      "Configure the AI Brain and start chatting.",
     descriptionEs:
-      "Abrí los ajustes, configurá un proveedor (OpenRouter, Ollama u OpenClaw) y empezá a chatear. En desktop también tenés una terminal integrada.",
+      "Configurá el Cerebro AI de tu Shimeji y empezá a chatear.",
   },
   {
     icon: Sparkles,
@@ -80,9 +80,9 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Descargá la extensión de Chrome
+                          Descargá
                         </Link>{" "}
-                        o la app desktop para Windows, macOS y Linux.
+                         la extensión de navegador o la app de escritorio.
                       </>
                     ) : (
                       <>
@@ -90,9 +90,9 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Grab the Chrome extension
+                          Grab 
                         </Link>{" "}
-                        or the desktop app for Windows, macOS, and Linux.
+                        the browser extension or the desktop app.
                       </>
                     )
                   ) : step.step === "03" ? (
@@ -115,6 +115,28 @@ export function HowItWorksSection() {
                           Bid in the auction
                         </Link>
                         {" "}to win a handcrafted pet minted as an NFT.
+                      </>
+                    )
+                  ) : step.step === "02" ? (
+                    isSpanish ? (
+                      <>
+                        {step.descriptionEs} {" "}
+                        <Link
+                          href="/help"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Centro de ayuda
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        {step.descriptionEn} {" "}
+                        <Link
+                          href="/help"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Help center
+                        </Link>
                       </>
                     )
                   ) : (
