@@ -48,7 +48,7 @@ export function Footer() {
             </div>
 
             <div>
-              <h3 className="font-semibold mb-4 text-sm text-foreground">{isSpanish ? "Navegación" : "Navigate"}</h3>
+              
               <ul className="space-y-3">
                 <li>
                   <Link

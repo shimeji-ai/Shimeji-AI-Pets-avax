@@ -91,9 +91,7 @@ export function SetupSection() {
                 <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">
                   {step.id}
                 </span>
-                <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
-                  {isSpanish ? "3 pasos" : "3 steps"}
-                </span>
+              
               </div>
               <h3 className="text-2xl font-semibold text-foreground mb-3">
                 {isSpanish ? step.titleEs : step.titleEn}
