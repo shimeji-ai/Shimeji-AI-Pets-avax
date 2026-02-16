@@ -55,24 +55,27 @@ export function Footer() {
               <h3 className="font-semibold mb-4 text-sm text-foreground">{isSpanish ? "Navegación" : "Navigate"}</h3>
               <ul className="space-y-3">
                 <li>
-                  <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                    {isSpanish ? "Inicio" : "Home"}
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/factory"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {isSpanish ? "Fábrica" : "Factory"}
-                  </Link>
-                </li>
-                <li>
                   <Link
                     href="/download"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Descargar" : "Download"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/#auction"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Subasta" : "Auction"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/help"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Ayuda" : "Help"}
                   </Link>
                 </li>
                 <li>

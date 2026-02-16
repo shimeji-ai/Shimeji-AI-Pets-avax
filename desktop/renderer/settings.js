@@ -110,6 +110,7 @@ const aiTestStatus = document.getElementById('ai-test-status');
 const globalShimejiToggle = document.getElementById('global-shimeji-toggle');
 const popupThemeSelect = document.getElementById('popup-theme-select');
 const popupLanguageSelect = document.getElementById('popup-language-select');
+const startOnStartupToggle = document.getElementById('start-on-startup-toggle');
 
 function detectBrowserLanguage() {
   const languages = Array.isArray(navigator.languages) && navigator.languages.length
@@ -231,6 +232,8 @@ function setPopupLabels() {
   setText('presence-title', t('Visibility', 'Visibilidad'));
   setText('label-enabled-all-sites', t('Enabled on desktop', 'Habilitado en escritorio'));
   setText('label-enabled-page', t('Enable on this app', 'Habilitar en esta app'));
+  setText('startup-label', t('Start Shimeji on system login', 'Iniciar Shimeji al iniciar el sistema'));
+  setText('startup-hint', t('Launch the desktop app automatically when you sign into Windows, macOS, or Linux.', 'Inicia la app automáticamente cuando ingresas a Windows, macOS o Linux.'));
   setText('shimeji-section-title', t('Shimejis', 'Shimejis'));
   setText('shimeji-limit-hint', t('Up to 5 shimejis on screen', 'Hasta 5 shimejis en pantalla'));
   setText('nft-section-title', t('NFT Shimejis', 'Shimejis NFT'));
@@ -1122,6 +1125,10 @@ function applyConfig(next) {
     globalShimejiToggle.checked = !!next.showShimejis;
   }
 
+  if (next.startAtLogin !== undefined && startOnStartupToggle) {
+    startOnStartupToggle.checked = !!next.startAtLogin;
+  }
+
   if (languageChanged && !next.shimejis) {
     renderShimejiSelector();
     renderShimejiCards();
@@ -1154,6 +1161,15 @@ function registerHandlers() {
       shimejis.forEach(s => {
         s.enabled = showShimejis;
       });
+    });
+  }
+
+  if (startOnStartupToggle) {
+    startOnStartupToggle.addEventListener('change', () => {
+      const startAtLogin = startOnStartupToggle.checked;
+      if (window.shimejiApi) {
+        window.shimejiApi.updateConfig({ startAtLogin });
+      }
     });
   }
 

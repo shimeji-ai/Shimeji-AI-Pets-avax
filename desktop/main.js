@@ -76,7 +76,8 @@ const store = new Store({
     openclawAgentName: 'desktop-shimeji-1',
     terminalDistro: DEFAULT_TERMINAL_DISTRO,
     terminalCwd: '',
-    terminalNotifyOnFinish: true
+    terminalNotifyOnFinish: true,
+    startAtLogin: false
   }
 });
 
@@ -185,6 +186,19 @@ function configureMediaPermissions() {
       if (!details || !details.deviceType) return true;
       return details.deviceType === 'audio' || details.deviceType === 'video';
     });
+  }
+}
+
+function configureStartupSetting() {
+  const openAtLogin = !!store.get('startAtLogin');
+  try {
+    app.setLoginItemSettings({
+      openAtLogin,
+      path: process.execPath,
+      args: []
+    });
+  } catch (error) {
+    console.error('Failed to update start-at-login setting', error);
   }
 }
 
@@ -2313,6 +2327,7 @@ async function transcribeWithWhisper(audioBuffer, provider, apiKey, lang) {
 
 app.whenReady().then(() => {
   configureMediaPermissions();
+  configureStartupSetting();
   createOverlayWindow();
   createTray();
   createSettingsWindow(); // Auto-open settings on startup
@@ -2386,7 +2401,8 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'openclawAgentName',
     'terminalDistro',
     'terminalCwd',
-    'terminalNotifyOnFinish'
+    'terminalNotifyOnFinish',
+    'startAtLogin'
   ];
 
   for (const key of allowedKeys) {
@@ -2444,6 +2460,10 @@ ipcMain.on('update-config', (event, nextConfig) => {
         store.set('shimejiCount', shimejis.length);
       }
     }
+  }
+
+  if ('startAtLogin' in nextConfig) {
+    configureStartupSetting();
   }
 
   sendConfigUpdate();

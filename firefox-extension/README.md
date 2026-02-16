@@ -1,6 +1,6 @@
-# Shimeji Chrome Extension 🐱🐰
+# Shimeji Firefox Extension 🦊🐱
 
-A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. The mascot either follows your mouse pointer or wanders around the browser window when idle. Connect a Stellar wallet (Freighter) to link your Factory account and future eggs.
+A lightweight Firefox add-on that drops a digital mascot (a "shimeji") onto every page. The mascot follows your pointer while you move and wanders when idle. Connect a Stellar wallet (Freighter) to sync your Factory account and claim future eggs.
 
 ## Features
 
@@ -10,10 +10,9 @@ A small Chrome extension that adds a digital mascot (a "shimeji") to web pages. 
 
 ## Quick install (dev mode)
 
-1. Open Chrome and go to `chrome://extensions`.
-2. Enable **Developer mode** (top-right).
-3. Click **Load unpacked** and select the `chrome-extension/` folder.
-4. Open https://shimeji.dev (or enable the extension on any site via the popup) to see the mascot injected.
+1. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on** and select `manifest.json` from this folder.
+3. Visit https://shimeji.dev (or enable the addon from the toolbar entry) to see the mascot appear.
 
 ## How it works (high level)
 
@@ -62,8 +61,8 @@ Follow these steps to verify core functionality locally. Each milestone includes
 - Collection page in the web app
 
 ### Why external hosting?
-- Freighter only injects into http/https pages, NOT chrome-extension:// pages
-- External pages do NOT have access to Chrome extension APIs (`chrome.runtime`, etc.)
+- Freighter only injects into http/https pages, NOT moz-extension:// pages
+- External pages do NOT have access to Firefox extension APIs (`browser.runtime`, etc.)
 - Communication happens via `window.postMessage` through the content script bridge
 
 ### Message Flow:
@@ -73,7 +72,7 @@ Collection (web) <-> dapp_content_script.js (injected) <-> background.js (extens
 
 ### When updating:
 1. Deploy updated files to Vercel
-2. Reload the extension in `chrome://extensions` to update content scripts and background.js
+2. Reload the addon via `about:debugging#/runtime/this-firefox` to update content scripts and background.js
 
 ## Developer notes
 

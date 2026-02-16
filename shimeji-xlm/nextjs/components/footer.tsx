@@ -72,6 +72,14 @@ export function Footer() {
               <ul className="space-y-3">
                 <li>
                   <Link
+                    href="/download"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Descargar" : "Download"}
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/#auction"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -80,10 +88,10 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/download"
+                    href="/help"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {isSpanish ? "Descargar" : "Download"}
+                    {isSpanish ? "Ayuda" : "Help"}
                   </Link>
                 </li>
                 <li>
