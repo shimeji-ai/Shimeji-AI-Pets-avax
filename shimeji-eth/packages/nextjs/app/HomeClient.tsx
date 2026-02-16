@@ -23,10 +23,10 @@ const FAQSection = dynamic(() => import("~~/components/faq-section").then(m => m
   ssr: false,
   loading: () => <div className="min-h-[260px]" />,
 });
-const CtaSection = dynamic(() => import("~~/components/cta-section").then(m => m.CtaSection), {
-  ssr: false,
-  loading: () => <div className="min-h-[220px]" />,
-});
+// const CtaSection = dynamic(() => import("~~/components/cta-section").then(m => m.CtaSection), {
+//   ssr: false,
+//   loading: () => <div className="min-h-[220px]" />,
+// });
 const Footer = dynamic(() => import("~~/components/footer").then(m => m.Footer), { ssr: false });
 const GiveawayWidget = dynamic(() => import("~~/components/giveaway-widget").then(m => m.GiveawayWidget), {
   ssr: false,
@@ -43,7 +43,7 @@ export default function HomeClient() {
         <FeaturesSection />
         <SubscribeSection />
         <FAQSection />
-        <CtaSection />
+        {/* <CtaSection /> */}
       </div>
       <Footer />
     </main>

@@ -3,7 +3,7 @@ import { Header } from "@/components/header";
 import { AuctionSection } from "@/components/auction-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
-import { CtaSection } from "@/components/cta-section";
+// import { CtaSection } from "@/components/cta-section";
 import { SubscribeSection } from "@/components/subscribe-section";
 import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
@@ -24,7 +24,7 @@ export default function Home() {
         <FeaturesSection />
         <HowItWorksSection />
         <SubscribeSection />
-        <CtaSection />
+        {/* <CtaSection /> */}
       </div>
       <Footer />
     </main>
