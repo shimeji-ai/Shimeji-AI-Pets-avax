@@ -1,2 +1,0 @@
-2026-02-13T19:13:18.766860Z  WARN codex_tui::custom_terminal: failed to read initial cursor position; defaulting to origin: The cursor position could not be read within a normal duration
-2026-02-13T19:22:48.283339Z  WARN codex_tui::custom_terminal: failed to read initial cursor position; defaulting to origin: The cursor position could not be read within a normal duration

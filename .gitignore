@@ -7,3 +7,5 @@
 *.zip
 shimeji-ee/
 legacy/
+.codex-home/
+.opencode/plans/
