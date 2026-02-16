@@ -106,8 +106,8 @@ export function ProjectFeedbackBox() {
       <div className="neural-card rounded-3xl p-6 md:p-8 border border-white/10">
         <h3 className="text-2xl font-bold text-foreground mb-2">
           {isSpanish
-            ? "¿Qué te parece este proyecto?"
-            : "What do you think about this project?"}
+            ? "¿Qué te parece Shimeji AI Pets?"
+            : "What do you think about Shimeji AI Pets?"}
         </h3>
         
         <form onSubmit={handleSubmit} className="space-y-4">
