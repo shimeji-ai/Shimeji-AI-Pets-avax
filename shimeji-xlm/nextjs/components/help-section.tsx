@@ -180,6 +180,28 @@ export function HelpSection() {
   return (
     <section id="help" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
+        <div className="max-w-5xl mx-auto mb-20">
+          <div className="neural-card rounded-3xl p-10 text-center">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
+              {isSpanish ? "Primero: descargá la app o extensión" : "First: download the app or extension"}
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+              {isSpanish
+                ? "Para usar Shimeji AI Pets necesitás descargar la extensión de navegador o la aplicación de escritorio desde la página de descargas."
+                : "To use Shimeji AI Pets you need to download the browser extension or the desktop app from the downloads page."}
+            </p>
+            <div className="flex justify-center">
+              <DownloadButton
+                href="/#download"
+                labelEn="GO TO DOWNLOADS"
+                labelEs="IR A DESCARGAS"
+              />
+            </div>
+          </div>
+        </div>
+      </ScrollAnimation>
+
+      <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto mb-20">
           <div className="text-center mb-12">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
