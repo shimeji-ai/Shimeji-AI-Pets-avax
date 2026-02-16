@@ -19,12 +19,12 @@ const providers = [
     stepsEn: [
       "Open Router settings and create an API key.",
       "In popup: AI Brain = Standard, Provider = OpenRouter.",
-      "Paste the API key, choose a model, then save.",
+      "Paste the API key and click your Shimeji to talk.",
     ],
     stepsEs: [
       "Abrí OpenRouter y creá una API key.",
       "En el popup: Cerebro AI = Standard, Proveedor = OpenRouter.",
-      "Pegá la API key, elegí un modelo y guardá.",
+      "Pegá la API key y hacé click en tu Shimeji para hablarle.",
     ],
     link: { href: "https://openrouter.ai/settings/keys", labelEn: "Get OpenRouter keys", labelEs: "Conseguir keys de OpenRouter" },
   },
@@ -40,12 +40,12 @@ const providers = [
     stepsEn: [
       "Install Ollama and pull a model (example: llama3.1).",
       "In popup: AI Brain = Standard, Provider = Ollama.",
-      "Set Ollama URL and model name, then save.",
+      "Set Ollama URL and click your Shimeji to talk.",
     ],
     stepsEs: [
       "Instalá Ollama y bajá un modelo (ejemplo: llama3.1).",
       "En el popup: Cerebro AI = Standard, Proveedor = Ollama.",
-      "Configurá URL de Ollama y nombre del modelo, luego guardá.",
+      "Configurá URL de Ollama y hacé click en tu Shimeji para hablarle.",
     ],
     link: { href: "https://ollama.com", labelEn: "Download Ollama", labelEs: "Descargar Ollama" },
   },
@@ -68,7 +68,7 @@ const providers = [
       "Copiá la URL WebSocket y token.",
       "En el popup: Cerebro AI = AI Agent, luego pegá URL + token.",
     ],
-    link: { href: "https://openclaw.ai", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
+    link: { href: "https://github.com/openclaw/openclaw", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
   },
 ];
 
