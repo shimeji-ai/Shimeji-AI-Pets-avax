@@ -27,6 +27,7 @@ export function Header() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
 
@@ -80,17 +81,24 @@ export function Header() {
 
           <nav className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
-              <Link
+              <div
                 key={link.href}
-                href={link.href}
-                className={`hover:cursor-pointer text-sm transition-colors font-medium ${
-                  isActive(link.pathMatch)
-                    ? "header-active-link"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="relative"
+                onMouseEnter={() => setHoveredLink(link.href)}
+                onMouseLeave={() => setHoveredLink(null)}
               >
-                {isSpanish ? link.labelEs : link.labelEn}
-              </Link>
+                <Link
+                  href={link.href}
+                  className={`hover:cursor-pointer text-sm transition-colors font-medium ${
+                    isActive(link.pathMatch)
+                      ? "header-active-link"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {isSpanish ? link.labelEs : link.labelEn}
+                </Link>
+                <SparkleAnimation isHovering={hoveredLink === link.href} />
+              </div>
             ))}
           </nav>
 
