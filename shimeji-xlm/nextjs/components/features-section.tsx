@@ -20,9 +20,19 @@ const features = [
     titleEn: "AI Agent Mode",
     titleEs: "Modo agente IA",
     descriptionEn:
-      "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
+      "Connect an OpenClaw and your shimeji becomes an agent with access to online and onchain tools.",
     descriptionEs:
       "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
+  }
+  ,
+  {
+    icon: Sparkles,
+    titleEn: "Terminal Interaction",
+    titleEs: "Interacción con la terminal",
+    descriptionEn:
+      "Brings secure terminal interaction — run commands through your shimeji.",
+    descriptionEs:
+      "Trae interacción segura con la terminal — ejecutá comandos a través de tu shimeji.",
   }
 ];
 
@@ -79,7 +89,7 @@ export function FeaturesSection() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((feature) => (
               <div
                 key={feature.titleEn}
