@@ -1,13 +1,25 @@
 "use client";
 
-import { MessageSquare, Bot, Sparkles } from "lucide-react";
+import {
+  MessageSquare, Bot, Sparkles,
+  Heart, Wand2, Star,
+  Flower2, Candy, Cloud,
+  type LucideIcon,
+} from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
+import { useCurrentTheme, type SiteTheme } from "@/hooks/use-current-theme";
 import AuctionButton from "./auction-button";
+
+const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
+  neural:  [MessageSquare, Bot, Sparkles],
+  pink:    [Heart, Wand2, Star],
+  kawaii:  [Heart, Wand2, Sparkles],
+  pastel:  [Flower2, Candy, Cloud],
+};
 
 const features = [
   {
-    icon: MessageSquare,
     titleEn: "AI Chat with Personality",
     titleEs: "Chat IA con personalidad",
     descriptionEn:
@@ -16,28 +28,27 @@ const features = [
       "Tu Shimeji te responde con la personalidad que elijas.",
   },
   {
-    icon: Bot,
     titleEn: "AI Agent Mode",
     titleEs: "Modo agente IA",
     descriptionEn:
       "Your Shimeji interacts with online and onchain tools.",
     descriptionEs:
       "Tu Shimeji interactúa con herramientas online y onchain.",
-  }
-  ,
+  },
   {
-    icon: Sparkles,
     titleEn: "Terminal Interaction",
     titleEs: "Interacción con la terminal",
     descriptionEn:
       "Run commands through your Shimeji.",
     descriptionEs:
       "Ejecutá comandos a través de tu Shimeji.",
-  }
+  },
 ];
 
 export function FeaturesSection() {
   const { isSpanish } = useLanguage();
+  const theme = useCurrentTheme();
+  const icons = themeIcons[theme];
   const variants = {
     hidden: { opacity: 0, x: 50 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.5 } },
@@ -88,13 +99,15 @@ export function FeaturesSection() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((feature) => (
+            {features.map((feature, idx) => {
+              const Icon = icons[idx];
+              return (
               <div
                 key={feature.titleEn}
                 className="group neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 transition-colors text-[var(--brand-accent)]">
-                  <feature.icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5" />
                 </div>
 
                 <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -104,7 +117,8 @@ export function FeaturesSection() {
                   {isSpanish ? feature.descriptionEs : feature.descriptionEn}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </ScrollAnimation>

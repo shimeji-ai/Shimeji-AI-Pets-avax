@@ -104,6 +104,35 @@
   --ring: oklch(0.55 0.12 300);
 }
 
+/* Pastel theme — soft lavender / pink / blue inspired by pixel-art kawaii */
+:root[data-theme="pastel"] {
+  --brand-black: #f0e6f6;
+  --brand-graphite: #e8daf2;
+  --brand-ink: #dcc8ec;
+  --brand-steel: #d0b8e0;
+  --brand-border: #c8a8d8;
+  --brand-slate: #7b6a8a;
+  --brand-ice: #3d2b52;
+  --brand-accent: #b48ccf;
+  --background: oklch(0.94 0.06 300);
+  --foreground: oklch(0.25 0.08 290);
+  --card: oklch(0.97 0.03 300);
+  --card-foreground: oklch(0.25 0.08 290);
+  --popover: oklch(0.97 0.03 300);
+  --popover-foreground: oklch(0.25 0.08 290);
+  --primary: oklch(0.3 0.1 290);
+  --primary-foreground: oklch(0.97 0.03 300);
+  --secondary: oklch(0.92 0.05 300);
+  --secondary-foreground: oklch(0.25 0.08 290);
+  --muted: oklch(0.92 0.04 300);
+  --muted-foreground: oklch(0.35 0.06 290);
+  --accent: oklch(0.75 0.12 300);
+  --accent-foreground: oklch(0.25 0.08 290);
+  --border: oklch(0.82 0.06 300);
+  --input: oklch(0.94 0.04 300);
+  --ring: oklch(0.6 0.1 290);
+}
+
 .dark {
   --background: oklch(0.12 0.02 280);
   --foreground: oklch(0.95 0.01 280);
@@ -205,6 +234,13 @@ body[data-theme="pink"] {
       linear-gradient(180deg, #F6FB8E, #FFB7FF 45%, #70A4DE);
     color: #2a1f4e;
   }
+  body[data-theme="pastel"] {
+    background-image:
+      radial-gradient(1200px circle at 10% -10%, rgba(200, 168, 232, 0.25), transparent 45%),
+      radial-gradient(900px circle at 90% 10%, rgba(180, 140, 207, 0.2), transparent 50%),
+      linear-gradient(180deg, #f0e6f6, #edd6f5 30%, #dcc8ec 60%, #c8b8e8);
+    color: #3d2b52;
+  }
 }
 
 .neural-shell {
@@ -235,6 +271,11 @@ body[data-theme="kawaii"] .neural-shell::before {
     linear-gradient(transparent 95%, rgba(42, 31, 78, 0.08) 100%),
     linear-gradient(90deg, transparent 95%, rgba(42, 31, 78, 0.08) 100%);
 }
+body[data-theme="pastel"] .neural-shell::before {
+  background-image:
+    linear-gradient(transparent 95%, rgba(180, 140, 207, 0.1) 100%),
+    linear-gradient(90deg, transparent 95%, rgba(180, 140, 207, 0.1) 100%);
+}
 
 .neural-card {
   background: rgba(255, 255, 255, 0.03);
@@ -252,6 +293,11 @@ body[data-theme="kawaii"] .neural-card {
   background: rgba(255, 255, 255, 0.25);
   box-shadow: 0 20px 60px rgba(42, 31, 78, 0.2);
 }
+body[data-theme="pastel"] .neural-card {
+  border: 1px solid rgba(180, 140, 207, 0.25);
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 20px 60px rgba(61, 43, 82, 0.15);
+}
 
 .neural-outline {
   border: 1px solid rgba(134, 240, 255, 0.18);
@@ -262,6 +308,9 @@ body[data-theme="pink"] .neural-outline {
 }
 body[data-theme="kawaii"] .neural-outline {
   border: 1px solid rgba(42, 31, 78, 0.2);
+}
+body[data-theme="pastel"] .neural-outline {
+  border: 1px solid rgba(180, 140, 207, 0.25);
 }
 
 .footer-updates-button {
@@ -331,6 +380,10 @@ body[data-theme="kawaii"] .neural-hero {
   background: radial-gradient(800px circle at 20% 10%, rgba(255, 183, 255, 0.2), transparent 45%),
     radial-gradient(700px circle at 80% 20%, rgba(112, 164, 222, 0.18), transparent 55%);
 }
+body[data-theme="pastel"] .neural-hero {
+  background: radial-gradient(800px circle at 20% 10%, rgba(200, 168, 232, 0.22), transparent 45%),
+    radial-gradient(700px circle at 80% 20%, rgba(180, 140, 207, 0.18), transparent 55%);
+}
 
 .neural-button {
   background: rgba(134, 240, 255, 0.15);
@@ -351,6 +404,12 @@ body[data-theme="kawaii"] .neural-button {
   color: #2a1f4e;
   box-shadow: 0 10px 30px rgba(42, 31, 78, 0.2);
 }
+body[data-theme="pastel"] .neural-button {
+  background: rgba(180, 140, 207, 0.25);
+  border: 1px solid rgba(180, 140, 207, 0.45);
+  color: #3d2b52;
+  box-shadow: 0 10px 30px rgba(61, 43, 82, 0.18);
+}
 
 .neural-button:hover {
   background: rgba(134, 240, 255, 0.3);
@@ -361,6 +420,9 @@ body[data-theme="pink"] .neural-button:hover {
 }
 body[data-theme="kawaii"] .neural-button:hover {
   background: rgba(42, 31, 78, 0.35);
+}
+body[data-theme="pastel"] .neural-button:hover {
+  background: rgba(180, 140, 207, 0.4);
 }
 
 .header-active-link {
@@ -389,6 +451,15 @@ body[data-theme="kawaii"] .header-active-link {
 
 body[data-theme="kawaii"] .header-active-link:hover {
   color: #0f5f86 !important;
+}
+
+body[data-theme="pastel"] .header-active-link {
+  color: #9b6cbf !important;
+  text-shadow: 0 0 10px rgba(155, 108, 191, 0.3);
+}
+
+body[data-theme="pastel"] .header-active-link:hover {
+  color: #7a4fa0 !important;
 }
 
 .currency-toggle-shell {
@@ -861,6 +932,10 @@ body[data-theme="kawaii"] .neural-button-outline {
   border: 1px solid rgba(42, 31, 78, 0.3);
   color: #2a1f4e;
 }
+body[data-theme="pastel"] .neural-button-outline {
+  border: 1px solid rgba(180, 140, 207, 0.35);
+  color: #3d2b52;
+}
 
 .neural-button-outline:hover {
   border-color: rgba(134, 240, 255, 0.5);
@@ -874,6 +949,10 @@ body[data-theme="pink"] .neural-button-outline:hover {
 body[data-theme="kawaii"] .neural-button-outline:hover {
   border-color: rgba(42, 31, 78, 0.5);
   color: #2a1f4e;
+}
+body[data-theme="pastel"] .neural-button-outline:hover {
+  border-color: rgba(180, 140, 207, 0.6);
+  color: #3d2b52;
 }
 
 body[data-theme="kawaii"] .text-foreground {
@@ -993,6 +1072,276 @@ body[data-theme="kawaii"] .text-muted-foreground\/80 {
 
 body[data-theme="kawaii"] .auction-shimeji-id {
   color: #1a1a2e;
+}
+
+/* ── Pastel theme overrides (light theme, lavender/pink/blue) ── */
+
+body[data-theme="pastel"] .text-foreground {
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .text-muted-foreground {
+  color: rgba(61, 43, 82, 0.65) !important;
+}
+
+body[data-theme="pastel"] .text-muted-foreground\/80 {
+  color: rgba(61, 43, 82, 0.7) !important;
+}
+
+body[data-theme="pastel"] footer {
+  color: #3d2b52;
+}
+
+body[data-theme="pastel"] footer a {
+  color: #3d2b52;
+}
+
+body[data-theme="pastel"] footer .bg-\[\#0b0f14\] {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(180, 140, 207, 0.25) !important;
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] footer .border-white\/10 {
+  border-color: rgba(180, 140, 207, 0.2) !important;
+}
+
+body[data-theme="pastel"] footer .text-muted-foreground {
+  color: rgba(61, 43, 82, 0.65) !important;
+}
+
+body[data-theme="pastel"] #feedback-form-section textarea,
+body[data-theme="pastel"] #feedback-form-section input {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(180, 140, 207, 0.25) !important;
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .neural-card textarea,
+body[data-theme="pastel"] .neural-card input {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(180, 140, 207, 0.25) !important;
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .neural-card textarea::placeholder,
+body[data-theme="pastel"] .neural-card input::placeholder {
+  color: rgba(61, 43, 82, 0.45) !important;
+}
+
+body[data-theme="pastel"] #feedback-form-section textarea::placeholder,
+body[data-theme="pastel"] #feedback-form-section input::placeholder {
+  color: rgba(61, 43, 82, 0.45) !important;
+}
+
+body[data-theme="pastel"] .bg-\[\#0b0f14\] {
+  background: rgba(255, 255, 255, 0.6) !important;
+  border-color: rgba(180, 140, 207, 0.2) !important;
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .text-white {
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .text-white\/80 {
+  color: rgba(61, 43, 82, 0.75) !important;
+}
+
+body[data-theme="pastel"] .text-white\/90 {
+  color: rgba(61, 43, 82, 0.85) !important;
+}
+
+body[data-theme="pastel"] .footer-updates-button {
+  background: #7a4fa0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff8ff !important;
+  box-shadow:
+    0 12px 30px rgba(61, 43, 82, 0.35),
+    0 0 24px rgba(255, 255, 255, 0.2);
+}
+
+body[data-theme="pastel"] .footer-updates-button svg {
+  color: #fff8ff !important;
+  stroke: currentColor;
+}
+
+body[data-theme="pastel"] .footer-updates-button:hover {
+  background: #9b6cbf !important;
+  color: #fff8ff !important;
+  box-shadow:
+    0 14px 34px rgba(61, 43, 82, 0.4),
+    0 0 28px rgba(255, 255, 255, 0.4);
+}
+
+body[data-theme="pastel"] .currency-toggle-shell {
+  border-color: rgba(180, 140, 207, 0.55);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(180, 140, 207, 0.3),
+    0 0 14px rgba(180, 140, 207, 0.2),
+    0 8px 18px rgba(61, 43, 82, 0.15);
+}
+
+body[data-theme="pastel"] .currency-toggle-option {
+  color: #5a3d7a;
+  background: rgba(180, 140, 207, 0.12);
+  opacity: 0.9;
+  font-weight: 700;
+}
+
+body[data-theme="pastel"] .currency-toggle-option:hover:not(.is-active) {
+  background: rgba(180, 140, 207, 0.22);
+  color: #3d2b52;
+  opacity: 1;
+}
+
+body[data-theme="pastel"] .currency-toggle-option.is-active {
+  color: #2a1042 !important;
+  background: linear-gradient(135deg, #c8a0e8, #b48ccf) !important;
+  border-color: transparent;
+  opacity: 1;
+  box-shadow:
+    0 10px 20px rgba(180, 140, 207, 0.35),
+    0 0 0 1px rgba(200, 168, 232, 0.45);
+}
+
+body[data-theme="pastel"] .language-switcher-shell {
+  border-color: rgba(61, 43, 82, 0.5) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(61, 43, 82, 0.15),
+    0 8px 18px rgba(61, 43, 82, 0.15);
+}
+
+body[data-theme="pastel"] .language-switcher-toggle {
+  color: #5a3d7a !important;
+}
+
+body[data-theme="pastel"] .language-switcher-toggle:hover {
+  background: rgba(180, 140, 207, 0.35) !important;
+  color: #3d2b52 !important;
+}
+
+body[data-theme="pastel"] .auction-highlight-banner {
+  border-color: rgba(40, 180, 90, 0.5);
+  background: rgba(40, 180, 90, 0.12);
+  box-shadow: 0 0 24px rgba(40, 180, 90, 0.1);
+}
+
+body[data-theme="pastel"] .auction-offer-row {
+  border-color: rgba(155, 108, 191, 0.4);
+  background: rgba(200, 168, 232, 0.3);
+}
+
+body[data-theme="pastel"] .auction-offer-row-top {
+  border-color: rgba(40, 180, 90, 0.6);
+  background: rgba(92, 255, 146, 0.25);
+  box-shadow: 0 0 18px rgba(40, 180, 90, 0.2);
+}
+
+body[data-theme="pastel"] .auction-countdown-card {
+  border-color: rgba(61, 43, 82, 0.35);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.6), transparent 56%),
+    rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 0 18px rgba(61, 43, 82, 0.12),
+    inset 0 0 0 1px rgba(61, 43, 82, 0.12);
+}
+
+body[data-theme="pastel"] .countdown-unit-highlight {
+  border-color: rgba(61, 43, 82, 0.2);
+  background: rgba(61, 43, 82, 0.08);
+}
+
+body[data-theme="pastel"] .auction-network-badge {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(61, 43, 82, 0.3) !important;
+  color: #3d2b52 !important;
+  box-shadow:
+    0 8px 20px rgba(61, 43, 82, 0.1),
+    inset 0 0 0 1px rgba(61, 43, 82, 0.08);
+}
+
+body[data-theme="pastel"] .auction-escrow-note {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(61, 43, 82, 0.3) !important;
+  box-shadow:
+    0 8px 20px rgba(61, 43, 82, 0.1),
+    inset 0 0 0 1px rgba(61, 43, 82, 0.08);
+}
+
+body[data-theme="pastel"] .auction-escrow-link {
+  color: #3d2b52 !important;
+  text-decoration-color: rgba(61, 43, 82, 0.7) !important;
+}
+
+body[data-theme="pastel"] .auction-faucet-button {
+  background: linear-gradient(135deg, #c8a0e8, #b48ccf) !important;
+  border-color: rgba(61, 43, 82, 0.4) !important;
+  color: #2a1042 !important;
+  box-shadow:
+    0 0 0 2px rgba(200, 168, 232, 0.5),
+    0 10px 22px rgba(155, 108, 191, 0.35);
+}
+
+body[data-theme="pastel"] .auction-faucet-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d4b0f0, #c8a0e8) !important;
+  transform: translateY(-1px);
+}
+
+body[data-theme="pastel"] .auction-faucet-button:disabled {
+  opacity: 0.9 !important;
+  background: linear-gradient(135deg, #c8b8d8, #b8a8c8) !important;
+  border-color: rgba(61, 43, 82, 0.3) !important;
+  color: #3d2b52 !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 6px 14px rgba(61, 43, 82, 0.15);
+}
+
+body[data-theme="pastel"] .auction-loading-sparkle {
+  color: rgba(61, 43, 82, 0.8);
+}
+
+body[data-theme="pastel"] .auction-shimeji-id {
+  color: #3d2b52;
+}
+
+body[data-theme="pastel"] #giveaway-panel .bg-\[\#0b0f14\] {
+  background: rgba(11, 15, 20, 0.96) !important;
+  color: #f8f7ff !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .text-white {
+  color: #f8f7ff !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .text-white\/80 {
+  color: rgba(248, 247, 255, 0.8) !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .text-white\/90 {
+  color: rgba(248, 247, 255, 0.9) !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .text-\[var\(--brand-accent\)\] {
+  color: #c8a0e8 !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .neural-button {
+  background: rgba(200, 168, 232, 0.22) !important;
+  border-color: rgba(200, 168, 232, 0.55) !important;
+  color: #f8f7ff !important;
+  box-shadow: 0 10px 26px rgba(200, 168, 232, 0.2) !important;
+}
+
+body[data-theme="pastel"] #giveaway-panel .neural-button:hover {
+  background: rgba(200, 168, 232, 0.36) !important;
+  border-color: rgba(200, 168, 232, 0.7) !important;
+  color: #ffffff !important;
 }
 
 /* Force hide burger menu on desktop */

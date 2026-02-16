@@ -64,7 +64,7 @@ export default function RootLayout({
 }>) {
   const themeScript = `
     (function() {
-      var themes = ['neural', 'pink', 'kawaii'];
+      var themes = ['neural', 'pink', 'kawaii', 'pastel'];
       var theme = themes[Math.floor(Math.random() * themes.length)];
       document.documentElement.setAttribute('data-theme', theme);
       if (document.body) {

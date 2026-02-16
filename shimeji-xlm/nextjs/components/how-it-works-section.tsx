@@ -1,13 +1,25 @@
 "use client";
 
-import { Download, Bot, Sparkles } from "lucide-react";
+import {
+  Download, Bot, Sparkles,
+  Gift, Star, Crown,
+  Flower2, Candy, Cloud,
+  type LucideIcon,
+} from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
+import { useCurrentTheme, type SiteTheme } from "@/hooks/use-current-theme";
+
+const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
+  neural:  [Download, Bot, Sparkles],
+  pink:    [Gift, Star, Crown],
+  kawaii:  [Gift, Star, Crown],
+  pastel:  [Cloud, Flower2, Candy],
+};
 
 const steps = [
   {
-    icon: Download,
     step: "01",
     titleEn: "Install",
     titleEs: "Instalá",
@@ -15,7 +27,6 @@ const steps = [
     descriptionEs: "Descargá la extensión de Chrome o la app desktop para Windows, macOS y Linux.",
   },
   {
-    icon: Bot,
     step: "02",
     titleEn: "Set Up Your AI",
     titleEs: "Configurá tu IA",
@@ -25,7 +36,6 @@ const steps = [
       "Configurá el Cerebro AI de tu Shimeji y empezá a chatear.",
   },
   {
-    icon: Sparkles,
     step: "03",
     titleEn: "Win a Custom Shimeji",
     titleEs: "Ganá un shimeji único",
@@ -36,6 +46,8 @@ const steps = [
 
 export function HowItWorksSection() {
   const { isSpanish } = useLanguage();
+  const theme = useCurrentTheme();
+  const icons = themeIcons[theme];
   const variants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
@@ -53,14 +65,16 @@ export function HowItWorksSection() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {steps.map((step) => (
+            {steps.map((step, idx) => {
+              const Icon = icons[idx];
+              return (
               <div
                 key={step.step}
                 className="group relative neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-8">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-[var(--brand-accent)]">
-                    <step.icon className="w-6 h-6" />
+                    <Icon className="w-6 h-6" />
                   </div>
                   <span className="text-5xl font-semibold text-white/10 transition-colors font-mono">
                     {step.step}
@@ -142,7 +156,8 @@ export function HowItWorksSection() {
                   )}
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </ScrollAnimation>
