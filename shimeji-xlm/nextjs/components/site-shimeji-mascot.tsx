@@ -98,7 +98,7 @@ export function SiteShimejiMascot() {
   const frames = useMemo(
     () => ({
       stand: "/shimeji-original/stand-neutral.png",
-      walk: ["/shimeji-original/walk-step-left.png", "/shimeji-original/walk-step-right.png"],
+      walk: ["/shimeji-original/walk-step-left.png", "/shimeji-original/stand-neutral.png", "/shimeji-original/walk-step-right.png", "/shimeji-original/stand-neutral.png"],
     }),
     [],
   );
