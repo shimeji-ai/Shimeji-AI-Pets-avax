@@ -305,7 +305,7 @@ export function HelpSection() {
               {isSpanish ? "Aspectos personalizados" : "Custom Looks"}
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish ? "Desbloqueá apariencias únicas con Shimeji NFTs" : "Unlock unique looks with Shimeji NFTs"}
+              {isSpanish ? "Desbloqueá apariencias únicas" : "Unlock unique looks"}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish

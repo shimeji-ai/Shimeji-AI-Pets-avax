@@ -205,12 +205,12 @@ export function HelpSection() {
         <div className="max-w-5xl mx-auto mb-20">
           <div className="neural-card rounded-3xl p-10 text-center">
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish ? "Descargá la app o extensión" : "Download the app or extension"}
+              {isSpanish ? "Instalá" : "Install"}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish
-                ? "Para usar Shimeji AI Pets necesitás descargar la extensión de navegador o la aplicación de escritorio desde la página de descargas."
-                : "To use Shimeji AI Pets you need to download the browser extension or the desktop app from the downloads page."}
+                ? "Para usar Shimeji AI Pets necesitás la extensión de navegador o la aplicación."
+                : "To use Shimeji AI Pets you need the browser extension or the app."}
             </p>
             <div className="flex justify-center">
               <DownloadButton
@@ -317,18 +317,16 @@ export function HelpSection() {
       <ScrollAnimation variants={variants}>
         <div className="max-w-5xl mx-auto mb-20">
           <div className="neural-card rounded-3xl p-10 text-center">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Aspectos personalizados" : "Custom Looks"}
-            </p>
+           
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
               {isSpanish
-                ? "Desbloqueá apariencias únicas con Shimeji NFTs"
-                : "Unlock unique looks with Shimeji NFTs"}
+                ? "Desbloqueá apariencias únicas"
+                : "Unlock unique looks"}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish
-                ? "Conseguí un Shimeji NFT en la subasta para acceder a skins exclusivos y personalizar tu shimeji."
-                : "Win a Shimeji NFT at auction to access exclusive skins and personalize your shimeji."}
+                ? "Conseguí un Shimeji NFT en la subasta para acceder a skins exclusivos."
+                : "Win a Shimeji NFT at auction to access exclusive skins."}
             </p>
             <div className="flex justify-center">
               <DownloadButton
