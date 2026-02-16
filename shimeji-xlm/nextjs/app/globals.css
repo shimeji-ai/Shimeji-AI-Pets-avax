@@ -363,31 +363,31 @@ body[data-theme="kawaii"] .neural-button:hover {
   background: rgba(42, 31, 78, 0.35);
 }
 
-.header-auction-link {
+.header-active-link {
   color: #8feeff !important;
   font-weight: 700;
   text-shadow: 0 0 12px rgba(134, 240, 255, 0.35);
 }
 
-.header-auction-link:hover {
+.header-active-link:hover {
   color: #dfffff !important;
 }
 
-body[data-theme="pink"] .header-auction-link {
+body[data-theme="pink"] .header-active-link {
   color: #ff8fcf !important;
   text-shadow: 0 0 12px rgba(255, 143, 207, 0.35);
 }
 
-body[data-theme="pink"] .header-auction-link:hover {
+body[data-theme="pink"] .header-active-link:hover {
   color: #ffd7ee !important;
 }
 
-body[data-theme="kawaii"] .header-auction-link {
+body[data-theme="kawaii"] .header-active-link {
   color: #1d8dbe !important;
   text-shadow: 0 0 10px rgba(77, 199, 255, 0.3);
 }
 
-body[data-theme="kawaii"] .header-auction-link:hover {
+body[data-theme="kawaii"] .header-active-link:hover {
   color: #0f5f86 !important;
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { NavHeader } from "@/components/nav-header";
 import { Footer } from "@/components/footer";
 import { FreighterConnectButton } from "@/components/freighter-connect-button";
 import { useFreighter } from "@/components/freighter-provider";
@@ -79,8 +78,6 @@ export default function CollectionPage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
-      <NavHeader showConnectButton />
-
       <section className="pt-28 pb-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-8">

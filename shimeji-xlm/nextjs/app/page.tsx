@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Header } from "@/components/header";
 import { AuctionSection } from "@/components/auction-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
@@ -18,7 +17,6 @@ export const metadata: Metadata = createPageMetadata({
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
-      <Header />
       <AuctionSection />
       <div className="bg-transparent">
         <FeaturesSection />

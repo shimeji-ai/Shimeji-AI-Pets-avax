@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Link as ScrollLink } from "react-scroll";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SparkleAnimation } from "./sparkle-animation";
-import DownloadButton from "./download-button";
 import { LanguageSwitcher } from "./language-switcher";
 import { useLanguage } from "./language-provider";
 import { FreighterConnectButton } from "./freighter-connect-button";
@@ -15,17 +14,26 @@ import { STELLAR_NETWORK } from "@/lib/contracts";
 
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 
+const NAV_LINKS = [
+  { href: "/#subasta", pathMatch: "/", labelEn: "Auction", labelEs: "Subasta" },
+  // { href: "/collection", pathMatch: "/collection", labelEn: "Collection", labelEs: "Colección" },
+  { href: "/download", pathMatch: "/download", labelEn: "Download", labelEs: "Descarga" },
+  { href: "/help", pathMatch: "/help", labelEn: "Help", labelEs: "Ayuda" },
+];
+
 export function Header() {
   const { isSpanish } = useLanguage();
   const { publicKey } = useFreighter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
-  const [isGetStartedHovered, setIsGetStartedHovered] = useState(false);
-  const [isFeaturesHovered, setIsFeaturesHovered] = useState(false);
-  const [isMarketplaceHovered, setIsMarketplaceHovered] = useState(false);
-  const [isDownloadAppHovered, setIsDownloadAppHovered] = useState(false);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
+
+  const isActive = (pathMatch: string) => {
+    if (pathMatch === "/") return pathname === "/";
+    return pathname.startsWith(pathMatch);
+  };
 
   const handleFaucet = async () => {
     if (isMainnetNetwork) {
@@ -71,43 +79,23 @@ export function Header() {
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
-            <div
-              className="relative"
-              onMouseEnter={() => setIsMarketplaceHovered(true)}
-              onMouseLeave={() => setIsMarketplaceHovered(false)}
-            >
+            {NAV_LINKS.map((link) => (
               <Link
-                href="/#subasta"
-                className="header-auction-link hover:cursor-pointer text-sm transition-colors font-medium"
+                key={link.href}
+                href={link.href}
+                className={`hover:cursor-pointer text-sm transition-colors font-medium ${
+                  isActive(link.pathMatch)
+                    ? "header-active-link"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
               >
-                {isSpanish ? "Subasta" : "Auction"}
+                {isSpanish ? link.labelEs : link.labelEn}
               </Link>
-              <SparkleAnimation isHovering={isMarketplaceHovered} />
-            </div>
-            <Link
-              href="/collection"
-              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-            >
-              {isSpanish ? "Colección" : "Collection"}
-            </Link>
-            <Link
-              href="/help"
-              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-            >
-              {isSpanish ? "Ayuda" : "Help"}
-            </Link>
+            ))}
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
             <LanguageSwitcher />
-            <div
-              className="relative"
-              onMouseEnter={() => setIsDownloadAppHovered(true)}
-              onMouseLeave={() => setIsDownloadAppHovered(false)}
-            >
-              <DownloadButton />
-              <SparkleAnimation isHovering={isDownloadAppHovered} />
-            </div>
             <FreighterConnectButton />
             <button
               type="button"
@@ -144,32 +132,24 @@ export function Header() {
         {isMenuOpen && (
           <div className="md:hidden px-6 pb-6 border-t border-border">
             <nav className="flex flex-col gap-4 pt-4">
-              <Link
-                href="/#subasta"
-                className="header-auction-link transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Subasta" : "Auction"}
-              </Link>
-             <Link
-                href="/collection"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Colección" : "Collection"}
-              </Link>
-              <Link
-                href="/help"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Ayuda" : "Help"}
-              </Link>
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`transition-colors font-medium ${
+                    isActive(link.pathMatch)
+                      ? "header-active-link"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  {isSpanish ? link.labelEs : link.labelEn}
+                </Link>
+              ))}
               <div className="pt-2">
                 <LanguageSwitcher />
               </div>
               <div className="flex flex-col gap-2 pt-4">
-                <DownloadButton />
                 <FreighterConnectButton />
                 <button
                   type="button"

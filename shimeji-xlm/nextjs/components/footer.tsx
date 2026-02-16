@@ -64,14 +64,7 @@ export function Footer() {
             <div>
              
               <ul className="space-y-3">
-                <li>
-                  <Link
-                    href="/download"
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {isSpanish ? "Descargar" : "Download"}
-                  </Link>
-                </li>
+                
                 <li>
                   <Link
                     href="/#subasta"
@@ -80,12 +73,20 @@ export function Footer() {
                     {isSpanish ? "Subasta" : "Auction"}
                   </Link>
                 </li>
-                <li>
+                {/* <li>
                   <Link
                     href="/collection"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Colección" : "Collection"}
+                  </Link>
+                </li> */}
+                <li>
+                  <Link
+                    href="/download"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isSpanish ? "Descarga" : "Download"}
                   </Link>
                 </li>
                 <li>

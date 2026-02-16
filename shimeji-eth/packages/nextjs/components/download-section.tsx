@@ -22,10 +22,10 @@ export function DownloadSection() {
     <section id="download" className="py-20">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
+          {/* <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
             <Download className="w-8 h-8" />
-          </div>
-          <h2 className="text-5xl font-semibold mb-4">
+          </div> */}
+          <h2 className="text-5xl font-semibold my-4">
             {isSpanish ? "Descargar Shimeji AI Pets" : "Download Shimeji AI Pets"}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
