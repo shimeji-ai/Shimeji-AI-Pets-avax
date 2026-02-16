@@ -109,21 +109,7 @@ export function ProjectFeedbackBox() {
             ? "¿Qué te parece este proyecto?"
             : "What do you think about this project?"}
         </h3>
-        <p className="text-muted-foreground mb-5">
-          {isSpanish
-            ? "Deja tu feedback y agrega tu usuario de X opcionalmente. Para participar en el giveaway, sigue a "
-            : "Leave feedback and optionally add your X username. For giveaway eligibility, please follow "}
-          <Link
-            href="https://x.com/ShimejiAIPets"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold underline decoration-2 underline-offset-2"
-          >
-            @ShimejiAIPets
-          </Link>
-          {isSpanish ? " en X." : " on X."}
-        </p>
-
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <textarea
             value={feedback}

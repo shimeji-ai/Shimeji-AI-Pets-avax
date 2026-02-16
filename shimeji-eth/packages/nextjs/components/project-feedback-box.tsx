@@ -99,20 +99,7 @@ export function ProjectFeedbackBox() {
         <h3 className="text-2xl font-bold text-foreground mb-2">
           {isSpanish ? "¿Qué te parece este proyecto?" : "What do you think about this project?"}
         </h3>
-        <p className="text-muted-foreground mb-5">
-          {isSpanish
-            ? "Deja tu feedback y agrega tu usuario de X opcionalmente. Para participar en el giveaway, sigue a "
-            : "Leave feedback and optionally add your X username. For giveaway eligibility, please follow "}
-          <Link
-            href="https://x.com/ShimejiAIPets"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold underline decoration-2 underline-offset-2"
-          >
-            @ShimejiAIPets
-          </Link>
-          {isSpanish ? " en X." : " on X."}
-        </p>
+        
         <div className="mb-6 rounded-2xl border border-white/10 p-4 giveaway-reminder">
           <div className="flex items-center gap-4">
             <div className="relative h-20 w-20 shrink-0">

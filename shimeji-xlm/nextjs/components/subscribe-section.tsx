@@ -144,11 +144,7 @@ export function SubscribeSection() {
               ? "¿Qué te parece este proyecto?"
               : "What do you think about this project?"}
           </h3>
-          <p className="text-muted-foreground mb-5">
-            {isSpanish
-              ? "Deja tu feedback y agrega tu usuario de X opcionalmente."
-              : "Leave feedback and optionally add your X username."}
-          </p>
+          
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <textarea
