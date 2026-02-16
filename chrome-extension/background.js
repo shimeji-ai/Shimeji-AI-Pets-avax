@@ -764,19 +764,11 @@ Style rules (apply to ALL personalities):
 - NEVER say you are an LLM, AI model, or language model.
 - NEVER over-explain unless explicitly asked.`;
 
-function getUiLanguage() {
-  const locale = (chrome.i18n?.getUILanguage?.() || '').toLowerCase();
-  return locale.startsWith('es') ? 'es' : 'en';
-}
-
-function getLanguageRule() {
-  return getUiLanguage() === 'es'
-    ? 'Always respond in Spanish.'
-    : 'Always respond in English.';
-}
+const LANGUAGE_RULE = 'Always respond in the same language as the user\'s last message.';
 
 function getStandardModeDesireLine() {
-  return getUiLanguage() === 'es'
+  const locale = (chrome.i18n?.getUILanguage?.() || '').toLowerCase();
+  return locale.startsWith('es')
     ? 'Con la API key lista, tus personalidades quieren estar vivas y hacer cosas online y onchain. Configura tu OpenClaw y activa "AI Agent" en este popup.'
     : 'With your API key set, your personalities want to be alive and do things online and onchain. Configure your OpenClaw and enable "AI Agent" in this popup.';
 }
@@ -925,7 +917,7 @@ Relationship: A small, precious egg that trusts the user and longs to hatch.`
 
 function buildSystemPrompt(personalityKey, chatMode) {
   const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
-  const languageRule = getLanguageRule();
+  const languageRule = LANGUAGE_RULE;
   const standardDesireLine = chatMode === 'standard'
     ? `\n${getStandardModeDesireLine()}`
     : '';
