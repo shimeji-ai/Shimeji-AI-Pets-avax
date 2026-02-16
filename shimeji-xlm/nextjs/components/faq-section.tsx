@@ -59,9 +59,7 @@ export function FAQSection() {
       <ScrollAnimation variants={variants}>
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-16">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Preguntas" : "FAQ"}
-            </p>
+            
             <h2 className="text-4xl sm:text-5xl font-semibold text-foreground tracking-tight">
               {isSpanish ? "Preguntas Frecuentes" : "Frequently Asked Questions"}
             </h2>
