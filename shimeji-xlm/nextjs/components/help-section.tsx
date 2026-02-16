@@ -205,7 +205,7 @@ export function HelpSection() {
         <div className="max-w-5xl mx-auto mb-20">
           <div className="neural-card rounded-3xl p-10 text-center">
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish ? "Primero: descargá la app o extensión" : "First: download the app or extension"}
+              {isSpanish ? "Descargá la app o extensión" : "Download the app or extension"}
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               {isSpanish
@@ -225,22 +225,17 @@ export function HelpSection() {
 
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto mb-20">
-          <div className="text-center mb-12">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Proveedores" : "Providers"}
-            </p>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              {isSpanish ? "Elegí tu forma de conexión" : "Choose your connection setup"}
-            </h2>
-            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
-              {isSpanish
-                ? "Tocá un botón para cambiar entre OpenRouter, Ollama y OpenClaw con pasos simples."
-                : "Tap a button to switch between OpenRouter, Ollama, and OpenClaw with simple steps."}
-            </p>
-          </div>
+          
 
           <div className="neural-card rounded-3xl p-6 sm:p-8">
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="text-center mb-12">
+            
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              {isSpanish ? "Elegí tu Cerebro AI" : "Choose your AI Brain"}
+            </h2>
+          
+          </div>
+            <div className="flex flex-wrap gap-3 mb-6 items-center justify-center">
               {providers.map((provider) => {
                 const isActive = provider.id === activeProvider.id;
                 return (

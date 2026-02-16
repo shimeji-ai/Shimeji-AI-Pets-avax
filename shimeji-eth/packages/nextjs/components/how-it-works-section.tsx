@@ -50,7 +50,7 @@ export function HowItWorksSection() {
               {isSpanish ? "Guía rápida" : "Quick guide"}
             </p>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight text-balance">
-              {isSpanish ? "Empezar" : "Get Started"}
+              {isSpanish ? "Cómo empezar" : "How to get started"}
             </h2>
           </div>
 

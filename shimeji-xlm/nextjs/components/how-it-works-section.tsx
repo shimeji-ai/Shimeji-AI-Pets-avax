@@ -46,11 +46,9 @@ export function HowItWorksSection() {
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Guía rápida" : "Quick guide"}
-            </p>
+            
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight text-balance">
-              {isSpanish ? "Empezar" : "Get Started"}
+              {isSpanish ? "Cómo empezar" : "How to get started"}
             </h2>
           </div>
 

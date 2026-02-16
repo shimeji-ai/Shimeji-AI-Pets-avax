@@ -211,17 +211,11 @@ export function HelpSection() {
       <ScrollAnimation variants={variants}>
         <div className="max-w-6xl mx-auto mb-20">
           <div className="text-center mb-12">
-            <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
-              {isSpanish ? "Proveedores" : "Providers"}
-            </p>
+           
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              {isSpanish ? "Elegí tu forma de conexión" : "Choose your connection setup"}
+              {isSpanish ? "Elegí tu Cerebro AI" : "Choose your AI Brain"}
             </h2>
-            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
-              {isSpanish
-                ? "Tocá un botón para cambiar entre OpenRouter, Ollama y OpenClaw con pasos simples."
-                : "Tap a button to switch between OpenRouter, Ollama, and OpenClaw with simple steps."}
-            </p>
+           
           </div>
 
           <div className="neural-card rounded-3xl p-6 sm:p-8">
