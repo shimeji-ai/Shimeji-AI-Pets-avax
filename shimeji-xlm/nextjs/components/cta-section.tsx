@@ -24,8 +24,8 @@ export function CtaSection() {
             </h2>
             <p className="mb-4 max-w-lg mx-auto text-muted-foreground">
               {isSpanish
-                ? "Descarga la extensión o la app y conoce a tu Shimeji que habla. O activa el modo agente para tareas online y onchain."
-                : "Download the extension or the app and meet your talking Shimeji. Or enable agent mode for online and onchain tasks."}
+                ? "Descarga Shimeji AI Pets y conoce a tu Shimeji que habla. O activa el modo agente para tareas online y onchain."
+                : "Download Shimeji AI Pets and meet your talking Shimeji. Or enable agent mode for online and onchain tasks."}
             </p>
             <p className="mb-8 max-w-lg mx-auto text-muted-foreground/80">
               {isSpanish

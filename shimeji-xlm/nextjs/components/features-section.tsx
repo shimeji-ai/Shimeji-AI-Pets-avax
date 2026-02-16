@@ -23,16 +23,7 @@ const features = [
       "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
     descriptionEs:
       "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
-  },
-  {
-    icon: Sparkles,
-    titleEn: "Multi Shimeji",
-    titleEs: "Multi shimejis",
-    descriptionEn:
-      "Run up to five pets at once, each with its own personality and brain.",
-    descriptionEs:
-      "Muestra hasta cinco mascotas a la vez, cada uno con su apariencia y cerebro.",
-  },
+  }
 ];
 
 export function FeaturesSection() {
@@ -45,7 +36,7 @@ export function FeaturesSection() {
   return (
     <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full mx-auto">
           {/* Auction highlight banner */}
           <div className="auction-highlight-banner mb-12 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
             <div className="flex flex-col md:flex-row items-center gap-8">
@@ -88,7 +79,7 @@ export function FeaturesSection() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
             {features.map((feature) => (
               <div
                 key={feature.titleEn}
