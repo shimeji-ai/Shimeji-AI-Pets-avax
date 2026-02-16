@@ -15,8 +15,7 @@ const providers = [
     descriptionEs: "Setup rápido en la nube con una sola key.",
     bestForEn: "Best for: fastest setup with many model options.",
     bestForEs: "Ideal para: setup más rápido con muchas opciones de modelos.",
-    needsEn: ["OpenRouter account", "API key", "Model selection"],
-    needsEs: ["Cuenta de OpenRouter", "API key", "Elegir modelo"],
+    
     stepsEn: [
       "Open Router settings and create an API key.",
       "In popup: AI Brain = Standard, Provider = OpenRouter.",
@@ -37,8 +36,7 @@ const providers = [
     descriptionEs: "Modelos locales y privados, sin API key.",
     bestForEn: "Best for: local/offline use and privacy.",
     bestForEs: "Ideal para: uso local/offline y privacidad.",
-    needsEn: ["Ollama installed", "One pulled model", "Local Ollama URL"],
-    needsEs: ["Ollama instalado", "Un modelo descargado", "URL local de Ollama"],
+    
     stepsEn: [
       "Install Ollama and pull a model (example: llama3.1).",
       "In popup: AI Brain = Standard, Provider = Ollama.",
@@ -59,8 +57,7 @@ const providers = [
     descriptionEs: "Modo agente conectado mediante tu gateway de OpenClaw.",
     bestForEn: "Best for: actions and tools beyond normal chat.",
     bestForEs: "Ideal para: acciones y herramientas más allá del chat.",
-    needsEn: ["Running OpenClaw gateway", "Gateway WebSocket URL", "Gateway token"],
-    needsEs: ["Gateway OpenClaw activo", "URL WebSocket del gateway", "Token del gateway"],
+    
     stepsEn: [
       "Start your OpenClaw gateway.",
       "Copy the WebSocket URL and token.",
@@ -202,112 +199,114 @@ export function HelpSection() {
   return (
     <section id="help" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
-        <div className="max-w-5xl mx-auto mb-20">
-          <div className="neural-card rounded-3xl p-10 text-center">
-            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish ? "Instalá" : "Install"}
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              {isSpanish
-                ? "Para usar Shimeji AI Pets necesitás la extensión de navegador o la aplicación."
-                : "To use Shimeji AI Pets you need the browser extension or the app."}
-            </p>
-            <div className="flex justify-center">
-              <DownloadButton
-                href="/#download"
-                labelEn="GO TO DOWNLOADS"
-                labelEs="IR A DESCARGAS"
-              />
-            </div>
-          </div>
-        </div>
-      </ScrollAnimation>
-
-      <ScrollAnimation variants={variants}>
-        <div className="max-w-6xl mx-auto mb-20">
-          
-
-          <div className="neural-card rounded-3xl p-6 sm:p-8">
-            <div className="text-center mb-12">
-            
-            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              {isSpanish ? "Elegí tu Cerebro AI" : "Choose your AI Brain"}
-            </h2>
-          
-          </div>
-            <div className="flex flex-wrap gap-3 mb-6 items-center justify-center">
-              {providers.map((provider) => {
-                const isActive = provider.id === activeProvider.id;
-                return (
-                  <button
-                    key={provider.id}
-                    type="button"
-                    onClick={() => setSelectedProvider(provider.id)}
-                    className={[
-                      "px-4 py-2 rounded-full text-sm font-mono transition-all duration-300 border",
-                      isActive
-                        ? "bg-[var(--brand-accent)]/20 border-[var(--brand-accent)] text-foreground shadow-[0_0_24px_rgba(123,92,255,0.25)]"
-                        : "border-white/10 text-muted-foreground hover:border-[var(--brand-accent)]/40 hover:text-foreground",
-                    ].join(" ")}
-                    aria-pressed={isActive}
-                  >
-                    {provider.id}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              key={activeProvider.id}
-              className="rounded-2xl border border-white/10 p-6 sm:p-8 transition-all duration-300 animate-in fade-in"
-            >
-              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-                <h3 className="text-2xl font-semibold text-foreground">
-                  {isSpanish ? activeProvider.titleEs : activeProvider.titleEn}
-                </h3>
-                <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
-                  {isSpanish ? `${activeProvider.stepsEs.length} pasos` : `${activeProvider.stepsEn.length} steps`}
-                </span>
-              </div>
-
-              <p className="text-muted-foreground mb-2">
-                {isSpanish ? activeProvider.descriptionEs : activeProvider.descriptionEn}
-              </p>
-              <p className="text-sm text-foreground/80 mb-5">
-                {isSpanish ? activeProvider.bestForEs : activeProvider.bestForEn}
-              </p>
-
-              <div className="mb-6">
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono mb-3">
-                  {isSpanish ? "Necesitás" : "You need"}
+        <div className="w-full mx-auto mb-20">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left: Install + Unlock combined */}
+            <div className="neural-card rounded-3xl p-8 sm:p-10">
+              <div className="text-center mb-6">
+                <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-2">
+                  {isSpanish ? "Instalá" : "Install"}
+                </h2>
+                <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
+                  {isSpanish
+                    ? "Usa la extensión de navegador o la aplicación."
+                    : "Use the browser extension or the app."}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  {(isSpanish ? activeProvider.needsEs : activeProvider.needsEn).map((item) => (
-                    <span key={item} className="text-xs rounded-full border border-white/10 px-3 py-1 text-foreground/80">
-                      {item}
-                    </span>
-                  ))}
+                <div className="flex justify-center mb-6">
+                  <DownloadButton
+                    href="/download"
+                    labelEn="DOWNLOADS"
+                    labelEs="DESCARGAS"
+                  />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 text-sm text-foreground/80">
-                {(isSpanish ? activeProvider.stepsEs : activeProvider.stepsEn).map((item) => (
-                  <span key={item} className="flex gap-3">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
-                    <span>{item}</span>
-                  </span>
-                ))}
+              <hr className="border-t border-white/6 my-4" />
+
+              <div className="text-center mt-6">
+                <h3 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight mb-2">
+                  {isSpanish
+                    ? "Desbloqueá apariencias únicas"
+                    : "Unlock unique looks"}
+                </h3>
+                <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
+                  {isSpanish
+                    ? "Adquirí un NFT en la subasta para acceder a skins exclusivos."
+                    : "Acquire a NFT at auction to access exclusive skins."}
+                </p>
+                <div className="flex justify-center">
+                  <DownloadButton
+                    href="/#subasta"
+                    labelEn="SEE AUCTION"
+                    labelEs="VER SUBASTA"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Choose your AI Brain */}
+            <div className="neural-card rounded-3xl p-6 sm:p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+                  {isSpanish ? "Elegí tu Cerebro AI" : "Choose your AI Brain"}
+                </h2>
+              </div>
+              <div className="flex flex-wrap gap-3 mb-6 items-center justify-center">
+                {providers.map((provider) => {
+                  const isActive = provider.id === activeProvider.id;
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      onClick={() => setSelectedProvider(provider.id)}
+                      className={[
+                        "px-4 py-2 rounded-full text-sm font-mono transition-all duration-300 border",
+                        isActive
+                          ? "bg-[var(--brand-accent)]/20 border-[var(--brand-accent)] text-foreground shadow-[0_0_24px_rgba(123,92,255,0.25)]"
+                          : "border-white/10 text-muted-foreground hover:border-[var(--brand-accent)]/40 hover:text-foreground",
+                      ].join(" ")}
+                      aria-pressed={isActive}
+                    >
+                      {provider.id}
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="mt-6 text-sm">
-                <Link
-                  href={activeProvider.link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--brand-accent)] hover:text-white transition-colors"
-                >
-                  {isSpanish ? activeProvider.link.labelEs : activeProvider.link.labelEn}
-                </Link>
+              <div
+                key={activeProvider.id}
+                className="rounded-2xl transition-all duration-300 animate-in fade-in"
+              >
+              
+
+                <p className="text-muted-foreground mb-2">
+                  {isSpanish ? activeProvider.descriptionEs : activeProvider.descriptionEn}
+                </p>
+                <p className="text-sm text-foreground/80 mb-5">
+                  {isSpanish ? activeProvider.bestForEs : activeProvider.bestForEn}
+                </p>
+
+               
+
+                <div className="flex flex-col gap-3 text-sm text-foreground/80">
+                  {(isSpanish ? activeProvider.stepsEs : activeProvider.stepsEn).map((item) => (
+                    <span key={item} className="flex gap-3">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
+                      <span>{item}</span>
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-6 text-sm">
+                  <Link
+                    href={activeProvider.link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--brand-accent)] hover:text-white transition-colors"
+                  >
+                    {isSpanish ? activeProvider.link.labelEs : activeProvider.link.labelEn}
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -315,32 +314,7 @@ export function HelpSection() {
       </ScrollAnimation>
 
       <ScrollAnimation variants={variants}>
-        <div className="max-w-5xl mx-auto mb-20">
-          <div className="neural-card rounded-3xl p-10 text-center">
-           
-            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-4">
-              {isSpanish
-                ? "Desbloqueá apariencias únicas"
-                : "Unlock unique looks"}
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              {isSpanish
-                ? "Conseguí un Shimeji NFT en la subasta para acceder a skins exclusivos."
-                : "Win a Shimeji NFT at auction to access exclusive skins."}
-            </p>
-            <div className="flex justify-center">
-              <DownloadButton
-                href="/#subasta"
-                labelEn="SEE AUCTION"
-                labelEs="VER SUBASTA"
-              />
-            </div>
-          </div>
-        </div>
-      </ScrollAnimation>
-
-      <ScrollAnimation variants={variants}>
-        <div className="max-w-4xl mx-auto">
+        <div className="w-full mx-auto">
           <div className="text-center mb-12">
             <p className="uppercase tracking-[0.3em] text-xs text-muted-foreground font-mono mb-4">
               {isSpanish ? "Opciones" : "Settings"}
@@ -350,7 +324,7 @@ export function HelpSection() {
             </h2>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {configReference.map((item, index) => (
               <div
                 key={index}
