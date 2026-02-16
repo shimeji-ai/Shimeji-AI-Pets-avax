@@ -84,36 +84,12 @@ export function Header() {
               </Link>
               <SparkleAnimation isHovering={isMarketplaceHovered} />
             </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsFeaturesHovered(true)}
-              onMouseLeave={() => setIsFeaturesHovered(false)}
+            <Link
+              href="/collection"
+              className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
-              <ScrollLink
-                to="features"
-                smooth={true}
-                duration={700}
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
-              <SparkleAnimation isHovering={isFeaturesHovered} />
-            </div>
-            <div
-              className="relative"
-              onMouseEnter={() => setIsGetStartedHovered(true)}
-              onMouseLeave={() => setIsGetStartedHovered(false)}
-            >
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={700}
-                className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-              >
-                {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
-              <SparkleAnimation isHovering={isGetStartedHovered} />
-            </div>
+              {isSpanish ? "Colección" : "Collection"}
+            </Link>
             <Link
               href="/help"
               className="hover:cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
@@ -175,24 +151,13 @@ export function Header() {
               >
                 {isSpanish ? "Subasta" : "Auction"}
               </Link>
-              <ScrollLink
-                to="features"
-                smooth={true}
-                duration={700}
+             <Link
+                href="/collection"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >
-                {isSpanish ? "Características" : "Features"}
-              </ScrollLink>
-              <ScrollLink
-                to="get-started"
-                smooth={true}
-                duration={700}
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Empezar" : "Get Started"}
-              </ScrollLink>
+                {isSpanish ? "Colección" : "Collection"}
+              </Link>
               <Link
                 href="/help"
                 className="text-muted-foreground hover:text-foreground transition-colors font-medium"
