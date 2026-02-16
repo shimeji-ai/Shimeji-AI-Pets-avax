@@ -46,13 +46,7 @@ export function NavHeader({ showConnectButton = false, rightSlot }: NavHeaderPro
           </div>
 
           <nav className="hidden lg:flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
-            >
-              {isSpanish ? "Inicio" : "Home"}
-            </Link>
-            <Link
+           <Link
               href="/#auction"
               className="header-auction-link text-sm transition-colors font-medium"
             >
@@ -97,13 +91,6 @@ export function NavHeader({ showConnectButton = false, rightSlot }: NavHeaderPro
         {isMenuOpen && (
           <div className="lg:hidden px-6 pb-6 border-t border-border">
             <nav className="flex flex-col gap-4 pt-4">
-              <Link
-                href="/"
-                className="text-muted-foreground hover:text-foreground transition-colors font-medium"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                {isSpanish ? "Inicio" : "Home"}
-              </Link>
               <Link
                 href="/#auction"
                 className="header-auction-link transition-colors font-medium"

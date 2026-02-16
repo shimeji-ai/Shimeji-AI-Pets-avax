@@ -1048,7 +1048,9 @@ function createTerminalSession(shimejiId, settings = {}) {
       TERM: process.env.TERM || 'xterm-256color',
       COLORTERM: process.env.COLORTERM || 'truecolor',
       TERM_PROGRAM: process.env.TERM_PROGRAM || 'ShimejiDesktop',
-      TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0'
+      TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0',
+      COLUMNS: '80',
+      LINES: '24'
     }
   });
 
@@ -1163,6 +1165,14 @@ function attachTerminalSession(webContents, shimejiId, settings = {}) {
   if (!sessionObj.pending) {
     applyConfiguredCwdIfNeeded(sessionObj);
   }
+  if (sessionObj.sessionCols > 0 && sessionObj.sessionRows > 0) {
+    try {
+      sessionObj.process.stdin.write(
+        `stty cols ${sessionObj.sessionCols} rows ${sessionObj.sessionRows} 2>/dev/null\n`,
+        'utf8'
+      );
+    } catch {}
+  }
   emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
     state: 'running',
     distro: sessionObj.distro,
@@ -1214,6 +1224,9 @@ function resizeTerminalSession(shimejiId, cols, rows) {
   const safeRows = Number.isFinite(parsedRows) ? Math.max(6, Math.min(240, parsedRows)) : 24;
   sessionObj.sessionCols = safeCols;
   sessionObj.sessionRows = safeRows;
+  try {
+    sessionObj.process.stdin.write(`stty cols ${safeCols} rows ${safeRows} 2>/dev/null\n`, 'utf8');
+  } catch {}
   try {
     sessionObj.process.kill('SIGWINCH');
   } catch {}

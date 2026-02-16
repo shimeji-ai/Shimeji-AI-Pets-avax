@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
-import { UpdatesSubscribePopup } from "./updates-subscribe-popup";
 import { Github, Twitter } from "lucide-react";
 
 export function Footer() {
@@ -13,7 +12,7 @@ export function Footer() {
       {/* Footer Links */}
       <div className="border-t border-white/10 bg-[#0b0f14]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid md:grid-cols-3 gap-10">
+          <div className="grid md:grid-cols-2 gap-10">
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
@@ -23,8 +22,8 @@ export function Footer() {
               </div>
               <p className="text-muted-foreground text-sm max-w-xs mb-6 leading-relaxed">
                 {isSpanish
-                  ? "Mascotas animados con IA para tu navegador. Chatea, recibe avisos suaves o conecta un agente con herramientas online y onchain."
-                  : "Animated AI pets for your browser. Chat, get gentle nudges, or connect an agent with online and onchain tools."}
+                  ? "Mascotas animadas con IA para tu escritorio y navegador. Chatea, recibe avisos suaves o conecta un agente con herramientas online y onchain."
+                  : "Animated AI pets for your desktop and browser. Chat, get gentle nudges, or connect an agent with online and onchain tools."}
               </p>
               <div className="flex gap-3">
                 <Link
@@ -50,16 +49,6 @@ export function Footer() {
                   </span>
                 </Link>
               </div>
-            </div>
-
-            <div>
-              <h3 className="font-semibold mb-4 text-sm text-foreground">
-                {isSpanish ? "Mantente informado" : "Stay Updated"}
-              </h3>
-              <UpdatesSubscribePopup
-                buttonClassName="footer-updates-button bg-white/5 hover:bg-white/10 text-sm"
-                buttonVariant="ghost"
-              />
             </div>
 
             <div>

@@ -3,43 +3,34 @@
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
 import { ScrollAnimation } from "./scroll-animation";
-import { Bot, Download, MessageSquare, Sparkles } from "lucide-react";
+import { Bot, Download, Sparkles } from "lucide-react";
 
 const steps = [
   {
     icon: Download,
     step: "01",
-    titleEn: "Install the Extension",
-    titleEs: "Instala la extensión",
-    descriptionEn: "Download the Chrome extension and your shimeji will appear on every page you visit.",
-    descriptionEs: "Descarga la extensión de Chrome y tu shimeji aparecerá en cada página que visites.",
-  },
-  {
-    icon: MessageSquare,
-    step: "02",
-    titleEn: "Add an API Key",
-    titleEs: "Agrega una API key",
-    descriptionEn: "Get an OpenRouter key and paste it in the popup. You can also use Ollama for local models.",
-    descriptionEs:
-      "Consigue una key de OpenRouter y pegala en el popup. También podés usar Ollama para modelos locales.",
+    titleEn: "Install",
+    titleEs: "Instalá",
+    descriptionEn: "Grab the Chrome extension or the desktop app for Windows, macOS, and Linux.",
+    descriptionEs: "Descargá la extensión de Chrome o la app desktop para Windows, macOS y Linux.",
   },
   {
     icon: Bot,
-    step: "03",
-    titleEn: "Chat & Enable Agent Mode",
-    titleEs: "Chatea y activa el modo agente",
-    descriptionEn: "Click your shimeji to chat. Switch to AI Agent mode with OpenClaw for online and onchain actions.",
+    step: "02",
+    titleEn: "Set Up Your AI",
+    titleEs: "Configurá tu IA",
+    descriptionEn:
+      "Open settings, configure a provider (OpenRouter, Ollama, or OpenClaw) and start chatting. On desktop you also get a built-in terminal.",
     descriptionEs:
-      "Hace clic en tu shimeji para chatear. Cambia al modo AI Agent con OpenClaw para acciones online y onchain.",
+      "Abrí los ajustes, configurá un proveedor (OpenRouter, Ollama u OpenClaw) y empezá a chatear. En desktop también tenés una terminal integrada.",
   },
   {
     icon: Sparkles,
-    step: "04",
+    step: "03",
     titleEn: "Commission a Custom Shimeji",
-    titleEs: "Encarga un shimeji único",
+    titleEs: "Encargá un shimeji único",
     descriptionEn: "Buy an egg in the Factory, set an intention, and receive a handcrafted pet.",
-    descriptionEs:
-      "Compra un huevo en Factory, define una intención y recibe una mascota hecha a mano.",
+    descriptionEs: "Compra un huevo en Factory, definí una intención y recibí una mascota hecha a mano.",
   },
 ];
 
@@ -63,7 +54,7 @@ export function HowItWorksSection() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {steps.map(step => (
               <div
                 key={step.step}
@@ -82,25 +73,25 @@ export function HowItWorksSection() {
                     isSpanish ? (
                       <>
                         <Link href="/download" className="font-semibold underline decoration-2 underline-offset-2">
-                          Descarga la extensión de Chrome
+                          Descargá la extensión de Chrome
                         </Link>{" "}
-                        y tu shimeji aparecerá en cada página que visites.
+                        o la app desktop para Windows, macOS y Linux.
                       </>
                     ) : (
                       <>
                         <Link href="/download" className="font-semibold underline decoration-2 underline-offset-2">
-                          Download the Chrome extension
+                          Grab the Chrome extension
                         </Link>{" "}
-                        and your shimeji will appear on every page you visit.
+                        or the desktop app for Windows, macOS, and Linux.
                       </>
                     )
-                  ) : step.step === "04" ? (
+                  ) : step.step === "03" ? (
                     isSpanish ? (
                       <>
                         <Link href="/factory" className="font-semibold underline decoration-2 underline-offset-2">
-                          Compra un huevo en Factory
+                          Comprá un huevo en Factory
                         </Link>
-                        , define una intención y recibe una mascota hecha a mano.
+                        , definí una intención y recibí una mascota hecha a mano.
                       </>
                     ) : (
                       <>

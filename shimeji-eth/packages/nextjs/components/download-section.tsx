@@ -30,8 +30,8 @@ export function DownloadSection() {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             {isSpanish
-              ? "Elegí tu plataforma: extensión de navegador, desktop o mobile (próximamente)."
-              : "Choose your platform: browser extension, desktop, or mobile (coming soon)."}
+              ? "Elegí tu plataforma: extensión de navegador, desktop o mobile."
+              : "Choose your platform: browser extension, desktop, or mobile."}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, MessageSquare, Bot, Sparkles } from "lucide-react";
+import { Download, Bot, Sparkles } from "lucide-react";
 import { ScrollAnimation } from "./scroll-animation";
 import Link from "next/link";
 import { useLanguage } from "./language-provider";
@@ -10,29 +10,23 @@ const steps = [
     icon: Download,
     step: "01",
     titleEn: "Install",
-    titleEs: "Instalar",
-    descriptionEn: "Install with the Chrome extension or the desktop app on Windows, macOS, and Linux.",
-    descriptionEs: "Instalá con la extensión de Chrome o la app desktop en Windows, macOS y Linux.",
-  },
-  {
-    icon: MessageSquare,
-    step: "02",
-    titleEn: "Add an API Key",
-    titleEs: "Agrega una API key",
-    descriptionEn: "Get an OpenRouter key and paste it in the popup. You can also use Ollama for local models.",
-    descriptionEs: "Consigue una key de OpenRouter y pegala en el popup. También podés usar Ollama para modelos locales.",
+    titleEs: "Instalá",
+    descriptionEn: "Grab the Chrome extension or the desktop app for Windows, macOS, and Linux.",
+    descriptionEs: "Descargá la extensión de Chrome o la app desktop para Windows, macOS y Linux.",
   },
   {
     icon: Bot,
-    step: "03",
-    titleEn: "Chat & Enable Agent Mode",
-    titleEs: "Chatea y activa el modo agente",
-    descriptionEn: "Click your shimeji to chat. Switch to AI Agent mode with OpenClaw for online and onchain actions.",
-    descriptionEs: "Hace clic en tu shimeji para chatear. Cambia al modo AI Agent con OpenClaw para acciones online y onchain.",
+    step: "02",
+    titleEn: "Set Up Your AI",
+    titleEs: "Configurá tu IA",
+    descriptionEn:
+      "Open settings, configure a provider (OpenRouter, Ollama, or OpenClaw) and start chatting. On desktop you also get a built-in terminal.",
+    descriptionEs:
+      "Abrí los ajustes, configurá un proveedor (OpenRouter, Ollama u OpenClaw) y empezá a chatear. En desktop también tenés una terminal integrada.",
   },
   {
     icon: Sparkles,
-    step: "04",
+    step: "03",
     titleEn: "Win a Custom Shimeji",
     titleEs: "Ganá un shimeji único",
     descriptionEn: "Bid in the auction to win a handcrafted pet minted as an NFT.",
@@ -60,7 +54,7 @@ export function HowItWorksSection() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {steps.map((step) => (
               <div
                 key={step.step}
@@ -86,10 +80,9 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Instalá Shimeji AI Pets
+                          Descargá la extensión de Chrome
                         </Link>{" "}
-                        con la extensión de Chrome o la app desktop para Windows,
-                        macOS y Linux.
+                        o la app desktop para Windows, macOS y Linux.
                       </>
                     ) : (
                       <>
@@ -97,39 +90,35 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Install Shimeji AI Pets
+                          Grab the Chrome extension
                         </Link>{" "}
-                        with the Chrome extension or the desktop app for Windows,
-                        macOS, and Linux.
+                        or the desktop app for Windows, macOS, and Linux.
+                      </>
+                    )
+                  ) : step.step === "03" ? (
+                    isSpanish ? (
+                      <>
+                        <Link
+                          href="/#auction"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Ofertá en la subasta
+                        </Link>
+                        {" "}para ganar una mascota artesanal acuñada como NFT.
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href="/#auction"
+                          className="font-semibold underline decoration-2 underline-offset-2"
+                        >
+                          Bid in the auction
+                        </Link>
+                        {" "}to win a handcrafted pet minted as an NFT.
                       </>
                     )
                   ) : (
-                    step.step === "04" ? (
-                      isSpanish ? (
-                        <>
-                          <Link
-                            href="/#auction"
-                            className="font-semibold underline decoration-2 underline-offset-2"
-                          >
-                            Ofertá en la subasta
-                          </Link>
-                          {" "}para ganar una mascota artesanal acuñada como NFT
-                          con sprites únicos.
-                        </>
-                      ) : (
-                        <>
-                          <Link
-                            href="/#auction"
-                            className="font-semibold underline decoration-2 underline-offset-2"
-                          >
-                            Bid in the auction
-                          </Link>
-                          {" "}to win a handcrafted pet minted as an NFT.
-                        </>
-                      )
-                    ) : (
-                      isSpanish ? step.descriptionEs : step.descriptionEn
-                    )
+                    isSpanish ? step.descriptionEs : step.descriptionEn
                   )}
                 </p>
               </div>

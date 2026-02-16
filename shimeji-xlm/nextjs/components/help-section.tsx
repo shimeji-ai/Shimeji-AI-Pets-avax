@@ -4,23 +4,28 @@ import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
 import Link from "next/link";
 import DownloadButton from "./download-button";
+import { useState } from "react";
 
 const providers = [
   {
     id: "openrouter",
     titleEn: "OpenRouter (Recommended)",
     titleEs: "OpenRouter (Recomendado)",
-    descriptionEn: "Cloud models with a single API key. Fastest setup.",
-    descriptionEs: "Modelos en la nube con una sola API key. El setup más rápido.",
+    descriptionEn: "Fast cloud setup with one key.",
+    descriptionEs: "Setup rápido en la nube con una sola key.",
+    bestForEn: "Best for: fastest setup with many model options.",
+    bestForEs: "Ideal para: setup más rápido con muchas opciones de modelos.",
+    needsEn: ["OpenRouter account", "API key", "Model selection"],
+    needsEs: ["Cuenta de OpenRouter", "API key", "Elegir modelo"],
     stepsEn: [
-      "Create an account and generate a key (free trial available).",
-      "Extension popup → Standard → OpenRouter.",
-      "Paste the key and choose a model.",
+      "Open Router settings and create an API key.",
+      "In popup: AI Brain = Standard, Provider = OpenRouter.",
+      "Paste the API key, choose a model, then save.",
     ],
     stepsEs: [
-      "Crea tu cuenta y genera una key (hay free trial).",
-      "Popup de la extensión → Standard → OpenRouter.",
-      "Pegá la key y elegí un modelo.",
+      "Abrí OpenRouter y creá una API key.",
+      "En el popup: Cerebro AI = Standard, Proveedor = OpenRouter.",
+      "Pegá la API key, elegí un modelo y guardá.",
     ],
     link: { href: "https://openrouter.ai/settings/keys", labelEn: "Get OpenRouter keys", labelEs: "Conseguir keys de OpenRouter" },
   },
@@ -28,17 +33,21 @@ const providers = [
     id: "ollama",
     titleEn: "Ollama (Local)",
     titleEs: "Ollama (Local)",
-    descriptionEn: "Run models on your machine. Private and keyless.",
-    descriptionEs: "Corré modelos en tu máquina. Privado y sin key.",
+    descriptionEn: "Private local models, no API key needed.",
+    descriptionEs: "Modelos locales y privados, sin API key.",
+    bestForEn: "Best for: local/offline use and privacy.",
+    bestForEs: "Ideal para: uso local/offline y privacidad.",
+    needsEn: ["Ollama installed", "One pulled model", "Local Ollama URL"],
+    needsEs: ["Ollama instalado", "Un modelo descargado", "URL local de Ollama"],
     stepsEn: [
-      "Install Ollama and pull a model (e.g. llama3.1).",
-      "Popup → Standard → Provider: Ollama.",
-      "Set `Ollama URL` and your model name.",
+      "Install Ollama and pull a model (example: llama3.1).",
+      "In popup: AI Brain = Standard, Provider = Ollama.",
+      "Set Ollama URL and model name, then save.",
     ],
     stepsEs: [
-      "Instalá Ollama y bajá un modelo (ej. llama3.1).",
-      "Popup → Standard → Provider: Ollama.",
-      "Configurá `Ollama URL` y el nombre del modelo.",
+      "Instalá Ollama y bajá un modelo (ejemplo: llama3.1).",
+      "En el popup: Cerebro AI = Standard, Proveedor = Ollama.",
+      "Configurá URL de Ollama y nombre del modelo, luego guardá.",
     ],
     link: { href: "https://ollama.com", labelEn: "Download Ollama", labelEs: "Descargar Ollama" },
   },
@@ -46,23 +55,34 @@ const providers = [
     id: "openclaw",
     titleEn: "OpenClaw (Agent)",
     titleEs: "OpenClaw (Agente)",
-    descriptionEn: "Tool-augmented agent mode with a gateway.",
-    descriptionEs: "Modo agente con herramientas vía gateway.",
+    descriptionEn: "Agent mode connected through your OpenClaw gateway.",
+    descriptionEs: "Modo agente conectado mediante tu gateway de OpenClaw.",
+    bestForEn: "Best for: actions and tools beyond normal chat.",
+    bestForEs: "Ideal para: acciones y herramientas más allá del chat.",
+    needsEn: ["Running OpenClaw gateway", "Gateway WebSocket URL", "Gateway token"],
+    needsEs: ["Gateway OpenClaw activo", "URL WebSocket del gateway", "Token del gateway"],
     stepsEn: [
-      "Run your OpenClaw gateway.",
-      "Copy the WebSocket URL + token.",
-      "Popup → AI Agent → paste URL + token.",
+      "Start your OpenClaw gateway.",
+      "Copy the WebSocket URL and token.",
+      "In popup: AI Brain = AI Agent, then paste URL + token.",
     ],
     stepsEs: [
-      "Corré tu gateway de OpenClaw.",
-      "Copiá la URL WebSocket + token.",
-      "Popup → AI Agent → pegá URL + token.",
+      "Iniciá tu gateway de OpenClaw.",
+      "Copiá la URL WebSocket y token.",
+      "En el popup: Cerebro AI = AI Agent, luego pegá URL + token.",
     ],
     link: { href: "https://openclaw.ai", labelEn: "Setup OpenClaw", labelEs: "Configurar OpenClaw" },
   },
 ];
 
-const configReference = [
+const configReference: Array<{
+  emoji: string;
+  titleEn: string;
+  titleEs: string;
+  contentEn: string;
+  contentEs: string;
+  highlight?: boolean;
+}> = [
   {
     emoji: "🎭",
     titleEn: "Character",
@@ -172,6 +192,8 @@ const configReference = [
 
 export function HelpSection() {
   const { isSpanish } = useLanguage();
+  const [selectedProvider, setSelectedProvider] = useState(providers[0].id);
+  const activeProvider = providers.find(provider => provider.id === selectedProvider) ?? providers[0];
   const variants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.5 } },
@@ -208,49 +230,91 @@ export function HelpSection() {
               {isSpanish ? "Proveedores" : "Providers"}
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              {isSpanish ? "Guías de configuración" : "Setup Guides"}
+              {isSpanish ? "Elegí tu forma de conexión" : "Choose your connection setup"}
             </h2>
+            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
+              {isSpanish
+                ? "Tocá un botón para cambiar entre OpenRouter, Ollama y OpenClaw con pasos simples."
+                : "Tap a button to switch between OpenRouter, Ollama, and OpenClaw with simple steps."}
+            </p>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
-            {providers.map((provider) => (
-              <div key={provider.id} className="neural-card rounded-3xl p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono">
+          <div className="neural-card rounded-3xl p-6 sm:p-8">
+            <div className="flex flex-wrap gap-3 mb-6">
+              {providers.map((provider) => {
+                const isActive = provider.id === activeProvider.id;
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() => setSelectedProvider(provider.id)}
+                    className={[
+                      "px-4 py-2 rounded-full text-sm font-mono transition-all duration-300 border",
+                      isActive
+                        ? "bg-[var(--brand-accent)]/20 border-[var(--brand-accent)] text-foreground shadow-[0_0_24px_rgba(123,92,255,0.25)]"
+                        : "border-white/10 text-muted-foreground hover:border-[var(--brand-accent)]/40 hover:text-foreground",
+                    ].join(" ")}
+                    aria-pressed={isActive}
+                  >
                     {provider.id}
-                  </span>
-                  <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
-                    {isSpanish
-                      ? `${provider.stepsEs.length} pasos`
-                      : `${provider.stepsEn.length} steps`}
-                  </span>
-                </div>
-                <h3 className="text-2xl font-semibold text-foreground mb-3">
-                  {isSpanish ? provider.titleEs : provider.titleEn}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              key={activeProvider.id}
+              className="rounded-2xl border border-white/10 p-6 sm:p-8 transition-all duration-300 animate-in fade-in"
+            >
+              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+                <h3 className="text-2xl font-semibold text-foreground">
+                  {isSpanish ? activeProvider.titleEs : activeProvider.titleEn}
                 </h3>
-                <p className="text-muted-foreground mb-6">
-                  {isSpanish ? provider.descriptionEs : provider.descriptionEn}
+                <span className="text-xs px-3 py-1 rounded-full neural-outline text-muted-foreground font-mono">
+                  {isSpanish ? `${activeProvider.stepsEs.length} pasos` : `${activeProvider.stepsEn.length} steps`}
+                </span>
+              </div>
+
+              <p className="text-muted-foreground mb-2">
+                {isSpanish ? activeProvider.descriptionEs : activeProvider.descriptionEn}
+              </p>
+              <p className="text-sm text-foreground/80 mb-5">
+                {isSpanish ? activeProvider.bestForEs : activeProvider.bestForEn}
+              </p>
+
+              <div className="mb-6">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-mono mb-3">
+                  {isSpanish ? "Necesitás" : "You need"}
                 </p>
-                <div className="flex flex-col gap-3 text-sm text-foreground/80">
-                  {(isSpanish ? provider.stepsEs : provider.stepsEn).map((item) => (
-                    <span key={item} className="flex gap-3">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
-                      <span>{item}</span>
+                <div className="flex flex-wrap gap-2">
+                  {(isSpanish ? activeProvider.needsEs : activeProvider.needsEn).map((item) => (
+                    <span key={item} className="text-xs rounded-full border border-white/10 px-3 py-1 text-foreground/80">
+                      {item}
                     </span>
                   ))}
                 </div>
-                <div className="mt-6 text-sm">
-                  <Link
-                    href={provider.link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--brand-accent)] hover:text-white transition-colors"
-                  >
-                    {isSpanish ? provider.link.labelEs : provider.link.labelEn}
-                  </Link>
-                </div>
               </div>
-            ))}
+
+              <div className="flex flex-col gap-3 text-sm text-foreground/80">
+                {(isSpanish ? activeProvider.stepsEs : activeProvider.stepsEn).map((item) => (
+                  <span key={item} className="flex gap-3">
+                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[var(--brand-accent)]" />
+                    <span>{item}</span>
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-6 text-sm">
+                <Link
+                  href={activeProvider.link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--brand-accent)] hover:text-white transition-colors"
+                >
+                  {isSpanish ? activeProvider.link.labelEs : activeProvider.link.labelEn}
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </ScrollAnimation>
