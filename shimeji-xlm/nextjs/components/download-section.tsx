@@ -28,11 +28,7 @@ export function DownloadSection() {
           <h2 className="text-5xl font-semibold mb-4">
             {isSpanish ? "Descargar Shimeji AI Pets" : "Download Shimeji AI Pets"}
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {isSpanish
-              ? "Elegí tu plataforma: extensión de navegador, desktop o mobile (próximamente)."
-              : "Choose your platform: browser extension, desktop, or mobile (coming soon)."}
-          </p>
+          
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           <div className="neural-card rounded-2xl p-8 text-center">
@@ -46,8 +42,8 @@ export function DownloadSection() {
                 </p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Compatible con Chrome y navegadores basados en Chromium. Descargá, descomprimí, escribí chrome://extensions en la barra de direcciones, activá el modo desarrollador y cargá la carpeta descomprimida."
-                    : "Works with Chrome and Chromium-based browsers. Download, unzip, type chrome://extensions in the address bar, enable Developer Mode, then load the unzipped folder."}
+                    ? "Descargá, descomprimí, escribí chrome://extensions en la barra de direcciones, activá el modo desarrollador y cargá la carpeta descomprimida."
+                    : "Download, unzip, type chrome://extensions in the address bar, enable Developer Mode, then load the unzipped folder."}
                 </div>
                 <div className="mt-3">
                   <Button asChild className="neural-button w-full">

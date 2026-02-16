@@ -46,8 +46,8 @@ export function DownloadSection() {
                 </p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Compatible con Chrome y navegadores basados en Chromium. Descargá, descomprimí, escribí chrome://extensions en la barra de direcciones, activá el modo desarrollador y cargá la carpeta descomprimida."
-                    : "Works with Chrome and Chromium-based browsers. Download, unzip, type chrome://extensions in the address bar, enable Developer Mode, then load the unzipped folder."}
+                    ? "Descargá, descomprimí, escribí chrome://extensions en la barra de direcciones, activá el modo desarrollador y cargá la carpeta descomprimida."
+                    : "Download, unzip, type chrome://extensions in the address bar, enable Developer Mode, then load the unzipped folder."}
                 </div>
                 <div className="mt-3">
                   <Button asChild className="neural-button w-full">
