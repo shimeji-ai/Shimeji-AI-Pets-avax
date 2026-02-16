@@ -466,6 +466,7 @@ class Shimeji {
     this.terminalLastPromptAttentionAt = 0;
     this.closedChatNoticeUntil = 0;
     this.closedChatNoticeTimer = null;
+    this._notificationBubbleTimer = null;
     this.boundRelayHandler = (event) => this.onRelayEvent(event);
     this.boundStopMicHandler = (event) => this.onStopMicEvent(event);
 
@@ -562,12 +563,16 @@ class Shimeji {
     notificationBadge.className = 'shimeji-notification-badge';
     notificationBadge.textContent = '1';
 
+    const notificationBubble = document.createElement('div');
+    notificationBubble.className = 'shimeji-notification-bubble';
+
     wrapper.appendChild(overheadTyping);
     wrapper.appendChild(notificationBadge);
+    wrapper.appendChild(notificationBubble);
     wrapper.appendChild(sprite);
     container.appendChild(wrapper);
 
-    this.elements = { wrapper, sprite, container, overheadTyping, notificationBadge };
+    this.elements = { wrapper, sprite, container, overheadTyping, notificationBadge, notificationBubble };
     this.createChatBubble();
   }
 
@@ -2556,6 +2561,7 @@ class Shimeji {
       this.playNotificationSound(isError ? 'error' : 'success');
     }
     if (!this.chatOpen) {
+      this.showNotificationBubble('🥷❗', isError ? 4400 : 3200);
       this.notifyClosedChatActivity(isError ? 3600 : 2400);
     }
   }
@@ -2623,6 +2629,7 @@ class Shimeji {
       this.playNotificationSound(kind);
     }
     if (!this.chatOpen) {
+      this.showNotificationBubble('🥷❗', durationMs + 800);
       this.notifyClosedChatActivity(durationMs);
     }
   }
@@ -2695,6 +2702,19 @@ class Shimeji {
       this.closedChatNoticeUntil = 0;
       this.syncTypingIndicators();
     }, Math.max(900, durationMs + 50));
+  }
+
+  showNotificationBubble(text, durationMs = 4000) {
+    if (!this.elements.notificationBubble) return;
+    this.elements.notificationBubble.textContent = text;
+    this.elements.notificationBubble.classList.add('visible');
+    if (this._notificationBubbleTimer) clearTimeout(this._notificationBubbleTimer);
+    this._notificationBubbleTimer = setTimeout(() => {
+      this._notificationBubbleTimer = null;
+      if (this.elements.notificationBubble) {
+        this.elements.notificationBubble.classList.remove('visible');
+      }
+    }, durationMs);
   }
 
   clearClosedChatActivityNotice() {

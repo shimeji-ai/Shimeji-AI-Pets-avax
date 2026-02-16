@@ -707,6 +707,30 @@
   transform: scale(1);
 }
 
+.shimeji-notification-bubble {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%) translateY(6px) scale(0.9);
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(42, 31, 78, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 6px 18px rgba(22, 16, 40, 0.28);
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 4;
+}
+
+.shimeji-notification-bubble.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
 .shimeji-chat-msg.user {
   align-self: flex-end;
   background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, transparent);
