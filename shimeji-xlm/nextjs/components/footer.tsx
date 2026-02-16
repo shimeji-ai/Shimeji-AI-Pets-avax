@@ -80,7 +80,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/#auction"
+                    href="/#subasta"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {isSpanish ? "Subasta" : "Auction"}

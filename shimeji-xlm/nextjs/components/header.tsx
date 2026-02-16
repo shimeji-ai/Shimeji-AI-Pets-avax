@@ -77,7 +77,7 @@ export function Header() {
               onMouseLeave={() => setIsMarketplaceHovered(false)}
             >
               <Link
-                href="/#auction"
+                href="/#subasta"
                 className="header-auction-link hover:cursor-pointer text-sm transition-colors font-medium"
               >
                 {isSpanish ? "Subasta" : "Auction"}
@@ -169,7 +169,7 @@ export function Header() {
           <div className="md:hidden px-6 pb-6 border-t border-border">
             <nav className="flex flex-col gap-4 pt-4">
               <Link
-                href="/#auction"
+                href="/#subasta"
                 className="header-auction-link transition-colors font-medium"
                 onClick={() => setIsMenuOpen(false)}
               >

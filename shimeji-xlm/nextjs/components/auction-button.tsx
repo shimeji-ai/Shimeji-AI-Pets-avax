@@ -16,7 +16,7 @@ const AuctionButton = ({
   const { isSpanish } = useLanguage();
   return (
     <StyledWrapper>
-      <Link href="/#auction">
+      <Link href="/#subasta">
         <button type="button" className="btn">
           <strong>{isSpanish ? labelEs : labelEn}</strong>
           <div id="container-stars">

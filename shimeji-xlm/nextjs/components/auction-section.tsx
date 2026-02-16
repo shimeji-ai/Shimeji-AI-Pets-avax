@@ -681,7 +681,7 @@ export function AuctionSection() {
 
   return (
     <section
-      id="auction"
+      id="subasta"
       className={`pt-28 px-4 ${isAuctionLoading ? "min-h-screen pb-10" : "pb-16"}`}
     >
       <div className="max-w-6xl mx-auto">

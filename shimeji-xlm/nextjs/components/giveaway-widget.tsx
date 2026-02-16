@@ -12,11 +12,11 @@ export function GiveawayWidget() {
   const handleGoToAuction = () => {
     setIsOpen(false);
     window.requestAnimationFrame(() => {
-      const auctionSection = document.getElementById("auction");
+      const auctionSection = document.getElementById("subasta");
       if (!auctionSection) return;
       auctionSection.scrollIntoView({ behavior: "smooth", block: "start" });
-      if (window.location.hash !== "#auction") {
-        window.history.replaceState(null, "", "/#auction");
+      if (window.location.hash !== "#subasta") {
+        window.history.replaceState(null, "", "/#subasta");
       }
     });
   };
