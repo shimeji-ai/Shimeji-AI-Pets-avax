@@ -91,7 +91,7 @@ export function AuctionSection() {
   const [highestBid, setHighestBid] = useState<BidInfo | null>(null);
   const [recentOffers, setRecentOffers] = useState<BidInfo[]>([]);
   const [copiedBidder, setCopiedBidder] = useState<string | null>(null);
-  const [currentBidCurrencyView, setCurrentBidCurrencyView] = useState<"XLM" | "USDC">("XLM");
+
   const [showDate, setShowDate] = useState(false);
   const [auctionId, setAuctionId] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -543,29 +543,9 @@ export function AuctionSection() {
     if (!highestBid || !auction) {
       return t("No bids yet", "Sin ofertas aún");
     }
-
     const highestCurrency = highestBid.currency === "Xlm" ? "XLM" : "USDC";
-    if (highestCurrency === currentBidCurrencyView) {
-      return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
-    }
-
-    const rate = auction.xlmUsdcRate;
-    if (rate <= BigInt(0)) {
-      return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
-    }
-
-    if (currentBidCurrencyView === "USDC" && highestBid.currency === "Xlm") {
-      const converted = (highestBid.amount * rate) / TOKEN_SCALE;
-      return `${formatTokenAmount(converted)} USDC`;
-    }
-
-    if (currentBidCurrencyView === "XLM" && highestBid.currency === "Usdc") {
-      const converted = ceilDiv(highestBid.amount * TOKEN_SCALE, rate);
-      return `${formatTokenAmount(converted)} XLM`;
-    }
-
     return `${formatTokenAmount(highestBid.amount)} ${highestCurrency}`;
-  }, [auction, currentBidCurrencyView, highestBid, isSpanish]);
+  }, [auction, highestBid, isSpanish]);
 
   const shortAddress = (address: string | null) =>
     address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
@@ -751,7 +731,6 @@ export function AuctionSection() {
                             value={currency}
                             onChange={(nextCurrency) => {
                               setCurrency(nextCurrency);
-                              setCurrentBidCurrencyView(nextCurrency);
                               setBidError("");
                             }}
                           />
@@ -779,18 +758,12 @@ export function AuctionSection() {
                           )}
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCurrentBidCurrencyView((prev) => (prev === "XLM" ? "USDC" : "XLM"))
-                          }
-                          className="self-start px-3 py-2 text-left transition sm:self-auto sm:text-right cursor-pointer"
-                        >
+                        <div className="self-start px-3 py-2 text-left sm:self-auto sm:text-right">
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             {t("Current bid", "Oferta actual")}
                           </p>
                           <p className="mt-0.5 text-2xl font-black uppercase tracking-tight text-foreground sm:text-3xl">{currentBidDisplayValue}</p>
-                        </button>
+                        </div>
                       </div>
 
                       {hasConnectedWallet ? (
