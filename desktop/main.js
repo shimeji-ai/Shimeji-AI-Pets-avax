@@ -77,7 +77,8 @@ const store = new Store({
     terminalDistro: DEFAULT_TERMINAL_DISTRO,
     terminalCwd: '',
     terminalNotifyOnFinish: true,
-    startAtLogin: false
+    startAtLogin: false,
+    startMinimized: false
   }
 });
 
@@ -2330,7 +2331,9 @@ app.whenReady().then(() => {
   configureStartupSetting();
   createOverlayWindow();
   createTray();
-  createSettingsWindow(); // Auto-open settings on startup
+  if (!store.get('startMinimized')) {
+    createSettingsWindow(); // Auto-open settings on startup
+  }
 
   app.on('activate', () => {
     if (!overlayWindow) createOverlayWindow();
@@ -2402,7 +2405,8 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'terminalDistro',
     'terminalCwd',
     'terminalNotifyOnFinish',
-    'startAtLogin'
+    'startAtLogin',
+    'startMinimized'
   ];
 
   for (const key of allowedKeys) {
@@ -2487,6 +2491,26 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
       ...safeMessages
     ];
 
+    // For Ollama, transform multimodal content arrays into Ollama's images format
+    const provider = settings.provider || 'openrouter';
+    const ollamaMessages = provider === 'ollama' ? fullMessages.map(msg => {
+      if (!Array.isArray(msg.content)) return msg;
+      let text = '';
+      const images = [];
+      for (const part of msg.content) {
+        if (part.type === 'text') {
+          text += part.text;
+        } else if (part.type === 'image_url' && part.image_url?.url) {
+          const dataUrl = part.image_url.url;
+          const base64Match = dataUrl.match(/^data:[^;]+;base64,(.+)$/);
+          if (base64Match) images.push(base64Match[1]);
+        }
+      }
+      return images.length > 0
+        ? { role: msg.role, content: text || ' ', images }
+        : { role: msg.role, content: text };
+    }) : null;
+
     let content = '';
 
     if (settings.chatMode === 'agent') {
@@ -2504,11 +2528,10 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
         }
       );
     } else {
-      const provider = settings.provider || 'openrouter';
       const model = provider === 'ollama' ? (settings.ollamaModel || 'gemma3:1b') : settings.model;
       try {
         if (provider === 'ollama') {
-          content = await callOllamaStream(model, fullMessages, settings.ollamaUrl, (delta, accumulated) => {
+          content = await callOllamaStream(model, ollamaMessages || fullMessages, settings.ollamaUrl, (delta, accumulated) => {
             event.sender.send('ai-stream-delta', { shimejiId, delta, accumulated });
           });
         } else {
@@ -2517,7 +2540,7 @@ ipcMain.handle('ai-chat-stream', async (event, { shimejiId, messages, personalit
           });
         }
       } catch (streamErr) {
-        content = await callAiApi(provider, model, settings.apiKey, fullMessages, settings.ollamaUrl);
+        content = await callAiApi(provider, model, settings.apiKey, provider === 'ollama' ? (ollamaMessages || fullMessages) : fullMessages, settings.ollamaUrl);
       }
     }
 
@@ -2838,6 +2861,27 @@ ipcMain.handle('open-url-with-browser-choice', async (event, payload = {}) => {
 
 ipcMain.on('open-settings', () => {
   createSettingsWindow();
+});
+
+ipcMain.handle('create-desktop-shortcut', async () => {
+  if (!IS_WINDOWS) {
+    return { ok: false, error: 'Desktop shortcuts are only supported on Windows' };
+  }
+  try {
+    const desktopPath = app.getPath('desktop');
+    const shortcutPath = path.join(desktopPath, 'Shimeji Desktop.lnk');
+    const iconPath = path.join(__dirname, 'build', 'icon.ico');
+    const success = shell.writeShortcutLink(shortcutPath, {
+      target: process.execPath,
+      cwd: path.dirname(process.execPath),
+      icon: fs.existsSync(iconPath) ? iconPath : process.execPath,
+      iconIndex: 0,
+      description: 'Shimeji Desktop - AI Pet Companions'
+    });
+    return { ok: success };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'SHORTCUT_FAILED' };
+  }
 });
 
 // Handle mouse events toggle for click-through overlay

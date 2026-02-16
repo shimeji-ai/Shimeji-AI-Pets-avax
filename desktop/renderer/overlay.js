@@ -809,9 +809,9 @@ class Shimeji {
 
     const inputArea = document.createElement('div');
     inputArea.className = 'shimeji-chat-input-area';
-    const input = document.createElement('input');
+    const input = document.createElement('textarea');
     input.className = 'shimeji-chat-input';
-    input.type = 'text';
+    input.rows = 1;
     input.placeholder = t('Say something...', 'Di algo...');
     const sendBtn = document.createElement('button');
     sendBtn.type = 'button';
@@ -900,9 +900,14 @@ class Shimeji {
     this.elements.closeBtn.addEventListener('click', () => this.toggleChat());
     this.elements.sendBtn.addEventListener('click', () => this.sendMessage());
     this.elements.input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
+      if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         this.sendMessage();
+        return;
+      }
+      if (event.key === 'Enter' && event.shiftKey) {
+        // Allow newline insertion, then auto-resize
+        setTimeout(() => this.autoResizeChatInput(), 0);
         return;
       }
       if (!this.isTerminalMode()) return;
@@ -927,6 +932,27 @@ class Shimeji {
         this.terminalHistoryCursor = null;
       }
       this.resetTerminalAutocompleteState();
+      this.autoResizeChatInput();
+    });
+
+    this.elements.input.addEventListener('paste', (event) => {
+      if (this.isTerminalMode()) return;
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          event.preventDefault();
+          const blob = item.getAsFile();
+          if (!blob) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            this.pendingImage = reader.result;
+            this.renderPendingImagePreview();
+          };
+          reader.readAsDataURL(blob);
+          return;
+        }
+      }
     });
 
     settingsBtn.addEventListener('click', (event) => {
@@ -3032,23 +3058,68 @@ class Shimeji {
     this.elements.chat.style.top = `${chatTop}px`;
   }
 
+  autoResizeChatInput() {
+    const input = this.elements.input;
+    if (!input) return;
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 80) + 'px';
+  }
+
+  renderPendingImagePreview() {
+    this.clearPendingImagePreview();
+    if (!this.pendingImage || !this.elements.chatInputArea) return;
+
+    const preview = document.createElement('div');
+    preview.className = 'shimeji-chat-image-preview';
+
+    const img = document.createElement('img');
+    img.src = this.pendingImage;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'shimeji-chat-image-preview-remove';
+    removeBtn.textContent = '\u00D7';
+    removeBtn.addEventListener('click', () => this.clearPendingImage());
+
+    preview.appendChild(img);
+    preview.appendChild(removeBtn);
+    this.elements.chatInputArea.insertBefore(preview, this.elements.chatInputArea.firstChild);
+    this.elements.imagePreview = preview;
+  }
+
+  clearPendingImagePreview() {
+    if (this.elements.imagePreview) {
+      this.elements.imagePreview.remove();
+      this.elements.imagePreview = null;
+    }
+  }
+
+  clearPendingImage() {
+    this.pendingImage = null;
+    this.clearPendingImagePreview();
+  }
+
   async sendMessage() {
     if (!this.elements.input) return;
     const text = this.elements.input.value.trim();
-    if (!text) return;
+    const hasImage = !!this.pendingImage;
+    if (!text && !hasImage) return;
     this.elements.input.value = '';
+    this.elements.input.style.height = '';
     this.micDraftText = '';
     this.resetTerminalAutocompleteState();
     if (this.supportsInteractiveTerminalMode()) {
+      this.clearPendingImage();
       await this.sendTerminalLine(text);
       return;
     }
-    await this.sendPrompt(text);
+    const image = this.pendingImage;
+    this.clearPendingImage();
+    await this.sendPrompt(text, { image });
   }
 
-  async sendPrompt(text, { suppressRelay = false } = {}) {
+  async sendPrompt(text, { suppressRelay = false, image = null } = {}) {
     const prompt = `${text || ''}`.trim();
-    if (!prompt) return;
+    if (!prompt && !image) return;
     if (this.supportsInteractiveTerminalMode()) {
       await this.sendTerminalLine(prompt);
       return;
@@ -3059,7 +3130,15 @@ class Shimeji {
       this.pushTerminalCommandToHistory(prompt);
     }
 
-    this.messages.push({ role: 'user', content: prompt });
+    if (image) {
+      const contentParts = [
+        { type: 'image_url', image_url: { url: image } }
+      ];
+      if (prompt) contentParts.push({ type: 'text', text: prompt });
+      this.messages.push({ role: 'user', content: contentParts });
+    } else {
+      this.messages.push({ role: 'user', content: prompt });
+    }
     const requestMessages = this.messages.slice();
     const assistantIndex = this.messages.push({ role: 'assistant', content: '' }) - 1;
     this.pendingAssistantIndex = assistantIndex;
@@ -3480,6 +3559,19 @@ class Shimeji {
       msgEl.className = `shimeji-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
       if (msg.role === 'assistant') {
         this.renderMarkdownIntoMessage(msgEl, msg.content);
+      } else if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part.type === 'image_url' && part.image_url?.url) {
+            const img = document.createElement('img');
+            img.src = part.image_url.url;
+            img.className = 'shimeji-chat-msg-image';
+            msgEl.appendChild(img);
+          } else if (part.type === 'text' && part.text) {
+            const span = document.createElement('span');
+            span.textContent = part.text;
+            msgEl.appendChild(span);
+          }
+        }
       } else {
         msgEl.textContent = msg.content;
       }

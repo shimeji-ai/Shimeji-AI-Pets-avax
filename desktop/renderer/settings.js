@@ -111,6 +111,9 @@ const globalShimejiToggle = document.getElementById('global-shimeji-toggle');
 const popupThemeSelect = document.getElementById('popup-theme-select');
 const popupLanguageSelect = document.getElementById('popup-language-select');
 const startOnStartupToggle = document.getElementById('start-on-startup-toggle');
+const startMinimizedToggle = document.getElementById('start-minimized-toggle');
+const createShortcutBtn = document.getElementById('create-shortcut-btn');
+const createShortcutStatus = document.getElementById('create-shortcut-status');
 
 function detectBrowserLanguage() {
   const languages = Array.isArray(navigator.languages) && navigator.languages.length
@@ -1129,6 +1132,10 @@ function applyConfig(next) {
     startOnStartupToggle.checked = !!next.startAtLogin;
   }
 
+  if (next.startMinimized !== undefined && startMinimizedToggle) {
+    startMinimizedToggle.checked = !!next.startMinimized;
+  }
+
   if (languageChanged && !next.shimejis) {
     renderShimejiSelector();
     renderShimejiCards();
@@ -1169,6 +1176,52 @@ function registerHandlers() {
       const startAtLogin = startOnStartupToggle.checked;
       if (window.shimejiApi) {
         window.shimejiApi.updateConfig({ startAtLogin });
+      }
+    });
+  }
+
+  if (startMinimizedToggle) {
+    startMinimizedToggle.addEventListener('change', () => {
+      const startMinimized = startMinimizedToggle.checked;
+      if (window.shimejiApi) {
+        window.shimejiApi.updateConfig({ startMinimized });
+      }
+    });
+  }
+
+  // Show "Create Desktop Shortcut" button only on Windows
+  if (createShortcutBtn && navigator.platform && navigator.platform.startsWith('Win')) {
+    createShortcutBtn.style.display = '';
+    createShortcutBtn.addEventListener('click', async () => {
+      createShortcutBtn.disabled = true;
+      createShortcutBtn.textContent = 'Creating...';
+      if (createShortcutStatus) {
+        createShortcutStatus.style.display = 'none';
+      }
+      try {
+        const result = await window.shimejiApi.createDesktopShortcut();
+        if (result?.ok) {
+          createShortcutBtn.textContent = 'Create Desktop Shortcut';
+          createShortcutBtn.disabled = false;
+          if (createShortcutStatus) {
+            createShortcutStatus.textContent = 'Shortcut created on your desktop!';
+            createShortcutStatus.style.display = '';
+          }
+        } else {
+          createShortcutBtn.textContent = 'Create Desktop Shortcut';
+          createShortcutBtn.disabled = false;
+          if (createShortcutStatus) {
+            createShortcutStatus.textContent = result?.error || 'Failed to create shortcut';
+            createShortcutStatus.style.display = '';
+          }
+        }
+      } catch (err) {
+        createShortcutBtn.textContent = 'Create Desktop Shortcut';
+        createShortcutBtn.disabled = false;
+        if (createShortcutStatus) {
+          createShortcutStatus.textContent = 'Failed to create shortcut';
+          createShortcutStatus.style.display = '';
+        }
       }
     });
   }
