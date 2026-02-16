@@ -50,8 +50,11 @@ function parseScVal(val: xdr.ScVal): unknown {
       return val.u64().low + val.u64().high * 2 ** 32;
     case "scvI128": {
       const parts = val.i128();
-      return BigInt(parts.lo().low) + (BigInt(parts.lo().high) << 32n) +
-        (BigInt(parts.hi().low) << 64n) + (BigInt(parts.hi().high) << 96n);
+      // lo().low / lo().high / hi().low / hi().high are signed Int32.
+      // Use >>> 0 to treat them as unsigned 32-bit values before converting to BigInt.
+      const lo = BigInt(parts.lo().low >>> 0) + (BigInt(parts.lo().high >>> 0) << 32n);
+      const hi = BigInt(parts.hi().low >>> 0) + (BigInt(parts.hi().high >>> 0) << 32n);
+      return lo + (hi << 64n);
     }
     case "scvString":
       return val.str().toString();
