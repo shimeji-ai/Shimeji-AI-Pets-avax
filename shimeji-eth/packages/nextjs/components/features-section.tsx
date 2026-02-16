@@ -15,7 +15,7 @@ const features = [
     icon: Bot,
     title: "AI Agent Mode",
     description:
-      "Connect an OpenClaw gateway and your shimeji becomes an agent with access to online and onchain tools.",
+      "Your shimeji interacts with online and onchain tools.",
   },
   {
     icon: Sparkles,
@@ -85,7 +85,7 @@ export function FeaturesSection() {
                     ? feature.title === "AI Chat with Personality"
                       ? "Tu shimeji te responde con la personalidad que elijas."
                       : feature.title === "AI Agent Mode"
-                        ? "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain."
+                        ? "Tu shimeji interactúa con herramientas online y onchain."
                         : feature.title === "Multi Shimeji"
                           ? "Muestra hasta cinco mascotas a la vez, cada uno con su apariencia y cerebro."
                           : feature.title === "Handcrafted Sprites"

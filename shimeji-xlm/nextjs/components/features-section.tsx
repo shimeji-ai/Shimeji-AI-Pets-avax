@@ -20,9 +20,9 @@ const features = [
     titleEn: "AI Agent Mode",
     titleEs: "Modo agente IA",
     descriptionEn:
-      "Connect an OpenClaw and your Shimeji becomes an agent with access to online and onchain tools.",
+      "Your Shimeji interacts with online and onchain tools.",
     descriptionEs:
-      "Conecta OpenClaw y tu Shimeji se convierte en un agente con acceso a herramientas online y onchain.",
+      "Tu Shimeji interactúa con herramientas online y onchain.",
   }
   ,
   {
