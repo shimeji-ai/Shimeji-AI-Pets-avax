@@ -46,14 +46,6 @@
   z-index: 61;
 }
 
-.bubbleRight {
-  left: 24px;
-}
-
-.bubbleLeft {
-  right: 24px;
-}
-
 .bubbleHeader {
   display: flex;
   align-items: center;
@@ -100,18 +92,26 @@
   color: rgba(255, 255, 255, 0.92);
   white-space: pre-wrap;
   word-break: break-word;
+  padding: 7px 10px;
+  border-radius: 10px;
+  max-width: 85%;
 }
 
 .msg + .msg {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .msgUser {
-  opacity: 0.95;
+  background: rgba(139, 92, 246, 0.25);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  margin-left: auto;
+  text-align: right;
 }
 
 .msgAssistant {
-  opacity: 0.92;
+  background: rgba(255, 154, 216, 0.12);
+  border: 1px solid rgba(255, 154, 216, 0.2);
+  margin-right: auto;
 }
 
 .inputRow {
@@ -152,16 +152,10 @@
 
 @media (max-width: 768px) {
   .bubbleFixed {
-    left: 12px;
+    left: 12px !important;
     right: 12px;
     bottom: 90px;
     width: auto;
     max-width: none;
-  }
-
-  .bubbleRight,
-  .bubbleLeft {
-    left: 12px;
-    right: 12px;
   }
 }

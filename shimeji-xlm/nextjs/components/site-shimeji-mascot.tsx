@@ -103,13 +103,12 @@ export function SiteShimejiMascot() {
     [],
   );
 
-  const [bubbleSide, setBubbleSide] = useState<"left" | "right">("right");
+  const mascotXRef = useRef(24);
 
   useEffect(() => {
     let raf = 0;
     let lastT = 0;
     let lastFrameT = 0;
-    let lastSideT = 0;
 
     let x = 24;
     let dir: 1 | -1 = 1;
@@ -123,14 +122,8 @@ export function SiteShimejiMascot() {
 
     const handleMobileChange = (event: MediaQueryListEvent) => {
       isMobile = event.matches;
-      if (event.matches) {
-        setBubbleSide("left");
-      }
     };
 
-    if (isMobile) {
-      setBubbleSide("left");
-    }
     mobileMq.addEventListener("change", handleMobileChange);
 
     const tick = (t: number) => {
@@ -173,14 +166,19 @@ export function SiteShimejiMascot() {
           if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
         }
 
-        if (t - lastSideT > 250) {
-          lastSideT = t;
-          setBubbleSide(x > vw / 2 ? "left" : "right");
-        }
       }
 
-      wrapRef.current.style.transform = `translate3d(${Math.round(clamp(x, minX, maxX))}px, 0, 0)`;
+      const clampedX = Math.round(clamp(x, minX, maxX));
+      wrapRef.current.style.transform = `translate3d(${clampedX}px, 0, 0)`;
       if (imgRef.current) imgRef.current.style.transform = `scaleX(${-dir})`;
+
+      mascotXRef.current = clampedX;
+      if (bubbleRef.current && !isMobile) {
+        const bubbleW = 340;
+        const centerX = clampedX + spriteW / 2 - bubbleW / 2;
+        const clampedLeft = clamp(centerX, 8, vw - bubbleW - 8);
+        bubbleRef.current.style.left = `${clampedLeft}px`;
+      }
 
       raf = requestAnimationFrame(tick);
     };
@@ -259,7 +257,8 @@ export function SiteShimejiMascot() {
       {open && (
         <div
           ref={bubbleRef}
-          className={`${styles.bubble} ${styles.bubbleFixed} ${bubbleSide === "left" ? styles.bubbleLeft : styles.bubbleRight}`}
+          className={`${styles.bubble} ${styles.bubbleFixed}`}
+          style={{ left: Math.round(clamp(mascotXRef.current + 36 - 170, 8, (typeof window !== "undefined" ? window.innerWidth : 800) - 340 - 8)) }}
           onClick={e => e.stopPropagation()}
         >
           <div className={styles.bubbleHeader}>

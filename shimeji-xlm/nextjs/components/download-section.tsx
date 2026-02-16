@@ -25,9 +25,9 @@ export function DownloadSection() {
           {/* <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/10 mb-6 text-[var(--brand-accent)]">
             <Download className="w-8 h-8" />
           </div> */}
-          <h2 className="text-5xl font-semibold my-4">
+          {/* <h2 className="text-5xl font-semibold my-4">
             {isSpanish ? "Descargar Shimeji AI Pets" : "Download Shimeji AI Pets"}
-          </h2>
+          </h2> */}
           
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
