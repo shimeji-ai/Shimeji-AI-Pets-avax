@@ -27,11 +27,7 @@ export function Footer() {
                   Shimeji AI Pets
                 </span>
               </div>
-              <p className="text-muted-foreground text-sm max-w-xs mb-6 leading-relaxed">
-                {isSpanish
-                  ? "Mascotas animadas con IA para tu escritorio y navegador. Chatea, recibe avisos suaves o conecta un agente con herramientas online y onchain."
-                  : "Animated AI pets for your desktop and browser. Chat, get gentle nudges, or connect an agent with online and onchain tools."}
-              </p>
+             
               <div className="flex gap-3">
                 <Link
                   href="https://x.com/ShimejiAIPets"
