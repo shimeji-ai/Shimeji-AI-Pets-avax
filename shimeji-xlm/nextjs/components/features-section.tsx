@@ -11,18 +11,18 @@ const features = [
     titleEn: "AI Chat with Personality",
     titleEs: "Chat IA con personalidad",
     descriptionEn:
-      "Your shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
+      "Your Shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
     descriptionEs:
-      "Tu shimeji te responde con la personalidad que elijas.",
+      "Tu Shimeji te responde con la personalidad que elijas.",
   },
   {
     icon: Bot,
     titleEn: "AI Agent Mode",
     titleEs: "Modo agente IA",
     descriptionEn:
-      "Connect an OpenClaw and your shimeji becomes an agent with access to online and onchain tools.",
+      "Connect an OpenClaw and your Shimeji becomes an agent with access to online and onchain tools.",
     descriptionEs:
-      "Conecta OpenClaw y tu shimeji se convierte en un agente con acceso a herramientas online y onchain.",
+      "Conecta OpenClaw y tu Shimeji se convierte en un agente con acceso a herramientas online y onchain.",
   }
   ,
   {
@@ -30,9 +30,9 @@ const features = [
     titleEn: "Terminal Interaction",
     titleEs: "Interacción con la terminal",
     descriptionEn:
-      "Brings secure terminal interaction — run commands through your shimeji.",
+      "Run commands through your Shimeji.",
     descriptionEs:
-      "Trae interacción segura con la terminal — ejecutá comandos a través de tu shimeji.",
+      "Ejecutá comandos a través de tu Shimeji.",
   }
 ];
 
