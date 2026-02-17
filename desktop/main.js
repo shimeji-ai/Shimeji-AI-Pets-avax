@@ -587,10 +587,11 @@ function buildTerminalScriptSpawnSpec(scriptText, distro = '') {
   };
 }
 
-function buildInteractiveTerminalSessionSpawnSpec(distro = '') {
+function buildInteractiveTerminalSessionSpawnSpec(distro = '', cwd = '') {
   const normalizedDistro = normalizeTerminalDistro(distro);
+  const cdPrefix = cwd ? `cd "${escapeBashDoubleQuoted(cwd)}" 2>/dev/null; ` : '';
   if (IS_WINDOWS) {
-    const shellBootstrap = 'if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "bash -il"; fi; exec bash -il';
+    const shellBootstrap = `${cdPrefix}if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "bash -il"; fi; exec bash -il`;
     return {
       command: 'wsl.exe',
       args: [...(normalizedDistro ? ['-d', normalizedDistro] : []), '--', 'bash', '-lc', shellBootstrap]
@@ -602,12 +603,13 @@ function buildInteractiveTerminalSessionSpawnSpec(distro = '') {
   if (IS_MAC) {
     return {
       command: shellBinary,
-      args: ['-il']
+      args: ['-il'],
+      ...(cwd ? { cwd } : {})
     };
   }
 
   const escapedShell = escapeBashDoubleQuoted(shellBinary);
-  const shellBootstrap = `if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "${escapedShell} -il"; fi; exec "${escapedShell}" -il`;
+  const shellBootstrap = `${cdPrefix}if command -v script >/dev/null 2>&1; then exec script -qf /dev/null -c "${escapedShell} -il"; fi; exec "${escapedShell}" -il`;
   return {
     command: 'bash',
     args: ['-lc', shellBootstrap]
@@ -1053,9 +1055,9 @@ function onTerminalStderr(sessionObj, data) {
 function createTerminalSession(shimejiId, settings = {}) {
   const distro = normalizeTerminalDistro(settings.terminalDistro);
   const configuredCwd = normalizeTerminalCwd(settings.terminalCwd);
-  const spawnSpec = buildInteractiveTerminalSessionSpawnSpec(distro);
+  const spawnSpec = buildInteractiveTerminalSessionSpawnSpec(distro, configuredCwd);
 
-  const child = spawn(spawnSpec.command, spawnSpec.args, {
+  const spawnOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
     windowsHide: true,
     env: {
@@ -1067,21 +1069,27 @@ function createTerminalSession(shimejiId, settings = {}) {
       COLUMNS: '80',
       LINES: '24'
     }
-  });
+  };
+  if (spawnSpec.cwd) {
+    spawnOptions.cwd = spawnSpec.cwd;
+  }
+
+  const child = spawn(spawnSpec.command, spawnSpec.args, spawnOptions);
 
   const sessionObj = {
     shimejiId,
     distro,
     configuredCwd,
-    needsConfiguredCwd: Boolean(configuredCwd),
-    currentCwd: '',
+    needsConfiguredCwd: false,
+    currentCwd: configuredCwd || '',
     sessionCols: 0,
     sessionRows: 0,
     sessionWebContents: null,
     sessionBuffer: '',
     process: child,
     pending: null,
-    closing: false
+    closing: false,
+    createdAt: Date.now()
   };
 
   child.stdout.setEncoding('utf8');
@@ -1177,16 +1185,9 @@ function getOrCreateTerminalSession(shimejiId, settings = {}) {
 function attachTerminalSession(webContents, shimejiId, settings = {}) {
   const sessionObj = getOrCreateTerminalSession(shimejiId, settings);
   sessionObj.sessionWebContents = webContents || null;
-  if (!sessionObj.pending) {
+  // Only apply cd for re-attached sessions (not freshly created ones where bootstrap handles it)
+  if (!sessionObj.pending && sessionObj.needsConfiguredCwd) {
     applyConfiguredCwdIfNeeded(sessionObj);
-  }
-  if (sessionObj.sessionCols > 0 && sessionObj.sessionRows > 0) {
-    try {
-      sessionObj.process.stdin.write(
-        `stty cols ${sessionObj.sessionCols} rows ${sessionObj.sessionRows} 2>/dev/null\n`,
-        'utf8'
-      );
-    } catch {}
   }
   emitTerminalSessionEvent(sessionObj, 'terminal-session-state', {
     state: 'running',
@@ -1239,12 +1240,23 @@ function resizeTerminalSession(shimejiId, cols, rows) {
   const safeRows = Number.isFinite(parsedRows) ? Math.max(6, Math.min(240, parsedRows)) : 24;
   sessionObj.sessionCols = safeCols;
   sessionObj.sessionRows = safeRows;
-  try {
-    sessionObj.process.stdin.write(`stty cols ${safeCols} rows ${safeRows} 2>/dev/null\n`, 'utf8');
-  } catch {}
-  try {
-    sessionObj.process.kill('SIGWINCH');
-  } catch {}
+
+  const sendStty = () => {
+    try {
+      sessionObj.process.stdin.write(`stty cols ${safeCols} rows ${safeRows} 2>/dev/null\n`, 'utf8');
+    } catch {}
+    try {
+      sessionObj.process.kill('SIGWINCH');
+    } catch {}
+  };
+
+  // Delay stty for newly created sessions so the shell has time to initialize
+  const age = Date.now() - (sessionObj.createdAt || 0);
+  if (age < 1000) {
+    setTimeout(sendStty, 1000 - age);
+  } else {
+    sendStty();
+  }
   return { ok: true, cols: safeCols, rows: safeRows };
 }
 

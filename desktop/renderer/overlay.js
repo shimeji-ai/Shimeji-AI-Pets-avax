@@ -301,7 +301,9 @@ const CHARACTERS = [
   { id: 'egg', label: 'Egg' },
   { id: 'ghost', label: 'Ghost' },
   { id: 'blob', label: 'Blob' },
-  { id: 'lobster', label: 'Lobster' }
+  { id: 'lobster', label: 'Lobster' },
+  { id: 'mushroom', label: 'Mushroom' },
+  { id: 'penguin', label: 'Penguin' }
 ];
 
 let shimejis = [];

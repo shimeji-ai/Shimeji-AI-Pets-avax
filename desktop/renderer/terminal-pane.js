@@ -24,12 +24,15 @@
       this.boundKeyDown = (event) => this.onKeyDown(event);
       this.boundPaste = (event) => this.onPaste(event);
       this.boundMouseDown = () => this.focus();
+      this.boundContextMenu = (event) => this.onContextMenu(event);
+      this.contextMenuEl = null;
 
       this.container.innerHTML = '';
       this.container.tabIndex = 0;
       this.container.addEventListener('keydown', this.boundKeyDown);
       this.container.addEventListener('paste', this.boundPaste);
       this.container.addEventListener('mousedown', this.boundMouseDown);
+      this.container.addEventListener('contextmenu', this.boundContextMenu);
 
       if (window.Terminal) {
         this.mountXterm();
@@ -145,6 +148,8 @@
       this.container.removeEventListener('keydown', this.boundKeyDown);
       this.container.removeEventListener('paste', this.boundPaste);
       this.container.removeEventListener('mousedown', this.boundMouseDown);
+      this.container.removeEventListener('contextmenu', this.boundContextMenu);
+      this.dismissContextMenu();
       if (this.resizeObserver) {
         this.resizeObserver.disconnect();
         this.resizeObserver = null;
@@ -254,6 +259,83 @@
         }
         if (isFunction(this.options.onData)) this.options.onData(normalized);
       } catch {}
+    }
+
+    onContextMenu(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.dismissContextMenu();
+
+      const selected = this.getSelectedText();
+      const menu = document.createElement('div');
+      menu.className = 'shimeji-terminal-context-menu';
+      menu.style.cssText = `
+        position: fixed; z-index: 99999;
+        left: ${event.clientX}px; top: ${event.clientY}px;
+        background: #1b2534; border: 1px solid #2a3a4e; border-radius: 6px;
+        padding: 4px 0; min-width: 140px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 13px; color: #ebf1ff;
+      `;
+
+      const items = [
+        { label: 'Copy', shortcut: 'Ctrl+C', enabled: Boolean(selected), action: () => this.copyText(selected) },
+        { label: 'Paste', shortcut: 'Ctrl+V', enabled: true, action: () => this.pasteTextFromClipboard() },
+        { label: 'Select All', shortcut: '', enabled: true, action: () => { if (this.term) this.term.selectAll(); } }
+      ];
+
+      for (const item of items) {
+        const row = document.createElement('div');
+        row.style.cssText = `
+          padding: 6px 16px; cursor: ${item.enabled ? 'pointer' : 'default'};
+          display: flex; justify-content: space-between; align-items: center;
+          opacity: ${item.enabled ? '1' : '0.4'};
+        `;
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = item.label;
+        row.appendChild(labelSpan);
+        if (item.shortcut) {
+          const shortcutSpan = document.createElement('span');
+          shortcutSpan.textContent = item.shortcut;
+          shortcutSpan.style.cssText = 'margin-left: 24px; opacity: 0.5; font-size: 11px;';
+          row.appendChild(shortcutSpan);
+        }
+        if (item.enabled) {
+          row.addEventListener('mouseenter', () => { row.style.background = '#2a3a4e'; });
+          row.addEventListener('mouseleave', () => { row.style.background = 'transparent'; });
+          row.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.dismissContextMenu();
+            item.action();
+          });
+        }
+        menu.appendChild(row);
+      }
+
+      document.body.appendChild(menu);
+      this.contextMenuEl = menu;
+
+      // Adjust position if menu overflows viewport
+      const rect = menu.getBoundingClientRect();
+      if (rect.right > window.innerWidth) menu.style.left = `${window.innerWidth - rect.width - 4}px`;
+      if (rect.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - rect.height - 4}px`;
+
+      const dismissHandler = (e) => {
+        if (menu.contains(e.target)) return;
+        this.dismissContextMenu();
+      };
+      setTimeout(() => {
+        document.addEventListener('mousedown', dismissHandler, { once: true });
+        document.addEventListener('contextmenu', dismissHandler, { once: true });
+      }, 0);
+      menu._dismissHandler = dismissHandler;
+    }
+
+    dismissContextMenu() {
+      if (this.contextMenuEl) {
+        try { this.contextMenuEl.remove(); } catch {}
+        this.contextMenuEl = null;
+      }
     }
 
     onPaste(event) {

@@ -6,7 +6,9 @@ const CHARACTER_OPTIONS = [
   { id: 'kitten', labelEn: 'Kitten', labelEs: 'Gatito' },
   { id: 'ghost', labelEn: 'Ghost', labelEs: 'Fantasma' },
   { id: 'blob', labelEn: 'Blob', labelEs: 'Blob' },
-  { id: 'lobster', labelEn: 'Lobster', labelEs: 'Langosta' }
+  { id: 'lobster', labelEn: 'Lobster', labelEs: 'Langosta' },
+  { id: 'mushroom', labelEn: 'Mushroom', labelEs: 'Hongo' },
+  { id: 'penguin', labelEn: 'Penguin', labelEs: 'Pingüino' }
 ];
 
 const BUILTIN_NFT_CHARACTERS = [
