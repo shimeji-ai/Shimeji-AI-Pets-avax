@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,6 +30,24 @@ export function Header() {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const isMainnetNetwork = STELLAR_NETWORK === "mainnet";
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
+
+  // Close mobile menu when clicking outside the header
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isMenuOpen]);
 
   const isActive = (pathMatch: string) => {
     if (pathMatch === "/") return pathname === "/";
@@ -55,7 +73,7 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-4 left-4 right-4 z-50">
+    <header ref={headerRef} className="fixed top-4 left-4 right-4 z-50">
       <div className="max-w-6xl mx-auto neural-card rounded-2xl border border-white/10">
         <div className="flex items-center justify-between h-16 px-6 w-full">
           <div
