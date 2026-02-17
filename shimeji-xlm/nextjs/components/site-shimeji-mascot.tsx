@@ -99,6 +99,9 @@ export function SiteShimejiMascot() {
     () => ({
       stand: "/shimeji-original/stand-neutral.png",
       walk: ["/shimeji-original/walk-step-left.png", "/shimeji-original/stand-neutral.png", "/shimeji-original/walk-step-right.png", "/shimeji-original/stand-neutral.png"],
+      sit: "/shimeji-original/sit.png",
+      sittingPc: "/shimeji-original/sit-pc-edge-legs-down.png",
+      sittingPcDangle: ["/shimeji-original/sit-pc-edge-dangle-frame-1.png", "/shimeji-original/sit-pc-edge-dangle-frame-2.png"],
     }),
     [],
   );
@@ -113,6 +116,13 @@ export function SiteShimejiMascot() {
     let x = 24;
     let dir: 1 | -1 = 1;
     let frameIdx = 0;
+
+    // Chat sitting animation state
+    type ChatPose = "sit" | "pc" | "dangle";
+    let chatPose: ChatPose = "sit";
+    let chatPoseTimer = 0;
+    let chatDangleFrame = 0;
+    let chatPoseDuration = 2000 + Math.random() * 1500;
 
     const spriteW = 72;
     const margin = 14;
@@ -147,6 +157,10 @@ export function SiteShimejiMascot() {
         if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
       } else {
         if (!openRef.current) {
+          // Reset chat pose when chat closes
+          chatPose = "sit";
+          chatPoseTimer = 0;
+          chatPoseDuration = 2000 + Math.random() * 1500;
           x += dir * speedPxPerSec * dt;
           if (x <= minX) {
             x = minX;
@@ -163,7 +177,36 @@ export function SiteShimejiMascot() {
             if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
           }
         } else {
-          if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
+          // Chat open: cycle through sit → pc → dangle poses
+          chatPoseTimer += dt * 1000;
+          if (chatPoseTimer >= chatPoseDuration) {
+            chatPoseTimer = 0;
+            if (chatPose === "sit") {
+              chatPose = "pc";
+              chatPoseDuration = 1500 + Math.random() * 1500;
+            } else if (chatPose === "pc") {
+              chatPose = "dangle";
+              chatPoseDuration = 1800 + Math.random() * 1200;
+              chatDangleFrame = 0;
+            } else {
+              chatPose = "sit";
+              chatPoseDuration = 2000 + Math.random() * 1500;
+            }
+          }
+
+          let chatSrc: string;
+          if (chatPose === "pc") {
+            chatSrc = frames.sittingPc;
+          } else if (chatPose === "dangle") {
+            if (t - lastFrameT > 250) {
+              lastFrameT = t;
+              chatDangleFrame = (chatDangleFrame + 1) % frames.sittingPcDangle.length;
+            }
+            chatSrc = frames.sittingPcDangle[chatDangleFrame];
+          } else {
+            chatSrc = frames.sit;
+          }
+          if (imgRef.current) imgRef.current.setAttribute("src", chatSrc);
         }
 
       }
@@ -188,7 +231,7 @@ export function SiteShimejiMascot() {
       cancelAnimationFrame(raf);
       mobileMq.removeEventListener("change", handleMobileChange);
     };
-  }, [frames.stand, frames.walk]);
+  }, [frames.stand, frames.walk, frames.sit, frames.sittingPc, frames.sittingPcDangle]);
 
   function ensureGreeting() {
     setMessages(prev => {

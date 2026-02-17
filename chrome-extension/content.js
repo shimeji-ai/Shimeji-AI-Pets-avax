@@ -34,6 +34,8 @@
         CLIMBING_WALL: 'climbing_wall',
         CLIMBING_CEILING: 'climbing_ceiling',
         SITTING_EDGE: 'sitting_edge',
+        SITTING_PC: 'sitting_pc',
+        SITTING_PC_DANGLE: 'sitting_pc_dangle',
         HEAD_SPIN: 'head_spin',
         SPRAWLED: 'sprawled'
     };
@@ -71,7 +73,10 @@
         'spin-head-frame-3': 'spin-head-frame-3.png',
         'spin-head-frame-4': 'spin-head-frame-4.png',
         'spin-head-frame-5': 'spin-head-frame-5.png',
-        'spin-head-frame-6': 'spin-head-frame-6.png'
+        'spin-head-frame-6': 'spin-head-frame-6.png',
+        'sit-pc-edge-legs-down': 'sit-pc-edge-legs-down.png',
+        'sit-pc-edge-dangle-frame-1': 'sit-pc-edge-dangle-frame-1.png',
+        'sit-pc-edge-dangle-frame-2': 'sit-pc-edge-dangle-frame-2.png'
     };
 
     const ANIMATIONS_FULL = {
@@ -135,6 +140,13 @@
             { sprite: 'spin-head-frame-3', duration: 5 },
             { sprite: 'spin-head-frame-6', duration: 5 },
             { sprite: 'sit', duration: 5 }
+        ],
+        sittingPc: [
+            { sprite: 'sit-pc-edge-legs-down', duration: 10 }
+        ],
+        sittingPcDangle: [
+            { sprite: 'sit-pc-edge-dangle-frame-1', duration: 15 },
+            { sprite: 'sit-pc-edge-dangle-frame-2', duration: 15 }
         ]
     };
     const ANIMATIONS_SIMPLE = {
@@ -179,6 +191,13 @@
         ],
         headSpin: [
             { sprite: 'sit', duration: 1 }
+        ],
+        sittingPc: [
+            { sprite: 'sit-pc-edge-legs-down', duration: 1 }
+        ],
+        sittingPcDangle: [
+            { sprite: 'sit-pc-edge-dangle-frame-1', duration: 1 },
+            { sprite: 'sit-pc-edge-dangle-frame-2', duration: 1 }
         ]
     };
 
@@ -3746,7 +3765,7 @@
                 return;
             }
 
-            if (isChatOpen && (mascot.state === State.SITTING || mascot.state === State.HEAD_SPIN || mascot.state === State.SPRAWLED)) {
+            if (isChatOpen && (mascot.state === State.SITTING || mascot.state === State.HEAD_SPIN || mascot.state === State.SPRAWLED || mascot.state === State.SITTING_PC || mascot.state === State.SITTING_PC_DANGLE)) {
                 if (mascot.state === State.SITTING) {
                     mascot.stateTimer++;
                     if (!chatWiggleTimer) {
@@ -3763,6 +3782,40 @@
                     if (supportedAnimations.has('headSpin') && mascot.stateTimer > 90 && Math.random() < 0.02) {
                         mascot.state = State.HEAD_SPIN;
                         mascot.currentAnimation = 'headSpin';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    if (supportedAnimations.has('sittingPc') && mascot.stateTimer > 80 && Math.random() < 0.015) {
+                        mascot.state = State.SITTING_PC;
+                        mascot.currentAnimation = 'sittingPc';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    return;
+                }
+                if (mascot.state === State.SITTING_PC) {
+                    mascot.stateTimer++;
+                    if (mascot.stateTimer > 30) {
+                        if (Math.random() < 0.6) {
+                            mascot.state = State.SITTING_PC_DANGLE;
+                            mascot.currentAnimation = 'sittingPcDangle';
+                        } else {
+                            mascot.state = State.SITTING;
+                            mascot.currentAnimation = 'sitting';
+                        }
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    return;
+                }
+                if (mascot.state === State.SITTING_PC_DANGLE) {
+                    mascot.stateTimer++;
+                    if (mascot.stateTimer > 50) {
+                        mascot.state = State.SITTING;
+                        mascot.currentAnimation = 'sitting';
                         mascot.stateTimer = 0;
                         mascot.animationFrame = 0;
                         mascot.animationTick = 0;
@@ -3958,6 +4011,14 @@
                         mascot.animationTick = 0;
                         break;
                     }
+                    if (supportedAnimations.has('sittingPc') && mascot.stateTimer > 100 && Math.random() < 0.008) {
+                        mascot.state = State.SITTING_PC;
+                        mascot.currentAnimation = 'sittingPc';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                        break;
+                    }
                     if (mascot.stateTimer > 100 && Math.random() < 0.02) {
                         mascot.state = State.IDLE;
                         mascot.currentAnimation = 'idle';
@@ -3966,6 +4027,36 @@
                         mascot.animationTick = 0;
                     }
                     break;
+
+                case State.SITTING_PC: {
+                    mascot.stateTimer++;
+                    if (mascot.stateTimer > 30) {
+                        const roll = Math.random();
+                        if (roll < 0.6) {
+                            mascot.state = State.SITTING_PC_DANGLE;
+                            mascot.currentAnimation = 'sittingPcDangle';
+                        } else {
+                            mascot.state = State.SITTING;
+                            mascot.currentAnimation = 'sitting';
+                        }
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    break;
+                }
+
+                case State.SITTING_PC_DANGLE: {
+                    mascot.stateTimer++;
+                    if (mascot.stateTimer > 50) {
+                        mascot.state = State.SITTING;
+                        mascot.currentAnimation = 'sitting';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    break;
+                }
 
                 case State.SPRAWLED:
                     mascot.stateTimer++;

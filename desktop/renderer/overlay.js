@@ -33,7 +33,9 @@ const ANIMATION_FRAMES = {
   climbingWall: ['climb-wall-frame-1.png', 'climb-wall-frame-2.png'],
   grabbingCeiling: ['grab-ceiling.png'],
   climbingCeiling: ['climb-ceiling-frame-1.png', 'climb-ceiling-frame-2.png'],
-  headSpin: ['spin-head-frame-1.png', 'spin-head-frame-2.png', 'spin-head-frame-3.png', 'spin-head-frame-4.png', 'spin-head-frame-5.png', 'spin-head-frame-6.png']
+  headSpin: ['spin-head-frame-1.png', 'spin-head-frame-2.png', 'spin-head-frame-3.png', 'spin-head-frame-4.png', 'spin-head-frame-5.png', 'spin-head-frame-6.png'],
+  sittingPc: ['sit-pc-edge-legs-down.png'],
+  sittingPcDangle: ['sit-pc-edge-dangle-frame-1.png', 'sit-pc-edge-dangle-frame-2.png']
 };
 
 const SHIMEJI_STATES = {
@@ -56,7 +58,9 @@ const SHIMEJI_STATES = {
   CLIMBING_WALL: 'climbingWall',
   GRABBING_CEILING: 'grabbingCeiling',
   CLIMBING_CEILING: 'climbingCeiling',
-  HEAD_SPIN: 'headSpin'
+  HEAD_SPIN: 'headSpin',
+  SITTING_PC: 'sittingPc',
+  SITTING_PC_DANGLE: 'sittingPcDangle'
 };
 
 const PHYSICS = {
@@ -3007,7 +3011,7 @@ class Shimeji {
     this.stopVoiceInput();
     this.state.chatPoseUntil = 0;
     const S = SHIMEJI_STATES;
-    if ([S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN].includes(this.state.currentState)) {
+    if ([S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN, S.SITTING_PC, S.SITTING_PC_DANGLE].includes(this.state.currentState)) {
       this.state.currentState = this.state.onGround ? S.IDLE : S.FALLING;
       this.state.animFrame = 0;
       this.state.animTimer = 0;
@@ -3614,7 +3618,35 @@ class Shimeji {
     st.vx = 0;
     st.vy = 0;
 
-    if (![S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN].includes(st.currentState)) {
+    // Terminal mode: force sitting-with-PC animation cycle
+    if (this.isTerminalMode()) {
+      if (![S.SITTING_PC, S.SITTING_PC_DANGLE].includes(st.currentState)) {
+        st.currentState = S.SITTING_PC;
+        st.animFrame = 0;
+        st.animTimer = 0;
+        st.chatPoseUntil = 0;
+      }
+
+      const now = Date.now();
+      if (st.chatPoseUntil > now) return;
+
+      let nextState, duration;
+      if (st.currentState === S.SITTING_PC) {
+        nextState = S.SITTING_PC_DANGLE;
+        duration = 1200 + Math.random() * 1600;
+      } else {
+        nextState = S.SITTING_PC;
+        duration = 1500 + Math.random() * 2200;
+      }
+
+      st.currentState = nextState;
+      st.animFrame = 0;
+      st.animTimer = 0;
+      st.chatPoseUntil = now + duration;
+      return;
+    }
+
+    if (![S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN, S.SITTING_PC, S.SITTING_PC_DANGLE].includes(st.currentState)) {
       st.currentState = S.SITTING;
       st.animFrame = 0;
       st.animTimer = 0;
@@ -3637,6 +3669,9 @@ class Shimeji {
     } else if (roll < 0.72) {
       nextState = S.DANGLING_LEGS;
       duration = 1100 + Math.random() * 1400;
+    } else if (roll < 0.85) {
+      nextState = S.SITTING_PC;
+      duration = 1200 + Math.random() * 1600;
     }
 
     st.currentState = nextState;
@@ -3680,7 +3715,9 @@ class Shimeji {
 
     // States that defy gravity (attached to surfaces)
     const attachedStates = [S.CLIMBING_WALL, S.CLIMBING_CEILING, S.GRABBING_WALL, S.GRABBING_CEILING];
-    const isAttached = attachedStates.includes(st.currentState);
+    // Edge-sitting states also defy gravity when on the ceiling
+    const edgeSitStates = [S.SITTING_EDGE, S.DANGLING_LEGS, S.SITTING_PC, S.SITTING_PC_DANGLE];
+    const isAttached = attachedStates.includes(st.currentState) || (st.onCeiling && edgeSitStates.includes(st.currentState));
 
     // Apply gravity when not on ground and not attached to a surface
     if (!st.onGround && !isAttached) {
@@ -3801,6 +3838,15 @@ class Shimeji {
         }
       }
 
+      // Direct wall grab when walking into screen edges (like chrome extension)
+      if (st.onWall && st.onGround && (st.currentState === S.WALKING || st.currentState === S.RUNNING)) {
+        if (Math.random() < 0.35) {
+          this.setBehavior(S.GRABBING_WALL, 30 + Math.random() * 40);
+          st.vx = 0;
+          return;
+        }
+      }
+
       // Weighted random action selection (shimeji-ee style)
       if (Math.random() < 0.012) {
         const choices = [];
@@ -3894,10 +3940,11 @@ class Shimeji {
       if (st.behaviorTimer >= st.behaviorDuration) {
         // After sitting, maybe look up, spin head, or stand
         const choices = [
-          { weight: 40, action: S.IDLE },
-          { weight: 30, action: S.SITTING_LOOK_UP },
+          { weight: 35, action: S.IDLE },
+          { weight: 25, action: S.SITTING_LOOK_UP },
           { weight: 15, action: S.HEAD_SPIN },
-          { weight: 15, action: S.LYING_DOWN }
+          { weight: 15, action: S.LYING_DOWN },
+          { weight: 10, action: S.SITTING_PC }
         ];
         const next = weightedRandom(choices);
         this.setBehavior(next, 60 + Math.random() * 80);
@@ -3914,22 +3961,71 @@ class Shimeji {
       }
     }
 
-    // --- Edge sitting → dangling legs ---
+    // --- Edge sitting → dangling legs / sitting with PC ---
     if (st.currentState === S.SITTING_EDGE) {
       st.vx = 0;
       if (st.behaviorTimer >= st.behaviorDuration) {
-        // Transition to dangling legs or stand up
-        const next = Math.random() < 0.6 ? S.DANGLING_LEGS : S.IDLE;
-        this.setBehavior(next, next === S.DANGLING_LEGS ? 80 + Math.random() * 100 : 0);
-        if (next === S.IDLE) st.wanderUntil = 0;
+        const roll = Math.random();
+        let next;
+        if (roll < 0.4) {
+          next = S.DANGLING_LEGS;
+          this.setBehavior(next, 80 + Math.random() * 100);
+        } else if (roll < 0.7) {
+          next = S.SITTING_PC;
+          this.setBehavior(next, 100 + Math.random() * 120);
+        } else {
+          // Fall off if on ceiling, otherwise go idle
+          if (!st.onGround) {
+            st.currentState = S.FALLING;
+            st.vx = 0;
+          } else {
+            next = S.IDLE;
+            this.setBehavior(next, 0);
+            st.wanderUntil = 0;
+          }
+        }
       }
     }
 
     if (st.currentState === S.DANGLING_LEGS) {
       st.vx = 0;
       if (st.behaviorTimer >= st.behaviorDuration) {
-        st.currentState = S.IDLE;
-        st.wanderUntil = 0;
+        if (!st.onGround) {
+          st.currentState = S.FALLING;
+          st.vx = 0;
+        } else {
+          st.currentState = S.IDLE;
+          st.wanderUntil = 0;
+        }
+      }
+    }
+
+    // --- Sitting with PC → dangle or idle/fall ---
+    if (st.currentState === S.SITTING_PC) {
+      st.vx = 0;
+      if (st.behaviorTimer >= st.behaviorDuration) {
+        if (Math.random() < 0.6) {
+          this.setBehavior(S.SITTING_PC_DANGLE, 80 + Math.random() * 100);
+        } else if (!st.onGround) {
+          st.currentState = S.FALLING;
+          st.vx = 0;
+        } else {
+          this.setBehavior(S.IDLE, 0);
+          st.wanderUntil = 0;
+        }
+      }
+    }
+
+    if (st.currentState === S.SITTING_PC_DANGLE) {
+      st.vx = 0;
+      if (st.behaviorTimer >= st.behaviorDuration) {
+        if (!st.onGround) {
+          st.currentState = S.FALLING;
+          st.vx = 0;
+        } else {
+          st.currentState = S.IDLE;
+          st.wanderUntil = 0;
+        }
       }
     }
 
@@ -3947,9 +4043,9 @@ class Shimeji {
       st.vx = 0;
       st.vy = 0;
       if (st.behaviorTimer >= st.behaviorDuration) {
-        // Start climbing or let go
+        // Start climbing or let go (70% climb)
         if (Math.random() < 0.7) {
-          this.setBehavior(S.CLIMBING_WALL, 80 + Math.random() * 120);
+          this.setBehavior(S.CLIMBING_WALL, 400 + Math.random() * 600);
         } else {
           st.currentState = S.FALLING;
         }
@@ -3958,11 +4054,15 @@ class Shimeji {
 
     // --- Wall climbing ---
     if (st.currentState === S.CLIMBING_WALL) {
-      if (st.behaviorTimer >= st.behaviorDuration || !st.onWall) {
+      // Random chance to fall off after some time
+      if (st.behaviorTimer > 60 && Math.random() < 0.01) {
+        st.currentState = S.FALLING;
+        st.vy = 0;
+        st.vx = 0;
+      } else if (st.behaviorTimer >= st.behaviorDuration || !st.onWall) {
         if (st.onCeiling) {
           this.setBehavior(S.GRABBING_CEILING, 30 + Math.random() * 40);
         } else {
-          // Fall off or keep climbing
           st.currentState = S.FALLING;
           st.vy = 0;
         }
@@ -3975,7 +4075,7 @@ class Shimeji {
       st.vy = 0;
       if (st.behaviorTimer >= st.behaviorDuration) {
         if (Math.random() < 0.7) {
-          this.setBehavior(S.CLIMBING_CEILING, 80 + Math.random() * 120);
+          this.setBehavior(S.CLIMBING_CEILING, 200 + Math.random() * 300);
         } else {
           st.currentState = S.FALLING;
         }
@@ -3984,8 +4084,13 @@ class Shimeji {
 
     // --- Ceiling climbing ---
     if (st.currentState === S.CLIMBING_CEILING) {
-      if (st.behaviorTimer >= st.behaviorDuration) {
-        // Fall off ceiling
+      // Random chance to sit on edge or fall
+      if (st.behaviorTimer > 75 && Math.random() < 0.01) {
+        this.setBehavior(S.SITTING_EDGE, 80 + Math.random() * 100);
+      } else if (st.behaviorTimer > 75 && Math.random() < 0.015) {
+        st.currentState = S.FALLING;
+        st.vx = 0;
+      } else if (st.behaviorTimer >= st.behaviorDuration) {
         st.currentState = S.FALLING;
         st.vx = 0;
       }
@@ -4014,7 +4119,9 @@ class Shimeji {
       [S.SITTING]: 10,
       [S.SITTING_LOOK_UP]: 10,
       [S.SITTING_EDGE]: 10,
-      [S.LYING_DOWN]: 10
+      [S.LYING_DOWN]: 10,
+      [S.SITTING_PC]: 10,
+      [S.SITTING_PC_DANGLE]: 15
     };
     const frameDuration = durations[this.state.currentState] || 10;
 
