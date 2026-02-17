@@ -35,7 +35,9 @@ const ANIMATION_FRAMES = {
   climbingCeiling: ['climb-ceiling-frame-1.png', 'climb-ceiling-frame-2.png'],
   headSpin: ['spin-head-frame-1.png', 'spin-head-frame-2.png', 'spin-head-frame-3.png', 'spin-head-frame-4.png', 'spin-head-frame-5.png', 'spin-head-frame-6.png'],
   sittingPc: ['sit-pc-edge-legs-down.png'],
-  sittingPcDangle: ['sit-pc-edge-dangle-frame-1.png', 'sit-pc-edge-dangle-frame-2.png']
+  sittingPcDangle: ['sit-pc-edge-dangle-frame-1.png', 'sit-pc-edge-dangle-frame-2.png'],
+  walkingOff: ['walk-step-left.png', 'stand-neutral.png', 'walk-step-right.png', 'stand-neutral.png'],
+  walkingOn: ['walk-step-left.png', 'stand-neutral.png', 'walk-step-right.png', 'stand-neutral.png']
 };
 
 const SHIMEJI_STATES = {
@@ -60,7 +62,9 @@ const SHIMEJI_STATES = {
   CLIMBING_CEILING: 'climbingCeiling',
   HEAD_SPIN: 'headSpin',
   SITTING_PC: 'sittingPc',
-  SITTING_PC_DANGLE: 'sittingPcDangle'
+  SITTING_PC_DANGLE: 'sittingPcDangle',
+  WALKING_OFF: 'walkingOff',
+  WALKING_ON: 'walkingOn'
 };
 
 const PHYSICS = {
@@ -418,9 +422,12 @@ class Shimeji {
       pressStartX: 0,
       pressStartY: 0,
       chatPoseUntil: 0,
-      suppressClickUntil: 0
+      suppressClickUntil: 0,
+      offScreen: false,
+      offScreenEdge: 0
     };
 
+    this.offScreenSince = 0;
     this.chatOpen = false;
     this.messages = [];
     this.unreadNotificationCount = 0;
@@ -2722,6 +2729,7 @@ class Shimeji {
   }
 
   notifyClosedChatActivity(durationMs = 3400) {
+    if (this.state.offScreen) this.callBack();
     if (this.chatOpen) return;
     this.closedChatNoticeUntil = Date.now() + Math.max(800, durationMs);
     if (this.closedChatNoticeTimer) {
@@ -2737,6 +2745,7 @@ class Shimeji {
   }
 
   showNotificationBubble(text, durationMs = 4000) {
+    if (this.state.offScreen) this.callBack();
     if (!this.elements.notificationBubble) return;
     this.elements.notificationBubble.textContent = text;
     this.elements.notificationBubble.classList.add('visible');
@@ -3680,8 +3689,44 @@ class Shimeji {
     st.chatPoseUntil = now + duration;
   }
 
+  hideOffScreen() {
+    this.state.offScreen = true;
+    this.offScreenSince = Date.now();
+    this.state.vx = 0;
+    if (this.chatOpen) this.closeChat();
+    if (this.elements.wrapper) {
+      this.elements.wrapper.style.display = 'none';
+    }
+  }
+
+  callBack() {
+    if (!this.state.offScreen) return;
+    const scale = SPRITE_SCALES[this.config.size] || 1;
+    const size = SPRITE_SIZE * scale;
+    const edge = this.state.offScreenEdge || -1;
+    // Position just off the edge the shimeji left from
+    this.state.x = edge === -1 ? -size : window.innerWidth + size;
+    this.state.y = this.getGroundY();
+    this.state.onGround = true;
+    this.state.offScreen = false;
+    this.offScreenSince = 0;
+    // Walk toward the middle of the screen
+    this.state.wanderTarget = window.innerWidth * (0.3 + Math.random() * 0.4);
+    this.state.wanderUntil = Date.now() + 10000;
+    this.state.direction = edge === -1 ? 1 : -1;
+    this.setBehavior(SHIMEJI_STATES.WALKING_ON, 400);
+    if (this.elements.wrapper) {
+      this.elements.wrapper.style.display = 'flex';
+    }
+  }
+
+  isOffScreen() {
+    return this.state.offScreen;
+  }
+
   update() {
     if (!this.config.enabled) return;
+    if (this.state.offScreen) return;
 
     if (this.state.pointerDown && !this.state.dragging) {
       this.updateVisuals();
@@ -3772,21 +3817,26 @@ class Shimeji {
       st.onCeiling = false;
     }
 
-    // Wall collisions
-    if (st.x <= 0) {
-      st.x = 0;
-      if (!isAttached) {
-        st.vx = Math.abs(st.vx);
-        st.direction = 1;
+    // Wall collisions (skip when walking off/on screen)
+    const isWalkingOffOn = st.currentState === S.WALKING_OFF || st.currentState === S.WALKING_ON;
+    if (!isWalkingOffOn) {
+      if (st.x <= 0) {
+        st.x = 0;
+        if (!isAttached) {
+          st.vx = Math.abs(st.vx);
+          st.direction = 1;
+        }
+        st.onWall = true;
+      } else if (st.x >= screenWidth - size) {
+        st.x = screenWidth - size;
+        if (!isAttached) {
+          st.vx = -Math.abs(st.vx);
+          st.direction = -1;
+        }
+        st.onWall = true;
+      } else {
+        st.onWall = false;
       }
-      st.onWall = true;
-    } else if (st.x >= screenWidth - size) {
-      st.x = screenWidth - size;
-      if (!isAttached) {
-        st.vx = -Math.abs(st.vx);
-        st.direction = -1;
-      }
-      st.onWall = true;
     } else {
       st.onWall = false;
     }
@@ -3872,6 +3922,11 @@ class Shimeji {
           choices.push({ weight: 60, action: 'sitEdge' });
         }
 
+        // Walk off-screen (only when chat is closed)
+        if (st.onGround && !this.chatOpen) {
+          choices.push({ weight: 8, action: 'walkOff' });
+        }
+
         if (choices.length > 0) {
           const action = weightedRandom(choices);
           switch (action) {
@@ -3901,6 +3956,15 @@ class Shimeji {
             case 'sitEdge':
               this.setBehavior(S.SITTING_EDGE, 80 + Math.random() * 100);
               break;
+            case 'walkOff': {
+              const edge = Math.random() < 0.5 ? -1 : 1;
+              st.offScreenEdge = edge;
+              st.direction = edge;
+              st.wanderTarget = edge === -1 ? -size * 2 : maxX + size * 3;
+              st.wanderUntil = now + 15000;
+              this.setBehavior(S.WALKING_OFF, 600);
+              break;
+            }
           }
         }
       }
@@ -4095,6 +4159,30 @@ class Shimeji {
         st.vx = 0;
       }
     }
+
+    // --- Walking off-screen ---
+    if (st.currentState === S.WALKING_OFF) {
+      const dx = st.wanderTarget - st.x;
+      if (Math.abs(dx) > 5) {
+        st.vx = Math.sign(dx) * PHYSICS.walkSpeed;
+        st.direction = Math.sign(dx);
+      } else {
+        this.hideOffScreen();
+      }
+    }
+
+    // --- Walking on-screen ---
+    if (st.currentState === S.WALKING_ON) {
+      const dx = st.wanderTarget - st.x;
+      if (Math.abs(dx) > 5) {
+        st.vx = Math.sign(dx) * PHYSICS.walkSpeed;
+        st.direction = Math.sign(dx);
+      } else {
+        st.vx = 0;
+        this.setBehavior(S.IDLE, 0);
+        st.wanderUntil = 0;
+      }
+    }
   }
 
   updateAnimation() {
@@ -4121,7 +4209,9 @@ class Shimeji {
       [S.SITTING_EDGE]: 10,
       [S.LYING_DOWN]: 10,
       [S.SITTING_PC]: 10,
-      [S.SITTING_PC_DANGLE]: 15
+      [S.SITTING_PC_DANGLE]: 15,
+      [S.WALKING_OFF]: 8,
+      [S.WALKING_ON]: 8
     };
     const frameDuration = durations[this.state.currentState] || 10;
 
@@ -4824,6 +4914,18 @@ async function init() {
           const target = shimejis.find((s) => s.id === payload.shimejiId);
           if (!target) return;
           target.handleTerminalSessionState(payload);
+        });
+      }
+
+      if (window.shimejiApi.onCallBack) {
+        window.shimejiApi.onCallBack((payload) => {
+          if (!payload) return;
+          if (payload.all) {
+            shimejis.forEach((s) => { if (s.isOffScreen()) s.callBack(); });
+          } else if (payload.shimejiId) {
+            const target = shimejis.find((s) => s.id === payload.shimejiId);
+            if (target && target.isOffScreen()) target.callBack();
+          }
         });
       }
     } else {

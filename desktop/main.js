@@ -429,22 +429,39 @@ function createTray() {
     createSettingsWindow();
   });
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open Settings', click: () => createSettingsWindow() },
-    { label: store.get('enabled') ? 'Disable Shimeji' : 'Enable Shimeji', click: () => {
-      store.set('enabled', !store.get('enabled'));
-      sendConfigUpdate();
-      updateTrayMenu();
-    } },
-    { type: 'separator' },
-    { label: 'Quit', click: () => app.quit() }
-  ]);
-
-  tray.setContextMenu(contextMenu);
+  updateTrayMenu();
 }
 
 function updateTrayMenu() {
   if (!tray) return;
+
+  const callBackItems = [];
+  const shimejis = store.get('shimejis') || [];
+  const shimejiCount = store.get('shimejiCount') || shimejis.length || 1;
+  if (shimejiCount > 0) {
+    callBackItems.push({
+      label: 'Call All Shimejis',
+      click: () => {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('call-back-shimeji', { all: true });
+        }
+      }
+    });
+    for (let i = 0; i < shimejiCount; i++) {
+      const cfg = shimejis[i] || {};
+      const charName = (cfg.character || 'shimeji').replace(/^\w/, c => c.toUpperCase());
+      const shimejiId = cfg.id || `shimeji-${i + 1}`;
+      callBackItems.push({
+        label: `  Call ${charName}`,
+        click: () => {
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.webContents.send('call-back-shimeji', { shimejiId });
+          }
+        }
+      });
+    }
+  }
+
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Open Settings', click: () => createSettingsWindow() },
     { label: store.get('enabled') ? 'Disable Shimeji' : 'Enable Shimeji', click: () => {
@@ -453,6 +470,8 @@ function updateTrayMenu() {
       updateTrayMenu();
     } },
     { type: 'separator' },
+    ...callBackItems,
+    ...(callBackItems.length ? [{ type: 'separator' }] : []),
     { label: 'Quit', click: () => app.quit() }
   ]);
   tray.setContextMenu(contextMenu);

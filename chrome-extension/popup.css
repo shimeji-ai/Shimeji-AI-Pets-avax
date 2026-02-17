@@ -985,6 +985,33 @@ body[data-theme="pink"] .marketplace-link span {
   flex-direction: column;
 }
 
+.call-back-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(134, 240, 255, 0.3);
+  border-radius: 0.625rem;
+  background: rgba(134, 240, 255, 0.08);
+  color: rgba(214, 224, 255, 0.9);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.call-back-btn:hover {
+  background: rgba(134, 240, 255, 0.18);
+  border-color: rgba(134, 240, 255, 0.5);
+}
+
+body[data-theme="pink"] .call-back-btn {
+  border-color: rgba(255, 154, 216, 0.3);
+  background: rgba(255, 154, 216, 0.08);
+}
+
+body[data-theme="pink"] .call-back-btn:hover {
+  background: rgba(255, 154, 216, 0.18);
+  border-color: rgba(255, 154, 216, 0.5);
+}
 
 .security-box {
   display: flex;

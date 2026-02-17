@@ -6,6 +6,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const globalStatus = document.getElementById("global-status");
   let currentOrigin = null;
   let currentTabId = null;
+
+  const callBackBtn = document.getElementById("call-back-btn");
+  if (callBackBtn) {
+    callBackBtn.addEventListener("click", () => {
+      if (!currentTabId) return;
+      chrome.tabs.sendMessage(currentTabId, { action: "callBackShimejis" }).catch(() => {});
+    });
+  }
   const REQUIRED_ORIGINS = new Set([
     "https://shimeji.dev",
     "https://www.shimeji.dev",

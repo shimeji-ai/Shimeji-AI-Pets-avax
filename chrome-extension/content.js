@@ -37,7 +37,9 @@
         SITTING_PC: 'sitting_pc',
         SITTING_PC_DANGLE: 'sitting_pc_dangle',
         HEAD_SPIN: 'head_spin',
-        SPRAWLED: 'sprawled'
+        SPRAWLED: 'sprawled',
+        WALKING_OFF: 'walking_off',
+        WALKING_ON: 'walking_on'
     };
 
     const SPRITES = {
@@ -1531,7 +1533,10 @@
             resistAnimTick: 0,
             stateTimer: 0,
             climbSide: 0,
-            climbSpeed: 1.5
+            climbSpeed: 1.5,
+            isOffScreen: false,
+            offScreenEdge: 0,
+            offScreenSince: 0
         };
 
         let pendingPosSave = null;
@@ -2925,6 +2930,7 @@
         }
 
         function showAlert() {
+            if (mascot.isOffScreen) callBackShimeji();
             if (!alertBubbleEl) createAlertBubble();
             hasUnreadMessage = true;
             pendingUnreadCount += 1;
@@ -2938,6 +2944,38 @@
             pendingUnreadCount = 0;
             updateAlertBubbleText();
             if (alertBubbleEl) alertBubbleEl.classList.remove('visible');
+        }
+
+        function hideOffScreen() {
+            mascot.isOffScreen = true;
+            mascot.offScreenSince = Date.now();
+            mascot.velocityX = 0;
+            mascot.velocityY = 0;
+            if (isChatOpen) closeChatBubble();
+            if (mascotElement) mascotElement.style.display = 'none';
+            if (alertBubbleEl) alertBubbleEl.style.display = 'none';
+            if (thinkingBubbleEl) thinkingBubbleEl.style.display = 'none';
+        }
+
+        function callBackShimeji() {
+            if (!mascot.isOffScreen) return;
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            const edge = mascot.offScreenEdge || -1;
+            mascot.x = edge === -1 ? -size : window.innerWidth + size;
+            mascot.y = window.innerHeight;
+            mascot.isOffScreen = false;
+            mascot.offScreenSince = 0;
+            mascot.state = State.WALKING_ON;
+            mascot.currentAnimation = 'walking';
+            mascot.direction = edge === -1 ? 1 : -1;
+            mascot.facingRight = mascot.direction > 0;
+            mascot.stateTimer = 0;
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+            if (mascotElement) mascotElement.style.display = '';
+            if (alertBubbleEl) alertBubbleEl.style.display = '';
+            if (thinkingBubbleEl) thinkingBubbleEl.style.display = '';
         }
 
         function updateBubblePosition() {
@@ -3851,6 +3889,19 @@
             switch (mascot.state) {
                 case State.IDLE:
                     mascot.stateTimer++;
+                    // Small chance to walk off-screen (only when chat is closed)
+                    if (!isChatOpen && mascot.stateTimer > 80 && Math.random() < 0.003) {
+                        const edge = Math.random() < 0.5 ? -1 : 1;
+                        mascot.offScreenEdge = edge;
+                        mascot.direction = edge;
+                        mascot.facingRight = edge > 0;
+                        mascot.state = State.WALKING_OFF;
+                        mascot.currentAnimation = 'walking';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                        break;
+                    }
                     if (mascot.stateTimer > 50 && Math.random() < 0.02) {
                         const roll = Math.random();
                         if (roll < 0.50) {
@@ -4162,10 +4213,38 @@
                     break;
                 }
 
+                case State.WALKING_OFF: {
+                    mascot.stateTimer++;
+                    mascot.x += PHYSICS.walkSpeed * mascot.direction;
+                    mascot.y = groundY;
+                    if (mascot.x < -size * 2 || mascot.x > rightBound + size * 2) {
+                        hideOffScreen();
+                    }
+                    break;
+                }
+
+                case State.WALKING_ON: {
+                    mascot.stateTimer++;
+                    mascot.x += PHYSICS.walkSpeed * mascot.direction;
+                    mascot.y = groundY;
+                    const midZone = window.innerWidth * (0.3 + Math.random() * 0.001);
+                    if ((mascot.direction > 0 && mascot.x >= midZone) ||
+                        (mascot.direction < 0 && mascot.x <= window.innerWidth - midZone)) {
+                        mascot.state = State.IDLE;
+                        mascot.currentAnimation = 'idle';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    break;
+                }
+
                 case State.DRAGGED:
                     break;
             }
 
+            // Skip boundary clamping when walking off/on screen
+            if (mascot.state === State.WALKING_OFF || mascot.state === State.WALKING_ON) return;
             mascot.x = Math.max(leftBound, Math.min(mascot.x, rightBound));
         }
 
@@ -4217,6 +4296,7 @@
         }
 
         function gameLoop() {
+            if (mascot.isOffScreen) return;
             updateState();
             updateAnimation();
             updatePosition();
@@ -4424,6 +4504,8 @@
         return {
             id: shimejiId,
             destroy,
+            callBack: callBackShimeji,
+            isOffScreen() { return mascot.isOffScreen; },
             applyVisibilityState,
             applyStoredPosition(saved) {
                 if (!saved) return;
@@ -4653,6 +4735,13 @@
             if (message.action === 'refreshShimejis') {
                 loadShimejiConfigs((configs) => {
                     syncRuntimes(configs);
+                });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'callBackShimejis') {
+                runtimes.forEach((runtime) => {
+                    if (runtime.isOffScreen()) runtime.callBack();
                 });
                 sendResponse({ ok: true });
                 return true;

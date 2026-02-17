@@ -54,6 +54,9 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   openUrlWithBrowserChoice: (payload) => ipcRenderer.invoke('open-url-with-browser-choice', payload),
   createDesktopShortcut: () => ipcRenderer.invoke('create-desktop-shortcut'),
 
+  // Call back shimejis from off-screen
+  onCallBack: (handler) => ipcRenderer.on('call-back-shimeji', (_, data) => handler(data)),
+
   // Mouse events control for click-through overlay
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore)
 });
