@@ -1013,6 +1013,32 @@ body[data-theme="pink"] .call-back-btn:hover {
   border-color: rgba(255, 154, 216, 0.5);
 }
 
+.dismiss-call-row {
+  display: flex;
+  gap: 6px;
+}
+.dismiss-call-row .call-back-btn {
+  flex: 1;
+}
+.dismiss-btn {
+  border-color: rgba(255, 120, 100, 0.3);
+  background: rgba(255, 120, 100, 0.08);
+}
+.dismiss-btn:hover {
+  background: rgba(255, 120, 100, 0.18);
+  border-color: rgba(255, 120, 100, 0.5);
+}
+.shimeji-dismiss-call-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.dismiss-call-row.individual .call-back-btn {
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
 .security-box {
   display: flex;
   flex-direction: column;

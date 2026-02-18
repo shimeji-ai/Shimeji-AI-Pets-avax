@@ -19,7 +19,9 @@
     const PHYSICS = {
         gravity: 2,
         walkSpeed: 2,
-        fallTerminalVelocity: 20
+        fallTerminalVelocity: 20,
+        jumpForce: -12,
+        collisionJumpSpeed: 3.2
     };
 
     const State = {
@@ -588,6 +590,28 @@
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
         'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat-v3-0324', 'mistralai/mistral-large-2411'
     ];
+
+    const SHIMEJI_COLLISION_REGISTRY = (() => {
+        if (!window.__shimejiCollisionRegistry) {
+            window.__shimejiCollisionRegistry = [];
+        } else {
+            window.__shimejiCollisionRegistry.length = 0;
+        }
+        return window.__shimejiCollisionRegistry;
+    })();
+
+    function registerCollisionMascot(mascot) {
+        if (!mascot) return;
+        SHIMEJI_COLLISION_REGISTRY.push(mascot);
+    }
+
+    function unregisterCollisionMascot(mascot) {
+        if (!mascot) return;
+        const index = SHIMEJI_COLLISION_REGISTRY.indexOf(mascot);
+        if (index > -1) {
+            SHIMEJI_COLLISION_REGISTRY.splice(index, 1);
+        }
+    }
     const MODEL_KEYS_ENABLED = MODEL_KEYS.filter((model) => model !== 'moonshotai/kimi-k2.5');
 
     const SIZE_KEYS = ['small', 'medium', 'big'];
@@ -1536,8 +1560,55 @@
             climbSpeed: 1.5,
             isOffScreen: false,
             offScreenEdge: 0,
-            offScreenSince: 0
+            offScreenSince: 0,
+            jumpCooldown: 0
         };
+
+        registerCollisionMascot(mascot);
+
+        function detectCollisionTarget() {
+            if (!mascot || mascot.state !== State.WALKING) return null;
+            const scale = sizes[currentSize]?.scale || 1;
+            const thresholdX = SPRITE_SIZE * scale * 0.85;
+            const thresholdY = SPRITE_SIZE * scale * 0.4;
+            const direction = mascot.direction || (mascot.facingRight ? 1 : -1) || 1;
+            for (const other of SHIMEJI_COLLISION_REGISTRY) {
+                if (other === mascot) continue;
+                if (other.isOffScreen) continue;
+                if ([State.WALKING_OFF, State.WALKING_ON].includes(other.state)) continue;
+                const dx = other.x - mascot.x;
+                if (Math.abs(dx) > thresholdX) continue;
+                if (dx * direction <= 0) continue;
+                if (Math.abs(other.y - mascot.y) > thresholdY) continue;
+                if ([State.JUMPING, State.FALLING, State.DRAGGED].includes(other.state)) continue;
+                return other;
+            }
+            return null;
+        }
+
+        function tryJumpOverObstacle() {
+            if (mascot.jumpCooldown > 0) return false;
+            const target = detectCollisionTarget();
+            if (!target) return false;
+            if (Math.random() < 0.5) {
+                // Jump over (existing behavior)
+                const dir = mascot.direction || (target.x > mascot.x ? 1 : -1) || 1;
+                mascot.state = State.JUMPING;
+                mascot.currentAnimation = supportedAnimations.has('jumping') ? 'jumping' : 'falling';
+                mascot.animationFrame = 0;
+                mascot.animationTick = 0;
+                mascot.velocityY = PHYSICS.jumpForce;
+                mascot.velocityX = dir * PHYSICS.collisionJumpSpeed;
+                mascot.facingRight = dir > 0;
+                mascot.jumpCooldown = 32;
+            } else {
+                // Bump: reverse direction
+                mascot.direction = -(mascot.direction || (mascot.facingRight ? 1 : -1));
+                mascot.facingRight = mascot.direction > 0;
+                mascot.jumpCooldown = 32;
+            }
+            return true;
+        }
 
         let pendingPosSave = null;
         let posSaveTimer = null;
@@ -1788,6 +1859,10 @@
         function setupDragListeners() {
             mascotElement.addEventListener('pointerdown', onPointerDown);
             mascotElement.addEventListener('touchstart', onTouchStart, { passive: false });
+            mascotElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                showShimejiContextMenu(e.clientX, e.clientY);
+            });
 
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerup', onPointerUp);
@@ -2978,6 +3053,58 @@
             if (thinkingBubbleEl) thinkingBubbleEl.style.display = '';
         }
 
+        function dismissShimeji() {
+            if (mascot.isOffScreen) return;
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            const edge = mascot.x < (window.innerWidth - size) / 2 ? -1 : 1;
+            mascot.offScreenEdge = edge;
+            mascot.direction = edge;
+            mascot.facingRight = edge > 0;
+            mascot.state = State.WALKING_OFF;
+            mascot.currentAnimation = 'walking';
+            mascot.stateTimer = 0;
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+        }
+
+        function showShimejiContextMenu(clientX, clientY) {
+            const existing = document.getElementById('shimeji-context-menu');
+            if (existing) existing.remove();
+
+            const menu = document.createElement('div');
+            menu.id = 'shimeji-context-menu';
+            menu.style.cssText = 'position:fixed;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;left:' + clientX + 'px;top:' + clientY + 'px;';
+
+            const items = mascot.isOffScreen
+                ? [{ label: 'Call Back', action: callBackShimeji }]
+                : [{ label: 'Dismiss', action: dismissShimeji }];
+
+            items.forEach(function(entry) {
+                const item = document.createElement('div');
+                item.textContent = entry.label;
+                item.style.cssText = 'padding:6px 16px;color:#e0e0e0;cursor:pointer;';
+                item.addEventListener('mouseenter', function() { item.style.background = '#2a2a4a'; });
+                item.addEventListener('mouseleave', function() { item.style.background = 'none'; });
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    menu.remove();
+                    entry.action();
+                });
+                menu.appendChild(item);
+            });
+
+            document.body.appendChild(menu);
+
+            var closeMenu = function(e) {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                    document.removeEventListener('mousedown', closeMenu, true);
+                }
+            };
+            setTimeout(function() { document.addEventListener('mousedown', closeMenu, true); }, 0);
+        }
+
         function updateBubblePosition() {
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
@@ -3791,6 +3918,10 @@
             const leftBound = 0;
             const rightBound = window.innerWidth - size;
 
+            if (mascot.jumpCooldown > 0) {
+                mascot.jumpCooldown--;
+            }
+
             if (mascot.isDragging) {
                 updateDragAnimation();
                 return;
@@ -3953,6 +4084,9 @@
 
                 case State.WALKING:
                     mascot.stateTimer++;
+                    if (tryJumpOverObstacle()) {
+                        break;
+                    }
                     mascot.x += PHYSICS.walkSpeed * mascot.direction;
                     if (mascot.x <= leftBound) {
                         mascot.x = leftBound;
@@ -4473,6 +4607,7 @@
             stopVoiceInput();
             cancelSpeech();
             clearAutoSendPopup();
+            unregisterCollisionMascot(mascot);
             if (gameLoopTimer) {
                 clearInterval(gameLoopTimer);
                 gameLoopTimer = null;
@@ -4505,6 +4640,7 @@
             id: shimejiId,
             destroy,
             callBack: callBackShimeji,
+            dismiss: dismissShimeji,
             isOffScreen() { return mascot.isOffScreen; },
             applyVisibilityState,
             applyStoredPosition(saved) {
@@ -4743,6 +4879,25 @@
                 runtimes.forEach((runtime) => {
                     if (runtime.isOffScreen()) runtime.callBack();
                 });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'callBackShimeji') {
+                const target = runtimes.find((r) => r.id === message.shimejiId);
+                if (target && target.isOffScreen()) target.callBack();
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'dismissShimejis') {
+                runtimes.forEach((runtime) => {
+                    if (!runtime.isOffScreen()) runtime.dismiss();
+                });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'dismissShimeji') {
+                const target = runtimes.find((r) => r.id === message.shimejiId);
+                if (target && !target.isOffScreen()) target.dismiss();
                 sendResponse({ ok: true });
                 return true;
             }

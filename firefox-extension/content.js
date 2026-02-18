@@ -35,7 +35,9 @@
         CLIMBING_CEILING: 'climbing_ceiling',
         SITTING_EDGE: 'sitting_edge',
         HEAD_SPIN: 'head_spin',
-        SPRAWLED: 'sprawled'
+        SPRAWLED: 'sprawled',
+        WALKING_OFF: 'walking_off',
+        WALKING_ON: 'walking_on'
     };
 
     const SPRITES = {
@@ -1523,7 +1525,10 @@
             resistAnimTick: 0,
             stateTimer: 0,
             climbSide: 0,
-            climbSpeed: 1.5
+            climbSpeed: 1.5,
+            isOffScreen: false,
+            offScreenEdge: 0,
+            offScreenSince: 0
         };
 
         let pendingPosSave = null;
@@ -1775,6 +1780,10 @@
         function setupDragListeners() {
             mascotElement.addEventListener('pointerdown', onPointerDown);
             mascotElement.addEventListener('touchstart', onTouchStart, { passive: false });
+            mascotElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                showShimejiContextMenu(e.clientX, e.clientY);
+            });
 
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerup', onPointerUp);
@@ -2917,6 +2926,7 @@
         }
 
         function showAlert() {
+            if (mascot.isOffScreen) callBackShimeji();
             if (!alertBubbleEl) createAlertBubble();
             hasUnreadMessage = true;
             pendingUnreadCount += 1;
@@ -2930,6 +2940,90 @@
             pendingUnreadCount = 0;
             updateAlertBubbleText();
             if (alertBubbleEl) alertBubbleEl.classList.remove('visible');
+        }
+
+        function hideOffScreen() {
+            mascot.isOffScreen = true;
+            mascot.offScreenSince = Date.now();
+            mascot.velocityX = 0;
+            mascot.velocityY = 0;
+            if (isChatOpen) closeChatBubble();
+            if (mascotElement) mascotElement.style.display = 'none';
+            if (alertBubbleEl) alertBubbleEl.style.display = 'none';
+            if (thinkingBubbleEl) thinkingBubbleEl.style.display = 'none';
+        }
+
+        function callBackShimeji() {
+            if (!mascot.isOffScreen) return;
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            const edge = mascot.offScreenEdge || -1;
+            mascot.x = edge === -1 ? -size : window.innerWidth + size;
+            mascot.y = window.innerHeight;
+            mascot.isOffScreen = false;
+            mascot.offScreenSince = 0;
+            mascot.state = State.WALKING_ON;
+            mascot.currentAnimation = 'walking';
+            mascot.direction = edge === -1 ? 1 : -1;
+            mascot.facingRight = mascot.direction > 0;
+            mascot.stateTimer = 0;
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+            if (mascotElement) mascotElement.style.display = '';
+            if (alertBubbleEl) alertBubbleEl.style.display = '';
+            if (thinkingBubbleEl) thinkingBubbleEl.style.display = '';
+        }
+
+        function dismissShimeji() {
+            if (mascot.isOffScreen) return;
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            const edge = mascot.x < (window.innerWidth - size) / 2 ? -1 : 1;
+            mascot.offScreenEdge = edge;
+            mascot.direction = edge;
+            mascot.facingRight = edge > 0;
+            mascot.state = State.WALKING_OFF;
+            mascot.currentAnimation = 'walking';
+            mascot.stateTimer = 0;
+            mascot.animationFrame = 0;
+            mascot.animationTick = 0;
+        }
+
+        function showShimejiContextMenu(clientX, clientY) {
+            var existing = document.getElementById('shimeji-context-menu');
+            if (existing) existing.remove();
+
+            var menu = document.createElement('div');
+            menu.id = 'shimeji-context-menu';
+            menu.style.cssText = 'position:fixed;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;left:' + clientX + 'px;top:' + clientY + 'px;';
+
+            var items = mascot.isOffScreen
+                ? [{ label: 'Call Back', action: callBackShimeji }]
+                : [{ label: 'Dismiss', action: dismissShimeji }];
+
+            items.forEach(function(entry) {
+                var item = document.createElement('div');
+                item.textContent = entry.label;
+                item.style.cssText = 'padding:6px 16px;color:#e0e0e0;cursor:pointer;';
+                item.addEventListener('mouseenter', function() { item.style.background = '#2a2a4a'; });
+                item.addEventListener('mouseleave', function() { item.style.background = 'none'; });
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    menu.remove();
+                    entry.action();
+                });
+                menu.appendChild(item);
+            });
+
+            document.body.appendChild(menu);
+
+            var closeMenu = function(e) {
+                if (!menu.contains(e.target)) {
+                    menu.remove();
+                    document.removeEventListener('mousedown', closeMenu, true);
+                }
+            };
+            setTimeout(function() { document.addEventListener('mousedown', closeMenu, true); }, 0);
         }
 
         function updateBubblePosition() {
@@ -3809,6 +3903,19 @@
             switch (mascot.state) {
                 case State.IDLE:
                     mascot.stateTimer++;
+                    // Small chance to walk off-screen (only when chat is closed)
+                    if (!isChatOpen && mascot.stateTimer > 80 && Math.random() < 0.003) {
+                        const edge = Math.random() < 0.5 ? -1 : 1;
+                        mascot.offScreenEdge = edge;
+                        mascot.direction = edge;
+                        mascot.facingRight = edge > 0;
+                        mascot.state = State.WALKING_OFF;
+                        mascot.currentAnimation = 'walking';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                        break;
+                    }
                     if (mascot.stateTimer > 50 && Math.random() < 0.02) {
                         const roll = Math.random();
                         if (roll < 0.50) {
@@ -4082,10 +4189,38 @@
                     break;
                 }
 
+                case State.WALKING_OFF: {
+                    mascot.stateTimer++;
+                    mascot.x += PHYSICS.walkSpeed * mascot.direction;
+                    mascot.y = groundY;
+                    if (mascot.x < -size * 2 || mascot.x > rightBound + size * 2) {
+                        hideOffScreen();
+                    }
+                    break;
+                }
+
+                case State.WALKING_ON: {
+                    mascot.stateTimer++;
+                    mascot.x += PHYSICS.walkSpeed * mascot.direction;
+                    mascot.y = groundY;
+                    const midZone = window.innerWidth * (0.3 + Math.random() * 0.001);
+                    if ((mascot.direction > 0 && mascot.x >= midZone) ||
+                        (mascot.direction < 0 && mascot.x <= window.innerWidth - midZone)) {
+                        mascot.state = State.IDLE;
+                        mascot.currentAnimation = 'idle';
+                        mascot.stateTimer = 0;
+                        mascot.animationFrame = 0;
+                        mascot.animationTick = 0;
+                    }
+                    break;
+                }
+
                 case State.DRAGGED:
                     break;
             }
 
+            // Skip boundary clamping when walking off/on screen
+            if (mascot.state === State.WALKING_OFF || mascot.state === State.WALKING_ON) return;
             mascot.x = Math.max(leftBound, Math.min(mascot.x, rightBound));
         }
 
@@ -4137,6 +4272,7 @@
         }
 
         function gameLoop() {
+            if (mascot.isOffScreen) return;
             updateState();
             updateAnimation();
             updatePosition();
@@ -4344,6 +4480,9 @@
         return {
             id: shimejiId,
             destroy,
+            callBack: callBackShimeji,
+            dismiss: dismissShimeji,
+            isOffScreen() { return mascot.isOffScreen; },
             applyVisibilityState,
             applyStoredPosition(saved) {
                 if (!saved) return;
@@ -4574,6 +4713,32 @@
                 loadShimejiConfigs((configs) => {
                     syncRuntimes(configs);
                 });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'callBackShimejis') {
+                runtimes.forEach((runtime) => {
+                    if (runtime.isOffScreen()) runtime.callBack();
+                });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'callBackShimeji') {
+                const target = runtimes.find((r) => r.id === message.shimejiId);
+                if (target && target.isOffScreen()) target.callBack();
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'dismissShimejis') {
+                runtimes.forEach((runtime) => {
+                    if (!runtime.isOffScreen()) runtime.dismiss();
+                });
+                sendResponse({ ok: true });
+                return true;
+            }
+            if (message.action === 'dismissShimeji') {
+                const target = runtimes.find((r) => r.id === message.shimejiId);
+                if (target && !target.isOffScreen()) target.dismiss();
                 sendResponse({ ok: true });
                 return true;
             }

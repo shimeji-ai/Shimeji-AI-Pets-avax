@@ -105,14 +105,15 @@ function toWalletNetwork(): WalletNetwork {
 }
 
 export function FreighterProvider({ children }: { children: React.ReactNode }) {
-  const kit = useMemo(
-    () =>
-      new StellarWalletsKit({
-        network: toWalletNetwork(),
-        modules: allowAllModules(),
-      }),
-    []
-  );
+  const kit = useMemo(() => {
+    if (!hasWindow()) {
+      return null;
+    }
+    return new StellarWalletsKit({
+      network: toWalletNetwork(),
+      modules: allowAllModules(),
+    });
+  }, []);
   const [isAvailable, setIsAvailable] = useState(false);
   const [connected, setConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -122,6 +123,9 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   const [isDetecting, setIsDetecting] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!kit) {
+      return;
+    }
     try {
       const wallets = await kit.getSupportedWallets();
       const anyAvailable = wallets.some((wallet) => walletIsReachable(wallet));
@@ -169,6 +173,9 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   }, [kit]);
 
   const connect = useCallback(async () => {
+    if (!kit) {
+      throw new Error("Wallet kit unavailable");
+    }
     setIsConnecting(true);
     setError(null);
     try {
@@ -223,7 +230,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       opts?: { networkPassphrase?: string; address?: string }
     ): Promise<string> => {
       const walletId = getStoredWalletId();
-      if (!walletId) {
+      if (!walletId || !kit) {
         throw new Error(NO_WALLET_SELECTED_ERROR);
       }
 
@@ -242,9 +249,11 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
   );
 
   const disconnect = useCallback(() => {
-    void kit.disconnect().catch(() => {
-      // Ignore disconnect failures; we still clear local app session.
-    });
+    if (kit) {
+      void kit.disconnect().catch(() => {
+        // Ignore disconnect failures; we still clear local app session.
+      });
+    }
     clearPersistedConnection();
     setConnected(false);
     setPublicKey(null);
@@ -254,6 +263,11 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
 
   // Retry detection to handle wallet extensions/providers loading late.
   useEffect(() => {
+    if (!kit) {
+      setIsDetecting(false);
+      setIsAvailable(false);
+      return;
+    }
     let cancelled = false;
 
     async function detect() {

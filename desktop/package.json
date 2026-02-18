@@ -2,14 +2,22 @@
   "name": "shimeji-desktop",
   "version": "0.1.0",
   "description": "AI agent orchestrator, for all your online and onchain activities. NFTs unlock customization.",
-  "author": "Kathonejo & Lulox",
+  "homepage": "https://github.com/luloxi/Shimeji-AI-Pets",
+  "author": {
+    "name": "Kathonejo & Lulox",
+    "email": "hello@shimeji.ai"
+  },
   "private": true,
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux",
+    "dist:all": "bash scripts/build.sh"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
@@ -36,6 +44,21 @@
     },
     "portable": {
       "artifactName": "Shimeji-Desktop-Portable-${version}.exe"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "artifactName": "Shimeji-Desktop-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb", "arch": ["x64"] }
+      ],
+      "artifactName": "Shimeji-Desktop-${version}-${arch}.${ext}",
+      "maintainer": "Kathonejo & Lulox <hello@shimeji.ai>",
+      "category": "Utility"
     },
     "icon": "icon.png"
   }

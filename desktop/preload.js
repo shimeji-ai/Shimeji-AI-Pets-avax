@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   // Call back shimejis from off-screen
   onCallBack: (handler) => ipcRenderer.on('call-back-shimeji', (_, data) => handler(data)),
 
+  // Dismiss shimejis (send off-screen)
+  onDismiss: (handler) => ipcRenderer.on('dismiss-shimeji', (_, data) => handler(data)),
+
   // Mouse events control for click-through overlay
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore)
 });

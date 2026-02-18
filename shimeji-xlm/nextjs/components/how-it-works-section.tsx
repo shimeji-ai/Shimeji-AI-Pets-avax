@@ -21,15 +21,15 @@ const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
 const steps = [
   {
     step: "01",
-    titleEn: "Install",
-    titleEs: "Instalá",
-    descriptionEn: "Grab the Chrome extension or the desktop app for Windows, macOS, and Linux.",
-    descriptionEs: "Descargá la extensión de Chrome o la app desktop para Windows, macOS y Linux.",
+    titleEn: "Download in seconds",
+    titleEs: "Descarga en segundos",
+    descriptionEn: "Browser or desktop extension.",
+    descriptionEs: "Extensión para tu navegador o app de escritorio.",
   },
   {
     step: "02",
-    titleEn: "Set Up Your AI",
-    titleEs: "Configurá tu IA",
+    titleEn: "Awaken your companion",
+    titleEs: "Despierta tu compañero",
     descriptionEn:
       "Configure the AI Brain and start chatting.",
     descriptionEs:
@@ -37,10 +37,10 @@ const steps = [
   },
   {
     step: "03",
-    titleEn: "Win a Custom Shimeji",
-    titleEs: "Ganá un shimeji único",
-    descriptionEn: "Bid in the auction to win a handcrafted pet minted as an NFT.",
-    descriptionEs: "Ofertá en la subasta para ganar una mascota artesanal acuñada como NFT.",
+    titleEn: "Make it truly yours",
+    titleEs: "Hazlo verdaderamente tuyo",
+    descriptionEn: "Participate in our auctions to get a Shimeji designed and handcrafted as an NFT on Stellar.",
+    descriptionEs: "Participá en nuestras subastas para conseguir un Shimeji diseñado artesanalmente y minteado como NFT en Stellar.",
   },
 ];
 
@@ -60,7 +60,7 @@ export function HowItWorksSection() {
           <div className="text-center mb-16">
             
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight text-balance">
-              {isSpanish ? "Cómo empezar" : "How to get started"}
+              {isSpanish ? "Tres pasos hacia tu nuevo compañero" : "Three steps to your new companion"}
             </h2>
           </div>
 
@@ -94,7 +94,8 @@ export function HowItWorksSection() {
                         >
                           Descargá
                         </Link>{" "}
-                         la extensión de navegador o la app de escritorio.
+                         
+    la extensión para tu navegador o app de escritorio.
                       </>
                     ) : (
                       <>
@@ -102,9 +103,9 @@ export function HowItWorksSection() {
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Grab 
+                          Download 
                         </Link>{" "}
-                        the browser extension or the desktop app.
+                        the browser or desktop extension.
                       </>
                     )
                   ) : step.step === "03" ? (
@@ -114,9 +115,10 @@ export function HowItWorksSection() {
                           href="/#subasta"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Ofertá en la subasta
+                    Participá en nuestras subastas
                         </Link>
-                        {" "}para ganar una mascota artesanal acuñada como NFT.
+                         {" "}para conseguir un Shimeji diseñado artesanalmente y minteado como NFT en Stellar.
+        
                       </>
                     ) : (
                       <>
@@ -124,9 +126,10 @@ export function HowItWorksSection() {
                           href="/#subasta"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Bid in the auction
+                          Bid in our auctions
                         </Link>
-                        {" "}to win a handcrafted pet minted as an NFT.
+    
+    {" "}to win a handcrafted Shimeji pet minted as an NFT on Stellar.
                       </>
                     )
                   ) : step.step === "02" ? (

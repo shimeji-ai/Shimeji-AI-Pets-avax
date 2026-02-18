@@ -424,7 +424,8 @@ class Shimeji {
       chatPoseUntil: 0,
       suppressClickUntil: 0,
       offScreen: false,
-      offScreenEdge: 0
+      offScreenEdge: 0,
+      climbSide: 0
     };
 
     this.offScreenSince = 0;
@@ -2834,6 +2835,48 @@ class Shimeji {
       }
       this.jump();
     });
+    this.elements.wrapper.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.showContextMenu(e.clientX, e.clientY);
+    });
+  }
+
+  showContextMenu(x, y) {
+    // Remove any existing context menu
+    const existing = document.getElementById('shimeji-context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'shimeji-context-menu';
+    menu.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;`;
+
+    const items = this.state.offScreen
+      ? [{ label: 'Call Back', action: () => this.callBack() }]
+      : [{ label: 'Dismiss', action: () => this.dismiss() }];
+
+    items.forEach(({ label, action }) => {
+      const item = document.createElement('div');
+      item.textContent = label;
+      item.style.cssText = 'padding:6px 16px;color:#e0e0e0;cursor:pointer;';
+      item.addEventListener('mouseenter', () => { item.style.background = '#2a2a4a'; });
+      item.addEventListener('mouseleave', () => { item.style.background = 'none'; });
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.remove();
+        action();
+      });
+      menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    const closeMenu = (e) => {
+      if (!menu.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('mousedown', closeMenu, true);
+      }
+    };
+    setTimeout(() => document.addEventListener('mousedown', closeMenu, true), 0);
   }
 
   onPointerDown(e) {
@@ -3621,6 +3664,52 @@ class Shimeji {
     }
   }
 
+  detectCollisionCandidate() {
+    if (!this.state.onGround) return null;
+    const scale = SPRITE_SCALES[this.config.size] || 1;
+    const width = SPRITE_SIZE * scale;
+    const tolX = width * 0.9;
+    const tolY = width * 0.45;
+    const direction = this.state.direction || (this.state.vx >= 0 ? 1 : -1) || 1;
+    return shimejis.find((other) => {
+      if (other === this || other.state.offScreen) return false;
+      const dx = other.state.x - this.state.x;
+      if (dx * direction <= 0) return false;
+      if (Math.abs(dx) > tolX) return false;
+      if (Math.abs(other.state.y - this.state.y) > tolY) return false;
+      if ([SHIMEJI_STATES.JUMPING, SHIMEJI_STATES.FALLING, SHIMEJI_STATES.WALKING_OFF, SHIMEJI_STATES.WALKING_ON].includes(other.state.currentState)) return false;
+      return true;
+    }) || null;
+  }
+
+  jumpIfBlocked() {
+    if (this.state.jumpCooldown > 0) return false;
+    const target = this.detectCollisionCandidate();
+    if (!target) return false;
+    if (Math.random() < 0.5) {
+      // Jump over
+      const dx = target.state.x - this.state.x;
+      this.state.direction = Math.sign(dx) || this.state.direction || 1;
+      this.jump();
+    } else {
+      // Bump: reverse direction
+      this.bumpReverse();
+    }
+    return true;
+  }
+
+  bumpReverse() {
+    this.state.direction = -(this.state.direction || 1);
+    this.state.vx = 0;
+    const scale = SPRITE_SCALES[this.config.size] || 1;
+    const maxX = window.innerWidth - SPRITE_SIZE * scale;
+    const dist = 80 + Math.random() * 150;
+    this.state.wanderTarget = Math.max(0, Math.min(maxX,
+      this.state.x + this.state.direction * dist));
+    this.state.wanderUntil = Date.now() + 2000 + Math.random() * 3000;
+    this.state.jumpCooldown = 30;
+  }
+
   updateChatBehavior() {
     const S = SHIMEJI_STATES;
     const st = this.state;
@@ -3722,6 +3811,22 @@ class Shimeji {
 
   isOffScreen() {
     return this.state.offScreen;
+  }
+
+  dismiss() {
+    if (this.state.offScreen) return;
+    const S = SHIMEJI_STATES;
+    const scale = SPRITE_SCALES[this.config.size] || 1;
+    const size = SPRITE_SIZE * scale;
+    const maxX = window.innerWidth - size;
+    const st = this.state;
+    // Walk toward nearest edge
+    const edge = st.x < maxX / 2 ? -1 : 1;
+    st.offScreenEdge = edge;
+    st.direction = edge;
+    st.wanderTarget = edge === -1 ? -size * 2 : maxX + size * 3;
+    st.wanderUntil = Date.now() + 15000;
+    this.setBehavior(S.WALKING_OFF, 600);
   }
 
   update() {
@@ -3880,6 +3985,9 @@ class Shimeji {
         const speed = st.currentState === S.RUNNING ? PHYSICS.runSpeed : PHYSICS.walkSpeed;
         st.vx = Math.sign(dx) * speed;
         st.direction = Math.sign(dx);
+        if (this.jumpIfBlocked()) {
+          return;
+        }
         if (st.currentState !== S.RUNNING) st.currentState = S.WALKING;
       } else {
         st.vx = 0;
@@ -3890,8 +3998,9 @@ class Shimeji {
 
       // Direct wall grab when walking into screen edges (like chrome extension)
       if (st.onWall && st.onGround && (st.currentState === S.WALKING || st.currentState === S.RUNNING)) {
-        if (Math.random() < 0.35) {
+        if (Math.random() < 0.55) {
           this.setBehavior(S.GRABBING_WALL, 30 + Math.random() * 40);
+          st.climbSide = st.x <= 0 ? -1 : 1;
           st.vx = 0;
           return;
         }
@@ -3951,6 +4060,7 @@ class Shimeji {
               break;
             case 'grabWall':
               this.setBehavior(S.GRABBING_WALL, 30 + Math.random() * 40);
+              st.climbSide = st.x <= 0 ? -1 : 1;
               st.vx = 0;
               break;
             case 'sitEdge':
@@ -4275,7 +4385,27 @@ class Shimeji {
 
     this.elements.wrapper.style.left = `${this.state.x}px`;
     this.elements.wrapper.style.top = `${this.state.y}px`;
-    this.elements.sprite.style.transform = `scaleX(${-this.state.direction})`;
+
+    const S = SHIMEJI_STATES;
+    const st = this.state;
+    const isWallClimbing = st.currentState === S.CLIMBING_WALL || st.currentState === S.GRABBING_WALL;
+    const isCeilingState = st.currentState === S.CLIMBING_CEILING || st.currentState === S.GRABBING_CEILING
+      || (st.onCeiling && (st.currentState === S.SITTING_EDGE || st.currentState === S.DANGLING_LEGS
+        || st.currentState === S.SITTING_PC || st.currentState === S.SITTING_PC_DANGLE));
+
+    if (isWallClimbing) {
+      if (st.climbSide === -1) {
+        this.elements.sprite.style.transform = 'rotate(90deg)';
+      } else {
+        this.elements.sprite.style.transform = 'rotate(-90deg) scaleX(-1)';
+      }
+    } else if (isCeilingState) {
+      const flipX = st.direction >= 0 ? ' scaleX(-1)' : '';
+      this.elements.sprite.style.transform = `scaleY(-1)${flipX}`;
+    } else {
+      this.elements.sprite.style.transform = `scaleX(${-st.direction})`;
+    }
+
     this.elements.wrapper.style.cursor = this.state.dragging ? 'grabbing' : 'pointer';
 
     if (this.chatOpen) this.positionChatBubble();
@@ -4925,6 +5055,18 @@ async function init() {
           } else if (payload.shimejiId) {
             const target = shimejis.find((s) => s.id === payload.shimejiId);
             if (target && target.isOffScreen()) target.callBack();
+          }
+        });
+      }
+
+      if (window.shimejiApi.onDismiss) {
+        window.shimejiApi.onDismiss((payload) => {
+          if (!payload) return;
+          if (payload.all) {
+            shimejis.forEach((s) => { if (!s.isOffScreen()) s.dismiss(); });
+          } else if (payload.shimejiId) {
+            const target = shimejis.find((s) => s.id === payload.shimejiId);
+            if (target && !target.isOffScreen()) target.dismiss();
           }
         });
       }

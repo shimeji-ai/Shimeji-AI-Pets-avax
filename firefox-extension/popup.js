@@ -6,6 +6,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const globalStatus = document.getElementById("global-status");
   let currentOrigin = null;
   let currentTabId = null;
+
+  const callBackBtn = document.getElementById("call-back-btn");
+  if (callBackBtn) {
+    callBackBtn.addEventListener("click", () => {
+      if (!currentTabId) return;
+      chrome.tabs.sendMessage(currentTabId, { action: "callBackShimejis" }).catch(() => {});
+    });
+  }
+  const dismissAllBtn = document.getElementById("dismiss-all-btn");
+  if (dismissAllBtn) {
+    dismissAllBtn.addEventListener("click", () => {
+      if (!currentTabId) return;
+      chrome.tabs.sendMessage(currentTabId, { action: "dismissShimejis" }).catch(() => {});
+    });
+  }
+
   const REQUIRED_ORIGINS = new Set([
     "https://shimeji.dev",
     "https://www.shimeji.dev",
@@ -1953,6 +1969,37 @@ if (securityHint) securityHint.textContent = t(
       const agentText = t("agent", "agente");
       const offText = t("off", "apagado");
       popupStats.textContent = `${total} total · ${countStandard} ${standardText} · ${countAgent} ${agentText} · ${countOff} ${offText}`;
+    }
+
+    // Render per-shimeji dismiss/call buttons
+    const dismissCallList = document.getElementById("shimeji-dismiss-call-list");
+    if (dismissCallList && shimejis.length > 1) {
+      dismissCallList.innerHTML = "";
+      shimejis.forEach((shimeji) => {
+        if (shimeji.enabled === false) return;
+        const charName = (shimeji.character || "shimeji").replace(/^\w/, (c) => c.toUpperCase());
+        const row = document.createElement("div");
+        row.className = "dismiss-call-row individual";
+        const dismissBtn = document.createElement("button");
+        dismissBtn.className = "call-back-btn dismiss-btn mini";
+        dismissBtn.textContent = t("Dismiss", "Ocultar") + " " + charName;
+        dismissBtn.addEventListener("click", () => {
+          if (!currentTabId) return;
+          chrome.tabs.sendMessage(currentTabId, { action: "dismissShimeji", shimejiId: shimeji.id }).catch(() => {});
+        });
+        const callBtn = document.createElement("button");
+        callBtn.className = "call-back-btn mini";
+        callBtn.textContent = t("Call", "Llamar") + " " + charName;
+        callBtn.addEventListener("click", () => {
+          if (!currentTabId) return;
+          chrome.tabs.sendMessage(currentTabId, { action: "callBackShimeji", shimejiId: shimeji.id }).catch(() => {});
+        });
+        row.appendChild(dismissBtn);
+        row.appendChild(callBtn);
+        dismissCallList.appendChild(row);
+      });
+    } else if (dismissCallList) {
+      dismissCallList.innerHTML = "";
     }
   }
 

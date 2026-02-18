@@ -4,10 +4,13 @@ The Electron runtime for Shimeji AI Pets. It powers the native window, settings 
 ## Build
 1. `cd desktop`
 2. `npm install`
-3. `./build-portable.sh` (recommended) or `npx electron-builder --win` to regenerate `dist/Shimeji-Desktop-Portable-0.1.0.exe`.
-4. Optionally build other packages with `npx electron-builder --linux` or `npx electron-builder --mac`.
+3. `bash scripts/build.sh` to open the platform menu (defaults to building all targets in parallel). The script writes `dist/build.log` plus a dedicated `dist/build-<target>.log` for Windows/macOS/Linux.
+4. If you only need one platform, choose the corresponding option (`Windows`, `macOS`, `Linux`) when the menu appears.
+5. Manual alternatives are still available (`npx electron-builder --win`, `--mac`, or `--linux`) if a scripted build is preferred.
 
-When the build finishes, verify the artifacts under `desktop/dist/` before continuing.
+When the run finishes, confirm the artifacts and log files under `desktop/dist/` before continuing.
+
+Set `SHIMEJI_BUILD_TARGET` (`all`, `windows`, `macos`, or `linux`) or pass the desired key (`./scripts/build.sh linux`) to run a specific workflow without the prompt.
 
 ## Release
 Use `./scripts/publish_release_assets.sh` from the repository root to upload the Windows portable exe, Linux AppImage, and extension zips to GitHub Releases. Make sure `gh` is authenticated first.

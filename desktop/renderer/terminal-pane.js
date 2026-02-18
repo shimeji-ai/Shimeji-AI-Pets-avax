@@ -1,5 +1,6 @@
 (function exposeShimejiTerminalPane() {
   const DEFAULT_MAX_LINES = 4000;
+  const LINK_MATCHER = /https?:\/\/[^\s'"]+/i;
 
   function isFunction(value) {
     return typeof value === 'function';
@@ -26,6 +27,7 @@
       this.boundMouseDown = () => this.focus();
       this.boundContextMenu = (event) => this.onContextMenu(event);
       this.contextMenuEl = null;
+      this.linkMatcherId = null;
 
       this.container.innerHTML = '';
       this.container.tabIndex = 0;
@@ -88,6 +90,19 @@
       }
 
       term.open(this.container);
+      if (typeof term.registerLinkMatcher === 'function') {
+        this.linkMatcherId = term.registerLinkMatcher(
+          LINK_MATCHER,
+          (event, uri) => {
+            if (!event || !(event.ctrlKey || event.metaKey)) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            this.openTerminalLink(uri);
+            return false;
+          },
+          { matchIndex: 0, priority: 0 }
+        );
+      }
 
       // Handle copy/paste shortcuts inside xterm (xterm captures keys before DOM)
       term.attachCustomKeyEventHandler((event) => {
@@ -155,6 +170,12 @@
         this.resizeObserver = null;
       }
       if (this.term) {
+        if (this.linkMatcherId !== null) {
+          try {
+            this.term.deregisterLinkMatcher(this.linkMatcherId);
+          } catch {}
+          this.linkMatcherId = null;
+        }
         this.term.dispose();
         this.term = null;
       }
@@ -261,6 +282,23 @@
       } catch {}
     }
 
+    openTerminalLink(uri) {
+      const url = String(uri || '').trim();
+      if (!url) return;
+      const payload = {
+        url,
+        context: 'terminal-link',
+        skipDialog: true
+      };
+      if (window.shimejiApi?.openUrlWithBrowserChoice) {
+        window.shimejiApi.openUrlWithBrowserChoice(payload).catch(() => {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        });
+        return;
+      }
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
     onContextMenu(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -355,8 +393,10 @@
     onKeyDown(event) {
       const key = event.key;
       const selected = this.getSelectedText();
+      const isCopyKey = key === 'C' || key === 'c';
+      const isPasteKey = key === 'V' || key === 'v';
 
-      if (event.ctrlKey && event.shiftKey && (key === 'C' || key === 'c')) {
+      if (event.ctrlKey && event.shiftKey && isCopyKey) {
         if (selected) {
           event.preventDefault();
           event.stopPropagation();
@@ -365,7 +405,14 @@
         return;
       }
 
-      if (event.ctrlKey && event.shiftKey && (key === 'V' || key === 'v')) {
+      if (event.ctrlKey && event.shiftKey && isPasteKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.pasteTextFromClipboard();
+        return;
+      }
+
+      if (event.ctrlKey && !event.altKey && isPasteKey) {
         event.preventDefault();
         event.stopPropagation();
         this.pasteTextFromClipboard();

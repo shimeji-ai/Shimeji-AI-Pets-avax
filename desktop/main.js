@@ -78,7 +78,8 @@ const store = new Store({
     terminalCwd: '',
     terminalNotifyOnFinish: true,
     startAtLogin: false,
-    startMinimized: false
+    startMinimized: false,
+    lastBrowserChoice: 'system'
   }
 });
 
@@ -107,7 +108,10 @@ app.on('ready', () => {
 let overlayWindow = null;
 let settingsWindow = null;
 let tray = null;
+let trayMenuWindow = null;
 const BROWSER_CHOICES = ['system', 'chrome', 'chromium', 'brave', 'edge', 'in-app', 'cancel'];
+const TRAY_MENU_WIDTH = 340;
+const TRAY_MENU_HEIGHT = 360;
 
 function getCharactersDir() {
   return path.join(__dirname, '..', 'chrome-extension', 'characters');
@@ -410,6 +414,31 @@ function openInAppBrowser(targetUrl, parentWindow = null) {
   });
 }
 
+function normalizeBrowserChoice(rawChoice) {
+  if (typeof rawChoice !== 'string') return 'system';
+  const normalized = rawChoice.trim();
+  if (!normalized || normalized === 'cancel') return 'system';
+  return BROWSER_CHOICES.includes(normalized) ? normalized : 'system';
+}
+
+function getStoredBrowserChoice() {
+  return normalizeBrowserChoice(store.get('lastBrowserChoice') || 'system');
+}
+
+async function launchBrowserChoice(choice, targetUrl, parentWindow = null) {
+  const normalized = normalizeBrowserChoice(choice || 'system');
+  if (normalized === 'system') {
+    await shell.openExternal(targetUrl);
+    return { success: true, browser: 'system' };
+  }
+  if (normalized === 'in-app') {
+    openInAppBrowser(targetUrl, parentWindow);
+    return { success: true, browser: 'in-app' };
+  }
+  const launched = await launchInSpecificBrowser(normalized, targetUrl);
+  return { success: launched, browser: normalized };
+}
+
 function sendConfigUpdate() {
   if (overlayWindow) {
     overlayWindow.webContents.send('config-updated', store.store);
@@ -419,26 +448,172 @@ function sendConfigUpdate() {
   }
 }
 
+function getShimejiMenuLabel(cfg, idx) {
+  const num = idx + 1;
+  const skin = (cfg.character || 'shimeji').replace(/^\w/, c => c.toUpperCase());
+  const mode = cfg.mode || 'standard';
+  let brain;
+  if (mode === 'terminal') {
+    brain = 'Terminal';
+  } else {
+    const provider = cfg.standardProvider || 'openrouter';
+    if (provider === 'ollama') brain = 'Ollama';
+    else if (provider === 'openclaw') brain = 'OpenClaw';
+    else brain = 'OpenRouter';
+  }
+  return `Shimeji ${num} · ${skin} · ${brain}`;
+}
+
+function buildQuickMenu() {
+  const shimejis = store.get('shimejis') || [];
+  const shimejiCount = store.get('shimejiCount') || shimejis.length || 1;
+  const items = [];
+
+  if (shimejiCount > 0) {
+    items.push({
+      label: 'Dismiss All',
+      click: () => {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('dismiss-shimeji', { all: true });
+        }
+      }
+    });
+    items.push({
+      label: 'Call All Back',
+      click: () => {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('call-back-shimeji', { all: true });
+        }
+      }
+    });
+    items.push({ type: 'separator' });
+
+    for (let i = 0; i < shimejiCount; i++) {
+      const cfg = shimejis[i] || {};
+      const shimejiId = cfg.id || `shimeji-${i + 1}`;
+      const label = getShimejiMenuLabel(cfg, i);
+      items.push({
+        label: `Dismiss  ${label}`,
+        click: () => {
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.webContents.send('dismiss-shimeji', { shimejiId });
+          }
+        }
+      });
+      items.push({
+        label: `Call  ${label}`,
+        click: () => {
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.webContents.send('call-back-shimeji', { shimejiId });
+          }
+        }
+      });
+      if (i < shimejiCount - 1) items.push({ type: 'separator' });
+    }
+  } else {
+    items.push({ label: 'No shimejis configured', enabled: false });
+  }
+
+  items.push({ type: 'separator' });
+  items.push({ label: 'Open Settings', click: () => createSettingsWindow() });
+
+  return Menu.buildFromTemplate(items);
+}
+
 function createTray() {
   const iconPath = path.join(__dirname, 'icon.png');
   tray = new Tray(iconPath);
   tray.setToolTip('Shimeji Desktop');
 
-  // Left click to open settings
+  // Left click shows quick summon/dismiss selector
   tray.on('click', () => {
-    createSettingsWindow();
+    showTrayMenu();
   });
 
   updateTrayMenu();
 }
 
+function closeTrayMenu() {
+  if (!trayMenuWindow) return;
+  if (trayMenuWindow.isDestroyed()) {
+    trayMenuWindow = null;
+    return;
+  }
+  trayMenuWindow.close();
+  trayMenuWindow = null;
+}
+
+function positionTrayMenuWindow(win) {
+  if (!tray || !win) return;
+  const bounds = tray.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const minX = display.bounds.x + 8;
+  const maxX = display.bounds.x + display.bounds.width - TRAY_MENU_WIDTH - 8;
+  let x = Math.min(Math.max(bounds.x + bounds.width / 2 - TRAY_MENU_WIDTH / 2, minX), maxX);
+  let y = bounds.y - TRAY_MENU_HEIGHT - 8;
+  if (y < display.bounds.y) {
+    y = bounds.y + bounds.height + 8;
+  }
+  win.setBounds({
+    x: Math.round(x),
+    y: Math.round(y),
+    width: TRAY_MENU_WIDTH,
+    height: TRAY_MENU_HEIGHT
+  });
+}
+
+function showTrayMenu() {
+  if (!tray) return;
+  if (trayMenuWindow && !trayMenuWindow.isDestroyed()) {
+    trayMenuWindow.focus();
+    return;
+  }
+
+  trayMenuWindow = new BrowserWindow({
+    width: TRAY_MENU_WIDTH,
+    height: TRAY_MENU_HEIGHT,
+    show: false,
+    frame: false,
+    resizable: false,
+    movable: false,
+    focusable: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    transparent: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'tray-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  trayMenuWindow.once('ready-to-show', () => {
+    positionTrayMenuWindow(trayMenuWindow);
+    trayMenuWindow.show();
+  });
+  trayMenuWindow.on('blur', () => closeTrayMenu());
+  trayMenuWindow.on('closed', () => {
+    trayMenuWindow = null;
+  });
+  trayMenuWindow.loadFile(path.join(__dirname, 'renderer', 'tray-menu.html'));
+}
+
 function updateTrayMenu() {
   if (!tray) return;
 
+  const dismissItems = [];
   const callBackItems = [];
   const shimejis = store.get('shimejis') || [];
   const shimejiCount = store.get('shimejiCount') || shimejis.length || 1;
   if (shimejiCount > 0) {
+    dismissItems.push({
+      label: 'Dismiss All Shimejis',
+      click: () => {
+        if (overlayWindow && !overlayWindow.isDestroyed()) {
+          overlayWindow.webContents.send('dismiss-shimeji', { all: true });
+        }
+      }
+    });
     callBackItems.push({
       label: 'Call All Shimejis',
       click: () => {
@@ -449,10 +624,18 @@ function updateTrayMenu() {
     });
     for (let i = 0; i < shimejiCount; i++) {
       const cfg = shimejis[i] || {};
-      const charName = (cfg.character || 'shimeji').replace(/^\w/, c => c.toUpperCase());
       const shimejiId = cfg.id || `shimeji-${i + 1}`;
+      const label = getShimejiMenuLabel(cfg, i);
+      dismissItems.push({
+        label: `  Dismiss  ${label}`,
+        click: () => {
+          if (overlayWindow && !overlayWindow.isDestroyed()) {
+            overlayWindow.webContents.send('dismiss-shimeji', { shimejiId });
+          }
+        }
+      });
       callBackItems.push({
-        label: `  Call ${charName}`,
+        label: `  Call  ${label}`,
         click: () => {
           if (overlayWindow && !overlayWindow.isDestroyed()) {
             overlayWindow.webContents.send('call-back-shimeji', { shimejiId });
@@ -470,8 +653,9 @@ function updateTrayMenu() {
       updateTrayMenu();
     } },
     { type: 'separator' },
+    ...dismissItems,
     ...callBackItems,
-    ...(callBackItems.length ? [{ type: 'separator' }] : []),
+    ...(dismissItems.length ? [{ type: 'separator' }] : []),
     { label: 'Quit', click: () => app.quit() }
   ]);
   tray.setContextMenu(contextMenu);
@@ -538,6 +722,32 @@ function normalizeMode(modeValue) {
   if (modeValue === 'agent' || modeValue === 'openclaw') return 'agent';
   if (modeValue === 'terminal' || modeValue === 'wsl' || modeValue === 'shell') return 'terminal';
   return 'standard';
+}
+
+function describeShimejiSource(cfg) {
+  const provider = String(cfg?.standardProvider || '').toLowerCase();
+  const mode = normalizeMode(cfg?.mode);
+  if (mode === 'agent') return 'OpenClaw';
+  if (mode === 'terminal') return 'WSL';
+  if (mode === 'off') return 'Decorative';
+  if (provider === 'ollama') return 'Ollama';
+  if (provider === 'openrouter') return 'OpenRouter';
+  return 'Standard';
+}
+
+function getTrayShimejis() {
+  const shimejis = store.get('shimejis') || [];
+  const shimejiCount = Math.max(1, store.get('shimejiCount') || shimejis.length || 1);
+  return Array.from({ length: shimejiCount }, (_, index) => {
+    const cfg = shimejis[index] || {};
+    return {
+      index,
+      id: cfg.id || `shimeji-${index + 1}`,
+      label: getShimejiMenuLabel(cfg, index),
+      character: cfg.character || 'shimeji',
+      source: describeShimejiSource(cfg)
+    };
+  });
 }
 
 const OPENCLAW_AGENT_NAME_MAX = 32;
@@ -2828,6 +3038,23 @@ ipcMain.handle('list-ollama-models', async (event, payload = {}) => {
   }
 });
 
+ipcMain.handle('tray-get-state', () => {
+  return {
+    shimejis: getTrayShimejis()
+  };
+});
+
+ipcMain.handle('tray-action', (event, payload = {}) => {
+  const { action, shimejiId, all } = payload || {};
+  const channel = action === 'dismiss' ? 'dismiss-shimeji' : 'call-back-shimeji';
+  const data = all ? { all: true } : { shimejiId };
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send(channel, data);
+    return { ok: true };
+  }
+  return { ok: false, error: 'overlay-unavailable' };
+});
+
 ipcMain.handle('open-url-with-browser-choice', async (event, payload = {}) => {
   const targetUrl = parseSafeHttpUrl(payload?.url);
   if (!targetUrl) {
@@ -2838,6 +3065,19 @@ ipcMain.handle('open-url-with-browser-choice', async (event, payload = {}) => {
   const context = String(payload?.context || 'external-link');
   const sourceWindow = BrowserWindow.fromWebContents(event.sender);
   const parentWindow = sourceWindow && !sourceWindow.isDestroyed() ? sourceWindow : null;
+  const skipDialog = Boolean(payload?.skipDialog);
+  const preferredBrowser = String(payload?.preferredBrowser || '').trim();
+
+  if (skipDialog) {
+    const skipChoice = preferredBrowser || getStoredBrowserChoice();
+    const skipResult = await launchBrowserChoice(skipChoice, targetUrl, parentWindow);
+    if (skipResult.success) {
+      return { ok: true, browser: skipResult.browser };
+    }
+    await shell.openExternal(targetUrl);
+    return { ok: true, browser: 'system', fallbackFrom: skipChoice };
+  }
+
   const copy = getBrowserChoiceDialogText(locale, context);
 
   try {
@@ -2857,19 +3097,10 @@ ipcMain.handle('open-url-with-browser-choice', async (event, payload = {}) => {
       return { ok: false, cancelled: true };
     }
 
-    if (choice === 'system') {
-      await shell.openExternal(targetUrl);
-      return { ok: true, browser: 'system' };
-    }
-
-    if (choice === 'in-app') {
-      openInAppBrowser(targetUrl, parentWindow);
-      return { ok: true, browser: 'in-app' };
-    }
-
-    const launched = await launchInSpecificBrowser(choice, targetUrl);
-    if (launched) {
-      return { ok: true, browser: choice };
+    store.set('lastBrowserChoice', choice);
+    const launchResult = await launchBrowserChoice(choice, targetUrl, parentWindow);
+    if (launchResult.success) {
+      return { ok: true, browser: launchResult.browser };
     }
 
     const isEs = locale === 'es';
