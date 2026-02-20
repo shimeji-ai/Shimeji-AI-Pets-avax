@@ -133,35 +133,6 @@ function clampToBounds(
   return { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
 }
 
-function pingExtension(timeoutMs = 800): Promise<boolean> {
-  return new Promise(resolve => {
-    if (typeof window === "undefined") {
-      resolve(false);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      window.removeEventListener("message", handler);
-      resolve(false);
-    }, timeoutMs);
-
-    function handler(event: MessageEvent) {
-      if (event.source !== window) return;
-      if (
-        event.data?.type === "EXTENSION_RESPONSE" &&
-        event.data?.originalType === "pingExtension"
-      ) {
-        window.clearTimeout(timeout);
-        window.removeEventListener("message", handler);
-        resolve(true);
-      }
-    }
-
-    window.addEventListener("message", handler);
-    window.postMessage({ type: "DAPP_MESSAGE", payload: { type: "pingExtension" } }, "*");
-  });
-}
-
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -169,7 +140,6 @@ export function SiteShimejiMascot() {
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const [showMascot, setShowMascot] = useState(false);
   const [open, setOpen] = useState(false);
   const openRef = useRef(open);
   useEffect(() => {
@@ -200,17 +170,6 @@ export function SiteShimejiMascot() {
     DIRECTION_CHANGE_MIN + Math.random() * (DIRECTION_CHANGE_MAX - DIRECTION_CHANGE_MIN),
   );
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    pingExtension().then(installed => {
-      if (cancelled) return;
-      setShowMascot(!installed);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -562,8 +521,6 @@ export function SiteShimejiMascot() {
       setSending(false);
     }
   }
-
-  if (!showMascot) return null;
 
   return (
     <>
