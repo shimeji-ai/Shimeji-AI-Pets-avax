@@ -133,13 +133,53 @@ function clampToBounds(
   return { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
 }
 
+function pingExtension(timeoutMs = 800): Promise<boolean> {
+  return new Promise(resolve => {
+    if (typeof window === "undefined") {
+      resolve(false);
+      return;
+    }
+
+    const handler = (event: MessageEvent) => {
+      if (event.source !== window) return;
+      if (
+        event.data?.type === "EXTENSION_RESPONSE" &&
+        event.data?.originalType === "pingExtension"
+      ) {
+        window.removeEventListener("message", handler);
+        window.clearTimeout(timeout);
+        resolve(true);
+      }
+    };
+
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", handler);
+      resolve(false);
+    }, timeoutMs);
+
+    window.addEventListener("message", handler);
+    window.postMessage({ type: "DAPP_MESSAGE", payload: { type: "pingExtension" } }, "*");
+  });
+}
+
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
+  const [showMascot, setShowMascot] = useState(true);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const actorRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    pingExtension().then(installed => {
+      if (cancelled) return;
+      setShowMascot(!installed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [open, setOpen] = useState(false);
   const openRef = useRef(open);
   useEffect(() => {
@@ -147,8 +187,14 @@ export function SiteShimejiMascot() {
   }, [open]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const messagesRef = useRef<Msg[]>([]);
+  const messagesListRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     messagesRef.current = messages;
+    const el = messagesListRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [messages]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -522,6 +568,8 @@ export function SiteShimejiMascot() {
     }
   }
 
+  if (!showMascot) return null;
+
   return (
     <>
       <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
@@ -581,7 +629,7 @@ export function SiteShimejiMascot() {
             </button>
           </div>
           <div className={styles.bubbleBody}>
-            <div className={styles.messages}>
+          <div className={styles.messages} ref={messagesListRef}>
               {messages.map((m, idx) => (
                 <div
                   key={idx}

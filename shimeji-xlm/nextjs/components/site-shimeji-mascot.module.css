@@ -80,7 +80,7 @@
 }
 
 .messages {
-  max-height: 210px;
+  max-height: 262px;
   overflow: auto;
   padding-right: 4px;
   margin-bottom: 10px;
