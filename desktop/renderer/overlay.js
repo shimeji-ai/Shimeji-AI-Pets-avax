@@ -1,6 +1,341 @@
 const SPRITE_SIZE = 128;
 const TICK_MS = 40;
 const MAX_SHIMEJIS = 5;
+const UPDATE_PANEL_ID = 'shimeji-update-panel';
+const UPDATE_STYLE_ID = 'shimeji-update-style';
+const UPDATE_NOTES_LIMIT = 280;
+let updatePanelElement = null;
+let updateDownloadBtn = null;
+let updateInstallBtn = null;
+let updateCloseBtn = null;
+let updateProgressFill = null;
+let updateStatusLabel = null;
+let currentUpdateInfo = null;
+let currentDownloadedPath = '';
+let updateDownloadInProgress = false;
+
+function ensureUpdateStyles() {
+  if (document.getElementById(UPDATE_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = UPDATE_STYLE_ID;
+  style.textContent = `
+    #${UPDATE_PANEL_ID} {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: min(360px, calc(100% - 32px));
+      background: rgba(6, 6, 12, 0.96);
+      border: 1px solid rgba(112, 112, 196, 0.45);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+      color: #f5f5ff;
+      z-index: 9999;
+      pointer-events: auto;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    #${UPDATE_PANEL_ID} .update-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #a3d9ff;
+    }
+    #${UPDATE_PANEL_ID} .update-close-btn {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 1rem;
+      cursor: pointer;
+      padding: 0;
+    }
+    #${UPDATE_PANEL_ID} strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    #${UPDATE_PANEL_ID} .update-notes {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #d6d8ec;
+      max-height: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #${UPDATE_PANEL_ID} .update-meta {
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: #9fb5ff;
+    }
+    #${UPDATE_PANEL_ID} .update-actions {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #${UPDATE_PANEL_ID} button {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #${UPDATE_PANEL_ID} button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #${UPDATE_PANEL_ID} .update-download-btn {
+      background: #6a76ff;
+      color: #fff;
+      font-weight: 600;
+    }
+    #${UPDATE_PANEL_ID} .update-install-btn {
+      background: transparent;
+      color: #f5f5ff;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      display: none;
+    }
+    #${UPDATE_PANEL_ID} .update-progress {
+      margin-top: 12px;
+      height: 6px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    #${UPDATE_PANEL_ID} .update-progress-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #6a76ff, #3cf3ff);
+      transition: width 0.2s ease;
+    }
+    #${UPDATE_PANEL_ID} .update-status {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: #b3d8ff;
+    }
+    #${UPDATE_PANEL_ID} .update-status.update-status-alert {
+      color: #ffa6b8;
+    }
+    #${UPDATE_PANEL_ID} .update-status.update-status-success {
+      color: #b1ffcd;
+    }
+    #${UPDATE_PANEL_ID} a {
+      color: #8bd5ff;
+      text-decoration: none;
+      font-size: 0.8rem;
+      display: inline-block;
+      margin-top: 4px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function formatReleaseNotes(notes = '') {
+  const cleaned = (notes || '').trim().replace(/\\r/g, '').split('\\n')[0];
+  if (!cleaned) return '';
+  if (cleaned.length <= UPDATE_NOTES_LIMIT) return cleaned;
+  return `${cleaned.slice(0, UPDATE_NOTES_LIMIT)}…`;
+}
+
+function resetUpdatePanel() {
+  if (updatePanelElement) {
+    updatePanelElement.remove();
+    updatePanelElement = null;
+  }
+  updateDownloadBtn = null;
+  updateInstallBtn = null;
+  updateCloseBtn = null;
+  updateProgressFill = null;
+  updateStatusLabel = null;
+  currentDownloadedPath = '';
+  updateDownloadInProgress = false;
+}
+
+function updateStatusText(text = '', tone = 'muted') {
+  if (!updateStatusLabel) return;
+  updateStatusLabel.textContent = text;
+  updateStatusLabel.className = `update-status update-status-${tone}`;
+}
+
+function updateProgressBar(percent = 0) {
+  if (!updateProgressFill) return;
+  updateProgressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+}
+
+function showUpdatePanel(info) {
+  if (!info) return;
+  resetUpdatePanel();
+  ensureUpdateStyles();
+  currentUpdateInfo = info;
+  const notes = formatReleaseNotes(info.releaseNotes);
+  updatePanelElement = document.createElement('div');
+  updatePanelElement.id = UPDATE_PANEL_ID;
+  updatePanelElement.innerHTML = `
+    <div class="update-header">
+      <span>${t('Update available', 'Actualización disponible')}</span>
+      <button class="update-close-btn" title="${t('Close', 'Cerrar')}">×</button>
+    </div>
+    <strong>${info.releaseName || `v${info.version}`}</strong>
+    <p class="update-notes">${notes || t('A new release is ready.', 'Una nueva versión está lista.')}</p>
+    <div class="update-meta">Version ${info.version} · ${info.assetName || ''}</div>
+    <a href="${info.releaseUrl || '#'}" target="_blank" rel="noreferrer">${t('View release on GitHub', 'Ver versión en GitHub')}</a>
+    <div class="update-actions">
+      <button class="update-download-btn">${t('Download update', 'Descargar actualización')}</button>
+      <button class="update-install-btn">${t('Launch update', 'Ejecutar actualización')}</button>
+    </div>
+    <div class="update-progress">
+      <div class="update-progress-fill"></div>
+    </div>
+    <div class="update-status">${t('Ready to download', 'Listo para descargar')}</div>
+  `;
+  updateDownloadBtn = updatePanelElement.querySelector('.update-download-btn');
+  updateInstallBtn = updatePanelElement.querySelector('.update-install-btn');
+  updateCloseBtn = updatePanelElement.querySelector('.update-close-btn');
+  updateProgressFill = updatePanelElement.querySelector('.update-progress-fill');
+  updateStatusLabel = updatePanelElement.querySelector('.update-status');
+  updateInstallBtn.style.display = 'none';
+  updateDownloadBtn.addEventListener('click', () => handleDownloadButton());
+  updateInstallBtn.addEventListener('click', () => handleInstallButton());
+  updateCloseBtn.addEventListener('click', () => {
+    resetUpdatePanel();
+  });
+  document.body.appendChild(updatePanelElement);
+}
+
+function handleDownloadButton() {
+  if (!currentUpdateInfo || updateDownloadInProgress) return;
+  updateDownloadInProgress = true;
+  updateDownloadBtn.disabled = true;
+  updateStatusText(t('Downloading update…', 'Descargando actualización…'));
+  updateProgressBar(0);
+  window.shimejiApi.downloadUpdateAsset({
+    assetUrl: currentUpdateInfo.assetUrl,
+    assetName: currentUpdateInfo.assetName,
+    version: currentUpdateInfo.version
+  }).catch(() => {
+    updateStatusText(t('Download failed. Try again.', 'Descarga fallida. Intentá de nuevo.'), 'alert');
+    updateDownloadBtn.disabled = false;
+    updateDownloadInProgress = false;
+  });
+}
+
+function handleInstallButton() {
+  if (!currentDownloadedPath) return;
+  updateInstallBtn.disabled = true;
+  updateStatusText(t('Launching update…', 'Iniciando actualización…'));
+  window.shimejiApi.installDownloadedUpdate({ filePath: currentDownloadedPath }).catch(() => {
+    updateStatusText(t('Failed to launch update.', 'No se pudo iniciar la actualización.'), 'alert');
+    updateInstallBtn.disabled = false;
+  });
+}
+
+function handleUpdateAvailable(info) {
+  showUpdatePanel(info);
+}
+
+function handleDownloadStart(payload) {
+  if (!updatePanelElement) return;
+  updateProgressBar(0);
+  updateStatusText(t('Preparing download…', 'Preparando descarga…'));
+}
+
+function handleDownloadProgress(payload) {
+  if (!updatePanelElement || !payload) return;
+  const percent = Number.isFinite(payload.percent) ? payload.percent : 0;
+  updateProgressBar(percent);
+  updateStatusText(t('Downloading update…', 'Descargando actualización…') + ` ${percent}%`);
+}
+
+function handleDownloadComplete(payload) {
+  if (!updatePanelElement || !payload) return;
+  updateDownloadInProgress = false;
+  updateStatusText(t('Download ready. You can install the update.', 'Descarga lista. Podés instalar la actualización.'), 'success');
+  if (updateInstallBtn) {
+    updateInstallBtn.style.display = 'inline-flex';
+    updateInstallBtn.disabled = false;
+  }
+  currentDownloadedPath = payload.filePath;
+}
+
+function handleDownloadError(payload) {
+  if (!updatePanelElement) return;
+  updateDownloadInProgress = false;
+  updateDownloadBtn.disabled = false;
+  updateStatusText(payload?.message || t('Download failed.', 'La descarga falló.'), 'alert');
+}
+
+function handleInstallStart(payload) {
+  if (!updatePanelElement) return;
+  updateStatusText(t('Update launched. Quitting now…', 'Actualización iniciada. Cerrando…'), 'success');
+}
+
+function setupUpdateListeners() {
+  if (!window.shimejiApi) return;
+  if (typeof window.shimejiApi.onUpdateAvailable === 'function') {
+    window.shimejiApi.onUpdateAvailable(handleUpdateAvailable);
+  }
+  if (typeof window.shimejiApi.onUpdateDownloadStart === 'function') {
+    window.shimejiApi.onUpdateDownloadStart(handleDownloadStart);
+  }
+  if (typeof window.shimejiApi.onUpdateDownloadProgress === 'function') {
+    window.shimejiApi.onUpdateDownloadProgress(handleDownloadProgress);
+  }
+  if (typeof window.shimejiApi.onUpdateDownloadComplete === 'function') {
+    window.shimejiApi.onUpdateDownloadComplete(handleDownloadComplete);
+  }
+  if (typeof window.shimejiApi.onUpdateDownloadError === 'function') {
+    window.shimejiApi.onUpdateDownloadError(handleDownloadError);
+  }
+  if (typeof window.shimejiApi.onUpdateInstallStart === 'function') {
+    window.shimejiApi.onUpdateInstallStart(handleInstallStart);
+  }
+}
+
+// Work area bottom in screen coords (set from main process via IPC).
+// When the taskbar/panel sits at the bottom of the screen the overlay window
+// covers the full display.bounds height, but the panel is drawn on top of it.
+// Using workArea keeps shimejis walking ON the panel surface instead of behind it.
+let screenWorkAreaBottom = null;
+const CALL_BACK_LINE_SPACING = 150;
+const CALL_BACK_LINE_MARGIN = 22;
+const CALL_BACK_RESET_DELAY = 1200;
+const callBackLineCount = { left: 0, right: 0 };
+let callBackLineResetTimer = null;
+
+function resetCallBackLineCounters() {
+  callBackLineCount.left = 0;
+  callBackLineCount.right = 0;
+  callBackLineResetTimer = null;
+}
+
+function scheduleCallBackLineReset() {
+  if (callBackLineResetTimer) {
+    clearTimeout(callBackLineResetTimer);
+  }
+  callBackLineResetTimer = setTimeout(resetCallBackLineCounters, CALL_BACK_RESET_DELAY);
+}
+
+function computeCallBackX(edge, size) {
+  const safeEdge = edge === -1 ? -1 : 1;
+  const sideKey = safeEdge === -1 ? 'left' : 'right';
+  const slot = Math.min(callBackLineCount[sideKey], MAX_SHIMEJIS - 1);
+  callBackLineCount[sideKey] = Math.min(callBackLineCount[sideKey] + 1, MAX_SHIMEJIS);
+  scheduleCallBackLineReset();
+  const spacing = Math.max(CALL_BACK_LINE_SPACING, size * 1.1);
+  const screenWidth = Math.max(window.innerWidth, size + CALL_BACK_LINE_MARGIN * 2);
+  const leftBase = CALL_BACK_LINE_MARGIN;
+  const rightBase = Math.max(screenWidth - size - CALL_BACK_LINE_MARGIN, CALL_BACK_LINE_MARGIN);
+  if (safeEdge === -1) {
+    return Math.min(leftBase + slot * spacing, window.innerWidth - size - CALL_BACK_LINE_MARGIN);
+  }
+  return Math.max(rightBase - slot * spacing, CALL_BACK_LINE_MARGIN);
+}
 const DRAG_THRESHOLD_PX = 4;
 const CHAT_EDGE_MARGIN_PX = 8;
 const CHAT_VERTICAL_GAP_PX = 10;
@@ -105,8 +440,10 @@ const CHAT_THEME_PRESETS = CHAT_THEMES;
 const FONT_SIZE_MAP = { small: '11px', medium: '13px', large: '15px' };
 const CHAT_WIDTH_MAP = { small: 220, medium: 280, large: 360 };
 const DEFAULT_CHAT_HEIGHT = 340;
-const CHAT_MIN_WIDTH = 220;
-const CHAT_MIN_HEIGHT = 180;
+const TERMINAL_CHAT_WIDTH_MULTIPLIER = 1.5;
+const TERMINAL_CHAT_HEIGHT_MULTIPLIER = 2;
+const CHAT_MIN_WIDTH = 180;
+const CHAT_MIN_HEIGHT = 150;
 const CHAT_MAX_WIDTH = 9999;
 const CHAT_MAX_HEIGHT = 560;
 
@@ -350,7 +687,9 @@ function t(en, es) {
 
 const IS_WINDOWS_PLATFORM = /win/i.test(`${navigator.platform || navigator.userAgent || ''}`);
 const IS_MAC_PLATFORM = /mac/i.test(`${navigator.platform || navigator.userAgent || ''}`);
+const IS_LINUX_PLATFORM = /linux/i.test(`${navigator.platform || navigator.userAgent || ''}`);
 const DEFAULT_TERMINAL_PROFILE = IS_WINDOWS_PLATFORM ? 'Ubuntu' : '';
+const CURSOR_POLL_INTERVAL_MS = 120;
 
 function normalizeTerminalProfile(rawValue) {
   const normalized = `${rawValue || ''}`.trim();
@@ -427,6 +766,9 @@ class Shimeji {
       offScreenEdge: 0,
       climbSide: 0
     };
+    this.contextMenuOpen = false;
+    this.contextMenuElement = null;
+    this.boundContextMenuCloseListener = null;
 
     this.offScreenSince = 0;
     this.chatOpen = false;
@@ -2578,7 +2920,7 @@ class Shimeji {
       const now = Date.now();
       if (now - this.terminalLastClosedNotice >= 1300) {
         this.terminalLastClosedNotice = now;
-        this.notifyClosedChatActivity(2400);
+        this.notifyClosedChatActivity(2400, { recall: false });
       }
     }
   }
@@ -2669,8 +3011,8 @@ class Shimeji {
       this.playNotificationSound(kind);
     }
     if (!this.chatOpen) {
-      this.showNotificationBubble('🥷❗', durationMs + 800);
-      this.notifyClosedChatActivity(durationMs);
+      this.showNotificationBubble('🥷❗', durationMs + 800, { recall: false });
+      this.notifyClosedChatActivity(durationMs, { recall: false });
     }
   }
 
@@ -2729,8 +3071,10 @@ class Shimeji {
     }
   }
 
-  notifyClosedChatActivity(durationMs = 3400) {
-    if (this.state.offScreen) this.callBack();
+  notifyClosedChatActivity(durationMs = 3400, { recall = true } = {}) {
+    if (this.state.offScreen && recall) {
+      this.callBack();
+    }
     if (this.chatOpen) return;
     this.closedChatNoticeUntil = Date.now() + Math.max(800, durationMs);
     if (this.closedChatNoticeTimer) {
@@ -2745,8 +3089,8 @@ class Shimeji {
     }, Math.max(900, durationMs + 50));
   }
 
-  showNotificationBubble(text, durationMs = 4000) {
-    if (this.state.offScreen) this.callBack();
+  showNotificationBubble(text, durationMs = 4000, { recall = true } = {}) {
+    if (this.state.offScreen && recall) this.callBack();
     if (!this.elements.notificationBubble) return;
     this.elements.notificationBubble.textContent = text;
     this.elements.notificationBubble.classList.add('visible');
@@ -2827,13 +3171,13 @@ class Shimeji {
     this.elements.wrapper.addEventListener('mousedown', (e) => this.onPointerDown(e));
     this.elements.wrapper.addEventListener('dblclick', (e) => {
       e.preventDefault();
-      // Double-click is reserved for jump; suppress single-click chat toggle.
+      // Double-click dismisses the shimeji and cancels the chat toggle.
       this.state.suppressClickUntil = Date.now() + 420;
       if (this.chatClickTimeout) {
         clearTimeout(this.chatClickTimeout);
         this.chatClickTimeout = null;
       }
-      this.jump();
+      this.dismiss();
     });
     this.elements.wrapper.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -2842,13 +3186,16 @@ class Shimeji {
   }
 
   showContextMenu(x, y) {
-    // Remove any existing context menu
+    this.clearContextMenu();
+    // Remove any stray context menu element (older instances from other shimejis)
     const existing = document.getElementById('shimeji-context-menu');
     if (existing) existing.remove();
 
     const menu = document.createElement('div');
     menu.id = 'shimeji-context-menu';
     menu.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;`;
+    this.contextMenuElement = menu;
+    this.contextMenuOpen = true;
 
     const items = this.state.offScreen
       ? [{ label: 'Call Back', action: () => this.callBack() }]
@@ -2862,7 +3209,7 @@ class Shimeji {
       item.addEventListener('mouseleave', () => { item.style.background = 'none'; });
       item.addEventListener('click', (e) => {
         e.stopPropagation();
-        menu.remove();
+        this.clearContextMenu();
         action();
       });
       menu.appendChild(item);
@@ -2872,11 +3219,26 @@ class Shimeji {
 
     const closeMenu = (e) => {
       if (!menu.contains(e.target)) {
-        menu.remove();
-        document.removeEventListener('mousedown', closeMenu, true);
+        this.clearContextMenu();
       }
     };
-    setTimeout(() => document.addEventListener('mousedown', closeMenu, true), 0);
+    this.boundContextMenuCloseListener = closeMenu;
+    setTimeout(() => {
+      if (this.contextMenuElement !== menu) return;
+      document.addEventListener('mousedown', closeMenu, true);
+    }, 0);
+  }
+
+  clearContextMenu() {
+    if (this.contextMenuElement) {
+      this.contextMenuElement.remove();
+      this.contextMenuElement = null;
+    }
+    if (this.boundContextMenuCloseListener) {
+      document.removeEventListener('mousedown', this.boundContextMenuCloseListener, true);
+      this.boundContextMenuCloseListener = null;
+    }
+    this.contextMenuOpen = false;
   }
 
   onPointerDown(e) {
@@ -2913,7 +3275,10 @@ class Shimeji {
   getGroundY() {
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
-    return Math.max(0, window.innerHeight - size - this.getGroundOffsetPx());
+    // Use the work area bottom when available (Linux: puts shimejis on top of the
+    // taskbar/panel instead of behind it; falls back to window.innerHeight on Mac/Windows).
+    const bottom = screenWorkAreaBottom !== null ? screenWorkAreaBottom : window.innerHeight;
+    return Math.max(0, bottom - size - this.getGroundOffsetPx());
   }
 
   onPointerMove(e) {
@@ -3793,16 +4158,20 @@ class Shimeji {
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
     const edge = this.state.offScreenEdge || -1;
-    // Position just off the edge the shimeji left from
-    this.state.x = edge === -1 ? -size : window.innerWidth + size;
+    const entryX = edge === -1 ? -size * 2 : window.innerWidth + size * 2;
+    const targetX = computeCallBackX(edge, size);
+    const maxX = Math.max(0, window.innerWidth - size);
+    const clampedTarget = Math.max(0, Math.min(maxX, targetX));
+
+    this.state.x = entryX;
     this.state.y = this.getGroundY();
     this.state.onGround = true;
     this.state.offScreen = false;
     this.offScreenSince = 0;
-    // Walk toward the middle of the screen
-    this.state.wanderTarget = window.innerWidth * (0.3 + Math.random() * 0.4);
-    this.state.wanderUntil = Date.now() + 10000;
     this.state.direction = edge === -1 ? 1 : -1;
+    this.state.vx = 0;
+    this.state.wanderTarget = clampedTarget;
+    this.state.wanderUntil = Date.now() + 4000 + Math.random() * 2000;
     this.setBehavior(SHIMEJI_STATES.WALKING_ON, 400);
     if (this.elements.wrapper) {
       this.elements.wrapper.style.display = 'flex';
@@ -3815,6 +4184,7 @@ class Shimeji {
 
   dismiss() {
     if (this.state.offScreen) return;
+    if (this.chatOpen) this.closeChat();
     const S = SHIMEJI_STATES;
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
@@ -3832,6 +4202,10 @@ class Shimeji {
   update() {
     if (!this.config.enabled) return;
     if (this.state.offScreen) return;
+    if (this.contextMenuOpen) {
+      this.holdPositionForContextMenu();
+      return;
+    }
 
     if (this.state.pointerDown && !this.state.dragging) {
       this.updateVisuals();
@@ -3852,6 +4226,19 @@ class Shimeji {
     } else {
       this.updateSprite();
     }
+    this.updateVisuals();
+  }
+
+  holdPositionForContextMenu() {
+    const S = SHIMEJI_STATES;
+    this.state.vx = 0;
+    this.state.vy = 0;
+    if (this.state.onGround && this.state.currentState !== S.IDLE) {
+      this.state.currentState = S.IDLE;
+      this.state.animFrame = 0;
+      this.state.animTimer = 0;
+    }
+    this.updateAnimation();
     this.updateVisuals();
   }
 
@@ -4500,16 +4887,43 @@ class Shimeji {
     const bubbleStyle = this.config.chatBubbleStyle || 'glass';
     const themeColor = this.normalizeColor(this.config.chatThemeColor, '#3b1a77');
     const bgColor = this.normalizeColor(this.config.chatBgColor, '#f0e8ff');
-    const maxChatWidth = Math.max(CHAT_MIN_WIDTH, window.innerWidth - (CHAT_EDGE_MARGIN_PX * 2));
+    const isTerminalMode = this.isTerminalMode();
+    const explicitWidthPx =
+      this.config.chatWidthPx != null && Number.isFinite(Number(this.config.chatWidthPx))
+        ? Number(this.config.chatWidthPx)
+        : null;
+    const explicitHeightPx =
+      this.config.chatHeightPx != null && Number.isFinite(Number(this.config.chatHeightPx))
+        ? Number(this.config.chatHeightPx)
+        : null;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const maxChatWidth = Math.max(CHAT_MIN_WIDTH, viewportWidth - (CHAT_EDGE_MARGIN_PX * 2));
+    const maxChatHeight = Math.max(CHAT_MIN_HEIGHT, viewportHeight - (CHAT_EDGE_MARGIN_PX * 2));
+    const terminalWidthSetting = Math.round(viewportWidth / 2);
+    const widthMapSetting = CHAT_WIDTH_MAP[this.config.chatWidth || 'medium'] || CHAT_WIDTH_MAP.medium;
+    const widthSetting = isTerminalMode
+      ? Math.max(CHAT_MIN_WIDTH, Math.min(maxChatWidth, terminalWidthSetting))
+      : widthMapSetting;
+    const baseWidth = explicitWidthPx ?? widthSetting;
+    const baseHeight = explicitHeightPx ?? DEFAULT_CHAT_HEIGHT;
+    const applyTerminalWidthMultiplier = false;
+    const applyTerminalHeightMultiplier = isTerminalMode && explicitHeightPx === null;
+    const targetWidth = applyTerminalWidthMultiplier
+      ? Math.round(baseWidth * TERMINAL_CHAT_WIDTH_MULTIPLIER)
+      : baseWidth;
+    const targetHeight = applyTerminalHeightMultiplier
+      ? Math.round(baseHeight * TERMINAL_CHAT_HEIGHT_MULTIPLIER)
+      : baseHeight;
     const widthPx = clamp(
-      Number(this.config.chatWidthPx || CHAT_WIDTH_MAP[this.config.chatWidth || 'medium'] || CHAT_WIDTH_MAP.medium),
+      targetWidth,
       CHAT_MIN_WIDTH,
       maxChatWidth
     );
     const heightPx = clamp(
-      Number(this.config.chatHeightPx || DEFAULT_CHAT_HEIGHT),
+      targetHeight,
       CHAT_MIN_HEIGHT,
-      CHAT_MAX_HEIGHT
+      Math.max(CHAT_MAX_HEIGHT, maxChatHeight)
     );
     const fontSize = FONT_SIZE_MAP[this.config.chatFontSize || 'medium'] || FONT_SIZE_MAP.medium;
 
@@ -4732,15 +5146,49 @@ function startAnimationLoop() {
   requestAnimationFrame(loop);
 }
 
-// Track mouse for click-through behavior
-document.addEventListener('mousemove', (e) => {
-  updateMouseCapture(e.clientX, e.clientY);
-}, { passive: true });
-
 // Mouse tracking for click-through overlay
 let isMouseOverInteractive = false;
 let lastMouseX = window.innerWidth / 2;
 let lastMouseY = window.innerHeight / 2;
+let mouseMoveListener = null;
+let cursorPollTimer = null;
+
+function handleDocumentMouseMoveEvent(e) {
+  updateMouseCapture(e.clientX, e.clientY);
+}
+
+function startCursorPolling() {
+  if (cursorPollTimer) return;
+  const poll = async () => {
+    try {
+      if (!window.shimejiApi?.getCursorScreenPoint) return;
+      const point = await window.shimejiApi.getCursorScreenPoint();
+      if (
+        point
+        && Number.isFinite(point.x)
+        && Number.isFinite(point.y)
+      ) {
+        const offsetX = Number.isFinite(window.screenX) ? window.screenX : 0;
+        const offsetY = Number.isFinite(window.screenY) ? window.screenY : 0;
+        updateMouseCapture(point.x - offsetX, point.y - offsetY);
+      }
+    } catch {}
+    cursorPollTimer = setTimeout(poll, CURSOR_POLL_INTERVAL_MS);
+  };
+  poll();
+}
+
+function startMouseCaptureTracking() {
+  if (IS_LINUX_PLATFORM) {
+    startCursorPolling();
+    return;
+  }
+  if (mouseMoveListener) return;
+  mouseMoveListener = handleDocumentMouseMoveEvent;
+  document.addEventListener('mousemove', mouseMoveListener, { passive: true });
+}
+
+startMouseCaptureTracking();
 
 function hasOpenChats() {
   return shimejis.some((shimeji) => shimeji.chatOpen);
@@ -4818,6 +5266,17 @@ async function init() {
   
   try {
     if (window.shimejiApi) {
+      setupUpdateListeners();
+      // Fetch screen geometry so shimejis walk on top of the taskbar/panel (Linux).
+      if (window.shimejiApi.getScreenInfo) {
+        try {
+          const screenInfo = await window.shimejiApi.getScreenInfo();
+          if (screenInfo && screenInfo.workArea) {
+            screenWorkAreaBottom = screenInfo.workArea.y + screenInfo.workArea.height;
+          }
+        } catch (_e) { /* non-fatal */ }
+      }
+
       console.log('Loading config from API...');
       globalConfig = await window.shimejiApi.getConfig() || {};
       syncUiLanguageFromConfig(globalConfig);

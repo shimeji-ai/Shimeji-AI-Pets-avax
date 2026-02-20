@@ -44,6 +44,13 @@ install_dmg_license() {
   mkdir -p "$ROOT_DIR/node_modules/dmg-license"
   if cp -R "$tmpdir/package/." "$ROOT_DIR/node_modules/dmg-license"; then
     rm -rf "$tmpdir"
+    if command -v npm >/dev/null 2>&1; then
+      echo "==> Installing dmg-license dependencies"
+      (
+        cd "$ROOT_DIR/node_modules/dmg-license"
+        npm_config_platform=darwin npm install --production --no-save --no-package-lock crc@3.8.0 ajv@6.10.0 iconv-corefoundation@1.1.7 plist@3.0.4 smart-buffer@4.0.2 verror@1.10.0 >/dev/null 2>&1 || true
+      )
+    fi
   else
     rm -rf "$tmpdir"
     return 1
@@ -93,7 +100,7 @@ run_single_target() {
   ensure_dist_dir
   log_entry "Starting ${display_target:-$target} build (log: dist/$log)"
   echo "==> Building $target (logs: dist/$log)"
-  if npx electron-builder "${args[@]}" > "$BUILD_DIR/$log" 2>&1; then
+  if (cd "$ROOT_DIR" && npx electron-builder "${args[@]}") > "$BUILD_DIR/$log" 2>&1; then
     log_entry "Finished ${display_target:-$target} build successfully"
     echo "==> $target build finished"
   else
@@ -110,9 +117,9 @@ run_all() {
 
   echo "==> Building all platforms"
   log_entry "Starting full build (Windows, macOS, Linux)"
-  npx electron-builder --win > "$BUILD_DIR/build-win.log" 2>&1 & PID_WIN=$!
-  npx electron-builder --mac > "$BUILD_DIR/build-mac.log" 2>&1 & PID_MAC=$!
-  npx electron-builder --linux > "$BUILD_DIR/build-linux.log" 2>&1 & PID_LINUX=$!
+  (cd "$ROOT_DIR" && npx electron-builder --win) > "$BUILD_DIR/build-win.log" 2>&1 & PID_WIN=$!
+  (cd "$ROOT_DIR" && npx electron-builder --mac) > "$BUILD_DIR/build-mac.log" 2>&1 & PID_MAC=$!
+  (cd "$ROOT_DIR" && npx electron-builder --linux) > "$BUILD_DIR/build-linux.log" 2>&1 & PID_LINUX=$!
 
   WIN_OK=0
   MAC_OK=0

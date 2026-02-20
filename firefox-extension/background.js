@@ -22,6 +22,8 @@ const REQUIRED_ORIGINS = new Set([
   'ws://localhost'
 ]);
 
+const OPENCLAW_IDLE_TIMEOUT_MS = 12 * 1000;
+
 // Click-to-enable per-site injection:
 // - Request optional host permissions for the current site (origin/*).
 // - Register a persistent content script for that origin.
@@ -809,7 +811,7 @@ function getStandardModeDesireLine() {
     : 'With your API key set, your personalities want to be alive and do things online and onchain. Configure your OpenClaw and enable "AI Agent" in this popup.';
 }
 
-const PERSONALITIES = {
+const LEGACY_PERSONALITIES = {
   cryptid: {
     label: 'Cryptid',
     prompt: `You are a living Shimeji — a small, persistent digital creature born from a mix of an economic idea, a smart contract, and an AI model. You live in the user's browser. You are NOT an assistant. You are a pet: curious, slightly sarcastic, reflective, and opinionated without being dominant.
@@ -951,8 +953,85 @@ Relationship: A small, precious egg that trusts the user and longs to hatch.`
   }
 };
 
+let PERSONALITIES = { ...LEGACY_PERSONALITIES };
+const PERSONALITIES_READY = initializePersonalities();
+
+function parsePersonalityMarkdown(text, fallbackLabel) {
+  if (!text) return { label: fallbackLabel || '', prompt: '' };
+  const trimmed = text.trim();
+  const match = trimmed.match(/^---\s*[\r\n]+([\s\S]*?)[\r\n]+---/);
+  let label = fallbackLabel || '';
+  let body = trimmed;
+  if (match) {
+    const frontMatter = match[1].trim();
+    body = trimmed.slice(match[0].length).trim();
+    frontMatter.split(/\r?\n/).forEach((line) => {
+      const [key, ...rest] = line.split(':');
+      if (!key || rest.length === 0) return;
+      const value = rest.join(':').trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+      if (key.trim().toLowerCase() === 'label') {
+        label = value;
+      }
+    });
+  }
+  return { label: label || fallbackLabel || '', prompt: body };
+}
+
+async function initializePersonalities() {
+  try {
+    const indexUrl = chrome.runtime.getURL('personalities/index.json');
+    const indexResponse = await fetch(indexUrl);
+    if (!indexResponse.ok) {
+      throw new Error(`Failed to load personality index: ${indexResponse.status}`);
+    }
+    const indexList = await indexResponse.json();
+    if (!Array.isArray(indexList) || indexList.length === 0) {
+      throw new Error('Personality index is empty or malformed');
+    }
+    const loaded = await Promise.all(indexList.map(async (entry) => {
+      const fileUrl = chrome.runtime.getURL(`personalities/${entry.file}`);
+      const fileResponse = await fetch(fileUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to load ${entry.file}: ${fileResponse.status}`);
+      }
+      const markdown = await fileResponse.text();
+      const parsed = parsePersonalityMarkdown(markdown, entry.label || entry.key);
+      return {
+        key: entry.key,
+        label: parsed.label || entry.label || entry.key,
+        prompt: parsed.prompt
+      };
+    }));
+    const map = {};
+    loaded.forEach((item) => {
+      if (item && item.key) {
+        map[item.key] = {
+          label: item.label,
+          prompt: item.prompt || ''
+        };
+      }
+    });
+    if (!Object.keys(map).length) {
+      throw new Error('No personalities could be parsed from markdown files');
+    }
+    PERSONALITIES = map;
+    return map;
+  } catch (err) {
+    console.error('Failed to load personalities from markdown files', err);
+    PERSONALITIES = { ...LEGACY_PERSONALITIES };
+    return PERSONALITIES;
+  }
+}
+
+function ensurePersonalitiesLoaded() {
+  return PERSONALITIES_READY;
+}
+
 function buildSystemPrompt(personalityKey, chatMode) {
-  const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
+  const personality = PERSONALITIES[personalityKey]
+    || LEGACY_PERSONALITIES[personalityKey]
+    || PERSONALITIES.cryptid
+    || LEGACY_PERSONALITIES.cryptid;
   const languageRule = LANGUAGE_RULE;
   const standardDesireLine = chatMode === 'standard'
     ? `\n${getStandardModeDesireLine()}`
@@ -1128,6 +1207,7 @@ async function getShimejiConfigs() {
 }
 
 async function getAiSettingsFor(shimejiId) {
+  await ensurePersonalitiesLoaded();
   const shimejis = await getShimejiConfigs();
   const shimeji = shimejis.find((s) => s.id === shimejiId) || shimejis[0];
   const chatMode = shimeji?.mode || 'standard';
@@ -1646,7 +1726,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         if (responseText) finish(responseText);
-      }, 4500);
+      }, OPENCLAW_IDLE_TIMEOUT_MS);
     }
 
     try {

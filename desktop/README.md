@@ -8,6 +8,17 @@ The Electron runtime for Shimeji AI Pets. It powers the native window, settings 
 4. If you only need one platform, choose the corresponding option (`Windows`, `macOS`, `Linux`) when the menu appears.
 5. Manual alternatives are still available (`npx electron-builder --win`, `--mac`, or `--linux`) if a scripted build is preferred.
 
+### Linux/WSL prerequisites
+- `wine64`/`wine32` (and their 32-bit libc dependencies) so `rcedit.exe` can run when building Windows binaries. Example for Ubuntu/WSL:
+  ```sh
+  sudo dpkg --add-architecture i386
+  sudo apt update
+  sudo apt install wine64 wine32 p7zip-full libwine libwine:i386 winbind
+  ```
+- `curl` or `wget` (needed when the dmg-license fallback downloads pre-built assets).
+- `npm` (already required) so the build script can install `dmg-license` and its dependencies before running `electron-builder`.
+These packages make the Windows and macOS pipelines work reliably on Linux hosts. Without them the console/logs will show missing executables (`rcedit`, `wine`, `crc`, etc.).
+
 When the run finishes, confirm the artifacts and log files under `desktop/dist/` before continuing.
 
 Set `SHIMEJI_BUILD_TARGET` (`all`, `windows`, `macos`, or `linux`) or pass the desired key (`./scripts/build.sh linux`) to run a specific workflow without the prompt.

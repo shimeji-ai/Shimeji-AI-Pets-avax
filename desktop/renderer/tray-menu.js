@@ -2,8 +2,16 @@
   const callAllBtn = document.getElementById('call-all');
   const dismissAllBtn = document.getElementById('dismiss-all');
   const listEl = document.getElementById('shimeji-list');
+  const settingsBtn = document.getElementById('open-settings');
 
   if (!window.shimejiTrayApi || !listEl) return;
+
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      window.shimejiTrayApi.openSettings();
+      window.close();
+    });
+  }
 
   const state = await window.shimejiTrayApi.getState();
   const shimejis = Array.isArray(state?.shimejis) ? state.shimejis : [];
@@ -40,7 +48,7 @@
     meta.className = 'shimeji-meta';
     const label = document.createElement('div');
     label.className = 'shimeji-label';
-    label.textContent = entry.label || `Shimeji ${entry.index + 1}`;
+    label.textContent = entry.label || `#${entry.index + 1}`;
     const typeLabel = createTypeLabel(entry.source || 'Standard');
     meta.appendChild(label);
     meta.appendChild(typeLabel);

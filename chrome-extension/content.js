@@ -44,6 +44,41 @@
         WALKING_ON: 'walking_on'
     };
 
+    const CALL_BACK_LINE_SPACING = 150;
+    const CALL_BACK_LINE_MARGIN = 22;
+    const CALL_BACK_RESET_DELAY = 1200;
+    const callBackLineCount = { left: 0, right: 0 };
+    let callBackLineResetTimer = null;
+
+    function resetCallBackLineCounters() {
+        callBackLineCount.left = 0;
+        callBackLineCount.right = 0;
+        callBackLineResetTimer = null;
+    }
+
+    function scheduleCallBackLineReset() {
+        if (callBackLineResetTimer) {
+            clearTimeout(callBackLineResetTimer);
+        }
+        callBackLineResetTimer = setTimeout(resetCallBackLineCounters, CALL_BACK_RESET_DELAY);
+    }
+
+    function computeCallBackX(edge, size) {
+        const safeEdge = edge === -1 ? -1 : 1;
+        const sideKey = safeEdge === -1 ? 'left' : 'right';
+        const slot = Math.min(callBackLineCount[sideKey], MAX_SHIMEJIS - 1);
+        callBackLineCount[sideKey] = Math.min(callBackLineCount[sideKey] + 1, MAX_SHIMEJIS);
+        scheduleCallBackLineReset();
+        const spacing = Math.max(CALL_BACK_LINE_SPACING, size * 1.1);
+        const screenWidth = Math.max(window.innerWidth, size + CALL_BACK_LINE_MARGIN * 2);
+        const leftBase = CALL_BACK_LINE_MARGIN;
+        const rightBase = Math.max(screenWidth - size - CALL_BACK_LINE_MARGIN, CALL_BACK_LINE_MARGIN);
+        if (safeEdge === -1) {
+            return Math.min(leftBase + slot * spacing, window.innerWidth - size - CALL_BACK_LINE_MARGIN);
+        }
+        return Math.max(rightBase - slot * spacing, CALL_BACK_LINE_MARGIN);
+    }
+
     const SPRITES = {
         'stand-neutral': 'stand-neutral.png',
         'walk-step-left': 'walk-step-left.png',
@@ -1561,7 +1596,9 @@
             isOffScreen: false,
             offScreenEdge: 0,
             offScreenSince: 0,
-            jumpCooldown: 0
+            jumpCooldown: 0,
+            chatClickTimeout: null,
+            lastClickAt: 0
         };
 
         registerCollisionMascot(mascot);
@@ -1855,6 +1892,8 @@
         }
 
         const DRAG_THRESHOLD = 5;
+        const CHAT_CLICK_DELAY = 300;
+        const DOUBLE_CLICK_WINDOW = 420;
 
         function setupDragListeners() {
             mascotElement.addEventListener('pointerdown', onPointerDown);
@@ -1942,7 +1981,7 @@
 
             if (mascot.dragPending) {
                 mascot.dragPending = false;
-                handleMascotClick();
+                queueMascotClickAction();
                 return;
             }
 
@@ -1989,7 +2028,7 @@
         function onTouchEnd() {
             if (mascot.dragPending) {
                 mascot.dragPending = false;
-                handleMascotClick();
+                queueMascotClickAction();
                 return;
             }
 
@@ -3037,7 +3076,7 @@
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
             const edge = mascot.offScreenEdge || -1;
-            mascot.x = edge === -1 ? -size : window.innerWidth + size;
+            mascot.x = computeCallBackX(edge, size);
             mascot.y = window.innerHeight;
             mascot.isOffScreen = false;
             mascot.offScreenSince = 0;
@@ -3055,6 +3094,11 @@
 
         function dismissShimeji() {
             if (mascot.isOffScreen) return;
+            if (mascot.chatClickTimeout) {
+                clearTimeout(mascot.chatClickTimeout);
+                mascot.chatClickTimeout = null;
+            }
+            mascot.lastClickAt = 0;
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
             const edge = mascot.x < (window.innerWidth - size) / 2 ? -1 : 1;
@@ -3581,6 +3625,28 @@
             } else {
                 openChatBubble();
             }
+        }
+
+        function queueMascotClickAction() {
+            const now = Date.now();
+            const last = mascot.lastClickAt || 0;
+            if (last > 0 && now - last <= DOUBLE_CLICK_WINDOW) {
+                mascot.lastClickAt = 0;
+                if (mascot.chatClickTimeout) {
+                    clearTimeout(mascot.chatClickTimeout);
+                    mascot.chatClickTimeout = null;
+                }
+                dismissShimeji();
+                return;
+            }
+            mascot.lastClickAt = now;
+            if (mascot.chatClickTimeout) {
+                clearTimeout(mascot.chatClickTimeout);
+            }
+            mascot.chatClickTimeout = setTimeout(() => {
+                mascot.chatClickTimeout = null;
+                handleMascotClick();
+            }, CHAT_CLICK_DELAY);
         }
 
         function dispatchRelay(text) {

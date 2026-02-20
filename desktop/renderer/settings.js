@@ -78,6 +78,24 @@ const LANGUAGE_OPTIONS = [
   { value: 'es', labelEn: 'Spanish', labelEs: 'Español' }
 ];
 
+const PROVIDER_HELP_LINKS = {
+  openrouter: {
+    href: 'https://openrouter.ai/settings/keys',
+    labelEn: 'Get OpenRouter keys',
+    labelEs: 'Conseguir keys de OpenRouter'
+  },
+  ollama: {
+    href: 'https://ollama.com',
+    labelEn: 'Download Ollama',
+    labelEs: 'Descargar Ollama'
+  },
+  openclaw: {
+    href: 'https://github.com/openclaw/openclaw',
+    labelEn: 'Setup OpenClaw',
+    labelEs: 'Configurar OpenClaw'
+  }
+};
+
 let shimejis = [];
 let selectedShimejiIndex = 0;
 let currentConfig = {};
@@ -138,6 +156,23 @@ function isSpanishLocale() {
 
 function t(en, es) {
   return isSpanishLocale() ? es : en;
+}
+
+function appendProviderHelpLink(container, providerId) {
+  const linkConfig = PROVIDER_HELP_LINKS[providerId];
+  if (!linkConfig) return;
+
+  const hint = document.createElement('div');
+  hint.className = 'helper-text full-width';
+
+  const anchor = document.createElement('a');
+  anchor.href = linkConfig.href;
+  anchor.target = '_blank';
+  anchor.rel = 'noopener noreferrer';
+  anchor.textContent = isSpanishLocale() ? linkConfig.labelEs : linkConfig.labelEn;
+
+  hint.appendChild(anchor);
+  container.appendChild(hint);
 }
 
 function refreshNftCharacterCatalog(rawNfts) {
@@ -952,6 +987,7 @@ function renderShimejiCards() {
 
         aiCorePanel.appendChild(detectedField);
       }
+      appendProviderHelpLink(aiCorePanel, provider);
     } else if (mode === 'agent') {
       aiCorePanel.appendChild(renderInputField('openclawGatewayUrl', t('Gateway URL', 'URL del Gateway'), shimeji.openclawGatewayUrl || 'ws://127.0.0.1:18789', 'text', 'ws://127.0.0.1:18789', { className: 'ai-core-field' }));
       aiCorePanel.appendChild(
@@ -979,6 +1015,7 @@ function renderShimejiCards() {
         "Reglas del nombre del agente: solo letras, números, '-' y '_' (máx 32)."
       );
       aiCorePanel.appendChild(openclawNameHint);
+      appendProviderHelpLink(aiCorePanel, 'openclaw');
     } else if (mode === 'terminal') {
       aiCorePanel.appendChild(
         renderInputField(

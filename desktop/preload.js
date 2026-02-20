@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   updateConfig: (payload) => ipcRenderer.send('update-config', payload),
   onConfigUpdated: (handler) => ipcRenderer.on('config-updated', (_, data) => handler(data)),
 
+  // Screen info (bounds + workArea for taskbar detection)
+  getScreenInfo: () => ipcRenderer.invoke('get-screen-info'),
+  getCursorScreenPoint: () => ipcRenderer.invoke('get-cursor-screen-point'),
+
   // Characters
   getCharactersDir: () => ipcRenderer.invoke('get-characters-dir'),
   listCharacters: () => ipcRenderer.invoke('list-characters'),
@@ -61,5 +65,15 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   onDismiss: (handler) => ipcRenderer.on('dismiss-shimeji', (_, data) => handler(data)),
 
   // Mouse events control for click-through overlay
-  setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore)
+  setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),
+
+  // Update notification helpers
+  onUpdateAvailable: (handler) => ipcRenderer.on('update-available', (_, data) => handler(data)),
+  onUpdateDownloadStart: (handler) => ipcRenderer.on('update-download-start', (_, data) => handler(data)),
+  onUpdateDownloadProgress: (handler) => ipcRenderer.on('update-download-progress', (_, data) => handler(data)),
+  onUpdateDownloadComplete: (handler) => ipcRenderer.on('update-download-complete', (_, data) => handler(data)),
+  onUpdateDownloadError: (handler) => ipcRenderer.on('update-download-error', (_, data) => handler(data)),
+  onUpdateInstallStart: (handler) => ipcRenderer.on('update-install-start', (_, data) => handler(data)),
+  downloadUpdateAsset: (payload) => ipcRenderer.invoke('update-download-asset', payload),
+  installDownloadedUpdate: (payload) => ipcRenderer.invoke('update-install', payload)
 });

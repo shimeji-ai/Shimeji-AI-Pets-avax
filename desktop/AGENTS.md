@@ -1,5 +1,11 @@
 # Desktop Build Instructions
 
+## Personalities & packaging
+
+- The canonical personality prompts live in `personalities/*.md`. The desktop, Chrome, and Firefox runtimes all read those Markdown files after `npm run sync-personalities` copies them to their own `personalities` folders.
+- Run `npm run sync-personalities` (or the root `./build.sh` wrapper) before building or packaging so the generated artifacts include the latest prompts (Chrome/Firefox zips land under `dist/` and are mirrored to `shimeji-eth/packages/nextjs/public/` automatically).
+- Use the root `./build.sh` script to coordinate Chrome/Firefox packaging plus desktop builds (see the root `AGENTS.md` for usage notes). The release uploader (`./scripts/publish_release_assets.sh`) now runs the sync step before zipping, but you still need to run `npm run sync-personalities` when building locally.
+
 ## Quick Build (Recommended)
 
 Run the build script to create a new portable exe:

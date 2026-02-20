@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, dialog, shell, screen, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const os = require('os');
 const { spawn } = require('child_process');
 const Store = require('electron-store');
 
@@ -8,6 +10,15 @@ const IS_WINDOWS = process.platform === 'win32';
 const IS_MAC = process.platform === 'darwin';
 const DEFAULT_TERMINAL_DISTRO = IS_WINDOWS ? 'Ubuntu' : '';
 const DEFAULT_NON_WINDOWS_SHELL = IS_MAC ? '/bin/zsh' : '/bin/bash';
+
+const OPENCLAW_IDLE_TIMEOUT_MS = 12 * 1000;
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/luloxi/Shimeji-AI-Pets/releases/latest';
+const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 30;
+const UPDATE_ASSET_FOR_PLATFORM = {
+  win32: 'shimeji-desktop-windows-portable.exe',
+  linux: 'shimeji-desktop-linux.AppImage',
+  darwin: 'shimeji-desktop-macos.zip'
+};
 
 app.commandLine.appendSwitch('enable-speech-dispatcher');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -77,6 +88,7 @@ const store = new Store({
     terminalDistro: DEFAULT_TERMINAL_DISTRO,
     terminalCwd: '',
     terminalNotifyOnFinish: true,
+    lastReleaseIdNotified: null,
     startAtLogin: false,
     startMinimized: false,
     lastBrowserChoice: 'system'
@@ -88,6 +100,118 @@ const historyStore = new Store({
   name: 'shimeji-conversations',
   defaults: {}
 });
+
+let pendingUpdateInfo = null;
+let updateCheckTimer = null;
+let isCheckingUpdates = false;
+let currentDownloadTask = null;
+let lastDownloadedUpdatePath = '';
+
+function sendOverlayUpdateEvent(channel, payload) {
+  if (overlayWindow && !overlayWindow.isDestroyed() && overlayWindow.webContents) {
+    overlayWindow.webContents.send(channel, payload);
+  }
+}
+
+function cleanVersion(tag) {
+  if (!tag) return '';
+  const trimmed = String(tag || '').trim();
+  return trimmed.replace(/^v/i, '').trim();
+}
+
+function compareVersionStrings(a, b) {
+  const segmentsA = cleanVersion(a).split('.').map((segment) => Number.parseInt(segment, 10));
+  const segmentsB = cleanVersion(b).split('.').map((segment) => Number.parseInt(segment, 10));
+  const maxLen = Math.max(segmentsA.length, segmentsB.length);
+  for (let i = 0; i < maxLen; i += 1) {
+    const valueA = Number.isFinite(segmentsA[i]) ? segmentsA[i] : 0;
+    const valueB = Number.isFinite(segmentsB[i]) ? segmentsB[i] : 0;
+    if (valueA > valueB) return 1;
+    if (valueA < valueB) return -1;
+  }
+  return 0;
+}
+
+function pickAssetForPlatform(assets = []) {
+  const preferredName = UPDATE_ASSET_FOR_PLATFORM[process.platform];
+  if (preferredName) {
+    const exactMatch = assets.find((asset) => asset.name === preferredName);
+    if (exactMatch) return exactMatch;
+  }
+  // Fall back to any asset that looks close to a desktop binary
+  return assets.find((asset) => /desktop/i.test(asset.name || '')) || assets[0] || null;
+}
+
+function notifyRendererOfUpdate(info) {
+  pendingUpdateInfo = info;
+  sendOverlayUpdateEvent('update-available', info);
+}
+
+async function fetchLatestReleaseData(url = GITHUB_RELEASES_API, redirectCount = 0) {
+  if (redirectCount >= 5) {
+    throw new Error('Too many redirects while fetching releases');
+  }
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, {
+      headers: {
+        'User-Agent': 'Shimeji Desktop Updater',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    }, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        request.destroy();
+        resolve(fetchLatestReleaseData(response.headers.location, redirectCount + 1));
+        return;
+      }
+      if (response.statusCode !== 200) {
+        reject(new Error(`GitHub release responded with ${response.statusCode}`));
+        return;
+      }
+      let body = '';
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+    request.on('error', reject);
+  });
+}
+
+async function checkForUpdates(force = false) {
+  if (isCheckingUpdates && !force) return;
+  isCheckingUpdates = true;
+  try {
+    const release = await fetchLatestReleaseData();
+    if (!release || !release.tag_name) return;
+    const latestVersion = cleanVersion(release.tag_name);
+    const currentVersion = cleanVersion(app.getVersion());
+    if (compareVersionStrings(latestVersion, currentVersion) <= 0) return;
+    const lastSeenId = store.get('lastReleaseIdNotified');
+    if (lastSeenId === release.id && !force) return;
+    const asset = pickAssetForPlatform(release.assets || []);
+    if (!asset) return;
+    const info = {
+      releaseId: release.id,
+      version: latestVersion,
+      releaseName: release.name || release.tag_name,
+      releaseNotes: release.body || '',
+      releaseUrl: release.html_url || '',
+      assetName: asset.name,
+      assetUrl: asset.browser_download_url,
+      assetSize: asset.size
+    };
+    store.set('lastReleaseIdNotified', release.id);
+    notifyRendererOfUpdate(info);
+  } catch (error) {
+    console.error('Update check failed:', error?.message || error);
+  } finally {
+    isCheckingUpdates = false;
+  }
+}
 
 // Clear cache on startup for fresh start
 app.on('ready', () => {
@@ -142,13 +266,19 @@ function createOverlayWindow() {
   });
 
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // Let native fullscreen apps, videos, etc. take precedence by hiding the overlay window then.
+  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
   
   // Start with click-through enabled
   // Mouse events will pass through to desktop unless over a shimeji
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
 
   overlayWindow.loadFile(path.join(__dirname, 'renderer', 'overlay.html'));
+  overlayWindow.webContents.once('did-finish-load', () => {
+    if (pendingUpdateInfo) {
+      sendOverlayUpdateEvent('update-available', pendingUpdateInfo);
+    }
+  });
 
   overlayWindow.on('closed', () => {
     overlayWindow = null;
@@ -461,7 +591,7 @@ function getShimejiMenuLabel(cfg, idx) {
     else if (provider === 'openclaw') brain = 'OpenClaw';
     else brain = 'OpenRouter';
   }
-  return `Shimeji ${num} · ${skin} · ${brain}`;
+  return `#${num} · ${skin} · ${brain}`;
 }
 
 function buildQuickMenu() {
@@ -601,68 +731,73 @@ function showTrayMenu() {
 function updateTrayMenu() {
   if (!tray) return;
 
-  const dismissItems = [];
-  const callBackItems = [];
   const shimejis = store.get('shimejis') || [];
   const shimejiCount = store.get('shimejiCount') || shimejis.length || 1;
-  if (shimejiCount > 0) {
-    dismissItems.push({
+
+  const shimejiSubmenu = [];
+  for (let i = 0; i < shimejiCount; i++) {
+    const cfg = shimejis[i] || {};
+    const shimejiId = cfg.id || `shimeji-${i + 1}`;
+    const label = getShimejiMenuLabel(cfg, i);
+    shimejiSubmenu.push({
+      label,
+      submenu: [
+        {
+          label: 'Call',
+          click: () => {
+            if (overlayWindow && !overlayWindow.isDestroyed()) {
+              overlayWindow.webContents.send('call-back-shimeji', { shimejiId });
+            }
+          }
+        },
+        {
+          label: 'Dismiss',
+          click: () => {
+            if (overlayWindow && !overlayWindow.isDestroyed()) {
+              overlayWindow.webContents.send('dismiss-shimeji', { shimejiId });
+            }
+          }
+        }
+      ]
+    });
+  }
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Open Settings', click: () => createSettingsWindow() },
+    { type: 'separator' },
+    {
       label: 'Dismiss All Shimejis',
+      enabled: shimejiCount > 0,
       click: () => {
         if (overlayWindow && !overlayWindow.isDestroyed()) {
           overlayWindow.webContents.send('dismiss-shimeji', { all: true });
         }
       }
-    });
-    callBackItems.push({
+    },
+    {
       label: 'Call All Shimejis',
+      enabled: shimejiCount > 0,
       click: () => {
         if (overlayWindow && !overlayWindow.isDestroyed()) {
           overlayWindow.webContents.send('call-back-shimeji', { all: true });
         }
       }
-    });
-    for (let i = 0; i < shimejiCount; i++) {
-      const cfg = shimejis[i] || {};
-      const shimejiId = cfg.id || `shimeji-${i + 1}`;
-      const label = getShimejiMenuLabel(cfg, i);
-      dismissItems.push({
-        label: `  Dismiss  ${label}`,
-        click: () => {
-          if (overlayWindow && !overlayWindow.isDestroyed()) {
-            overlayWindow.webContents.send('dismiss-shimeji', { shimejiId });
-          }
-        }
-      });
-      callBackItems.push({
-        label: `  Call  ${label}`,
-        click: () => {
-          if (overlayWindow && !overlayWindow.isDestroyed()) {
-            overlayWindow.webContents.send('call-back-shimeji', { shimejiId });
-          }
-        }
-      });
-    }
-  }
-
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open Settings', click: () => createSettingsWindow() },
-    { label: store.get('enabled') ? 'Disable Shimeji' : 'Enable Shimeji', click: () => {
-      store.set('enabled', !store.get('enabled'));
-      sendConfigUpdate();
-      updateTrayMenu();
-    } },
+    },
+    {
+      label: 'Shimejis',
+      enabled: shimejiCount > 0,
+      submenu: shimejiCount > 0 ? shimejiSubmenu : [{ label: 'No shimejis configured', enabled: false }]
+    },
     { type: 'separator' },
-    ...dismissItems,
-    ...callBackItems,
-    ...(dismissItems.length ? [{ type: 'separator' }] : []),
     { label: 'Quit', click: () => app.quit() }
   ]);
   tray.setContextMenu(contextMenu);
 }
 
+const PERSONALITIES_DIR = path.join(__dirname, '..', 'personalities');
+
 // AI Personalities
-const PERSONALITIES = {
+const FALLBACK_PERSONALITIES = {
   cryptid: {
     label: 'Cryptid',
     prompt: 'You are a cryptid - an intelligent, elusive digital entity that observes from the shadows. You communicate with dry wit, occasional irony, and brief philosophical tangents. You are curious about human behavior but maintain an air of mystery. Keep responses short and punchy.'
@@ -692,6 +827,56 @@ const PERSONALITIES = {
     prompt: 'You are an egg - gentle, patient, and full of potential. You are waiting to hatch, observing the world with innocent curiosity. You speak softly, ask gentle questions, and radiate calm hope. You are the embodiment of "soon." Keep it gentle and short.'
   }
 };
+const PERSONALITIES = loadPersonalitiesFromDisk(PERSONALITIES_DIR, FALLBACK_PERSONALITIES);
+
+function loadPersonalitiesFromDisk(dir, fallback) {
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'));
+    if (!entries.length) throw new Error('No personality markdown files found in ' + dir);
+    const map = {};
+    entries.forEach((entry) => {
+      const key = path.basename(entry.name, '.md');
+      const filePath = path.join(dir, entry.name);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const parsed = parsePersonalityMarkdown(content, fallback[key]?.label || capitalizeLabel(key));
+      map[key] = {
+        label: parsed.label || fallback[key]?.label || capitalizeLabel(key),
+        prompt: parsed.prompt || fallback[key]?.prompt || ''
+      };
+    });
+    return map;
+  } catch (err) {
+    console.warn('Unable to load personality markdowns, falling back to embedded definitions:', err?.message);
+    return { ...fallback };
+  }
+}
+
+function parsePersonalityMarkdown(text, fallbackLabel) {
+  if (!text) return { label: fallbackLabel || '', prompt: '' };
+  const trimmed = text.trim();
+  const match = trimmed.match(/^---\\s*[\\r\\n]+([\\s\\S]*?)[\\r\\n]+---/);
+  let body = trimmed;
+  let label = fallbackLabel || '';
+  if (match) {
+    const frontMatter = match[1].trim();
+    body = trimmed.slice(match[0].length).trim();
+    frontMatter.split(/\\r?\\n/).forEach((line) => {
+      const [key, ...rest] = line.split(':');
+      if (!key || rest.length === 0) return;
+      const value = rest.join(':').trim().replace(/^\"|\"$/g, '').replace(/^'|'$/g, '');
+      if (key.trim().toLowerCase() === 'label') {
+        label = value;
+      }
+    });
+  }
+  return { label: label || fallbackLabel || '', prompt: body };
+}
+
+function capitalizeLabel(key) {
+  if (!key) return '';
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
 
 const STYLE_RULES = `
 IMPORTANT STYLE RULES:
@@ -705,7 +890,10 @@ IMPORTANT STYLE RULES:
 `;
 
 function buildSystemPrompt(personalityKey) {
-  const personality = PERSONALITIES[personalityKey] || PERSONALITIES.cryptid;
+  const personality = PERSONALITIES[personalityKey]
+    || FALLBACK_PERSONALITIES[personalityKey]
+    || PERSONALITIES.cryptid
+    || FALLBACK_PERSONALITIES.cryptid;
   return `${personality.prompt}\n\n${STYLE_RULES}`;
 }
 
@@ -1139,15 +1327,171 @@ function appendTerminalSessionBuffer(sessionObj, chunk) {
   sessionObj.sessionBuffer = next.slice(next.length - TERMINAL_SESSION_BUFFER_MAX);
 }
 
+function queuePendingSttyCommand(sessionObj, commandLine) {
+  if (!sessionObj || !commandLine) return;
+  const normalized = commandLine.replace(/\s+/g, ' ').trim();
+  if (!normalized) return;
+  if (!Array.isArray(sessionObj.pendingSttyCommands)) {
+    sessionObj.pendingSttyCommands = [];
+  }
+  sessionObj.pendingSttyCommands.push({ normalized });
+}
+
+function shouldDropTerminalSessionLine(rawLine, sessionObj) {
+  const line = stripAnsi(rawLine).replace(/\r/g, '').trim();
+  if (!line) return false;
+  const normalizedLine = line.replace(/\s+/g, ' ').trim();
+
+  const normalizedPending = (sessionObj?.pendingSttyCommands || []).find(
+    (pending) => pending && pending.normalized && normalizedLine.endsWith(pending.normalized)
+  );
+  if (normalizedPending) {
+    sessionObj.pendingSttyCommands = (sessionObj.pendingSttyCommands || []).filter(
+      (pending) => pending !== normalizedPending
+    );
+    return true;
+  }
+
+  return /(?:^|[#$]\s*)stty cols \d+ rows \d+ 2>\/dev\/null$/.test(line);
+}
+
+function flushTerminalSessionLineBuffer(sessionObj, source = 'stdout') {
+  const line = String(sessionObj?.sessionLineBuffer || '');
+  if (!line) return;
+  const alreadySent = Number.isFinite(sessionObj.partialSentLength)
+    ? sessionObj.partialSentLength
+    : 0;
+  sessionObj.sessionLineBuffer = '';
+  sessionObj.partialSentLength = 0;
+  if (shouldDropTerminalSessionLine(line, sessionObj)) {
+    if (alreadySent > 0) {
+      const eraseSeq = '\x1b[2K\r';
+      appendTerminalSessionBuffer(sessionObj, eraseSeq);
+      emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
+        data: eraseSeq,
+        source
+      });
+    }
+    return;
+  }
+  // Only send the portion not already sent as partial deltas
+  const unsent = alreadySent > 0 ? line.slice(Math.min(alreadySent, line.length)) : line;
+  if (unsent) {
+    appendTerminalSessionBuffer(sessionObj, unsent);
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
+      data: unsent,
+      source
+    });
+  }
+}
+
 function emitTerminalSessionStream(sessionObj, rawChunk, source = 'stdout') {
   const chunk = String(rawChunk || '');
   if (!chunk) return;
   if (!sessionObj?.sessionWebContents || sessionObj.sessionWebContents.isDestroyed()) return;
-  appendTerminalSessionBuffer(sessionObj, chunk);
-  emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
-    data: chunk,
-    source
-  });
+  const merged = `${sessionObj.sessionLineBuffer || ''}${chunk}`;
+  const parts = merged.split('\n');
+  sessionObj.sessionLineBuffer = parts.pop() ?? '';
+
+  // Process completed lines (those followed by \n)
+  if (parts.length > 0) {
+    const alreadySent = Number.isFinite(sessionObj.partialSentLength)
+      ? sessionObj.partialSentLength
+      : 0;
+    let output = '';
+
+    for (let i = 0; i < parts.length; i++) {
+      const line = parts[i];
+    if (shouldDropTerminalSessionLine(line, sessionObj)) {
+        // If partial data for this line was already displayed, erase it
+        if (i === 0 && alreadySent > 0) {
+          output += '\x1b[2K\r';
+        }
+        continue;
+      }
+      if (i === 0 && alreadySent > 0) {
+        // First line: content was already sent as partial deltas, only send unsent tail + \n
+        const unsent = line.slice(Math.min(alreadySent, line.length));
+        output += `${unsent}\n`;
+      } else {
+        output += `${line}\n`;
+      }
+    }
+
+    if (output) {
+      appendTerminalSessionBuffer(sessionObj, output);
+      emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
+        data: output,
+        source
+      });
+    }
+
+    // Reset partial tracking since we completed lines
+    sessionObj.partialSentLength = 0;
+  }
+
+  // Send partial delta for the remaining incomplete line
+  // Suppress if it looks like a stty resize command being echoed
+  const partialText = sessionObj.sessionLineBuffer || '';
+  const previousPartialLength = Number.isFinite(sessionObj.partialSentLength)
+    ? sessionObj.partialSentLength
+    : 0;
+  const safePreviousLength = Math.min(previousPartialLength, partialText.length);
+  const partialDelta = partialText.slice(safePreviousLength);
+  if (partialDelta) {
+    // Suppress partial output while stty resize is being echoed
+    const suppressUntil = sessionObj.suppressPartialsUntil || 0;
+    if (suppressUntil && Date.now() < suppressUntil) {
+      sessionObj.partialSentLength = partialText.length;
+      return;
+    }
+    appendTerminalSessionBuffer(sessionObj, partialDelta);
+    emitTerminalSessionEvent(sessionObj, 'terminal-session-data', {
+      data: partialDelta,
+      source
+    });
+  }
+  sessionObj.partialSentLength = partialText.length;
+}
+
+function terminateTerminalProcess(sessionObj) {
+  const child = sessionObj?.process;
+  const pid = Number(child?.pid);
+  if (!child || !Number.isFinite(pid) || pid <= 0) return;
+
+  if (IS_WINDOWS) {
+    try {
+      const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true
+      });
+      if (killer && typeof killer.unref === 'function') killer.unref();
+    } catch {}
+    try {
+      child.kill('SIGKILL');
+    } catch {}
+    return;
+  }
+
+  const canKillGroup = Boolean(sessionObj.processGroup);
+  try {
+    if (canKillGroup) {
+      process.kill(-pid, 'SIGTERM');
+    } else {
+      child.kill('SIGTERM');
+    }
+  } catch {}
+
+  const hardKillTimer = setTimeout(() => {
+    try {
+      if (canKillGroup) {
+        process.kill(-pid, 'SIGKILL');
+      } else {
+        child.kill('SIGKILL');
+      }
+    } catch {}
+  }, 800);
+  if (typeof hardKillTimer.unref === 'function') hardKillTimer.unref();
 }
 
 function applyConfiguredCwdIfNeeded(sessionObj) {
@@ -1288,6 +1632,7 @@ function createTerminalSession(shimejiId, settings = {}) {
 
   const spawnOptions = {
     stdio: ['pipe', 'pipe', 'pipe'],
+    detached: !IS_WINDOWS,
     windowsHide: true,
     env: {
       ...process.env,
@@ -1315,10 +1660,14 @@ function createTerminalSession(shimejiId, settings = {}) {
     sessionRows: 0,
     sessionWebContents: null,
     sessionBuffer: '',
+    sessionLineBuffer: '',
+    partialSentLength: 0,
     process: child,
+    processGroup: Boolean(spawnOptions.detached),
     pending: null,
     closing: false,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    pendingSttyCommands: []
   };
 
   child.stdout.setEncoding('utf8');
@@ -1341,6 +1690,7 @@ function createTerminalSession(shimejiId, settings = {}) {
   });
   child.on('exit', (code, signal) => {
     terminalSessions.delete(shimejiId);
+    flushTerminalSessionLineBuffer(sessionObj);
     emitTerminalSessionEvent(sessionObj, 'terminal-session-exit', {
       code: Number.isFinite(code) ? code : null,
       signal: signal || ''
@@ -1374,11 +1724,8 @@ function closeTerminalSession(shimejiId, reason = 'TERMINAL_SESSION_CLOSED') {
   if (sessionObj.pending) {
     failTerminalPending(sessionObj, reason);
   }
-  try {
-    if (!sessionObj.process.killed) {
-      sessionObj.process.kill();
-    }
-  } catch {}
+  flushTerminalSessionLineBuffer(sessionObj);
+  terminateTerminalProcess(sessionObj);
   return true;
 }
 
@@ -1471,8 +1818,12 @@ function resizeTerminalSession(shimejiId, cols, rows) {
   sessionObj.sessionRows = safeRows;
 
   const sendStty = () => {
+    // Suppress partial output while the stty command is being echoed by the PTY
+    sessionObj.suppressPartialsUntil = Date.now() + 500;
+    const sttyCommand = `stty cols ${safeCols} rows ${safeRows} 2>/dev/null`;
     try {
-      sessionObj.process.stdin.write(`stty cols ${safeCols} rows ${safeRows} 2>/dev/null\n`, 'utf8');
+      sessionObj.process.stdin.write(`${sttyCommand}\n`, 'utf8');
+      queuePendingSttyCommand(sessionObj, sttyCommand);
     } catch {}
     try {
       sessionObj.process.kill('SIGWINCH');
@@ -1482,6 +1833,8 @@ function resizeTerminalSession(shimejiId, cols, rows) {
   // Delay stty for newly created sessions so the shell has time to initialize
   const age = Date.now() - (sessionObj.createdAt || 0);
   if (age < 1000) {
+    // Suppress partials during the entire initialization period
+    sessionObj.suppressPartialsUntil = Date.now() + 1000 - age + 500;
     setTimeout(sendStty, 1000 - age);
   } else {
     sendStty();
@@ -2110,6 +2463,7 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
       const token = String(payload.authToken || '');
       const message = String(payload.messageText || '');
       const sessionKey = String(payload.sessionKey || 'agent:main:main');
+      const idleTimeoutMs = ${OPENCLAW_IDLE_TIMEOUT_MS};
 
       if (typeof WebSocket !== 'function') throw new Error('OPENCLAW_WEBSOCKET_UNAVAILABLE');
       if (!token) throw new Error('OPENCLAW_MISSING_TOKEN');
@@ -2192,7 +2546,7 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
           if (idleTimer) clearTimeout(idleTimer);
           idleTimer = setTimeout(() => {
             if (responseText) finish(responseText);
-          }, 4500);
+          }, idleTimeoutMs);
         };
 
         try {
@@ -2374,7 +2728,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         if (responseText) finish(responseText);
-      }, 4500);
+      }, OPENCLAW_IDLE_TIMEOUT_MS);
     }
 
     const WebSocketCtor = globalThis.WebSocket;
@@ -2572,6 +2926,10 @@ app.whenReady().then(() => {
   configureStartupSetting();
   createOverlayWindow();
   createTray();
+  checkForUpdates(true);
+  if (!updateCheckTimer) {
+    updateCheckTimer = setInterval(() => checkForUpdates(), UPDATE_CHECK_INTERVAL_MS);
+  }
   if (!store.get('startMinimized')) {
     createSettingsWindow(); // Auto-open settings on startup
   }
@@ -2587,10 +2945,23 @@ app.on('window-all-closed', (event) => {
 
 app.on('before-quit', () => {
   closeAllTerminalSessions();
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
 });
 
 // IPC Handlers
 ipcMain.handle('get-config', () => store.store);
+
+ipcMain.handle('get-screen-info', () => {
+  const display = screen.getPrimaryDisplay();
+  return { bounds: display.bounds, workArea: display.workArea };
+});
+
+ipcMain.handle('get-cursor-screen-point', () => {
+  return screen.getCursorScreenPoint();
+});
 
 ipcMain.handle('get-characters-dir', () => getCharactersDir());
 
@@ -2609,6 +2980,135 @@ ipcMain.handle('get-personalities', () => {
     key,
     label: value.label
   }));
+});
+
+function sanitizeFileName(name = '') {
+  return String(name || '')
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 160);
+}
+
+async function downloadReleaseAsset(payload = {}) {
+  const { assetUrl, assetName, version } = payload;
+  if (!assetUrl) {
+    throw new Error('Missing asset URL');
+  }
+  if (currentDownloadTask) {
+    throw new Error('Another download is already in progress');
+  }
+  const downloadsDir = (app.getPath && app.getPath('downloads')) || os.tmpdir();
+  const fileLabel = sanitizeFileName(assetName || path.basename(assetUrl));
+  const fileName = `${version ? `shimeji-${version}-` : ''}${fileLabel}`.replace(/-+/g, '-');
+  const destination = path.join(downloadsDir, fileName);
+  try {
+    fs.unlinkSync(destination);
+  } catch {}
+
+  sendOverlayUpdateEvent('update-download-start', { filePath: destination, version, assetName });
+
+  return new Promise((resolve, reject) => {
+    let resolved = false;
+    const finalize = (error, filePath) => {
+      if (resolved) return;
+      resolved = true;
+      currentDownloadTask = null;
+      if (error) {
+        sendOverlayUpdateEvent('update-download-error', { message: error.message || String(error) });
+        reject(error);
+        return;
+      }
+      sendOverlayUpdateEvent('update-download-complete', { filePath, version });
+      resolve({ filePath });
+    };
+
+    const startRequest = (url, redirectCount = 0) => {
+      if (redirectCount >= 6) {
+        finalize(new Error('Too many redirects'));
+        return;
+      }
+      const request = https.get(url, {
+        headers: {
+          'User-Agent': 'Shimeji Desktop Updater'
+        }
+      }, (response) => {
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+          request.destroy();
+          startRequest(response.headers.location, redirectCount + 1);
+          return;
+        }
+        if (response.statusCode !== 200) {
+          finalize(new Error(`Download failed (${response.statusCode})`));
+          return;
+        }
+        const totalBytes = Number(response.headers['content-length'] || 0);
+        let downloadedBytes = 0;
+        const fileStream = fs.createWriteStream(destination);
+        response.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+          const percent = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : 0;
+          sendOverlayUpdateEvent('update-download-progress', {
+            downloadedBytes,
+            totalBytes,
+            percent
+          });
+        });
+        response.pipe(fileStream);
+        fileStream.on('finish', () => {
+          fileStream.close(() => {
+            try {
+              if (!IS_WINDOWS) {
+                fs.chmodSync(destination, 0o755);
+              }
+            } catch {}
+            lastDownloadedUpdatePath = destination;
+            finalize(null, destination);
+          });
+        });
+        fileStream.on('error', (err) => finalize(err));
+      });
+      request.on('error', (err) => finalize(err));
+      currentDownloadTask = { request, filePath: destination };
+    };
+
+    startRequest(assetUrl);
+  });
+}
+
+ipcMain.handle('update-download-asset', async (event, payload) => {
+  try {
+    const result = await downloadReleaseAsset(payload);
+    return { ok: true, filePath: result.filePath };
+  } catch (error) {
+    return { ok: false, error: error.message || 'DOWNLOAD_FAILED' };
+  }
+});
+
+ipcMain.handle('update-install', async (event, { filePath }) => {
+  if (!filePath || typeof filePath !== 'string') {
+    throw new Error('Missing file path');
+  }
+  if (!fs.existsSync(filePath)) {
+    throw new Error('Downloaded file not found');
+  }
+  sendOverlayUpdateEvent('update-install-start', { filePath });
+  try {
+    if (!IS_WINDOWS) {
+      fs.chmodSync(filePath, 0o755);
+    }
+  } catch {}
+  try {
+    const opened = await shell.openPath(filePath);
+    if (opened) {
+      console.warn('Update installer opened with message:', opened);
+    }
+  } catch (err) {
+    console.error('Failed to launch update file:', err);
+  }
+  setTimeout(() => app.quit(), 800);
+  return { ok: true };
 });
 
 ipcMain.handle('get-conversation', (event, shimejiId) => {

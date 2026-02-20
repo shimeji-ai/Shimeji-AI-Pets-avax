@@ -1,5 +1,16 @@
 {
+  "name": "shimeji-ai-pets",
+  "version": "0.1.0",
+  "description": "Monorepo for the Shimeji AI Pets desktop, extensions, and on-chain tooling.",
+  "author": "Shimeji AI Pets <hello@shimeji.ai>",
+  "scripts": {
+    "sync-personalities": "node scripts/sync-personalities.js"
+  },
   "dependencies": {
     "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^26.8.1"
   }
 }

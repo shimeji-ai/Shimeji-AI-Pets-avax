@@ -24,6 +24,12 @@ Do not scan these by default:
 - Tests: `packages/foundry/test/`
 - Frontend: `packages/nextjs/`
 
+## Personalities & extension zips
+
+- The canonical personality prompts are stored in `personalities/*.md`. Run `npm run sync-personalities` (or the root `./build.sh` helper) whenever you change those files so the Chrome/Firefox runtimes read the updated prompts before you build or release.
+- Chrome/Firefox packages live under `dist/` after running `./build.sh chrome`/`firefox`, and the release uploader mirrors them into `shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip` and `…/shimeji-firefox-extension.zip`.
+- `./scripts/publish_release_assets.sh` now runs the sync step automatically before zipping these directories, so invoking it is still the correct release flow when extension assets change.
+
 ## Standard Commands
 
 ```bash
