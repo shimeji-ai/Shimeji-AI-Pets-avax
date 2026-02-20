@@ -78,9 +78,6 @@ if [[ ! -d "$FF_EXT_SOURCE_DIR" ]]; then
   exit 1
 fi
 
-echo "==> Syncing Markdown personalities before zipping runtime directories"
-node scripts/sync-personalities.js >/dev/null
-
 # Always regenerate extension zips from the current extension folders.
 rm -f "$EXT_ZIP"
 (
