@@ -318,6 +318,18 @@ export function SiteShimejiMascot() {
     };
   }, []);
 
+  // Initialize position on mount
+  useEffect(() => {
+    const bounds = getBoundsFromWindow();
+    const startX = bounds.maxX;
+    const startY = bounds.maxY;
+    currentPosRef.current = { x: startX, y: startY };
+    progressRef.current = bounds.maxX + (bounds.maxY - bounds.minY);
+    if (wrapRef.current) {
+      wrapRef.current.style.transform = `translate3d(${Math.round(startX)}px, ${Math.round(startY)}px, 0)`;
+    }
+  }, []);
+
   useEffect(() => {
     let raf = 0;
     let lastT = 0;
