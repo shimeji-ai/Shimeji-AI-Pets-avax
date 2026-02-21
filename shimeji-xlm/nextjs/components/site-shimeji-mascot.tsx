@@ -167,6 +167,11 @@ export function SiteShimejiMascot() {
         "/shimeji-original/grab-ceiling.png",
         "/shimeji-original/climb-ceiling-frame-2.png",
       ],
+      usingComputer: [
+        "/shimeji-original/sit-pc-edge-legs-down.png",
+        "/shimeji-original/sit-pc-edge-dangle-frame-1.png",
+        "/shimeji-original/sit-pc-edge-dangle-frame-2.png",
+      ],
     }),
     [],
   );
@@ -286,7 +291,7 @@ export function SiteShimejiMascot() {
     let lastT = 0;
     let lastFrameT = 0;
     let frameIdx = 0;
-    let lastAnimState: MascotState | "held" | null = null;
+    let lastAnimState: MascotState | "held" | "chat-using-computer" | "chat-idle" | null = null;
 
     const tick = (time: number) => {
       if (!wrapRef.current || !isInitializedRef.current) {
@@ -345,6 +350,25 @@ export function SiteShimejiMascot() {
         targetPos = next;
         imgRef.current?.setAttribute("src", frames.stand);
         lastAnimState = "held";
+      } else if (openRef.current) {
+        targetPos = currentPosRef.current;
+        if (movementStateRef.current === "floor-walking") {
+          const animState = "chat-using-computer";
+          const activeFrames = frames.usingComputer;
+          if (lastAnimState !== animState) {
+            frameIdx = 0;
+            lastFrameT = time;
+            imgRef.current?.setAttribute("src", activeFrames[frameIdx]);
+          } else if (time - lastFrameT > 220) {
+            lastFrameT = time;
+            frameIdx = (frameIdx + 1) % activeFrames.length;
+            imgRef.current?.setAttribute("src", activeFrames[frameIdx]);
+          }
+          lastAnimState = animState;
+        } else {
+          imgRef.current?.setAttribute("src", frames.stand);
+          lastAnimState = "chat-idle";
+        }
       } else {
         const state = movementStateRef.current;
         const next = { ...targetPos };
@@ -433,7 +457,11 @@ export function SiteShimejiMascot() {
             ? ceilingDirRef.current === 1
               ? -1
               : 1
-            : wallSideRef.current === "left"
+            : state === "wall-climbing"
+              ? wallSideRef.current === "left"
+                ? -1
+                : 1
+              : wallSideRef.current === "left"
               ? -1
               : 1;
       imgRef.current?.style.setProperty("transform", `scaleX(${scaleX})`);
@@ -445,7 +473,7 @@ export function SiteShimejiMascot() {
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [frames.ceilingWalk, frames.stand, frames.walk, frames.wallClimb]);
+  }, [frames.ceilingWalk, frames.stand, frames.usingComputer, frames.walk, frames.wallClimb]);
 
   function ensureGreeting() {
     setMessages(prev => {
