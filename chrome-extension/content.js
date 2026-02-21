@@ -3261,10 +3261,32 @@
                 if (text[i] === '`') {
                     const end = text.indexOf('`', i + 1);
                     if (end > i + 1) {
+                        const codeText = text.slice(i + 1, end);
+                        const wrapperEl = document.createElement('span');
+                        wrapperEl.className = 'shimeji-chat-inline-code-wrapper';
+
                         const codeEl = document.createElement('code');
                         codeEl.className = 'shimeji-chat-inline-code';
-                        codeEl.textContent = text.slice(i + 1, end);
-                        target.appendChild(codeEl);
+                        codeEl.textContent = codeText;
+
+                        const copyBtn = document.createElement('button');
+                        copyBtn.type = 'button';
+                        copyBtn.className = 'shimeji-chat-inline-copy';
+                        copyBtn.textContent = '📋';
+                        copyBtn.title = isSpanishLocale() ? 'Copiar' : 'Copy';
+                        copyBtn.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const copied = await copyTextToClipboard(codeText);
+                            copyBtn.textContent = copied ? '✓' : '✗';
+                            setTimeout(() => {
+                                copyBtn.textContent = '📋';
+                            }, 1200);
+                        });
+
+                        wrapperEl.appendChild(codeEl);
+                        wrapperEl.appendChild(copyBtn);
+                        target.appendChild(wrapperEl);
                         i = end + 1;
                         continue;
                     }
@@ -3388,11 +3410,11 @@
             return fragment;
         }
 
-        function renderMarkdownIntoMessage(msgEl, content) {
-            if (!msgEl) return;
-            msgEl.innerHTML = '';
-            msgEl.appendChild(buildMarkdownFragment(content));
-            bindMarkdownCopyButtons(msgEl);
+        function renderMarkdownIntoMessage(contentEl, content) {
+            if (!contentEl) return;
+            contentEl.innerHTML = '';
+            contentEl.appendChild(buildMarkdownFragment(content));
+            bindMarkdownCopyButtons(contentEl);
         }
 
         function renderConversationHistory() {
@@ -3402,12 +3424,33 @@
                 const isUser = msg.role === 'user';
                 const msgEl = document.createElement('div');
                 msgEl.className = `shimeji-chat-msg ${isUser ? 'user' : 'ai'}`;
+                
+                // Add copy button for entire message
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'shimeji-chat-msg-copy';
+                copyBtn.textContent = '📋';
+                copyBtn.title = isSpanishLocale() ? 'Copiar mensaje' : 'Copy message';
+                copyBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const copied = await copyTextToClipboard(msg.content);
+                    copyBtn.textContent = copied ? '✓' : '✗';
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋';
+                    }, 1200);
+                });
+                msgEl.appendChild(copyBtn);
+                
+                const contentEl = document.createElement('div');
+                contentEl.className = 'shimeji-chat-msg-content';
                 if (!isUser) {
-                    renderMarkdownIntoMessage(msgEl, msg.content);
+                    renderMarkdownIntoMessage(contentEl, msg.content);
                     lastAssistantText = msg.content;
                 } else {
-                    msgEl.textContent = msg.content;
+                    contentEl.textContent = msg.content;
                 }
+                msgEl.appendChild(contentEl);
                 chatMessagesEl.appendChild(msgEl);
             });
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -3417,12 +3460,33 @@
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
             msgEl.className = `shimeji-chat-msg ${role}`;
+            
+            // Add copy button for entire message
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'shimeji-chat-msg-copy';
+            copyBtn.textContent = '📋';
+            copyBtn.title = isSpanishLocale() ? 'Copiar mensaje' : 'Copy message';
+            copyBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const copied = await copyTextToClipboard(content);
+                copyBtn.textContent = copied ? '✓' : '✗';
+                setTimeout(() => {
+                    copyBtn.textContent = '📋';
+                }, 1200);
+            });
+            msgEl.appendChild(copyBtn);
+            
+            const contentEl = document.createElement('div');
+            contentEl.className = 'shimeji-chat-msg-content';
             if (role === 'ai') {
-                renderMarkdownIntoMessage(msgEl, content);
+                renderMarkdownIntoMessage(contentEl, content);
                 lastAssistantText = content;
             } else {
-                msgEl.textContent = content;
+                contentEl.textContent = content;
             }
+            msgEl.appendChild(contentEl);
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
         }
@@ -3452,7 +3516,25 @@
             if (!chatMessagesEl) return null;
             const msgEl = document.createElement('div');
             msgEl.className = 'shimeji-chat-msg ai';
-            renderMarkdownIntoMessage(msgEl, '');
+            
+            // Add copy button for entire message (will be bound later when content is complete)
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'shimeji-chat-msg-copy';
+            copyBtn.textContent = '📋';
+            copyBtn.title = isSpanishLocale() ? 'Copiar mensaje' : 'Copy message';
+            copyBtn.style.opacity = '0.5'; // Semi-visible during streaming
+            msgEl.appendChild(copyBtn);
+            
+            const contentEl = document.createElement('div');
+            contentEl.className = 'shimeji-chat-msg-content';
+            renderMarkdownIntoMessage(contentEl, '');
+            msgEl.appendChild(contentEl);
+            
+            // Store reference to update copy button later
+            msgEl._copyBtn = copyBtn;
+            msgEl._contentEl = contentEl;
+            
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
             return msgEl;
@@ -3460,9 +3542,27 @@
 
         function updateStreamingMessage(msgEl, content) {
             if (!chatMessagesEl || !msgEl) return;
-            renderMarkdownIntoMessage(msgEl, content);
+            renderMarkdownIntoMessage(msgEl._contentEl || msgEl.querySelector('.shimeji-chat-msg-content') || msgEl, content);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
             lastAssistantText = content;
+            
+            // Update copy button handler with final content
+            const copyBtn = msgEl._copyBtn || msgEl.querySelector('.shimeji-chat-msg-copy');
+            if (copyBtn) {
+                copyBtn.style.opacity = '1';
+                // Remove old listeners by cloning
+                const newCopyBtn = copyBtn.cloneNode(true);
+                copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
+                newCopyBtn.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const copied = await copyTextToClipboard(content);
+                    newCopyBtn.textContent = copied ? '✓' : '✗';
+                    setTimeout(() => {
+                        newCopyBtn.textContent = '📋';
+                    }, 1200);
+                });
+            }
         }
 
         function appendErrorMessage(text) {

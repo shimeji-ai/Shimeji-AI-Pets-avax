@@ -1138,3 +1138,90 @@
 .chat-style-dark .shimeji-thinking-dot {
     background: #e0dce8;
 }
+
+/* --- Clipboard Integration: Message Copy Button --- */
+.shimeji-chat-msg {
+    position: relative;
+}
+
+.shimeji-chat-msg-copy {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 15%, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, transparent);
+    border-radius: 6px;
+    padding: 2px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    z-index: 10;
+}
+
+.shimeji-chat-msg:hover .shimeji-chat-msg-copy {
+    opacity: 1;
+}
+
+.shimeji-chat-msg-copy:hover {
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 25%, #ffffff);
+}
+
+.shimeji-chat-msg-content {
+    padding-right: 28px;
+}
+
+/* --- Clipboard Integration: Inline Code Copy Button --- */
+.shimeji-chat-inline-code-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.shimeji-chat-inline-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.92em;
+    background: color-mix(in srgb, var(--chat-theme, #2a1f4e) 10%, #ffffff);
+    border: 1px solid color-mix(in srgb, var(--chat-theme, #2a1f4e) 18%, transparent);
+    border-radius: 6px;
+    padding: 1px 5px;
+}
+
+.shimeji-chat-inline-copy {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    background: transparent;
+    border: none;
+    padding: 0 2px;
+    font-size: 11px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    line-height: 1;
+}
+
+.shimeji-chat-inline-code-wrapper:hover .shimeji-chat-inline-copy {
+    opacity: 1;
+}
+
+.shimeji-chat-inline-copy:hover {
+    transform: scale(1.1);
+}
+
+/* Dark mode overrides for clipboard buttons */
+.chat-style-dark .shimeji-chat-msg-copy {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.chat-style-dark .shimeji-chat-msg-copy:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.chat-style-dark .shimeji-chat-inline-code {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+}
