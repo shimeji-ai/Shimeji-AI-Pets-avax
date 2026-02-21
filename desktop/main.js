@@ -223,49 +223,6 @@ async function checkForUpdates(force = false) {
   }
 }
 
-async function checkOpenRouterBalance() {
-  const envApiKey = String(process.env.OPENROUTER_API_KEY || '').trim();
-  if (!envApiKey) {
-    console.log('[OpenRouter] Balance check skipped: OPENROUTER_API_KEY is not set');
-    return;
-  }
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${envApiKey}`,
-        'HTTP-Referer': 'https://shimeji.dev',
-        'X-Title': 'Shimeji Desktop'
-      },
-      signal: AbortSignal.timeout(12000)
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      console.warn(`[OpenRouter] Balance check failed (${response.status}): ${body.slice(0, 180) || 'No response body'}`);
-      return;
-    }
-
-    const json = await response.json();
-    const authData = json?.data || {};
-    const usage = Number(authData?.usage);
-    const limit = Number(authData?.limit);
-    const hasUsage = Number.isFinite(usage);
-    const hasLimit = Number.isFinite(limit);
-    const remaining = hasUsage && hasLimit ? Math.max(0, limit - usage) : null;
-
-    const label = authData?.label ? ` key="${authData.label}"` : '';
-    const usageMsg = hasUsage ? ` usage=${usage.toFixed(4)}` : '';
-    const limitMsg = hasLimit ? ` limit=${limit.toFixed(4)}` : '';
-    const remainingMsg = Number.isFinite(remaining) ? ` remaining=${remaining.toFixed(4)}` : '';
-    const freeTierMsg = authData?.is_free_tier === true ? ' freeTier=true' : '';
-    console.log(`[OpenRouter] Balance${label}:${usageMsg}${limitMsg}${remainingMsg}${freeTierMsg}`.trim());
-  } catch (error) {
-    console.warn(`[OpenRouter] Balance check error: ${error?.message || error}`);
-  }
-}
-
 // Clear cache on startup for fresh start
 app.on('ready', () => {
   console.log('App ready - clearing cache and starting fresh...');
@@ -3086,7 +3043,6 @@ async function transcribeWithWhisper(audioBuffer, provider, apiKey, lang) {
 }
 
 app.whenReady().then(() => {
-  void checkOpenRouterBalance();
   configureMediaPermissions();
   configureStartupSetting();
   createOverlayWindow();
