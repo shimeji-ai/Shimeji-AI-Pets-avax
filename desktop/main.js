@@ -12,6 +12,7 @@ const DEFAULT_TERMINAL_DISTRO = IS_WINDOWS ? 'Ubuntu' : '';
 const DEFAULT_NON_WINDOWS_SHELL = IS_MAC ? '/bin/zsh' : '/bin/bash';
 
 const OPENCLAW_IDLE_TIMEOUT_MS = 12 * 1000;
+const OPENCLAW_STREAM_FLUSH_MS = 45;
 const GITHUB_RELEASES_API = 'https://api.github.com/repos/luloxi/Shimeji-AI-Pets/releases/latest';
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 30;
 const UPDATE_ASSET_FOR_PLATFORM = {
@@ -2411,8 +2412,17 @@ function extractOpenClawText(payload) {
 function mergeOpenClawStreamText(current, next) {
   if (!next) return current;
   if (!current) return next;
+  if (next === current) return current;
   if (next.startsWith(current)) return next;
   if (current.startsWith(next)) return current;
+  if (next.includes(current)) return next;
+  if (current.includes(next)) return current;
+  const maxOverlap = Math.min(current.length, next.length);
+  for (let i = maxOverlap; i > 0; i -= 1) {
+    if (current.slice(-i) === next.slice(0, i)) {
+      return current + next.slice(i);
+    }
+  }
   return current + next;
 }
 
@@ -2497,8 +2507,17 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
       const mergeText = (current, next) => {
         if (!next) return current;
         if (!current) return next;
+        if (next === current) return current;
         if (next.startsWith(current)) return next;
         if (current.startsWith(next)) return current;
+        if (next.includes(current)) return next;
+        if (current.includes(next)) return current;
+        const maxOverlap = Math.min(current.length, next.length);
+        for (let i = maxOverlap; i > 0; i -= 1) {
+          if (current.slice(-i) === next.slice(0, i)) {
+            return current + next.slice(i);
+          }
+        }
         return current + next;
       };
 
@@ -2685,6 +2704,8 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     let authenticated = false;
     let chatRequestSent = false;
     let responseText = '';
+    let emittedText = '';
+    let flushTimer = null;
     let idleTimer = null;
 
     const timeout = setTimeout(() => {
@@ -2695,10 +2716,15 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
+      flushDelta();
       if (ws && ws.readyState === 1) ws.close(1000, 'done');
       resolve(result);
     }
@@ -2707,6 +2733,10 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
@@ -2715,15 +2745,27 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       reject(err);
     }
 
+    function flushDelta() {
+      if (!onDelta || !responseText || emittedText === responseText) return;
+      const delta = responseText.startsWith(emittedText)
+        ? responseText.slice(emittedText.length)
+        : responseText;
+      emittedText = responseText;
+      if (delta) onDelta(delta, responseText);
+    }
+
     function pushText(nextText) {
       if (!nextText) return;
       const previous = responseText;
       const merged = mergeOpenClawStreamText(previous, nextText);
       if (merged === previous) return;
       responseText = merged;
-      const delta = merged.startsWith(previous) ? merged.slice(previous.length) : nextText;
-      if (delta && onDelta) {
-        onDelta(delta, merged);
+      if (onDelta) {
+        if (flushTimer) clearTimeout(flushTimer);
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          flushDelta();
+        }, OPENCLAW_STREAM_FLUSH_MS);
       }
       if (idleTimer) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
