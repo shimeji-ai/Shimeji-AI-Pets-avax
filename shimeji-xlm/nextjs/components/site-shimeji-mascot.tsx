@@ -12,7 +12,7 @@ function clamp(n: number, min: number, max: number) {
 }
 
 const SPRITE_SIZE = 72;
-const EDGE_MARGIN = 14;
+const EDGE_MARGIN = 0;
 const GRAVITY = 980;
 const WALK_SPEED = 76;
 const CLIMB_SPEED = 76;
@@ -155,6 +155,18 @@ export function SiteShimejiMascot() {
         "/shimeji-original/walk-step-right.png",
         "/shimeji-original/stand-neutral.png",
       ],
+      wallClimb: [
+        "/shimeji-original/grab-wall.png",
+        "/shimeji-original/climb-wall-frame-1.png",
+        "/shimeji-original/grab-wall.png",
+        "/shimeji-original/climb-wall-frame-2.png",
+      ],
+      ceilingWalk: [
+        "/shimeji-original/grab-ceiling.png",
+        "/shimeji-original/climb-ceiling-frame-1.png",
+        "/shimeji-original/grab-ceiling.png",
+        "/shimeji-original/climb-ceiling-frame-2.png",
+      ],
     }),
     [],
   );
@@ -274,6 +286,7 @@ export function SiteShimejiMascot() {
     let lastT = 0;
     let lastFrameT = 0;
     let frameIdx = 0;
+    let lastAnimState: MascotState | "held" | null = null;
 
     const tick = (time: number) => {
       if (!wrapRef.current || !isInitializedRef.current) {
@@ -331,6 +344,7 @@ export function SiteShimejiMascot() {
         const next = clampToMotionBounds(dragStateRef.current.pos.x, dragStateRef.current.pos.y, bounds);
         targetPos = next;
         imgRef.current?.setAttribute("src", frames.stand);
+        lastAnimState = "held";
       } else {
         const state = movementStateRef.current;
         const next = { ...targetPos };
@@ -379,13 +393,28 @@ export function SiteShimejiMascot() {
 
         targetPos = clampToMotionBounds(next.x, next.y, bounds);
 
-        if (movementStateRef.current === "falling") {
+        const animState = movementStateRef.current;
+        if (animState === "falling") {
+          frameIdx = 0;
           imgRef.current?.setAttribute("src", frames.stand);
-        } else if (time - lastFrameT > 170) {
-          lastFrameT = time;
-          frameIdx = (frameIdx + 1) % frames.walk.length;
-          imgRef.current?.setAttribute("src", frames.walk[frameIdx]);
+        } else {
+          const activeFrames =
+            animState === "floor-walking"
+              ? frames.walk
+              : animState === "wall-climbing"
+                ? frames.wallClimb
+                : frames.ceilingWalk;
+          if (lastAnimState !== animState) {
+            frameIdx = 0;
+            lastFrameT = time;
+            imgRef.current?.setAttribute("src", activeFrames[frameIdx]);
+          } else if (time - lastFrameT > 170) {
+            lastFrameT = time;
+            frameIdx = (frameIdx + 1) % activeFrames.length;
+            imgRef.current?.setAttribute("src", activeFrames[frameIdx]);
+          }
         }
+        lastAnimState = animState;
       }
 
       wrapRef.current.style.transform = `translate3d(${Math.round(targetPos.x)}px, ${Math.round(
@@ -395,8 +424,6 @@ export function SiteShimejiMascot() {
       updateBubblePosition(targetPos);
 
       const state = movementStateRef.current;
-      const rotation =
-        state === "floor-walking" ? 0 : state === "ceiling-walking" ? 180 : wallSideRef.current === "left" ? 90 : 270;
       const scaleX =
         state === "floor-walking"
           ? floorDirRef.current === 1
@@ -406,8 +433,10 @@ export function SiteShimejiMascot() {
             ? ceilingDirRef.current === 1
               ? -1
               : 1
-            : 1;
-      imgRef.current?.style.setProperty("transform", `rotate(${rotation}deg) scaleX(${scaleX})`);
+            : wallSideRef.current === "left"
+              ? -1
+              : 1;
+      imgRef.current?.style.setProperty("transform", `scaleX(${scaleX})`);
 
       raf = requestAnimationFrame(tick);
     };
@@ -416,7 +445,7 @@ export function SiteShimejiMascot() {
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [frames.stand, frames.walk]);
+  }, [frames.ceilingWalk, frames.stand, frames.walk, frames.wallClimb]);
 
   function ensureGreeting() {
     setMessages(prev => {
@@ -481,7 +510,7 @@ export function SiteShimejiMascot() {
           tabIndex={0}
           title={isSpanish ? "Hablá con Shimeji" : "Talk to Shimeji"}
         >
-          <img className={styles.sprite} src={frames.walk[0]} alt="" ref={imgRef} draggable={false} />
+          <img className={styles.sprite} src={frames.stand} alt="" ref={imgRef} draggable={false} />
           {isJumping && (
             <div className="absolute inset-0 pointer-events-none">
               <span className="absolute top-1/4 left-0 text-xl animate-ping">✦</span>
