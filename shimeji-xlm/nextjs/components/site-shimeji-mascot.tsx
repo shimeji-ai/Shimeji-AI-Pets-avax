@@ -120,8 +120,12 @@ function progressFromPosition(data: PerimeterData, x: number, y: number) {
 function getBoundsFromWindow() {
   const minX = EDGE_MARGIN;
   const minY = EDGE_MARGIN;
-  const maxX = Math.max(minX, window.innerWidth - SPRITE_SIZE - EDGE_MARGIN);
-  const maxY = Math.max(minY, window.innerHeight - SPRITE_SIZE - EDGE_MARGIN);
+  // Use visualViewport for mobile to account for address bar
+  const vw = (window as any).visualViewport;
+  const winWidth = vw?.width || window.innerWidth;
+  const winHeight = vw?.height || window.innerHeight;
+  const maxX = Math.max(minX, winWidth - SPRITE_SIZE - EDGE_MARGIN);
+  const maxY = Math.max(minY, winHeight - SPRITE_SIZE - EDGE_MARGIN);
   return { minX, maxX, minY, maxY };
 }
 
@@ -499,9 +503,15 @@ export function SiteShimejiMascot() {
       currentPosRef.current = targetPos;
       mascotXRef.current = Math.round(targetPos.x);
 
-      const facingSource = phaseRef.current === "thrown" ? thrownVelocityRef.current.x : dirRef.current;
-      const normalizedFacing = facingSource === 0 ? dirRef.current : facingSource > 0 ? 1 : -1;
-      imgRef.current?.style.setProperty("transform", `scaleX(${-normalizedFacing})`);
+      // Don't flip on mobile - keep facing left (toward center of screen)
+      if (!isMobile) {
+        const facingSource = phaseRef.current === "thrown" ? thrownVelocityRef.current.x : dirRef.current;
+        const normalizedFacing = facingSource === 0 ? dirRef.current : facingSource > 0 ? 1 : -1;
+        imgRef.current?.style.setProperty("transform", `scaleX(${-normalizedFacing})`);
+      } else {
+        // On mobile, always face left (scaleX(1) since the sprite faces left by default)
+        imgRef.current?.style.setProperty("transform", `scaleX(1)`);
+      }
 
       raf = requestAnimationFrame(tick);
     };
