@@ -18,6 +18,8 @@ const WALK_SPEED = 76;
 const CLIMB_SPEED = 76;
 const FALL_START_Y = -SPRITE_SIZE;
 const SPARKLE_DURATION = 380;
+const MOBILE_BREAKPOINT = 768;
+const CHAT_GAP = 12;
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -313,10 +315,11 @@ export function SiteShimejiMascot() {
         if (!openRef.current || !bubbleRef.current) return;
         const { width: viewportWidth, height: viewportHeight } = getViewportSize();
         const margin = 8;
-        const gap = 12;
+        const gap = CHAT_GAP;
         const bubbleEl = bubbleRef.current;
         const bubbleWidth = Math.min(bubbleEl.offsetWidth || 340, viewportWidth - margin * 2);
         const bubbleHeight = bubbleEl.offsetHeight || 320;
+        const isMobile = viewportWidth < MOBILE_BREAKPOINT;
         const nearestEdge = getNearestEdge(bounds, mascotPos.x, mascotPos.y);
         const centerX = mascotPos.x + SPRITE_SIZE / 2;
         const centerY = mascotPos.y + SPRITE_SIZE / 2;
@@ -324,7 +327,10 @@ export function SiteShimejiMascot() {
         let left = centerX - bubbleWidth / 2;
         let top = mascotPos.y - bubbleHeight - gap;
 
-        if (nearestEdge === "top") {
+        if (isMobile) {
+          left = (viewportWidth - bubbleWidth) / 2;
+          top = viewportHeight - bubbleHeight - margin;
+        } else if (nearestEdge === "top") {
           top = mascotPos.y + SPRITE_SIZE + gap;
         } else if (nearestEdge === "left") {
           left = mascotPos.x + SPRITE_SIZE + gap;
@@ -351,7 +357,15 @@ export function SiteShimejiMascot() {
         imgRef.current?.setAttribute("src", frames.stand);
         lastAnimState = "held";
       } else if (openRef.current) {
-        targetPos = currentPosRef.current;
+        const openPos = { ...currentPosRef.current };
+        const { width: viewportWidth, height: viewportHeight } = getViewportSize();
+        if (viewportWidth < MOBILE_BREAKPOINT) {
+          const bubbleHeight = bubbleRef.current?.offsetHeight || 320;
+          const bubbleTop = viewportHeight - bubbleHeight - 8;
+          openPos.x = clamp(viewportWidth / 2 - SPRITE_SIZE / 2, bounds.minX, bounds.maxX);
+          openPos.y = clamp(bubbleTop - SPRITE_SIZE - CHAT_GAP, bounds.minY, bounds.maxY);
+        }
+        targetPos = openPos;
         if (movementStateRef.current === "floor-walking") {
           const animState = "chat-using-computer";
           const activeFrames = frames.usingComputer;
@@ -459,11 +473,11 @@ export function SiteShimejiMascot() {
               : 1
             : state === "wall-climbing"
               ? wallSideRef.current === "left"
-                ? -1
-                : 1
+                ? 1
+                : -1
               : wallSideRef.current === "left"
-              ? -1
-              : 1;
+              ? 1
+              : -1;
       imgRef.current?.style.setProperty("transform", `scaleX(${scaleX})`);
 
       raf = requestAnimationFrame(tick);
