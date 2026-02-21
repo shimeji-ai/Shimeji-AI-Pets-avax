@@ -11,8 +11,17 @@ const IS_MAC = process.platform === 'darwin';
 const DEFAULT_TERMINAL_DISTRO = IS_WINDOWS ? 'Ubuntu' : '';
 const DEFAULT_NON_WINDOWS_SHELL = IS_MAC ? '/bin/zsh' : '/bin/bash';
 
-const OPENCLAW_IDLE_TIMEOUT_MS = 12 * 1000;
+function readPositiveIntEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const parsed = Number.parseInt(String(raw), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+const OPENCLAW_IDLE_TIMEOUT_MS = readPositiveIntEnv('OPENCLAW_IDLE_TIMEOUT_MS', 45 * 1000);
 const OPENCLAW_STREAM_FLUSH_MS = 45;
+const OPENCLAW_HEARTBEAT_INTERVAL_MS = readPositiveIntEnv('OPENCLAW_HEARTBEAT_INTERVAL_MS', 10 * 1000);
 const GITHUB_RELEASES_API = 'https://api.github.com/repos/luloxi/Shimeji-AI-Pets/releases/latest';
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 30;
 const UPDATE_ASSET_FOR_PLATFORM = {
@@ -211,6 +220,49 @@ async function checkForUpdates(force = false) {
     console.error('Update check failed:', error?.message || error);
   } finally {
     isCheckingUpdates = false;
+  }
+}
+
+async function checkOpenRouterBalance() {
+  const envApiKey = String(process.env.OPENROUTER_API_KEY || '').trim();
+  if (!envApiKey) {
+    console.log('[OpenRouter] Balance check skipped: OPENROUTER_API_KEY is not set');
+    return;
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${envApiKey}`,
+        'HTTP-Referer': 'https://shimeji.dev',
+        'X-Title': 'Shimeji Desktop'
+      },
+      signal: AbortSignal.timeout(12000)
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '');
+      console.warn(`[OpenRouter] Balance check failed (${response.status}): ${body.slice(0, 180) || 'No response body'}`);
+      return;
+    }
+
+    const json = await response.json();
+    const authData = json?.data || {};
+    const usage = Number(authData?.usage);
+    const limit = Number(authData?.limit);
+    const hasUsage = Number.isFinite(usage);
+    const hasLimit = Number.isFinite(limit);
+    const remaining = hasUsage && hasLimit ? Math.max(0, limit - usage) : null;
+
+    const label = authData?.label ? ` key="${authData.label}"` : '';
+    const usageMsg = hasUsage ? ` usage=${usage.toFixed(4)}` : '';
+    const limitMsg = hasLimit ? ` limit=${limit.toFixed(4)}` : '';
+    const remainingMsg = Number.isFinite(remaining) ? ` remaining=${remaining.toFixed(4)}` : '';
+    const freeTierMsg = authData?.is_free_tier === true ? ' freeTier=true' : '';
+    console.log(`[OpenRouter] Balance${label}:${usageMsg}${limitMsg}${remainingMsg}${freeTierMsg}`.trim());
+  } catch (error) {
+    console.warn(`[OpenRouter] Balance check error: ${error?.message || error}`);
   }
 }
 
@@ -2442,7 +2494,9 @@ function isOpenClawRetryableError(errorMessage) {
   return (
     errorMessage.startsWith('OPENCLAW_CONNECT:') ||
     errorMessage.startsWith('OPENCLAW_TIMEOUT:') ||
+    errorMessage.startsWith('OPENCLAW_IDLE_TIMEOUT:') ||
     errorMessage.startsWith('OPENCLAW_CLOSED:') ||
+    errorMessage.startsWith('OPENCLAW_INCOMPLETE_CLOSE:') ||
     errorMessage === 'OPENCLAW_EMPTY_RESPONSE'
   );
 }
@@ -2526,12 +2580,28 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
         let settled = false;
         let authenticated = false;
         let chatRequestSent = false;
+        let sawCompletion = false;
         let responseText = '';
         let idleTimer = null;
 
         const timeout = setTimeout(() => {
           fail(new Error(\`OPENCLAW_TIMEOUT:\${wsUrl}\`));
         }, 70000);
+
+        const armIdleTimer = () => {
+          if (idleTimer) clearTimeout(idleTimer);
+          idleTimer = setTimeout(() => {
+            if (sawCompletion && responseText) {
+              finish(responseText);
+              return;
+            }
+            fail(new Error(\`OPENCLAW_IDLE_TIMEOUT:\${wsUrl}\`));
+          }, idleTimeoutMs);
+        };
+
+        const touchActivity = () => {
+          armIdleTimer();
+        };
 
         const finish = (result) => {
           if (settled) return;
@@ -2562,10 +2632,6 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
           const merged = mergeText(responseText, nextText);
           if (merged === responseText) return;
           responseText = merged;
-          if (idleTimer) clearTimeout(idleTimer);
-          idleTimer = setTimeout(() => {
-            if (responseText) finish(responseText);
-          }, idleTimeoutMs);
         };
 
         try {
@@ -2576,6 +2642,7 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
         }
 
         ws.addEventListener('message', (event) => {
+          touchActivity();
           let data;
           try {
             const raw = typeof event.data === 'string' ? event.data : '';
@@ -2633,6 +2700,7 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
             const text = extractText(payload);
             if (text) pushText(text);
             if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+              sawCompletion = true;
               finish(responseText || text || '(no response)');
             }
             return;
@@ -2644,6 +2712,7 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
             if (text) pushText(text);
             const status = data.payload?.status;
             if (status === 'completed' || status === 'done' || data.payload?.done) {
+              sawCompletion = true;
               finish(responseText || text || '(no response)');
             }
             return;
@@ -2661,8 +2730,12 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
 
         ws.addEventListener('close', (event) => {
           if (settled) return;
-          if (responseText) {
+          if (sawCompletion && responseText) {
             finish(responseText);
+            return;
+          }
+          if (responseText) {
+            fail(new Error(\`OPENCLAW_INCOMPLETE_CLOSE:\${event.code}\`));
             return;
           }
           if (event.code === 1000 || event.code === 1001) {
@@ -2671,6 +2744,8 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
           }
           fail(new Error(\`OPENCLAW_CLOSED:\${event.code}\`));
         });
+
+        armIdleTimer();
       });
     })();
   `;
@@ -2703,14 +2778,31 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     let settled = false;
     let authenticated = false;
     let chatRequestSent = false;
+    let sawCompletion = false;
     let responseText = '';
     let emittedText = '';
     let flushTimer = null;
     let idleTimer = null;
+    let heartbeatTimer = null;
 
     const timeout = setTimeout(() => {
       fail(new Error(`OPENCLAW_TIMEOUT:${normalizedUrl}`));
     }, 70000);
+
+    function armIdleTimer() {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (sawCompletion && responseText) {
+          finish(responseText);
+          return;
+        }
+        fail(new Error(`OPENCLAW_IDLE_TIMEOUT:${normalizedUrl}`));
+      }, OPENCLAW_IDLE_TIMEOUT_MS);
+    }
+
+    function touchActivity() {
+      armIdleTimer();
+    }
 
     function finish(result) {
       if (settled) return;
@@ -2723,6 +2815,10 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
+      }
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
       }
       flushDelta();
       if (ws && ws.readyState === 1) ws.close(1000, 'done');
@@ -2740,6 +2836,10 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
+      }
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
       }
       if (ws && ws.readyState === 1) ws.close(1011, 'error');
       reject(err);
@@ -2767,10 +2867,6 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
           flushDelta();
         }, OPENCLAW_STREAM_FLUSH_MS);
       }
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        if (responseText) finish(responseText);
-      }, OPENCLAW_IDLE_TIMEOUT_MS);
     }
 
     const WebSocketCtor = globalThis.WebSocket;
@@ -2799,7 +2895,24 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       return;
     }
 
+    ws.addEventListener('open', () => {
+      touchActivity();
+      if (!heartbeatTimer && OPENCLAW_HEARTBEAT_INTERVAL_MS > 0) {
+        heartbeatTimer = setInterval(() => {
+          if (settled || !ws || ws.readyState !== 1) return;
+          if (typeof ws.ping === 'function') {
+            try {
+              ws.ping();
+            } catch {
+              // Ignore ping failures and rely on normal reconnect flow.
+            }
+          }
+        }, OPENCLAW_HEARTBEAT_INTERVAL_MS);
+      }
+    });
+
     ws.addEventListener('message', (event) => {
+      touchActivity();
       let data;
       try {
         const raw = typeof event.data === 'string' ? event.data : '';
@@ -2857,6 +2970,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
         if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+          sawCompletion = true;
           finish(responseText || text || '(no response)');
           return;
         }
@@ -2868,6 +2982,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         if (text) pushText(text);
         const status = data.payload?.status;
         if (status === 'completed' || status === 'done' || data.payload?.done) {
+          sawCompletion = true;
           finish(responseText || text || '(no response)');
         }
         return;
@@ -2885,8 +3000,12 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
 
     ws.addEventListener('close', (event) => {
       if (settled) return;
-      if (responseText) {
+      if (sawCompletion && responseText) {
         finish(responseText);
+        return;
+      }
+      if (responseText) {
+        fail(new Error(`OPENCLAW_INCOMPLETE_CLOSE:${event.code}`));
         return;
       }
       if (event.code === 1000 || event.code === 1001) {
@@ -2895,21 +3014,24 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
       }
       fail(new Error(`OPENCLAW_CLOSED:${event.code}`));
     });
+
+    armIdleTimer();
   });
 }
 
 async function callOpenClawWithRetry(gatewayUrl, token, messages, options = {}) {
   let lastError;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       return await callOpenClaw(gatewayUrl, token, messages, options);
     } catch (error) {
       lastError = error;
       const msg = String(error?.message || '');
-      if (attempt === 1 || !isOpenClawRetryableError(msg)) {
+      if (attempt === maxAttempts - 1 || !isOpenClawRetryableError(msg)) {
         throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
     }
   }
   throw lastError || new Error('OPENCLAW_CONNECT:unknown');
@@ -2964,6 +3086,7 @@ async function transcribeWithWhisper(audioBuffer, provider, apiKey, lang) {
 }
 
 app.whenReady().then(() => {
+  void checkOpenRouterBalance();
   configureMediaPermissions();
   configureStartupSetting();
   createOverlayWindow();
