@@ -20,6 +20,7 @@ const FALL_START_Y = -SPRITE_SIZE;
 const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
+const MASCOT_HINT_TEXT = "🐱 Press me";
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -101,6 +102,7 @@ export function SiteShimejiMascot() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
+  const [hasMascotBeenClicked, setHasMascotBeenClicked] = useState(false);
 
   const currentPosRef = useRef({ x: 0, y: 0 });
   const movementStateRef = useRef<MascotState>("falling");
@@ -530,6 +532,8 @@ export function SiteShimejiMascot() {
     }
   }
 
+  const showPressMeHint = !hasMascotBeenClicked && !open;
+
   return (
     <>
       <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
@@ -541,6 +545,7 @@ export function SiteShimejiMascot() {
               blockClickRef.current = false;
               return;
             }
+            setHasMascotBeenClicked(true);
             setOpen(v => {
               const next = !v;
               if (next) ensureGreeting();
@@ -552,6 +557,7 @@ export function SiteShimejiMascot() {
           tabIndex={0}
           title={isSpanish ? "Hablá con Shimeji" : "Talk to Shimeji"}
         >
+          {showPressMeHint && <div className={styles.pressHint}>{MASCOT_HINT_TEXT}</div>}
           <img className={styles.sprite} src={frames.stand} alt="" ref={imgRef} draggable={false} />
           {isJumping && (
             <div className="absolute inset-0 pointer-events-none">
