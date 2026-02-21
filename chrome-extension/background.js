@@ -1819,79 +1819,6 @@ async function callOpenClawWithRetry(gatewayUrl, token, messages, options = {}) 
   throw lastError || new Error('OPENCLAW_CONNECT:unknown');
 }
 
-// Polling fallback for when WebSocket fails
-const POLLING_BASE_URL = 'https://shimeji.dev/api/mishi-chat';
-let lastPolledMessageId = '';
-
-async function callOpenClawViaPolling(agentId, token, messages, options = {}) {
-  const messageText = getLastUserMessageText(messages);
-  if (!messageText) {
-    throw new Error('OPENCLAW_EMPTY_MESSAGE');
-  }
-
-  // Send message via POST
-  const postResponse = await fetch(POLLING_BASE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      agentId: agentId || 'chrome-shimeji-1',
-      content: messageText
-    })
-  });
-
-  if (!postResponse.ok) {
-    throw new Error(`POLLING_POST_FAILED:${postResponse.status}`);
-  }
-
-  // Poll for response with timeout
-  const startTime = Date.now();
-  const timeoutMs = 60000; // 60 seconds
-  const pollIntervalMs = 1000; // 1 second
-
-  while (Date.now() - startTime < timeoutMs) {
-    const pollResponse = await fetch(
-      `${POLLING_BASE_URL}?agentId=${encodeURIComponent(agentId || 'chrome-shimeji-1')}&lastMessageId=${encodeURIComponent(lastPolledMessageId)}`,
-      { method: 'GET' }
-    );
-
-    if (pollResponse.ok) {
-      const data = await pollResponse.json();
-      if (data.messages && data.messages.length > 0) {
-        // Get the last message (most recent)
-        const lastMessage = data.messages[data.messages.length - 1];
-        lastPolledMessageId = lastMessage.id;
-
-        // Acknowledge the message
-        await fetch(POLLING_BASE_URL, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            agentId: agentId || 'chrome-shimeji-1',
-            messageIds: [lastMessage.id]
-          })
-        });
-
-        // Stream the response if onDelta callback provided
-        if (options.onDelta) {
-          const words = lastMessage.content.split(' ');
-          let accumulated = '';
-          for (const word of words) {
-            accumulated += (accumulated ? ' ' : '') + word;
-            options.onDelta(word + ' ', accumulated);
-            await new Promise(r => setTimeout(r, 50)); // Simulate streaming
-          }
-        }
-
-        return lastMessage.content;
-      }
-    }
-
-    await new Promise(r => setTimeout(r, pollIntervalMs));
-  }
-
-  throw new Error('POLLING_TIMEOUT');
-}
-
 async function handleAiChat(conversationMessages, shimejiId) {
   const settings = await getAiSettingsFor(shimejiId);
   if (settings.locked) {
@@ -1904,23 +1831,12 @@ async function handleAiChat(conversationMessages, shimejiId) {
   try {
     let content;
     if (settings.chatMode === 'agent') {
-      // Try WebSocket first, fallback to polling
-      try {
-        content = await callOpenClawWithRetry(
-          settings.openclawGatewayUrl,
-          settings.openclawGatewayToken,
-          messages,
-          { shimejiId, agentName: settings.openclawAgentName }
-        );
-      } catch (wsError) {
-        console.log('WebSocket failed, trying polling fallback:', wsError.message);
-        content = await callOpenClawViaPolling(
-          settings.openclawAgentName,
-          settings.openclawGatewayToken,
-          messages,
-          { shimejiId, agentName: settings.openclawAgentName }
-        );
-      }
+      content = await callOpenClawWithRetry(
+        settings.openclawGatewayUrl,
+        settings.openclawGatewayToken,
+        messages,
+        { shimejiId, agentName: settings.openclawAgentName }
+      );
     } else {
       const provider = settings.provider || 'openrouter';
       const model = provider === 'ollama' ? (settings.ollamaModel || 'gemma3:1b') : settings.model;
@@ -1933,7 +1849,7 @@ async function handleAiChat(conversationMessages, shimejiId) {
     const errorMessage = err.message || 'Unknown error';
     let errorType = 'generic';
     if (errorMessage === 'NO_CREDITS') errorType = 'no_credits';
-    if (errorMessage === 'NO_RESPONSE' || errorMessage === 'OPENCLAW_EMPTY_RESPONSE' || errorMessage.includes('POLLING')) errorType = 'no_response';
+    if (errorMessage === 'NO_RESPONSE' || errorMessage === 'OPENCLAW_EMPTY_RESPONSE') errorType = 'no_response';
     return { error: errorMessage, errorType };
   }
 }
