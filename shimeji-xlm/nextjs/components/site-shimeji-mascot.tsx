@@ -165,7 +165,6 @@ export function SiteShimejiMascot() {
   const progressRef = useRef(0);
   const dirRef = useRef<1 | -1>(1);
   const phaseRef = useRef<"walk" | "held" | "thrown">("walk");
-  const [isReady, setIsReady] = useState(false);
   const thrownVelocityRef = useRef({ x: 0, y: 0 });
   const thrownPosRef = useRef({ x: 0, y: 0 });
   const thrownTimeRef = useRef(0);
@@ -177,6 +176,7 @@ export function SiteShimejiMascot() {
     DIRECTION_CHANGE_MIN + Math.random() * (DIRECTION_CHANGE_MAX - DIRECTION_CHANGE_MIN),
   );
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -319,42 +319,29 @@ export function SiteShimejiMascot() {
     };
   }, []);
 
-  // Initialize position on mount - wait for window to be available
+  // Initialize position on mount
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    
     const initPosition = () => {
+      if (typeof window === "undefined") return;
       const bounds = getBoundsFromWindow();
       const startX = bounds.maxX;
       const startY = bounds.maxY;
       currentPosRef.current = { x: startX, y: startY };
-      progressRef.current = bounds.maxX + (bounds.maxY - bounds.minY);
+      // Set progress to bottom-right corner (end of bottom segment)
+      progressRef.current = bounds.maxX - bounds.minX;
       mascotXRef.current = Math.round(startX);
+      isInitializedRef.current = true;
       
       if (wrapRef.current) {
         wrapRef.current.style.transform = `translate3d(${Math.round(startX)}px, ${Math.round(startY)}px, 0)`;
       }
-      setIsReady(true);
     };
     
-    // Small delay to ensure window dimensions are stable
-    const timer = setTimeout(initPosition, 100);
+    // Initialize immediately and after a short delay to handle hydration
+    initPosition();
+    const timer = setTimeout(initPosition, 50);
     
-    // Also re-init on resize
-    const handleResize = () => {
-      const bounds = getBoundsFromWindow();
-      currentPosRef.current = { x: bounds.maxX, y: bounds.maxY };
-      if (wrapRef.current) {
-        wrapRef.current.style.transform = `translate3d(${Math.round(bounds.maxX)}px, ${Math.round(bounds.maxY)}px, 0)`;
-      }
-    };
-    
-    window.addEventListener("resize", handleResize);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -376,7 +363,7 @@ export function SiteShimejiMascot() {
     mobileMq.addEventListener("change", handleMobileChange);
 
     const tick = (time: number) => {
-      if (!wrapRef.current) {
+      if (!wrapRef.current || !isInitializedRef.current) {
         raf = requestAnimationFrame(tick);
         lastT = time;
         return;
@@ -569,15 +556,7 @@ export function SiteShimejiMascot() {
 
   return (
     <>
-      <div 
-        className={styles.wrap} 
-        ref={wrapRef} 
-        aria-hidden={false}
-        style={{ 
-          opacity: isReady ? 1 : 0,
-          transition: 'opacity 0.2s ease-out'
-        }}
-      >
+      <div className={styles.wrap} ref={wrapRef} aria-hidden={false}>
         <div
           ref={actorRef}
           className={styles.actor}
