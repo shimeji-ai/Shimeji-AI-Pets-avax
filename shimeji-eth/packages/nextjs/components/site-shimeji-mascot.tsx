@@ -96,19 +96,92 @@ export function SiteShimejiMascot() {
 
   const [bubbleSide, setBubbleSide] = useState<"left" | "right">("right");
 
+  // Physics refs for smooth animation without re-renders
+  const physicsRef = useRef({
+    x: 24,
+    y: 0,
+    vy: 0,
+    dir: 1 as 1 | -1,
+    frameIdx: 0,
+    isDragging: false,
+    dragOffsetX: 0,
+    dragOffsetY: 0,
+    onFloor: true,
+    floorY: 0,
+    lastT: 0,
+    lastFrameT: 0,
+    lastSideT: 0,
+  });
+
   useEffect(() => {
     let raf = 0;
-    let lastT = 0;
-    let lastFrameT = 0;
-    let lastSideT = 0;
-
-    let x = 24;
-    let dir: 1 | -1 = 1;
-    let frameIdx = 0;
-
     const spriteW = 72;
+    const spriteH = 72;
     const margin = 14;
     const speedPxPerSec = 46;
+    const gravity = 1200; // pixels per second squared
+    const bounceDamping = 0.4;
+    const floorOffset = 10; // matches CSS bottom: 10px
+
+    const updateFloorY = () => {
+      const vh = window.innerHeight || 0;
+      physicsRef.current.floorY = vh - spriteH - floorOffset;
+    };
+
+    updateFloorY();
+    // Start on the floor
+    physicsRef.current.y = physicsRef.current.floorY;
+
+    const handleResize = () => {
+      updateFloorY();
+      // Keep mascot on floor after resize
+      if (!physicsRef.current.isDragging && physicsRef.current.onFloor) {
+        physicsRef.current.y = physicsRef.current.floorY;
+      }
+    };
+    window.addEventListener("resize", handleResize);
+
+    const handleMouseDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (!actorRef.current?.contains(target)) return;
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      physicsRef.current.isDragging = true;
+      physicsRef.current.dragOffsetX = clientX - physicsRef.current.x;
+      physicsRef.current.dragOffsetY = clientY - physicsRef.current.y;
+      physicsRef.current.vy = 0;
+      physicsRef.current.onFloor = false;
+    };
+
+    const handleMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!physicsRef.current.isDragging) return;
+      e.preventDefault();
+
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+      const vw = window.innerWidth || 0;
+      const minX = margin;
+      const maxX = Math.max(margin, vw - spriteW - margin);
+
+      physicsRef.current.x = clamp(clientX - physicsRef.current.dragOffsetX, minX, maxX);
+      physicsRef.current.y = clientY - physicsRef.current.dragOffsetY;
+    };
+
+    const handleMouseUp = () => {
+      if (!physicsRef.current.isDragging) return;
+      physicsRef.current.isDragging = false;
+      physicsRef.current.onFloor = false; // Will fall due to gravity
+    };
+
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("touchstart", handleMouseDown, { passive: false });
+    document.addEventListener("touchmove", handleMouseMove, { passive: false });
+    document.addEventListener("touchend", handleMouseUp);
 
     const tick = (t: number) => {
       if (!wrapRef.current) {
@@ -116,48 +189,82 @@ export function SiteShimejiMascot() {
         return;
       }
 
-      if (!lastT) lastT = t;
-      const dt = Math.min(0.05, (t - lastT) / 1000);
-      lastT = t;
+      const p = physicsRef.current;
+      if (!p.lastT) p.lastT = t;
+      const dt = Math.min(0.05, (t - p.lastT) / 1000);
+      p.lastT = t;
 
       const vw = window.innerWidth || 0;
       const minX = margin;
       const maxX = Math.max(margin, vw - spriteW - margin);
 
-      if (!openRef.current) {
-        x += dir * speedPxPerSec * dt;
-        if (x <= minX) {
-          x = minX;
-          dir = 1;
-        } else if (x >= maxX) {
-          x = maxX;
-          dir = -1;
+      if (!openRef.current && !p.isDragging) {
+        // Apply gravity when not on floor
+        if (!p.onFloor) {
+          p.vy += gravity * dt;
+          p.y += p.vy * dt;
+
+          // Floor collision
+          if (p.y >= p.floorY) {
+            p.y = p.floorY;
+            if (Math.abs(p.vy) > 100) {
+              // Bounce with damping
+              p.vy = -p.vy * bounceDamping;
+            } else {
+              // Stop bouncing, snap to floor
+              p.vy = 0;
+              p.onFloor = true;
+            }
+          }
         }
 
-        if (t - lastFrameT > 170) {
-          lastFrameT = t;
-          frameIdx = (frameIdx + 1) % frames.walk.length;
-          const nextSrc = frames.walk[frameIdx];
-          if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
+        // Walking on floor
+        if (p.onFloor) {
+          p.x += p.dir * speedPxPerSec * dt;
+          if (p.x <= minX) {
+            p.x = minX;
+            p.dir = 1;
+          } else if (p.x >= maxX) {
+            p.x = maxX;
+            p.dir = -1;
+          }
+
+          if (t - p.lastFrameT > 170) {
+            p.lastFrameT = t;
+            p.frameIdx = (p.frameIdx + 1) % frames.walk.length;
+            const nextSrc = frames.walk[p.frameIdx];
+            if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
+          }
         }
       } else {
+        // Standing still when chat is open
         if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
       }
 
-      if (t - lastSideT > 250) {
-        lastSideT = t;
-        setBubbleSide(x > vw / 2 ? "left" : "right");
+      if (t - p.lastSideT > 250) {
+        p.lastSideT = t;
+        setBubbleSide(p.x > vw / 2 ? "left" : "right");
       }
 
-      wrapRef.current.style.transform = `translate3d(${Math.round(clamp(x, minX, maxX))}px, 0, 0)`;
+      // Apply transform using translate3d for both X and Y
+      wrapRef.current.style.transform = `translate3d(${Math.round(clamp(p.x, minX, maxX))}px, ${Math.round(p.y)}px, 0)`;
       // Sprite art faces opposite of movement direction by default; invert to avoid moonwalking.
-      if (imgRef.current) imgRef.current.style.transform = `scaleX(${-dir})`;
+      if (imgRef.current) imgRef.current.style.transform = `scaleX(${-p.dir})`;
 
       raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", handleResize);
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("touchstart", handleMouseDown);
+      document.removeEventListener("touchmove", handleMouseMove);
+      document.removeEventListener("touchend", handleMouseUp);
+    };
   }, [frames.stand, frames.walk]);
 
   function ensureGreeting() {
