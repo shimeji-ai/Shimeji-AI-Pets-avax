@@ -42,7 +42,6 @@
 
 .bubbleFixed {
   position: fixed;
-  bottom: 90px;
   z-index: 61;
 }
 
@@ -148,14 +147,4 @@
 .sendBtn:disabled {
   opacity: 0.55;
   cursor: default;
-}
-
-@media (max-width: 768px) {
-  .bubbleFixed {
-    left: 12px !important;
-    right: 12px;
-    bottom: 90px;
-    width: auto;
-    max-width: none;
-  }
 }
