@@ -17,7 +17,12 @@ const GRAVITY = 980;
 const THROW_MIN_SPEED = 140;
 const THROW_SPEED_SCALE = 0.6;
 const THROW_MAX_SPEED = 1500;
-const THROW_TIMEOUT = 0.7;
+const THROW_TIMEOUT = 2.3;
+const THROW_BOUNCE_RESTITUTION = 0.72;
+const THROW_BOUNCE_TANGENT_FRICTION = 0.92;
+const THROW_AIR_DAMPING = 0.996;
+const THROW_SETTLE_SPEED = 120;
+const THROW_MIN_AIR_TIME = 0.2;
 const SPARKLE_DURATION = 380;
 const DIRECTION_CHANGE_MIN = 3.5;
 const DIRECTION_CHANGE_MAX = 6.5;
@@ -137,6 +142,48 @@ function clampToBounds(
   return { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
 }
 
+function getViewportSize() {
+  const vv = (window as any).visualViewport;
+  return {
+    width: vv?.width || window.innerWidth,
+    height: vv?.height || window.innerHeight,
+  };
+}
+
+function getNearestEdge(
+  bounds: { minX: number; maxX: number; minY: number; maxY: number },
+  x: number,
+  y: number,
+): Edge {
+  const distances: Array<{ edge: Edge; value: number }> = [
+    { edge: "bottom", value: Math.abs(y - bounds.maxY) },
+    { edge: "right", value: Math.abs(x - bounds.maxX) },
+    { edge: "top", value: Math.abs(y - bounds.minY) },
+    { edge: "left", value: Math.abs(x - bounds.minX) },
+  ];
+  distances.sort((a, b) => a.value - b.value);
+  return distances[0].edge;
+}
+
+function snapToEdge(
+  bounds: { minX: number; maxX: number; minY: number; maxY: number },
+  x: number,
+  y: number,
+  edge: Edge,
+) {
+  if (edge === "bottom") return { x: clamp(x, bounds.minX, bounds.maxX), y: bounds.maxY, edge };
+  if (edge === "top") return { x: clamp(x, bounds.minX, bounds.maxX), y: bounds.minY, edge };
+  if (edge === "right") return { x: bounds.maxX, y: clamp(y, bounds.minY, bounds.maxY), edge };
+  return { x: bounds.minX, y: clamp(y, bounds.minY, bounds.maxY), edge };
+}
+
+function edgeTangent(edge: Edge) {
+  if (edge === "bottom") return { dx: 1, dy: 0 };
+  if (edge === "right") return { dx: 0, dy: -1 };
+  if (edge === "top") return { dx: -1, dy: 0 };
+  return { dx: 0, dy: 1 };
+}
+
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -164,7 +211,6 @@ export function SiteShimejiMascot() {
   const [sending, setSending] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
 
-  const mascotXRef = useRef(24);
   const currentPosRef = useRef({ x: 0, y: 0 });
   const progressRef = useRef(0);
   const dirRef = useRef<1 | -1>(1);
@@ -181,6 +227,7 @@ export function SiteShimejiMascot() {
   );
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
   const isInitializedRef = useRef(false);
+  const bubbleRectRef = useRef({ left: 8, top: 8 });
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -333,7 +380,6 @@ export function SiteShimejiMascot() {
       currentPosRef.current = { x: startX, y: startY };
       // Set progress to bottom-right corner (end of bottom segment)
       progressRef.current = bounds.maxX - bounds.minX;
-      mascotXRef.current = Math.round(startX);
       isInitializedRef.current = true;
       
       if (wrapRef.current) {
@@ -384,6 +430,42 @@ export function SiteShimejiMascot() {
       const phase = phaseRef.current;
       let targetPos = currentPosRef.current;
 
+      const updateBubblePosition = (mascotPos: { x: number; y: number }) => {
+        if (!openRef.current || !bubbleRef.current) return;
+        const { width: viewportWidth, height: viewportHeight } = getViewportSize();
+        const margin = 8;
+        const gap = 12;
+        const bubbleEl = bubbleRef.current;
+        const bubbleWidth = Math.min(bubbleEl.offsetWidth || 340, viewportWidth - margin * 2);
+        const bubbleHeight = bubbleEl.offsetHeight || 320;
+        const nearestEdge = getNearestEdge(bounds, mascotPos.x, mascotPos.y);
+        const centerX = mascotPos.x + SPRITE_SIZE / 2;
+        const centerY = mascotPos.y + SPRITE_SIZE / 2;
+
+        let left = centerX - bubbleWidth / 2;
+        let top = mascotPos.y - bubbleHeight - gap;
+
+        if (nearestEdge === "top") {
+          top = mascotPos.y + SPRITE_SIZE + gap;
+        } else if (nearestEdge === "left") {
+          left = mascotPos.x + SPRITE_SIZE + gap;
+          top = centerY - bubbleHeight / 2;
+        } else if (nearestEdge === "right") {
+          left = mascotPos.x - bubbleWidth - gap;
+          top = centerY - bubbleHeight / 2;
+        }
+
+        left = clamp(left, margin, viewportWidth - bubbleWidth - margin);
+        top = clamp(top, margin, viewportHeight - bubbleHeight - margin);
+
+        const prev = bubbleRectRef.current;
+        if (Math.abs(prev.left - left) > 0.5 || Math.abs(prev.top - top) > 0.5) {
+          bubbleRectRef.current = { left, top };
+          bubbleEl.style.left = `${Math.round(left)}px`;
+          bubbleEl.style.top = `${Math.round(top)}px`;
+        }
+      };
+
       if (phase === "walk" && !openRef.current) {
         directionTimerRef.current += dt;
         if (directionTimerRef.current >= directionDurationRef.current) {
@@ -411,42 +493,76 @@ export function SiteShimejiMascot() {
         thrownTimeRef.current += dt;
         const velocity = thrownVelocityRef.current;
         velocity.y += GRAVITY * dt;
+        velocity.x *= Math.pow(THROW_AIR_DAMPING, dt * 60);
+        velocity.y *= Math.pow(THROW_AIR_DAMPING, dt * 60);
+
         let nextX = thrownPosRef.current.x + velocity.x * dt;
         let nextY = thrownPosRef.current.y + velocity.y * dt;
-        let landed: Edge | null = null;
+        let collided = false;
+        let lastCollisionEdge: Edge | null = null;
 
-        if (nextX <= bounds.minX) {
-          nextX = bounds.minX;
-          landed = "left";
-          velocity.x = 0;
-        } else if (nextX >= bounds.maxX) {
-          nextX = bounds.maxX;
-          landed = "right";
-          velocity.x = 0;
-        }
-        if (nextY <= bounds.minY) {
-          nextY = bounds.minY;
-          landed = "top";
-          velocity.y = 0;
-        } else if (nextY >= bounds.maxY) {
-          nextY = bounds.maxY;
-          landed = "bottom";
-          velocity.y = 0;
+        for (let i = 0; i < 4; i += 1) {
+          let loopCollision = false;
+          if (nextX < bounds.minX) {
+            nextX = bounds.minX + (bounds.minX - nextX);
+            velocity.x = Math.abs(velocity.x) * THROW_BOUNCE_RESTITUTION;
+            velocity.y *= THROW_BOUNCE_TANGENT_FRICTION;
+            collided = true;
+            loopCollision = true;
+            lastCollisionEdge = "left";
+          } else if (nextX > bounds.maxX) {
+            nextX = bounds.maxX - (nextX - bounds.maxX);
+            velocity.x = -Math.abs(velocity.x) * THROW_BOUNCE_RESTITUTION;
+            velocity.y *= THROW_BOUNCE_TANGENT_FRICTION;
+            collided = true;
+            loopCollision = true;
+            lastCollisionEdge = "right";
+          }
+
+          if (nextY < bounds.minY) {
+            nextY = bounds.minY + (bounds.minY - nextY);
+            velocity.y = Math.abs(velocity.y) * THROW_BOUNCE_RESTITUTION;
+            velocity.x *= THROW_BOUNCE_TANGENT_FRICTION;
+            collided = true;
+            loopCollision = true;
+            lastCollisionEdge = "top";
+          } else if (nextY > bounds.maxY) {
+            nextY = bounds.maxY - (nextY - bounds.maxY);
+            velocity.y = -Math.abs(velocity.y) * THROW_BOUNCE_RESTITUTION;
+            velocity.x *= THROW_BOUNCE_TANGENT_FRICTION;
+            collided = true;
+            loopCollision = true;
+            lastCollisionEdge = "bottom";
+          }
+
+          if (!loopCollision) break;
         }
 
         thrownVelocityRef.current = velocity;
-        thrownPosRef.current = { x: nextX, y: nextY };
+        thrownPosRef.current = clampToBounds(nextX, nextY, bounds);
         targetPos = thrownPosRef.current;
         imgRef.current?.setAttribute("src", frames.stand);
 
-        const shouldLand = (landed && totalPerimeter) || thrownTimeRef.current >= THROW_TIMEOUT;
+        const speed = Math.hypot(velocity.x, velocity.y);
+        const shouldLand =
+          totalPerimeter > 0 &&
+          (thrownTimeRef.current >= THROW_TIMEOUT ||
+            (collided && thrownTimeRef.current >= THROW_MIN_AIR_TIME && speed <= THROW_SETTLE_SPEED));
         if (shouldLand) {
+          const edge = lastCollisionEdge ?? getNearestEdge(bounds, targetPos.x, targetPos.y);
+          const snapped = snapToEdge(bounds, targetPos.x, targetPos.y, edge);
+          thrownPosRef.current = { x: snapped.x, y: snapped.y };
+          targetPos = thrownPosRef.current;
           phaseRef.current = "walk";
           const nextProgress = progressFromPosition(perimeter, targetPos.x, targetPos.y);
           if (typeof nextProgress === "number") {
             progressRef.current = nextProgress;
           }
-          dirRef.current = velocity.x >= 0 ? 1 : -1;
+          const tangent = edgeTangent(edge);
+          const tangentSpeed = velocity.x * tangent.dx + velocity.y * tangent.dy;
+          if (Math.abs(tangentSpeed) > 5) {
+            dirRef.current = tangentSpeed >= 0 ? 1 : -1;
+          }
         }
       } else {
         if (!totalPerimeter) {
@@ -501,7 +617,7 @@ export function SiteShimejiMascot() {
         targetPos.y,
       )}px, 0)`;
       currentPosRef.current = targetPos;
-      mascotXRef.current = Math.round(targetPos.x);
+      updateBubblePosition(targetPos);
 
       // Don't flip on mobile - keep facing left (toward center of screen)
       if (!isMobile) {
@@ -601,11 +717,7 @@ export function SiteShimejiMascot() {
         <div
           ref={bubbleRef}
           className={`${styles.bubble} ${styles.bubbleFixed}`}
-          style={{
-            left: Math.round(
-              clamp(mascotXRef.current + 36 - 170, 8, (typeof window !== "undefined" ? window.innerWidth : 800) - 340 - 8),
-            ),
-          }}
+          style={{ left: bubbleRectRef.current.left, top: bubbleRectRef.current.top }}
           onClick={e => e.stopPropagation()}
         >
           <div className={styles.bubbleHeader}>
