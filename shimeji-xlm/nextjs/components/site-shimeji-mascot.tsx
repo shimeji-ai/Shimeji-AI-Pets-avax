@@ -5,7 +5,7 @@ import styles from "./site-shimeji-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 
 type Role = "user" | "assistant";
-type Msg = { role: Role; content: string };
+type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -21,6 +21,8 @@ const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
 const MASCOT_HINT_TEXT = "🐱 Press me";
+const MAX_USER_RESPONSES = 4;
+const DOWNLOAD_LINK = "/#download";
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -101,6 +103,8 @@ export function SiteShimejiMascot() {
   }, [messages]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [conversationEnded, setConversationEnded] = useState(false);
+  const userReplyCountRef = useRef(0);
   const [isJumping, setIsJumping] = useState(false);
   const [hasMascotBeenClicked, setHasMascotBeenClicked] = useState(false);
 
@@ -495,19 +499,35 @@ export function SiteShimejiMascot() {
     setMessages(prev => {
       if (prev.length) return prev;
       const hello = isSpanish
-        ? "Hola, soy Shimeji. La extensión incluye 5 mascotas gratis. Preguntame de qué va el proyecto y te lo resumo."
-        : "Hi, I'm Shimeji. The extension includes 5 free pets. Ask me what this project is about and I'll summarize it.";
+        ? "¡Hola! Soy tu Shimeji. Estoy listo para chatear, ¿sobre qué quieres hablar?"
+        : "Hi! I'm your Shimeji. I'm ready to chat, what do you want to talk about?";
       return [{ role: "assistant", content: hello }];
     });
   }
 
   async function send() {
     const text = input.trim();
-    if (!text || sending) return;
+    if (!text || sending || conversationEnded) return;
     setInput("");
     setSending(true);
 
     setMessages(prev => [...prev, { role: "user", content: text }]);
+    const nextUserCount = userReplyCountRef.current + 1;
+    userReplyCountRef.current = nextUserCount;
+
+    if (nextUserCount >= MAX_USER_RESPONSES) {
+      const finalMessage = isSpanish
+        ? "¡Me encantó hablar contigo! Descarga la extensión o app para seguir charlando conmigo:"
+        : "I loved chatting with you! Download the extension or app to keep talking with me:";
+      const finalLinkLabel = isSpanish ? "Ir a descargas" : "Go to downloads";
+      setMessages(prev => [
+        ...prev,
+        { role: "assistant", content: finalMessage, ctaHref: DOWNLOAD_LINK, ctaLabel: finalLinkLabel },
+      ]);
+      setConversationEnded(true);
+      setSending(false);
+      return;
+    }
 
     try {
       const history = messagesRef.current.slice(-8).map(m => ({ role: m.role, content: m.content }));
@@ -598,6 +618,14 @@ export function SiteShimejiMascot() {
                   className={`${styles.msg} ${m.role === "user" ? styles.msgUser : styles.msgAssistant}`}
                 >
                   {m.content}
+                  {m.ctaHref && (
+                    <>
+                      <br />
+                      <a className={styles.msgLink} href={m.ctaHref}>
+                        {m.ctaLabel ?? m.ctaHref}
+                      </a>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -611,13 +639,22 @@ export function SiteShimejiMascot() {
                   if (e.key === "Enter") send();
                 }}
                 placeholder={
-                  isSpanish
-                    ? "Preguntame sobre Shimeji AI Pets..."
-                    : "Ask about Shimeji AI Pets..."
+                  conversationEnded
+                    ? isSpanish
+                      ? "Chat finalizado. Usá el link de descarga."
+                      : "Chat ended. Use the download link."
+                    : isSpanish
+                      ? "Preguntame sobre Shimeji AI Pets..."
+                      : "Ask about Shimeji AI Pets..."
                 }
-                disabled={sending}
+                disabled={sending || conversationEnded}
               />
-              <button className={styles.sendBtn} type="button" onClick={send} disabled={sending || !input.trim()}>
+              <button
+                className={styles.sendBtn}
+                type="button"
+                onClick={send}
+                disabled={sending || conversationEnded || !input.trim()}
+              >
                 {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
               </button>
             </div>
