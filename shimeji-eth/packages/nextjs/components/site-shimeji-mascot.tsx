@@ -6,6 +6,9 @@ import { useLanguage } from "~~/components/language-provider";
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string };
+type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
+type WallSide = "left" | "right";
+type WallDirection = "up" | "down";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -98,15 +101,18 @@ export function SiteShimejiMascot() {
 
   // Physics refs for smooth animation without re-renders
   const physicsRef = useRef({
-    x: 24,
-    y: 0,
+    x: 0,
+    y: -72,
     vy: 0,
     dir: 1 as 1 | -1,
+    state: "falling" as MascotState,
+    wallSide: "left" as WallSide,
+    wallDirection: "up" as WallDirection,
+    rotation: 0,
     frameIdx: 0,
     isDragging: false,
     dragOffsetX: 0,
     dragOffsetY: 0,
-    onFloor: true,
     floorY: 0,
     lastT: 0,
     lastFrameT: 0,
@@ -117,26 +123,40 @@ export function SiteShimejiMascot() {
     let raf = 0;
     const spriteW = 72;
     const spriteH = 72;
-    const margin = 14;
-    const speedPxPerSec = 46;
-    const gravity = 1200; // pixels per second squared
-    const bounceDamping = 0.4;
-    const floorOffset = 10; // matches CSS bottom: 10px
+    const speedPxPerSec = 64;
+    const gravity = 1200;
+    const floorOffset = 10;
 
-    const updateFloorY = () => {
-      const vh = window.innerHeight || 0;
-      physicsRef.current.floorY = vh - spriteH - floorOffset;
+    const minX = 0;
+    const minY = 0;
+
+    const updateBounds = () => {
+      const vw = window.innerWidth || spriteW;
+      const vh = window.innerHeight || spriteH;
+      const maxX = Math.max(minX, vw - spriteW);
+      const floorY = Math.max(minY, vh - spriteH - floorOffset);
+      physicsRef.current.floorY = floorY;
+      return { maxX, floorY };
     };
 
-    updateFloorY();
-    // Start on the floor
-    physicsRef.current.y = physicsRef.current.floorY;
+    const initialBounds = updateBounds();
+    physicsRef.current.x = Math.random() * initialBounds.maxX;
+    physicsRef.current.y = -spriteH;
+    physicsRef.current.vy = 0;
+    physicsRef.current.state = "falling";
+    physicsRef.current.rotation = 0;
+    physicsRef.current.dir = Math.random() < 0.5 ? -1 : 1;
 
     const handleResize = () => {
-      updateFloorY();
-      // Keep mascot on floor after resize
-      if (!physicsRef.current.isDragging && physicsRef.current.onFloor) {
-        physicsRef.current.y = physicsRef.current.floorY;
+      const { maxX, floorY } = updateBounds();
+      const p = physicsRef.current;
+      p.x = clamp(p.x, minX, maxX);
+      if (!p.isDragging) {
+        if (p.state === "floor-walking") {
+          p.y = floorY;
+        } else {
+          p.y = clamp(p.y, -spriteH, floorY);
+        }
       }
     };
     window.addEventListener("resize", handleResize);
@@ -152,7 +172,7 @@ export function SiteShimejiMascot() {
       physicsRef.current.dragOffsetX = clientX - physicsRef.current.x;
       physicsRef.current.dragOffsetY = clientY - physicsRef.current.y;
       physicsRef.current.vy = 0;
-      physicsRef.current.onFloor = false;
+      physicsRef.current.state = "falling";
     };
 
     const handleMouseMove = (e: MouseEvent | TouchEvent) => {
@@ -162,18 +182,17 @@ export function SiteShimejiMascot() {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
-      const vw = window.innerWidth || 0;
-      const minX = margin;
-      const maxX = Math.max(margin, vw - spriteW - margin);
+      const { maxX, floorY } = updateBounds();
 
       physicsRef.current.x = clamp(clientX - physicsRef.current.dragOffsetX, minX, maxX);
-      physicsRef.current.y = clientY - physicsRef.current.dragOffsetY;
+      physicsRef.current.y = clamp(clientY - physicsRef.current.dragOffsetY, -spriteH, floorY);
     };
 
     const handleMouseUp = () => {
       if (!physicsRef.current.isDragging) return;
       physicsRef.current.isDragging = false;
-      physicsRef.current.onFloor = false; // Will fall due to gravity
+      physicsRef.current.state = "falling";
+      physicsRef.current.rotation = 0;
     };
 
     document.addEventListener("mousedown", handleMouseDown);
@@ -194,62 +213,104 @@ export function SiteShimejiMascot() {
       const dt = Math.min(0.05, (t - p.lastT) / 1000);
       p.lastT = t;
 
-      const vw = window.innerWidth || 0;
-      const minX = margin;
-      const maxX = Math.max(margin, vw - spriteW - margin);
+      const { maxX, floorY } = updateBounds();
 
       if (!openRef.current && !p.isDragging) {
-        // Apply gravity when not on floor
-        if (!p.onFloor) {
+        if (p.state === "falling") {
+          p.rotation = 0;
           p.vy += gravity * dt;
           p.y += p.vy * dt;
-
-          // Floor collision
-          if (p.y >= p.floorY) {
-            p.y = p.floorY;
-            if (Math.abs(p.vy) > 100) {
-              // Bounce with damping
-              p.vy = -p.vy * bounceDamping;
-            } else {
-              // Stop bouncing, snap to floor
-              p.vy = 0;
-              p.onFloor = true;
-            }
+          if (p.y >= floorY) {
+            p.y = floorY;
+            p.vy = 0;
+            p.state = "floor-walking";
+            p.rotation = 0;
           }
-        }
-
-        // Walking on floor
-        if (p.onFloor) {
+        } else if (p.state === "floor-walking") {
+          p.rotation = 0;
+          p.y = floorY;
           p.x += p.dir * speedPxPerSec * dt;
           if (p.x <= minX) {
             p.x = minX;
-            p.dir = 1;
+            p.state = "wall-climbing";
+            p.wallSide = "left";
+            p.wallDirection = "up";
+            p.rotation = 90;
           } else if (p.x >= maxX) {
             p.x = maxX;
-            p.dir = -1;
+            p.state = "wall-climbing";
+            p.wallSide = "right";
+            p.wallDirection = "up";
+            p.rotation = 270;
+          }
+        } else if (p.state === "wall-climbing") {
+          if (p.wallSide === "left") {
+            p.x = minX;
+            p.rotation = 90;
+          } else {
+            p.x = maxX;
+            p.rotation = 270;
           }
 
-          if (t - p.lastFrameT > 170) {
-            p.lastFrameT = t;
-            p.frameIdx = (p.frameIdx + 1) % frames.walk.length;
-            const nextSrc = frames.walk[p.frameIdx];
-            if (imgRef.current) imgRef.current.setAttribute("src", nextSrc);
+          if (p.wallDirection === "up") {
+            p.y -= speedPxPerSec * dt;
+            if (p.y <= minY) {
+              p.y = minY;
+              p.state = "ceiling-walking";
+              p.dir = p.wallSide === "left" ? 1 : -1;
+              p.rotation = 180;
+            }
+          } else {
+            p.y += speedPxPerSec * dt;
+            if (p.y >= floorY) {
+              p.y = floorY;
+              p.state = "floor-walking";
+              p.dir = p.wallSide === "left" ? 1 : -1;
+              p.rotation = 0;
+            }
+          }
+        } else if (p.state === "ceiling-walking") {
+          p.rotation = 180;
+          p.y = minY;
+          p.x += p.dir * speedPxPerSec * dt;
+          if (p.x <= minX) {
+            p.x = minX;
+            p.state = "wall-climbing";
+            p.wallSide = "left";
+            p.wallDirection = "down";
+            p.rotation = 90;
+          } else if (p.x >= maxX) {
+            p.x = maxX;
+            p.state = "wall-climbing";
+            p.wallSide = "right";
+            p.wallDirection = "down";
+            p.rotation = 270;
           }
         }
       } else {
-        // Standing still when chat is open
-        if (imgRef.current) imgRef.current.setAttribute("src", frames.stand);
+        p.vy = 0;
       }
 
       if (t - p.lastSideT > 250) {
         p.lastSideT = t;
+        const vw = window.innerWidth || 0;
         setBubbleSide(p.x > vw / 2 ? "left" : "right");
       }
 
-      // Apply transform using translate3d for both X and Y
+      if (imgRef.current) {
+        if (openRef.current || p.isDragging || p.state === "falling") {
+          if (imgRef.current.getAttribute("src") !== frames.stand) {
+            imgRef.current.setAttribute("src", frames.stand);
+          }
+        } else if (t - p.lastFrameT > 170) {
+          p.lastFrameT = t;
+          p.frameIdx = (p.frameIdx + 1) % frames.walk.length;
+          imgRef.current.setAttribute("src", frames.walk[p.frameIdx]);
+        }
+        imgRef.current.style.transform = `rotate(${p.rotation}deg)`;
+      }
+
       wrapRef.current.style.transform = `translate3d(${Math.round(clamp(p.x, minX, maxX))}px, ${Math.round(p.y)}px, 0)`;
-      // Sprite art faces opposite of movement direction by default; invert to avoid moonwalking.
-      if (imgRef.current) imgRef.current.style.transform = `scaleX(${-p.dir})`;
 
       raf = requestAnimationFrame(tick);
     };
