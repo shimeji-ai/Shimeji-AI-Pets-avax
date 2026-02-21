@@ -14,113 +14,21 @@ function clamp(n: number, min: number, max: number) {
 const SPRITE_SIZE = 72;
 const EDGE_MARGIN = 14;
 const GRAVITY = 980;
-const THROW_MIN_SPEED = 140;
-const THROW_SPEED_SCALE = 0.6;
-const THROW_MAX_SPEED = 1500;
-const THROW_TIMEOUT = 2.3;
-const THROW_BOUNCE_RESTITUTION = 0.72;
-const THROW_BOUNCE_TANGENT_FRICTION = 0.92;
-const THROW_AIR_DAMPING = 0.996;
-const THROW_SETTLE_SPEED = 120;
-const THROW_MIN_AIR_TIME = 0.2;
+const WALK_SPEED = 76;
+const CLIMB_SPEED = 76;
+const FALL_START_Y = -SPRITE_SIZE;
 const SPARKLE_DURATION = 380;
-const DIRECTION_CHANGE_MIN = 3.5;
-const DIRECTION_CHANGE_MAX = 6.5;
 
 type Edge = "bottom" | "right" | "top" | "left";
+type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
+type WallSide = "left" | "right";
 
-type Segment = {
-  edge: Edge;
-  length: number;
-  start: { x: number; y: number };
-  dx: number;
-  dy: number;
-};
-
-type PerimeterData = {
-  bounds: {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-  };
-  segments: Segment[];
-  perimeter: number;
-};
-
-type DragMove = { x: number; y: number; t: number };
 type DragState = {
   pointerId: number;
   offsetX: number;
   offsetY: number;
   pos: { x: number; y: number };
-  moves: DragMove[];
 };
-
-function buildPerimeter(minX: number, maxX: number, minY: number, maxY: number): PerimeterData {
-  const hSpan = Math.max(0, maxX - minX);
-  const vSpan = Math.max(0, maxY - minY);
-  const segments: Segment[] = [
-    { edge: "bottom", start: { x: minX, y: maxY }, dx: 1, dy: 0, length: hSpan },
-    { edge: "right", start: { x: maxX, y: maxY }, dx: 0, dy: -1, length: vSpan },
-    { edge: "top", start: { x: maxX, y: minY }, dx: -1, dy: 0, length: hSpan },
-    { edge: "left", start: { x: minX, y: minY }, dx: 0, dy: 1, length: vSpan },
-  ];
-  const perimeter = segments.reduce((sum, segment) => sum + segment.length, 0);
-  return { bounds: { minX, maxX, minY, maxY }, segments, perimeter };
-}
-
-function normalizeProgress(total: number, value: number) {
-  if (!total) return 0;
-  let next = value % total;
-  if (next < 0) next += total;
-  return next;
-}
-
-function pointOnPerimeter(data: PerimeterData, progress: number) {
-  const { segments, perimeter } = data;
-  if (!perimeter) return { x: segments[0].start.x, y: segments[0].start.y, edge: segments[0].edge };
-  let remaining = ((progress % perimeter) + perimeter) % perimeter;
-  for (const segment of segments) {
-    if (segment.length <= 0) continue;
-    if (remaining <= segment.length) {
-      return {
-        x: segment.start.x + segment.dx * remaining,
-        y: segment.start.y + segment.dy * remaining,
-        edge: segment.edge,
-      };
-    }
-    remaining -= segment.length;
-  }
-  const fallback = segments[0];
-  return { x: fallback.start.x, y: fallback.start.y, edge: fallback.edge };
-}
-
-function progressFromPosition(data: PerimeterData, x: number, y: number) {
-  let cursor = 0;
-  for (const segment of data.segments) {
-    if (segment.length <= 0) {
-      continue;
-    }
-    if (segment.dx !== 0) {
-      if (Math.abs(y - segment.start.y) <= 1) {
-        const delta = segment.dx === 1 ? x - segment.start.x : segment.start.x - x;
-        if (delta >= -1 && delta <= segment.length + 1) {
-          return cursor + clamp(delta, 0, segment.length);
-        }
-      }
-    } else {
-      if (Math.abs(x - segment.start.x) <= 1) {
-        const delta = segment.dy === 1 ? y - segment.start.y : segment.start.y - y;
-        if (delta >= -1 && delta <= segment.length + 1) {
-          return cursor + clamp(delta, 0, segment.length);
-        }
-      }
-    }
-    cursor += segment.length;
-  }
-  return null;
-}
 
 function getBoundsFromWindow() {
   const minX = EDGE_MARGIN;
@@ -134,12 +42,12 @@ function getBoundsFromWindow() {
   return { minX, maxX, minY, maxY };
 }
 
-function clampToBounds(
+function clampToMotionBounds(
   x: number,
   y: number,
   bounds: { minX: number; maxX: number; minY: number; maxY: number },
 ) {
-  return { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, bounds.minY, bounds.maxY) };
+  return { x: clamp(x, bounds.minX, bounds.maxX), y: clamp(y, FALL_START_Y, bounds.maxY) };
 }
 
 function getViewportSize() {
@@ -163,25 +71,6 @@ function getNearestEdge(
   ];
   distances.sort((a, b) => a.value - b.value);
   return distances[0].edge;
-}
-
-function snapToEdge(
-  bounds: { minX: number; maxX: number; minY: number; maxY: number },
-  x: number,
-  y: number,
-  edge: Edge,
-) {
-  if (edge === "bottom") return { x: clamp(x, bounds.minX, bounds.maxX), y: bounds.maxY, edge };
-  if (edge === "top") return { x: clamp(x, bounds.minX, bounds.maxX), y: bounds.minY, edge };
-  if (edge === "right") return { x: bounds.maxX, y: clamp(y, bounds.minY, bounds.maxY), edge };
-  return { x: bounds.minX, y: clamp(y, bounds.minY, bounds.maxY), edge };
-}
-
-function edgeTangent(edge: Edge) {
-  if (edge === "bottom") return { dx: 1, dy: 0 };
-  if (edge === "right") return { dx: 0, dy: -1 };
-  if (edge === "top") return { dx: -1, dy: 0 };
-  return { dx: 0, dy: 1 };
 }
 
 export function SiteShimejiMascot() {
@@ -212,19 +101,15 @@ export function SiteShimejiMascot() {
   const [isJumping, setIsJumping] = useState(false);
 
   const currentPosRef = useRef({ x: 0, y: 0 });
-  const progressRef = useRef(0);
-  const dirRef = useRef<1 | -1>(1);
-  const phaseRef = useRef<"walk" | "held" | "thrown">("walk");
-  const thrownVelocityRef = useRef({ x: 0, y: 0 });
-  const thrownPosRef = useRef({ x: 0, y: 0 });
-  const thrownTimeRef = useRef(0);
+  const movementStateRef = useRef<MascotState>("falling");
+  const wallSideRef = useRef<WallSide>("right");
+  const floorDirRef = useRef<1 | -1>(Math.random() < 0.5 ? -1 : 1);
+  const ceilingDirRef = useRef<1 | -1>(1);
+  const fallVelocityRef = useRef(0);
+  const phaseRef = useRef<"auto" | "held">("auto");
   const dragStateRef = useRef<DragState | null>(null);
   const isDraggingRef = useRef(false);
   const blockClickRef = useRef(false);
-  const directionTimerRef = useRef(0);
-  const directionDurationRef = useRef(
-    DIRECTION_CHANGE_MIN + Math.random() * (DIRECTION_CHANGE_MAX - DIRECTION_CHANGE_MIN),
-  );
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
   const isInitializedRef = useRef(false);
   const bubbleRectRef = useRef({ left: 8, top: 8 });
@@ -270,12 +155,6 @@ export function SiteShimejiMascot() {
         "/shimeji-original/walk-step-right.png",
         "/shimeji-original/stand-neutral.png",
       ],
-      sit: "/shimeji-original/sit.png",
-      sittingPc: "/shimeji-original/sit-pc-edge-legs-down.png",
-      sittingPcDangle: [
-        "/shimeji-original/sit-pc-edge-dangle-frame-1.png",
-        "/shimeji-original/sit-pc-edge-dangle-frame-2.png",
-      ],
     }),
     [],
   );
@@ -300,7 +179,6 @@ export function SiteShimejiMascot() {
       offsetX: event.clientX - currX,
       offsetY: event.clientY - currY,
       pos: { x: currX, y: currY },
-      moves: [{ x: currX, y: currY, t: performance.now() }],
     };
     phaseRef.current = "held";
   };
@@ -310,13 +188,8 @@ export function SiteShimejiMascot() {
       const drag = dragStateRef.current;
       if (!drag) return;
       const bounds = getBoundsFromWindow();
-      const next = clampToBounds(event.clientX - drag.offsetX, event.clientY - drag.offsetY, bounds);
+      const next = clampToMotionBounds(event.clientX - drag.offsetX, event.clientY - drag.offsetY, bounds);
       drag.pos = next;
-      const now = event.timeStamp || performance.now();
-      drag.moves.push({ x: next.x, y: next.y, t: now });
-      if (drag.moves.length > 5) {
-        drag.moves.shift();
-      }
       if (!isDraggingRef.current) {
         isDraggingRef.current = true;
         blockClickRef.current = true;
@@ -332,30 +205,29 @@ export function SiteShimejiMascot() {
       blockClickRef.current = wasDragging;
       dragStateRef.current = null;
       actorRef.current?.releasePointerCapture(drag.pointerId);
-      const last = drag.moves[drag.moves.length - 1];
-      const first = drag.moves[0];
-      const dt = Math.max((last.t - first.t) / 1000, 0.01);
-      const vx = (last.x - first.x) / dt;
-      const vy = (last.y - first.y) / dt;
       const bounds = getBoundsFromWindow();
-      const clamped = clampToBounds(last.x, last.y, bounds);
-      thrownPosRef.current = clamped;
-      if (Math.hypot(vx, vy) >= THROW_MIN_SPEED) {
-        phaseRef.current = "thrown";
-        thrownVelocityRef.current = {
-          x: clamp(vx * THROW_SPEED_SCALE, -THROW_MAX_SPEED, THROW_MAX_SPEED),
-          y: clamp(vy * THROW_SPEED_SCALE, -THROW_MAX_SPEED, THROW_MAX_SPEED),
-        };
-        thrownTimeRef.current = 0;
-        triggerJumpBurst();
+      const clamped = clampToMotionBounds(drag.pos.x, drag.pos.y, bounds);
+      currentPosRef.current = clamped;
+      fallVelocityRef.current = 0;
+      if (clamped.y >= bounds.maxY - 1) {
+        currentPosRef.current = { x: clamped.x, y: bounds.maxY };
+        movementStateRef.current = "floor-walking";
+      } else if (clamped.y <= bounds.minY + 1) {
+        currentPosRef.current = { x: clamped.x, y: bounds.minY };
+        movementStateRef.current = "ceiling-walking";
+      } else if (clamped.x <= bounds.minX + 1) {
+        currentPosRef.current = { x: bounds.minX, y: clamped.y };
+        movementStateRef.current = "wall-climbing";
+        wallSideRef.current = "left";
+      } else if (clamped.x >= bounds.maxX - 1) {
+        currentPosRef.current = { x: bounds.maxX, y: clamped.y };
+        movementStateRef.current = "wall-climbing";
+        wallSideRef.current = "right";
       } else {
-        phaseRef.current = "walk";
-        const perimeter = buildPerimeter(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
-        const nextProgress = progressFromPosition(perimeter, clamped.x, clamped.y);
-        if (typeof nextProgress === "number") {
-          progressRef.current = nextProgress;
-        }
+        movementStateRef.current = "falling";
       }
+      phaseRef.current = "auto";
+      if (wasDragging) triggerJumpBurst();
       event.preventDefault();
     };
 
@@ -375,11 +247,14 @@ export function SiteShimejiMascot() {
     const initPosition = () => {
       if (typeof window === "undefined") return;
       const bounds = getBoundsFromWindow();
-      const startX = bounds.maxX;
-      const startY = bounds.maxY;
+      const span = Math.max(0, bounds.maxX - bounds.minX);
+      const startX = bounds.minX + Math.random() * span;
+      const startY = FALL_START_Y;
       currentPosRef.current = { x: startX, y: startY };
-      // Set progress to bottom-right corner (end of bottom segment)
-      progressRef.current = bounds.maxX - bounds.minX;
+      movementStateRef.current = "falling";
+      fallVelocityRef.current = 0;
+      floorDirRef.current = Math.random() < 0.5 ? -1 : 1;
+      ceilingDirRef.current = floorDirRef.current;
       isInitializedRef.current = true;
       
       if (wrapRef.current) {
@@ -399,18 +274,6 @@ export function SiteShimejiMascot() {
     let lastT = 0;
     let lastFrameT = 0;
     let frameIdx = 0;
-    type ChatPose = "sit" | "pc" | "dangle";
-    let chatPose: ChatPose = "sit";
-    let chatPoseTimer = 0;
-    let chatPoseDuration = 2000 + Math.random() * 1500;
-    let chatDangleFrame = 0;
-
-    const mobileMq = window.matchMedia("(max-width: 768px)");
-    let isMobile = mobileMq.matches;
-    const handleMobileChange = (event: MediaQueryListEvent) => {
-      isMobile = event.matches;
-    };
-    mobileMq.addEventListener("change", handleMobileChange);
 
     const tick = (time: number) => {
       if (!wrapRef.current || !isInitializedRef.current) {
@@ -425,8 +288,6 @@ export function SiteShimejiMascot() {
       lastT = time;
 
       const bounds = getBoundsFromWindow();
-      const perimeter = buildPerimeter(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
-      const totalPerimeter = perimeter.perimeter;
       const phase = phaseRef.current;
       let targetPos = currentPosRef.current;
 
@@ -466,150 +327,64 @@ export function SiteShimejiMascot() {
         }
       };
 
-      if (phase === "walk" && !openRef.current) {
-        directionTimerRef.current += dt;
-        if (directionTimerRef.current >= directionDurationRef.current) {
-          directionTimerRef.current = 0;
-          directionDurationRef.current =
-            DIRECTION_CHANGE_MIN + Math.random() * (DIRECTION_CHANGE_MAX - DIRECTION_CHANGE_MIN);
-          dirRef.current = dirRef.current === 1 ? -1 : 1;
-        }
-      }
-
-      if (isMobile && phase === "walk") {
-        targetPos = { x: bounds.maxX, y: bounds.maxY };
-        if (totalPerimeter) {
-          const next = progressFromPosition(perimeter, targetPos.x, targetPos.y);
-          if (typeof next === "number") {
-            progressRef.current = next;
-          }
-        }
-        imgRef.current?.setAttribute("src", frames.stand);
-      } else if (phase === "held" && dragStateRef.current) {
-        const next = clampToBounds(dragStateRef.current.pos.x, dragStateRef.current.pos.y, bounds);
+      if (phase === "held" && dragStateRef.current) {
+        const next = clampToMotionBounds(dragStateRef.current.pos.x, dragStateRef.current.pos.y, bounds);
         targetPos = next;
         imgRef.current?.setAttribute("src", frames.stand);
-      } else if (phase === "thrown") {
-        thrownTimeRef.current += dt;
-        const velocity = thrownVelocityRef.current;
-        velocity.y += GRAVITY * dt;
-        velocity.x *= Math.pow(THROW_AIR_DAMPING, dt * 60);
-        velocity.y *= Math.pow(THROW_AIR_DAMPING, dt * 60);
-
-        let nextX = thrownPosRef.current.x + velocity.x * dt;
-        let nextY = thrownPosRef.current.y + velocity.y * dt;
-        let collided = false;
-        let lastCollisionEdge: Edge | null = null;
-
-        for (let i = 0; i < 4; i += 1) {
-          let loopCollision = false;
-          if (nextX < bounds.minX) {
-            nextX = bounds.minX + (bounds.minX - nextX);
-            velocity.x = Math.abs(velocity.x) * THROW_BOUNCE_RESTITUTION;
-            velocity.y *= THROW_BOUNCE_TANGENT_FRICTION;
-            collided = true;
-            loopCollision = true;
-            lastCollisionEdge = "left";
-          } else if (nextX > bounds.maxX) {
-            nextX = bounds.maxX - (nextX - bounds.maxX);
-            velocity.x = -Math.abs(velocity.x) * THROW_BOUNCE_RESTITUTION;
-            velocity.y *= THROW_BOUNCE_TANGENT_FRICTION;
-            collided = true;
-            loopCollision = true;
-            lastCollisionEdge = "right";
-          }
-
-          if (nextY < bounds.minY) {
-            nextY = bounds.minY + (bounds.minY - nextY);
-            velocity.y = Math.abs(velocity.y) * THROW_BOUNCE_RESTITUTION;
-            velocity.x *= THROW_BOUNCE_TANGENT_FRICTION;
-            collided = true;
-            loopCollision = true;
-            lastCollisionEdge = "top";
-          } else if (nextY > bounds.maxY) {
-            nextY = bounds.maxY - (nextY - bounds.maxY);
-            velocity.y = -Math.abs(velocity.y) * THROW_BOUNCE_RESTITUTION;
-            velocity.x *= THROW_BOUNCE_TANGENT_FRICTION;
-            collided = true;
-            loopCollision = true;
-            lastCollisionEdge = "bottom";
-          }
-
-          if (!loopCollision) break;
-        }
-
-        thrownVelocityRef.current = velocity;
-        thrownPosRef.current = clampToBounds(nextX, nextY, bounds);
-        targetPos = thrownPosRef.current;
-        imgRef.current?.setAttribute("src", frames.stand);
-
-        const speed = Math.hypot(velocity.x, velocity.y);
-        const shouldLand =
-          totalPerimeter > 0 &&
-          (thrownTimeRef.current >= THROW_TIMEOUT ||
-            (collided && thrownTimeRef.current >= THROW_MIN_AIR_TIME && speed <= THROW_SETTLE_SPEED));
-        if (shouldLand) {
-          const edge = lastCollisionEdge ?? getNearestEdge(bounds, targetPos.x, targetPos.y);
-          const snapped = snapToEdge(bounds, targetPos.x, targetPos.y, edge);
-          thrownPosRef.current = { x: snapped.x, y: snapped.y };
-          targetPos = thrownPosRef.current;
-          phaseRef.current = "walk";
-          const nextProgress = progressFromPosition(perimeter, targetPos.x, targetPos.y);
-          if (typeof nextProgress === "number") {
-            progressRef.current = nextProgress;
-          }
-          const tangent = edgeTangent(edge);
-          const tangentSpeed = velocity.x * tangent.dx + velocity.y * tangent.dy;
-          if (Math.abs(tangentSpeed) > 5) {
-            dirRef.current = tangentSpeed >= 0 ? 1 : -1;
-          }
-        }
       } else {
-        if (!totalPerimeter) {
-          targetPos = { x: bounds.minX, y: bounds.maxY };
-        } else {
-          progressRef.current = normalizeProgress(
-            totalPerimeter,
-            progressRef.current + dirRef.current * 46 * dt,
-          );
-          const point = pointOnPerimeter(perimeter, progressRef.current);
-          targetPos = { x: point.x, y: point.y };
+        const state = movementStateRef.current;
+        const next = { ...targetPos };
 
-          if (openRef.current && !isMobile) {
-            chatPoseTimer += dt * 1000;
-            if (chatPoseTimer >= chatPoseDuration) {
-              chatPoseTimer = 0;
-              if (chatPose === "sit") {
-                chatPose = "pc";
-                chatPoseDuration = 1500 + Math.random() * 1500;
-              } else if (chatPose === "pc") {
-                chatPose = "dangle";
-                chatPoseDuration = 1800 + Math.random() * 1200;
-                chatDangleFrame = 0;
-              } else {
-                chatPose = "sit";
-                chatPoseDuration = 2000 + Math.random() * 1500;
-              }
-            }
-
-            let chatSrc = frames.sit;
-            if (chatPose === "pc") {
-              chatSrc = frames.sittingPc;
-            } else if (chatPose === "dangle") {
-              if (time - lastFrameT > 250) {
-                lastFrameT = time;
-                chatDangleFrame = (chatDangleFrame + 1) % frames.sittingPcDangle.length;
-              }
-              chatSrc = frames.sittingPcDangle[chatDangleFrame];
-            }
-            imgRef.current?.setAttribute("src", chatSrc);
-          } else {
-            if (time - lastFrameT > 170) {
-              lastFrameT = time;
-              frameIdx = (frameIdx + 1) % frames.walk.length;
-              imgRef.current?.setAttribute("src", frames.walk[frameIdx]);
-            }
+        if (state === "falling") {
+          fallVelocityRef.current += GRAVITY * dt;
+          next.y += fallVelocityRef.current * dt;
+          next.x = clamp(next.x, bounds.minX, bounds.maxX);
+          if (next.y >= bounds.maxY) {
+            next.y = bounds.maxY;
+            fallVelocityRef.current = 0;
+            movementStateRef.current = "floor-walking";
+            floorDirRef.current = Math.random() < 0.5 ? -1 : 1;
           }
+        } else if (state === "floor-walking") {
+          next.y = bounds.maxY;
+          next.x += floorDirRef.current * WALK_SPEED * dt;
+          if (next.x <= bounds.minX) {
+            next.x = bounds.minX;
+            wallSideRef.current = "left";
+            movementStateRef.current = "wall-climbing";
+          } else if (next.x >= bounds.maxX) {
+            next.x = bounds.maxX;
+            wallSideRef.current = "right";
+            movementStateRef.current = "wall-climbing";
+          }
+        } else if (state === "wall-climbing") {
+          next.x = wallSideRef.current === "left" ? bounds.minX : bounds.maxX;
+          next.y -= CLIMB_SPEED * dt;
+          if (next.y <= bounds.minY) {
+            next.y = bounds.minY;
+            movementStateRef.current = "ceiling-walking";
+            ceilingDirRef.current = wallSideRef.current === "left" ? 1 : -1;
+          }
+        } else {
+          next.y = bounds.minY;
+          next.x += ceilingDirRef.current * WALK_SPEED * dt;
+          if (next.x <= bounds.minX) {
+            next.x = bounds.minX;
+            ceilingDirRef.current = 1;
+          } else if (next.x >= bounds.maxX) {
+            next.x = bounds.maxX;
+            ceilingDirRef.current = -1;
+          }
+        }
+
+        targetPos = clampToMotionBounds(next.x, next.y, bounds);
+
+        if (movementStateRef.current === "falling") {
+          imgRef.current?.setAttribute("src", frames.stand);
+        } else if (time - lastFrameT > 170) {
+          lastFrameT = time;
+          frameIdx = (frameIdx + 1) % frames.walk.length;
+          imgRef.current?.setAttribute("src", frames.walk[frameIdx]);
         }
       }
 
@@ -619,15 +394,20 @@ export function SiteShimejiMascot() {
       currentPosRef.current = targetPos;
       updateBubblePosition(targetPos);
 
-      // Don't flip on mobile - keep facing left (toward center of screen)
-      if (!isMobile) {
-        const facingSource = phaseRef.current === "thrown" ? thrownVelocityRef.current.x : dirRef.current;
-        const normalizedFacing = facingSource === 0 ? dirRef.current : facingSource > 0 ? 1 : -1;
-        imgRef.current?.style.setProperty("transform", `scaleX(${-normalizedFacing})`);
-      } else {
-        // On mobile, always face left (scaleX(1) since the sprite faces left by default)
-        imgRef.current?.style.setProperty("transform", `scaleX(1)`);
-      }
+      const state = movementStateRef.current;
+      const rotation =
+        state === "floor-walking" ? 0 : state === "ceiling-walking" ? 180 : wallSideRef.current === "left" ? 90 : 270;
+      const scaleX =
+        state === "floor-walking"
+          ? floorDirRef.current === 1
+            ? -1
+            : 1
+          : state === "ceiling-walking"
+            ? ceilingDirRef.current === 1
+              ? -1
+              : 1
+            : 1;
+      imgRef.current?.style.setProperty("transform", `rotate(${rotation}deg) scaleX(${scaleX})`);
 
       raf = requestAnimationFrame(tick);
     };
@@ -635,9 +415,8 @@ export function SiteShimejiMascot() {
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
-      mobileMq.removeEventListener("change", handleMobileChange);
     };
-  }, [frames.stand, frames.walk, frames.sit, frames.sittingPc, frames.sittingPcDangle]);
+  }, [frames.stand, frames.walk]);
 
   function ensureGreeting() {
     setMessages(prev => {
