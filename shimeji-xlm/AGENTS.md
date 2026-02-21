@@ -6,9 +6,9 @@ Instructions for working inside `shimeji-xlm/`.
 
 ## Personalities sync reminder
 
-- The Markdown definitions under `personalities/*.md` drive every runtime’s system prompt. Keep those files in sync any time you adjust dialogue.
-- Run `npm run sync-personalities` (or the root `./build.sh` helper) to copy the Markdown data into the `chrome-extension/` and `firefox-extension/` folders before packaging or redeploying the desktop or extensions.
-- The Chrome/Firefox zips live under `dist/` after running `./build.sh chrome|firefox`, and the release uploader copies them into `shimeji-eth/packages/nextjs/public`. If you edit personalities, re-run the sync script before invoking those builds.
+- The canonical shared runtime source is `runtime-core/` (including `runtime-core/personalities`, `runtime-core/characters`, `runtime-core/assets`).
+- Run `npm run sync-runtime-core` (legacy alias: `npm run sync-personalities`) or use the root `./build.sh` helper to copy core data into the desktop/chrome/firefox runtime folders before packaging.
+- The Chrome/Firefox zips live under `dist/` after running `./build.sh chrome|firefox`, and the release uploader copies them into `shimeji-eth/packages/nextjs/public`. If you edit runtime-core, re-run sync before invoking those builds.
 
 ## Framework (Current)
 

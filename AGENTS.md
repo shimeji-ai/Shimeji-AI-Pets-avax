@@ -5,7 +5,9 @@
 | Directory | Description |
 |---|---|
 | `chrome-extension/` | Browser runtime |
+| `firefox-extension/` | Firefox browser runtime |
 | `desktop/` | Electron runtime |
+| `runtime-core/` | Canonical shared runtime content (characters, personalities, shared assets) |
 | `shimeji-eth/` | Ethereum app/contracts |
 | `shimeji-xlm/` | Stellar app/contracts (any Stellar wallet supported) |
 | `animation-reference/` | Sprite reference for supported animation sets |
@@ -13,12 +15,16 @@
 
 For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` first.
 
-## Personalities
+## Runtime Core
 
-- Personality prompts are now the Markdown files in `personalities/*.md` plus `index.json`. Each runtime (desktop/Chrome/Firefox) loads those files when composing the system prompt.
-- Before building or packaging extensions or the desktop, run `npm run sync-personalities` (or the new `./build.sh ...` wrapper) so `chrome-extension/personalities` and `firefox-extension/personalities` reflect the latest Markdown data.
+- The canonical shared runtime source now lives under `runtime-core/`:
+  - `runtime-core/characters/`
+  - `runtime-core/personalities/`
+  - `runtime-core/assets/`
+- Do not hand-edit `desktop/renderer/{characters,personalities,assets}` or extension copies unless you are debugging; they are generated mirrors.
+- Sync core into all runtimes with `npm run sync-runtime-core` (legacy alias: `npm run sync-personalities`).
 - Use `./build.sh` from the repo root to sync and build artifacts: `./build.sh chrome` (Chrome zip), `./build.sh firefox` (Firefox zip), `./build.sh windows|macos|linux` (desktop), or `./build.sh all` (everything).
-  The script also copies the zipped Chrome/Firefox artifacts into `shimeji-eth/packages/nextjs/public` so release assets stay current.
+  The script syncs runtime-core first, then copies the zipped Chrome/Firefox artifacts into `shimeji-eth/packages/nextjs/public` so release assets stay current.
 
 ## shimeji-xlm Notes
 
@@ -40,7 +46,7 @@ For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` f
 
 When pushing changes that include desktop/extension deliverables (`desktop/**`, `chrome-extension/**`):
 
-1. Make sure the Markdown personalities are synced to every runtime (run `npm run sync-personalities` or use `./build.sh ...`) before packaging so the zipped Chrome/Firefox assets include the correct prompts.
+1. Make sure runtime-core is synced to every runtime (run `npm run sync-runtime-core` or use `./build.sh ...`) before packaging so desktop and browser artifacts share the same characters/personalities/assets.
 2. Publish release assets first: `./scripts/publish_release_assets.sh`
 2. Required assets: `shimeji-desktop-windows-portable.exe`, `shimeji-desktop-linux.AppImage`, `shimeji-chrome-extension.zip`
 3. Never commit desktop binaries to git.

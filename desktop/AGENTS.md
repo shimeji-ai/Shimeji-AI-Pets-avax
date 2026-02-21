@@ -1,10 +1,11 @@
 # Desktop Build Instructions
 
-## Personalities & packaging
+## Runtime core & packaging
 
-- The canonical personality prompts live in `personalities/*.md`. The desktop, Chrome, and Firefox runtimes all read those Markdown files after `npm run sync-personalities` copies them to their own `personalities` folders.
-- Run `npm run sync-personalities` (or the root `./build.sh` wrapper) before building or packaging so the generated artifacts include the latest prompts (Chrome/Firefox zips land under `dist/` and are mirrored to `shimeji-eth/packages/nextjs/public/` automatically).
-- Use the root `./build.sh` script to coordinate Chrome/Firefox packaging plus desktop builds (see the root `AGENTS.md` for usage notes). The release uploader (`./scripts/publish_release_assets.sh`) now runs the sync step before zipping, but you still need to run `npm run sync-personalities` when building locally.
+- The canonical shared runtime data lives in `runtime-core/` at repo root (`characters/`, `personalities/`, `assets/`).
+- Desktop consumes generated mirrors in `desktop/renderer/{characters,personalities,assets}`. Do not edit those directly for long-term changes; edit `runtime-core/` then sync.
+- Run `npm run sync-runtime-core` (or the root `./build.sh` wrapper) before building or packaging so desktop and browser artifacts use the same source data.
+- `desktop/scripts/build.sh` and `desktop/build-portable.sh` now run the sync step automatically before invoking `electron-builder`.
 
 ## Quick Build (Recommended)
 
@@ -70,7 +71,10 @@ If `npx electron-builder --win` fails:
 | `renderer/settings.css` | Settings UI styling |
 | `renderer/settings.js` | Settings UI logic |
 | `main.js` | Electron main process, config store |
-| `renderer/characters/` | Character sprite folders (shimeji, bunny, kitten, egg) |
+| `../runtime-core/` | Canonical source for shared characters/personalities/assets |
+| `renderer/characters/` | Generated character mirror consumed by desktop runtime |
+| `renderer/personalities/` | Generated personality mirror consumed by desktop runtime |
+| `renderer/assets/` | Generated shared audio asset mirror |
 
 ## Testing the Build
 

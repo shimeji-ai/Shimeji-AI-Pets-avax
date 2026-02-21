@@ -4,7 +4,8 @@
   "description": "Monorepo for the Shimeji AI Pets desktop, extensions, and on-chain tooling.",
   "author": "Shimeji AI Pets <hello@shimeji.ai>",
   "scripts": {
-    "sync-personalities": "node scripts/sync-personalities.js"
+    "sync-runtime-core": "node scripts/sync-runtime-core.js",
+    "sync-personalities": "node scripts/sync-runtime-core.js"
   },
   "dependencies": {
     "electron-store": "^8.2.0"

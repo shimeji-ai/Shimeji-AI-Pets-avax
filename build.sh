@@ -11,20 +11,20 @@ CHROME_ZIP="$DIST_DIR/shimeji-chrome-extension.zip"
 FIREFOX_ZIP="$DIST_DIR/shimeji-firefox-extension.zip"
 CHROME_RELEASE="$ROOT_DIR/shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip"
 FIREFOX_RELEASE="$ROOT_DIR/shimeji-eth/packages/nextjs/public/shimeji-firefox-extension.zip"
-PERSONALITY_SYNCED=0
+CORE_SYNCED=0
 
 ensure_dist() {
   mkdir -p "$DIST_DIR"
 }
 
-sync_personalities() {
-  if [ $PERSONALITY_SYNCED -eq 1 ]; then
+sync_runtime_core() {
+  if [ $CORE_SYNCED -eq 1 ]; then
     return
   fi
-  echo "==> Syncing Markdown personalities across runtimes"
-  node scripts/sync-personalities.js >/dev/null
-  echo "==> Personalities synced"
-  PERSONALITY_SYNCED=1
+  echo "==> Syncing runtime core assets (characters, personalities, shared sounds)"
+  node scripts/sync-runtime-core.js >/dev/null
+  echo "==> Runtime core synced"
+  CORE_SYNCED=1
 }
 
 zip_extension() {
@@ -44,24 +44,24 @@ zip_extension() {
 }
 
 build_chrome_extension() {
-  sync_personalities
+  sync_runtime_core
   zip_extension "$CHROME_DIR" "$CHROME_ZIP" "$CHROME_RELEASE"
 }
 
 build_firefox_extension() {
-  sync_personalities
+  sync_runtime_core
   zip_extension "$FIREFOX_DIR" "$FIREFOX_ZIP" "$FIREFOX_RELEASE"
 }
 
 build_desktop_target() {
   local target="$1"
-  sync_personalities
+  sync_runtime_core
   echo "==> Delegating desktop target '$target' to desktop/scripts/build.sh"
   "$DESKTOP_BUILD_SCRIPT" "$target"
 }
 
 run_all_targets() {
-  sync_personalities
+  sync_runtime_core
   build_chrome_extension
   build_firefox_extension
   "$DESKTOP_BUILD_SCRIPT" all

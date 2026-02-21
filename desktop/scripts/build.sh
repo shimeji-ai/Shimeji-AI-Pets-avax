@@ -5,6 +5,21 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/dist"
 BUILD_LOG="$BUILD_DIR/build.log"
+CORE_SYNC_SCRIPT="$ROOT_DIR/../scripts/sync-runtime-core.js"
+CORE_SYNCED=0
+
+sync_runtime_core() {
+  if [ $CORE_SYNCED -eq 1 ]; then
+    return
+  fi
+  if [ ! -f "$CORE_SYNC_SCRIPT" ]; then
+    echo "Missing runtime core sync script: $CORE_SYNC_SCRIPT" >&2
+    exit 1
+  fi
+  echo "==> Syncing runtime core assets"
+  node "$CORE_SYNC_SCRIPT" >/dev/null
+  CORE_SYNCED=1
+}
 
 install_dmg_license() {
   if [ -d "$ROOT_DIR/node_modules/dmg-license" ]; then
@@ -74,6 +89,8 @@ run_single_target() {
   local target="$1"
   local args log display_target
 
+  sync_runtime_core
+
   case "$target" in
     windows|win)
       args=(--win)
@@ -112,6 +129,7 @@ run_single_target() {
 }
 
 run_all() {
+  sync_runtime_core
   install_dmg_license
   ensure_dist_dir
 

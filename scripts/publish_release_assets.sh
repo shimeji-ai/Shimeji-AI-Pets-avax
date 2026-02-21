@@ -78,6 +78,9 @@ if [[ ! -d "$FF_EXT_SOURCE_DIR" ]]; then
   exit 1
 fi
 
+# Always sync runtime-core before packaging extension zips for release.
+node "$ROOT_DIR/scripts/sync-runtime-core.js" >/dev/null
+
 # Always regenerate extension zips from the current extension folders.
 rm -f "$EXT_ZIP"
 (

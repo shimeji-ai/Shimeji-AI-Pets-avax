@@ -248,7 +248,11 @@ const TRAY_MENU_WIDTH = 340;
 const TRAY_MENU_HEIGHT = 360;
 
 function getCharactersDir() {
-  return path.join(__dirname, '..', 'chrome-extension', 'characters');
+  const rendererCharactersDir = path.join(__dirname, 'renderer', 'characters');
+  if (fs.existsSync(rendererCharactersDir)) {
+    return rendererCharactersDir;
+  }
+  return path.join(__dirname, '..', 'runtime-core', 'characters');
 }
 
 function createOverlayWindow() {
@@ -804,7 +808,15 @@ function updateTrayMenu() {
   tray.setContextMenu(contextMenu);
 }
 
-const PERSONALITIES_DIR = path.join(__dirname, '..', 'personalities');
+const PERSONALITIES_DIR = resolvePersonalitiesDir();
+
+function resolvePersonalitiesDir() {
+  const candidates = [
+    path.join(__dirname, 'renderer', 'personalities'),
+    path.join(__dirname, '..', 'runtime-core', 'personalities')
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+}
 
 // AI Personalities
 const FALLBACK_PERSONALITIES = {

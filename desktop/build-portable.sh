@@ -12,6 +12,9 @@ echo ""
 
 cd "$(dirname "$0")"
 
+echo "Syncing runtime core assets..."
+node ../scripts/sync-runtime-core.js >/dev/null
+
 # Check if we're on Linux (required for Windows cross-compilation)
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
     echo "Warning: This build is designed to run on Linux for Windows cross-compilation."

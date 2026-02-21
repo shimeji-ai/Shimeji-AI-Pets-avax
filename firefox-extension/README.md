@@ -88,7 +88,7 @@ Collection (web) <-> dapp_content_script.js (injected) <-> background.js (extens
 
 ## Next steps / enhancements
 
-- Add more mascots and animations in `characters/`.
+- Add more mascots and animations in `../runtime-core/characters/` and run `npm run sync-runtime-core`.
 - Add an egg unlock flow once egg purchases go live.
 - Add settings for mascot size, z-index, and persistence across tabs.
 

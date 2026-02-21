@@ -31,6 +31,6 @@ Use `./scripts/publish_release_assets.sh` from the repository root to upload the
 - Copy the portable exe to a Windows machine (or run via Wine) to confirm the mascots appear, settings open, and chat works.
 
 ## Notes
-- Keep `renderer/` assets (characters, settings UI) in sync before building.
+- Canonical shared assets now live in `../runtime-core/`; run `npm run sync-runtime-core` (or use `./build.sh ...`) to refresh `renderer/{characters,personalities,assets}` before building.
 - Desktop binaries should never be committed to git; the release script handles uploads.
 - Use the new **Start Shimeji on system login** toggle in settings to keep the desktop client running automatically across Windows, macOS, and Linux logins.
