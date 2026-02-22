@@ -1343,15 +1343,56 @@ derive_sac_addresses() {
   echo "  USDC SAC: $USDC_TOKEN"
 }
 
-deploy_contracts() {
-  echo "==> Deploying ShimejiNFT..."
-  NFT_ID="$(stellar contract deploy \
-    --wasm "$NFT_WASM" \
+install_wasm() {
+  local label="$1"
+  local wasm_file="$2"
+  local hash
+  echo "==> Installing ${label} Wasm..."
+  hash="$(stellar contract install \
+    --wasm "$wasm_file" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
     --network-passphrase "$PASSPHRASE")"
-  echo "  NFT Contract: $NFT_ID"
+  # stellar contract install prints the hash as the last non-empty line
+  hash="$(printf "%s" "$hash" | tr -d '\r' | grep -E '^[0-9a-f]{64}$' | tail -n1)"
+  if [ -z "$hash" ]; then
+    die "Could not determine Wasm hash for ${label} after install."
+  fi
+  echo "  ${label} Wasm hash: $hash"
+  printf "%s" "$hash"
+}
 
+deploy_from_hash() {
+  local label="$1"
+  local wasm_hash="$2"
+  local contract_id
+  echo "==> Deploying ${label} from hash..."
+  contract_id="$(stellar contract deploy \
+    --wasm-hash "$wasm_hash" \
+    --source "$IDENTITY" \
+    --rpc-url "$RPC_URL" \
+    --network-passphrase "$PASSPHRASE")"
+  contract_id="$(printf "%s" "$contract_id" | tr -d '\r' | grep -E '^C[A-Z0-9]{55}$' | tail -n1)"
+  if [ -z "$contract_id" ]; then
+    die "Could not determine contract ID for ${label} after deploy."
+  fi
+  echo "  ${label} Contract: $contract_id"
+  printf "%s" "$contract_id"
+}
+
+deploy_contracts() {
+  # Install all Wasms first (each install waits for ledger confirmation
+  # before returning the hash, eliminating the race condition where the
+  # deploy simulation runs before the Wasm is available on-chain).
+  local nft_hash auction_hash escrow_hash marketplace_hash
+
+  nft_hash="$(install_wasm "ShimejiNFT" "$NFT_WASM")"
+  auction_hash="$(install_wasm "ShimejiAuction" "$AUCTION_WASM")"
+  escrow_hash="$(install_wasm "ShimejiEscrowVault" "$ESCROW_VAULT_WASM")"
+  marketplace_hash="$(install_wasm "ShimejiMarketplace" "$MARKETPLACE_WASM")"
+
+  # Deploy contracts using their confirmed Wasm hashes
+  NFT_ID="$(deploy_from_hash "ShimejiNFT" "$nft_hash")"
   echo "==> Initializing ShimejiNFT..."
   stellar contract invoke \
     --id "$NFT_ID" \
@@ -1360,14 +1401,7 @@ deploy_contracts() {
     --network-passphrase "$PASSPHRASE" \
     -- initialize --admin "$ADMIN"
 
-  echo "==> Deploying ShimejiAuction..."
-  AUCTION_ID="$(stellar contract deploy \
-    --wasm "$AUCTION_WASM" \
-    --source "$IDENTITY" \
-    --rpc-url "$RPC_URL" \
-    --network-passphrase "$PASSPHRASE")"
-  echo "  Auction Contract: $AUCTION_ID"
-
+  AUCTION_ID="$(deploy_from_hash "ShimejiAuction" "$auction_hash")"
   echo "==> Initializing ShimejiAuction..."
   stellar contract invoke \
     --id "$AUCTION_ID" \
@@ -1383,40 +1417,26 @@ deploy_contracts() {
   if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
     if [ "$NETWORK" = "local" ]; then
       echo "==> Deploying local mock escrow vault (Trustless Work dev parity)..."
-      ESCROW_VAULT_ID="$(stellar contract deploy \
-        --wasm "$ESCROW_VAULT_WASM" \
-        --source "$IDENTITY" \
-        --rpc-url "$RPC_URL" \
-        --network-passphrase "$PASSPHRASE")"
-      echo "  Local Escrow Vault: $ESCROW_VAULT_ID"
-
+      ESCROW_VAULT_ID="$(deploy_from_hash "ShimejiEscrowVault" "$escrow_hash")"
       stellar contract invoke \
         --id "$ESCROW_VAULT_ID" \
         --source "$IDENTITY" \
         --rpc-url "$RPC_URL" \
         --network-passphrase "$PASSPHRASE" \
         -- initialize --admin "$ADMIN"
-
       TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
       TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
       TRUSTLESS_ESCROW_STATUS="local-mock-enabled"
     else
       if [ -z "$TRUSTLESS_ESCROW_XLM_ADDRESS" ] || [ -z "$TRUSTLESS_ESCROW_USDC_ADDRESS" ]; then
         echo "==> Deploying fallback escrow vault on $NETWORK (Trustless routing enabled)..."
-        ESCROW_VAULT_ID="$(stellar contract deploy \
-          --wasm "$ESCROW_VAULT_WASM" \
-          --source "$IDENTITY" \
-          --rpc-url "$RPC_URL" \
-          --network-passphrase "$PASSPHRASE")"
-        echo "  Fallback Escrow Vault: $ESCROW_VAULT_ID"
-
+        ESCROW_VAULT_ID="$(deploy_from_hash "ShimejiEscrowVault" "$escrow_hash")"
         stellar contract invoke \
           --id "$ESCROW_VAULT_ID" \
           --source "$IDENTITY" \
           --rpc-url "$RPC_URL" \
           --network-passphrase "$PASSPHRASE" \
           -- initialize --admin "$ADMIN"
-
         TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
         TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
         TRUSTLESS_ESCROW_STATUS="${NETWORK}-fallback-vault-enabled"
@@ -1453,14 +1473,7 @@ deploy_contracts() {
     --network-passphrase "$PASSPHRASE" \
     -- set_minter --minter "$AUCTION_ID"
 
-  echo "==> Deploying ShimejiMarketplace..."
-  MARKETPLACE_ID="$(stellar contract deploy \
-    --wasm "$MARKETPLACE_WASM" \
-    --source "$IDENTITY" \
-    --rpc-url "$RPC_URL" \
-    --network-passphrase "$PASSPHRASE")"
-  echo "  Marketplace Contract: $MARKETPLACE_ID"
-
+  MARKETPLACE_ID="$(deploy_from_hash "ShimejiMarketplace" "$marketplace_hash")"
   echo "==> Initializing ShimejiMarketplace..."
   stellar contract invoke \
     --id "$MARKETPLACE_ID" \
