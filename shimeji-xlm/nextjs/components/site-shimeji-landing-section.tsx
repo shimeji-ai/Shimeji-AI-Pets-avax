@@ -313,7 +313,7 @@ export function SiteShimejiLandingSection() {
     resetConfig,
   } = useSiteShimeji();
 
-  const [activeTab, setActiveTab] = useState<"appearance" | "provider">("provider");
+  const [activeTab, setActiveTab] = useState<"appearance" | "provider">("appearance");
 
   // Normalize legacy "site" provider to "openrouter"
   const effectiveProvider: ProviderKey =
@@ -532,19 +532,6 @@ export function SiteShimejiLandingSection() {
                 {/* ── Appearance tab ── */}
                 {activeTab === "appearance" && (
                   <div className="space-y-4">
-                    {/* Enable toggle */}
-                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 px-4 py-2.5">
-                      <span className="text-sm font-semibold text-foreground">
-                        {isSpanish ? "Shimeji activado" : "Shimeji enabled"}
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={config.enabled}
-                        onChange={(e) => updateConfig({ enabled: e.target.checked })}
-                        className="h-4 w-4 accent-[var(--brand-accent)]"
-                      />
-                    </label>
-
                     {/* Character */}
                     <div>
                       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">

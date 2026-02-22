@@ -40,15 +40,18 @@ type DragState = {
   pos: { x: number; y: number };
 };
 
-function getBoundsFromWindow() {
-  const minX = EDGE_MARGIN;
-  const minY = EDGE_MARGIN;
+function getBoundsFromWindow(spriteScale = 1) {
   // Use visualViewport for mobile to account for address bar
   const vw = (window as any).visualViewport;
-  const winWidth = vw?.width || window.innerWidth;
-  const winHeight = vw?.height || window.innerHeight;
-  const maxX = Math.max(minX, winWidth - SPRITE_SIZE - EDGE_MARGIN);
-  const maxY = Math.max(minY, winHeight - SPRITE_SIZE - EDGE_MARGIN);
+  const winWidth = Math.floor(vw?.width || window.innerWidth);
+  const winHeight = Math.floor(vw?.height || window.innerHeight);
+  const scaledSpriteSize = SPRITE_SIZE * spriteScale;
+  // Actor is visually scaled from its center, so bounds need to include the overhang.
+  const scaleOffset = (scaledSpriteSize - SPRITE_SIZE) / 2;
+  const minX = EDGE_MARGIN + scaleOffset;
+  const minY = EDGE_MARGIN + scaleOffset;
+  const maxX = Math.max(minX, winWidth - SPRITE_SIZE - EDGE_MARGIN - scaleOffset);
+  const maxY = Math.max(minY, winHeight - SPRITE_SIZE - EDGE_MARGIN - scaleOffset);
   return { minX, maxX, minY, maxY };
 }
 
@@ -139,6 +142,10 @@ export function SiteShimejiMascot() {
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
   const isInitializedRef = useRef(false);
   const bubbleRectRef = useRef({ left: 8, top: 8 });
+  const spriteScaleRef = useRef(config.sizePercent / 100);
+  useEffect(() => {
+    spriteScaleRef.current = clamp(config.sizePercent / 100, 0.6, 1.8);
+  }, [config.sizePercent]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -248,7 +255,7 @@ export function SiteShimejiMascot() {
     const handlePointerMove = (event: PointerEvent) => {
       const drag = dragStateRef.current;
       if (!drag) return;
-      const bounds = getBoundsFromWindow();
+      const bounds = getBoundsFromWindow(spriteScaleRef.current);
       const next = clampToMotionBounds(event.clientX - drag.offsetX, event.clientY - drag.offsetY, bounds);
       drag.pos = next;
       if (!isDraggingRef.current) {
@@ -266,7 +273,7 @@ export function SiteShimejiMascot() {
       blockClickRef.current = wasDragging;
       dragStateRef.current = null;
       actorRef.current?.releasePointerCapture(drag.pointerId);
-      const bounds = getBoundsFromWindow();
+      const bounds = getBoundsFromWindow(spriteScaleRef.current);
       const clamped = clampToMotionBounds(drag.pos.x, drag.pos.y, bounds);
       currentPosRef.current = clamped;
       fallVelocityRef.current = 0;
@@ -307,7 +314,7 @@ export function SiteShimejiMascot() {
   useEffect(() => {
     const initPosition = () => {
       if (typeof window === "undefined") return;
-      const bounds = getBoundsFromWindow();
+      const bounds = getBoundsFromWindow(spriteScaleRef.current);
       const span = Math.max(0, bounds.maxX - bounds.minX);
       const startX = bounds.minX + Math.random() * span;
       const startY = FALL_START_Y;
@@ -349,7 +356,7 @@ export function SiteShimejiMascot() {
       const dt = Math.min(0.05, (time - lastT) / 1000);
       lastT = time;
 
-      const bounds = getBoundsFromWindow();
+      const bounds = getBoundsFromWindow(spriteScaleRef.current);
       const phase = phaseRef.current;
       let targetPos = currentPosRef.current;
 
@@ -497,9 +504,9 @@ export function SiteShimejiMascot() {
         lastAnimState = animState;
       }
 
-      wrapRef.current.style.transform = `translate3d(${Math.round(targetPos.x)}px, ${Math.round(
-        targetPos.y,
-      )}px, 0)`;
+      const renderX = clamp(Math.round(targetPos.x), Math.ceil(bounds.minX), Math.floor(bounds.maxX));
+      const renderY = clamp(Math.round(targetPos.y), Math.ceil(FALL_START_Y), Math.floor(bounds.maxY));
+      wrapRef.current.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
       currentPosRef.current = targetPos;
       updateBubblePosition(targetPos);
 

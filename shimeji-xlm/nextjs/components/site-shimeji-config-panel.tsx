@@ -216,15 +216,6 @@ export function SiteShimejiConfigPanel() {
                 <h3 className="text-sm font-semibold text-foreground">
                   {isSpanish ? "Mascota" : "Mascot"}
                 </h3>
-                <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={config.enabled}
-                    onChange={(event) => updateConfig({ enabled: event.target.checked })}
-                    className="h-4 w-4 rounded border-white/20 bg-black/20"
-                  />
-                  {isSpanish ? "Activa" : "Enabled"}
-                </label>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

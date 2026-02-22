@@ -115,7 +115,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
       : DEFAULT_CONFIG.provider;
 
   return {
-    enabled: raw.enabled !== false,
+    enabled: true,
     character: sanitizeString(raw.character, DEFAULT_CONFIG.character, 64) || DEFAULT_CONFIG.character,
     personality:
       sanitizeString(raw.personality, DEFAULT_CONFIG.personality, 64) || DEFAULT_CONFIG.personality,
@@ -140,7 +140,6 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
 }
 
 function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: number | null): boolean {
-  if (!config.enabled) return false;
   if (config.provider === "site") {
     return freeSiteMessagesRemaining === null || freeSiteMessagesRemaining > 0;
   }
@@ -247,7 +246,7 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
     () => ({
       config,
       updateConfig: (next) => {
-        setConfig((prev) => sanitizeConfig({ ...prev, ...next }));
+        setConfig((prev) => sanitizeConfig({ ...prev, ...next, enabled: true }));
       },
       resetConfig: () => setConfig(DEFAULT_CONFIG),
       isConfigOpen,
