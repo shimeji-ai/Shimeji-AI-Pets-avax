@@ -73,10 +73,10 @@ export function HowItWorksSection() {
                 className="group relative neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
                 <div className="flex items-start justify-between mb-8">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border border-white/10 bg-white/5 text-[var(--brand-accent)]">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center border border-foreground/10 bg-foreground/5 text-[var(--brand-accent)]">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="text-5xl font-semibold text-white/10 transition-colors font-mono">
+                  <span className="text-5xl font-semibold text-foreground/15 transition-colors font-mono">
                     {step.step}
                   </span>
                 </div>

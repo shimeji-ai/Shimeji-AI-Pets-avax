@@ -10,12 +10,12 @@ export function Footer() {
   return (
     <footer>
       {/* Footer Links */}
-      <div className="border-t border-white/10 bg-[#0b0f14]">
+      <div className="border-t border-border bg-background/80">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-2 gap-10">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-foreground/8 border border-border flex items-center justify-center">
                   <Image
                     src="/logo.png"
                     alt="Shimeji Logo"
@@ -36,7 +36,7 @@ export function Footer() {
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="X"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
+                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-background text-[var(--brand-accent)]">
                     <svg
                       viewBox="0 0 24 24"
                       className="w-5 h-5"
@@ -54,7 +54,7 @@ export function Footer() {
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"
                   aria-label="GitHub"
                 >
-                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-[#0b0f14] text-[var(--brand-accent)]">
+                  <span className="flex h-full w-full items-center justify-center rounded-[0.9rem] bg-background text-[var(--brand-accent)]">
                     <Github className="w-5 h-5" />
                   </span>
                 </Link>
@@ -118,7 +118,7 @@ export function Footer() {
           </div>
 
           {/* Credits */}
-          <div className="border-t border-white/10 mt-10 pt-6 text-center">
+          <div className="border-t border-border mt-10 pt-6 text-center">
             <p className="text-sm text-muted-foreground">
               {isSpanish ? "Creado por " : "Created by "}
               <Link

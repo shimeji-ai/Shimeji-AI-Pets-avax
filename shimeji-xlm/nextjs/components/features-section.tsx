@@ -106,7 +106,7 @@ export function FeaturesSection() {
                 key={feature.titleEn}
                 className="group neural-card rounded-3xl p-8 transition-all hover:-translate-y-1"
               >
-                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 transition-colors text-[var(--brand-accent)]">
+                <div className="w-12 h-12 bg-foreground/5 border border-foreground/10 rounded-2xl flex items-center justify-center mb-6 transition-colors text-[var(--brand-accent)]">
                   <Icon className="w-5 h-5" />
                 </div>
 
