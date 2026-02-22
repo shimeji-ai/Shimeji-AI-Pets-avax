@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuctionSection } from "@/components/auction-section";
+import { SiteShimejiLandingSection } from "@/components/site-shimeji-landing-section";
 import { HowItWorksSection } from "@/components/how-it-works-section";
 import { FeaturesSection } from "@/components/features-section";
 // import { CtaSection } from "@/components/cta-section";
@@ -17,7 +17,7 @@ export const metadata: Metadata = createPageMetadata({
 export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
-      <AuctionSection />
+      <SiteShimejiLandingSection />
       <div className="bg-transparent">
         <FeaturesSection />
         <HowItWorksSection />

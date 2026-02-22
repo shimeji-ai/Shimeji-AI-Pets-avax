@@ -74,7 +74,7 @@ export function HeroSection() {
                 onMouseEnter={() => setIsViewCollectionHovered(true)}
                 onMouseLeave={() => setIsViewCollectionHovered(false)}
               >
-                <Link href="/#subasta">
+                <Link href="/auction">
                   <Button
                     size="lg"
                     className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"

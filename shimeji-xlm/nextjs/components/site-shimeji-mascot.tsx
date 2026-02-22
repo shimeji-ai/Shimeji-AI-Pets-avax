@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import styles from "./site-shimeji-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
+import { useSiteShimeji } from "@/components/site-shimeji-provider";
+import { buildSiteShimejiChatMessages } from "@/lib/site-shimeji-chat";
+import {
+  formatSiteShimejiProviderError,
+  sendOllamaBrowserChat,
+  sendOpenClawBrowserChat,
+} from "@/lib/site-shimeji-browser-providers";
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
@@ -21,8 +28,6 @@ const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
 const MASCOT_HINT_TEXT = "🐱 Press me";
-const MAX_USER_RESPONSES = 4;
-const DOWNLOAD_LINK = "/#download";
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -78,8 +83,19 @@ function getNearestEdge(
   return distances[0].edge;
 }
 
+function buildSpriteSrc(characterKey: string, fileName: string) {
+  return `/api/site-shimeji/sprite/${encodeURIComponent(characterKey)}/${encodeURIComponent(fileName)}`;
+}
+
 export function SiteShimejiMascot() {
   const { isSpanish, language } = useLanguage();
+  const {
+    config,
+    catalog,
+    freeSiteMessagesRemaining,
+    incrementFreeSiteMessagesUsed,
+    canUseCurrentProvider,
+  } = useSiteShimeji();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const actorRef = useRef<HTMLDivElement | null>(null);
   const bubbleRef = useRef<HTMLDivElement | null>(null);
@@ -103,8 +119,6 @@ export function SiteShimejiMascot() {
   }, [messages]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [conversationEnded, setConversationEnded] = useState(false);
-  const userReplyCountRef = useRef(0);
   const [isJumping, setIsJumping] = useState(false);
   const [hasMascotBeenClicked, setHasMascotBeenClicked] = useState(false);
 
@@ -156,32 +170,32 @@ export function SiteShimejiMascot() {
 
   const frames = useMemo(
     () => ({
-      stand: "/shimeji-original/stand-neutral.png",
+      stand: buildSpriteSrc(config.character, "stand-neutral.png"),
       walk: [
-        "/shimeji-original/walk-step-left.png",
-        "/shimeji-original/stand-neutral.png",
-        "/shimeji-original/walk-step-right.png",
-        "/shimeji-original/stand-neutral.png",
+        buildSpriteSrc(config.character, "walk-step-left.png"),
+        buildSpriteSrc(config.character, "stand-neutral.png"),
+        buildSpriteSrc(config.character, "walk-step-right.png"),
+        buildSpriteSrc(config.character, "stand-neutral.png"),
       ],
       wallClimb: [
-        "/shimeji-original/grab-wall.png",
-        "/shimeji-original/climb-wall-frame-1.png",
-        "/shimeji-original/grab-wall.png",
-        "/shimeji-original/climb-wall-frame-2.png",
+        buildSpriteSrc(config.character, "grab-wall.png"),
+        buildSpriteSrc(config.character, "climb-wall-frame-1.png"),
+        buildSpriteSrc(config.character, "grab-wall.png"),
+        buildSpriteSrc(config.character, "climb-wall-frame-2.png"),
       ],
       ceilingWalk: [
-        "/shimeji-original/grab-ceiling.png",
-        "/shimeji-original/climb-ceiling-frame-1.png",
-        "/shimeji-original/grab-ceiling.png",
-        "/shimeji-original/climb-ceiling-frame-2.png",
+        buildSpriteSrc(config.character, "grab-ceiling.png"),
+        buildSpriteSrc(config.character, "climb-ceiling-frame-1.png"),
+        buildSpriteSrc(config.character, "grab-ceiling.png"),
+        buildSpriteSrc(config.character, "climb-ceiling-frame-2.png"),
       ],
       usingComputer: [
-        "/shimeji-original/sit-pc-edge-legs-down.png",
-        "/shimeji-original/sit-pc-edge-dangle-frame-1.png",
-        "/shimeji-original/sit-pc-edge-dangle-frame-2.png",
+        buildSpriteSrc(config.character, "sit-pc-edge-legs-down.png"),
+        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-1.png"),
+        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-2.png"),
       ],
     }),
-    [],
+    [config.character],
   );
 
   const triggerJumpBurst = () => {
@@ -495,6 +509,26 @@ export function SiteShimejiMascot() {
     };
   }, [frames.ceilingWalk, frames.stand, frames.usingComputer, frames.walk, frames.wallClimb]);
 
+  useEffect(() => {
+    if (!config.enabled) {
+      setOpen(false);
+    }
+  }, [config.enabled]);
+
+  const selectedCharacter = catalog?.characters.find((entry) => entry.key === config.character);
+  const selectedPersonality = catalog?.personalities.find((entry) => entry.key === config.personality);
+  const providerLabel =
+    config.provider === "site"
+      ? isSpanish
+        ? "Créditos del sitio"
+        : "Site credits"
+      : config.provider === "openrouter"
+        ? "OpenRouter"
+        : config.provider === "ollama"
+          ? "Ollama"
+          : "OpenClaw";
+  const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
+
   function ensureGreeting() {
     setMessages(prev => {
       if (prev.length) return prev;
@@ -507,52 +541,133 @@ export function SiteShimejiMascot() {
 
   async function send() {
     const text = input.trim();
-    if (!text || sending || conversationEnded) return;
+    if (!text || sending) return;
+
+    if (!config.enabled) {
+      return;
+    }
+
+    if (siteCreditsExhausted) {
+      const lockMessage = isSpanish
+        ? "Se terminaron los créditos gratis del sitio. Abre el botón de engranaje arriba y configura OpenRouter, Ollama u OpenClaw para seguir chateando."
+        : "The website free credits are exhausted. Open the gear button in the header and configure OpenRouter, Ollama, or OpenClaw to keep chatting.";
+      setMessages(prev => [
+        ...prev,
+        {
+          role: "assistant",
+          content: lockMessage,
+          ctaHref: "/help",
+          ctaLabel: isSpanish ? "Ver ayuda" : "Open help",
+        },
+      ]);
+      return;
+    }
+
+    if (!canUseCurrentProvider) {
+      const configMessage = isSpanish
+        ? "Falta configuración para ese proveedor. Abre el engranaje y completa los datos."
+        : "That provider is not fully configured yet. Open the gear icon and finish the settings.";
+      setMessages(prev => [...prev, { role: "assistant", content: configMessage }]);
+      return;
+    }
+
     setInput("");
     setSending(true);
 
     setMessages(prev => [...prev, { role: "user", content: text }]);
-    const nextUserCount = userReplyCountRef.current + 1;
-    userReplyCountRef.current = nextUserCount;
-
-    if (nextUserCount >= MAX_USER_RESPONSES) {
-      const finalMessage = isSpanish
-        ? "¡Me encantó hablar contigo! Descarga la extensión o app para seguir charlando conmigo:"
-        : "I loved chatting with you! Download the extension or app to keep talking with me:";
-      const finalLinkLabel = isSpanish ? "Ir a descargas" : "Go to downloads";
-      setMessages(prev => [
-        ...prev,
-        { role: "assistant", content: finalMessage, ctaHref: DOWNLOAD_LINK, ctaLabel: finalLinkLabel },
-      ]);
-      setConversationEnded(true);
-      setSending(false);
-      return;
-    }
 
     try {
-      const history = messagesRef.current.slice(-8).map(m => ({ role: m.role, content: m.content }));
-      const resp = await fetch("/api/shimeji-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history, lang: language }),
-      });
-      const json = await resp.json().catch(() => null);
-      const reply = json?.reply;
-      if (!resp.ok || typeof reply !== "string" || !reply.trim()) {
-        throw new Error("bad-response");
+      const history = messagesRef.current
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content }));
+      let reply = "";
+
+      if (config.provider === "ollama" || config.provider === "openclaw") {
+        const providerMessages = buildSiteShimejiChatMessages({
+          message: text,
+          history,
+          language,
+          characterLabel: selectedCharacter?.label,
+          personalityLabel: selectedPersonality?.label,
+          personalityPrompt: selectedPersonality?.prompt,
+        });
+        reply =
+          config.provider === "ollama"
+            ? await sendOllamaBrowserChat({
+                messages: providerMessages,
+                ollamaUrl: config.ollamaUrl,
+                ollamaModel: config.ollamaModel,
+              })
+            : await sendOpenClawBrowserChat({
+                messages: providerMessages,
+                gatewayUrl: config.openclawGatewayUrl,
+                gatewayToken: config.openclawGatewayToken,
+                agentName: config.openclawAgentName,
+              });
+      } else {
+        const resp = await fetch("/api/shimeji-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            history,
+            lang: language,
+            provider: config.provider,
+            providerConfig:
+              config.provider === "openrouter"
+                ? {
+                    openrouterApiKey: config.openrouterApiKey,
+                    openrouterModel: config.openrouterModel,
+                  }
+                : undefined,
+            character: config.character,
+            personality: config.personality,
+          }),
+        });
+        const json = await resp.json().catch(() => null);
+        reply = json?.reply;
+        if (!resp.ok || typeof reply !== "string" || !reply.trim()) {
+          const errorCode = typeof json?.error === "string" ? json.error : "bad-response";
+          throw new Error(errorCode);
+        }
+      }
+
+      if (!reply.trim()) {
+        throw new Error("EMPTY_RESPONSE");
       }
       setMessages(prev => [...prev, { role: "assistant", content: reply.trim() }]);
-    } catch {
-      const fallback = isSpanish
-        ? "Ahora mismo no puedo responder con IA (configuración o red)."
-        : "I can't reach the AI right now (config/network issue).";
+      if (config.provider === "site") {
+        incrementFreeSiteMessagesUsed();
+      }
+    } catch (error) {
+      const fallback = formatSiteShimejiProviderError(
+        error,
+        isSpanish,
+        config.provider,
+      );
       setMessages(prev => [...prev, { role: "assistant", content: fallback }]);
     } finally {
       setSending(false);
     }
   }
 
-  const showPressMeHint = !hasMascotBeenClicked && !open;
+  const showPressMeHint = config.enabled && !hasMascotBeenClicked && !open;
+  const inputLocked = sending || !config.enabled || siteCreditsExhausted;
+  const placeholderText = !config.enabled
+    ? isSpanish
+      ? "El Shimeji web está desactivado en la configuración."
+      : "Website shimeji is disabled in settings."
+    : siteCreditsExhausted
+      ? isSpanish
+        ? "Sin créditos del sitio. Usa el engranaje para configurar tu proveedor."
+        : "Site credits are exhausted. Use the gear to configure your provider."
+      : isSpanish
+        ? "Preguntame sobre Shimeji AI Pets..."
+        : "Ask about Shimeji AI Pets...";
+
+  if (!config.enabled) {
+    return null;
+  }
 
   return (
     <>
@@ -560,6 +675,10 @@ export function SiteShimejiMascot() {
         <div
           ref={actorRef}
           className={styles.actor}
+          style={{
+            transform: `scale(${config.sizePercent / 100})`,
+            transformOrigin: "center center",
+          }}
           onClick={() => {
             if (blockClickRef.current) {
               blockClickRef.current = false;
@@ -577,7 +696,11 @@ export function SiteShimejiMascot() {
           tabIndex={0}
           title={isSpanish ? "Hablá con Shimeji" : "Talk to Shimeji"}
         >
-          {showPressMeHint && <div className={styles.pressHint}>{MASCOT_HINT_TEXT}</div>}
+          {showPressMeHint && (
+            <div className={styles.pressHint}>
+              {isSpanish ? "🐱 Tócame" : MASCOT_HINT_TEXT}
+            </div>
+          )}
           <img className={styles.sprite} src={frames.stand} alt="" ref={imgRef} draggable={false} />
           {isJumping && (
             <div className="absolute inset-0 pointer-events-none">
@@ -597,7 +720,12 @@ export function SiteShimejiMascot() {
           onClick={e => e.stopPropagation()}
         >
           <div className={styles.bubbleHeader}>
-            <div className={styles.title}>Shimeji</div>
+            <div>
+              <div className={styles.title}>
+                {selectedCharacter?.label || "Shimeji"} · {selectedPersonality?.label || "Cozy"}
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-white/45">{providerLabel}</div>
+            </div>
             <button
               className={styles.closeBtn}
               type="button"
@@ -638,22 +766,14 @@ export function SiteShimejiMascot() {
                 onKeyDown={e => {
                   if (e.key === "Enter") send();
                 }}
-                placeholder={
-                  conversationEnded
-                    ? isSpanish
-                      ? "Chat finalizado. Usá el link de descarga."
-                      : "Chat ended. Use the download link."
-                    : isSpanish
-                      ? "Preguntame sobre Shimeji AI Pets..."
-                      : "Ask about Shimeji AI Pets..."
-                }
-                disabled={sending || conversationEnded}
+                placeholder={placeholderText}
+                disabled={inputLocked}
               />
               <button
                 className={styles.sendBtn}
                 type="button"
                 onClick={send}
-                disabled={sending || conversationEnded || !input.trim()}
+                disabled={inputLocked || !input.trim()}
               >
                 {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
               </button>

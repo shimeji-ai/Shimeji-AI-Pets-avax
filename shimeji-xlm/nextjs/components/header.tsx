@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, Settings2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,12 +10,13 @@ import { LanguageSwitcher } from "./language-switcher";
 import { useLanguage } from "./language-provider";
 import { FreighterConnectButton } from "./freighter-connect-button";
 import { useFreighter } from "./freighter-provider";
+import { useSiteShimeji } from "./site-shimeji-provider";
 import { STELLAR_NETWORK } from "@/lib/contracts";
 
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 
 const NAV_LINKS = [
-  { href: "/#subasta", pathMatch: "/", labelEn: "Auction", labelEs: "Subasta" },
+  { href: "/auction", pathMatch: "/auction", labelEn: "Auction", labelEs: "Subasta" },
   // { href: "/collection", pathMatch: "/collection", labelEn: "Collection", labelEs: "Colección" },
   { href: "/download", pathMatch: "/download", labelEn: "Download", labelEs: "Descarga" },
   { href: "/help", pathMatch: "/help", labelEn: "Help", labelEs: "Ayuda" },
@@ -24,6 +25,7 @@ const NAV_LINKS = [
 export function Header() {
   const { isSpanish } = useLanguage();
   const { publicKey } = useFreighter();
+  const { openConfig } = useSiteShimeji();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLogoHovered, setIsLogoHovered] = useState(false);
@@ -122,6 +124,15 @@ export function Header() {
 
           <div className="hidden md:flex items-center gap-3">
             <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={openConfig}
+              title={isSpanish ? "Configurar Shimeji del sitio" : "Configure website shimeji"}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-foreground hover:bg-white/20"
+              aria-label={isSpanish ? "Abrir configuración del Shimeji del sitio" : "Open website shimeji settings"}
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
             <FreighterConnectButton />
             <button
               type="button"
@@ -142,17 +153,31 @@ export function Header() {
             </button>
           </div>
 
-          <button
-            className="md:hidden p-2"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {isMenuOpen ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Menu className="w-5 h-5" />
-            )}
-          </button>
+          <div className="flex items-center md:hidden">
+            <button
+              type="button"
+              onClick={openConfig}
+              className="p-2"
+              aria-label={
+                isSpanish
+                  ? "Abrir configuración del Shimeji del sitio"
+                  : "Open website shimeji settings"
+              }
+            >
+              <Settings2 className="w-5 h-5" />
+            </button>
+            <button
+              className="p-2"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {isMenuOpen && (
@@ -176,6 +201,17 @@ export function Header() {
                 <LanguageSwitcher />
               </div>
               <div className="flex flex-col gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    openConfig();
+                  }}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 text-sm font-semibold hover:bg-white/20"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  <span>{isSpanish ? "Configurar Shimeji web" : "Web Shimeji settings"}</span>
+                </button>
                 <FreighterConnectButton />
                 <button
                   type="button"

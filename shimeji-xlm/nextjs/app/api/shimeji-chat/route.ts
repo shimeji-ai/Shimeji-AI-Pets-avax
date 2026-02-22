@@ -1,124 +1,190 @@
 import { NextRequest, NextResponse } from "next/server";
-
-type ChatRole = "user" | "assistant";
-type ChatMessage = { role: ChatRole; content: string };
+import {
+  buildSiteShimejiChatMessages,
+  coerceSiteShimejiHistory,
+  sanitizeSiteShimejiMessage,
+} from "@/lib/site-shimeji-chat";
+import { getRuntimeCoreSiteShimejiCatalog } from "@/lib/site-shimeji-runtime-core";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
-function buildSystemPrompt() {
-  return `
-You are Shimeji, the original walking desktop pet mascot for the Shimeji AI Pets project.
+type SupportedServerProvider = "site" | "openrouter";
 
-Your job:
-- Explain what Shimeji AI Pets is, clearly and briefly.
-- Help visitors understand the extensions, the desktop app, the AI chat, and the egg auction flow.
-- Answer common questions visitors have (see FAQ below).
-- Keep responses short unless the user asks for details.
-
-Project context (high level):
-- Shimeji AI Pets adds animated pets (Shimejis) that walk around your screen.
-- Available as a browser extension for Chrome (also works on Edge, Brave, Opera, and other Chromium browsers) and Firefox.
-- Also available as a desktop app for Windows (portable .exe), macOS (.zip), and Linux (AppImage).
-- All versions can be downloaded from the Download section on shimeji.dev.
-- You can run multiple pets and interact with them while browsing or on your desktop.
-- You can chat with your Shimeji using AI via providers like OpenRouter or Ollama (local).
-- The extension and desktop app are free and include 6 free pets: Shimeji, Bunny, Kitten, Ghost, Blob, and Lobster.
-- Shimeji NFTs are unique, handcrafted custom pets obtained through live auctions on shimeji.dev (in the /#subasta section).
-- In auctions, users bid with XLM or USDC on the Stellar blockchain. The highest bidder wins the custom pet NFT.
-
-FAQ — Common questions from the help page:
-- AI Providers: OpenRouter (recommended, cloud-based, needs API key), Ollama (local/offline, no key needed), OpenClaw (agent mode with tools, needs gateway).
-- To set up OpenRouter: get an API key at openrouter.ai, set AI Brain = Standard, Provider = OpenRouter, paste key, pick model, save.
-- To set up Ollama: install Ollama, pull a model (e.g. llama3.1), set AI Brain = Standard, Provider = Ollama, set URL + model name.
-- Settings overview: Character (pick pet), Size, Active (on/off), Personality (chat tone), AI Brain (Standard or Agent), Provider, API Key, Model, Notifications & Volume, Read Aloud (TTS), Open Mic (hands-free voice), Relay (shimejis talk to each other), Chat Style (theme/colors/font), Security (Master Key encryption), Theme (popup look).
-- Custom looks: win a Shimeji NFT at auction (/#subasta) to unlock exclusive skins.
-- The desktop app also supports a terminal mode to run AI agents like Claude Code or Codex directly.
-
-Style:
-- Friendly, concise, and practical. Avoid hype.
-- If the user asks "how do I start", recommend: download the extension or desktop app from the Download section, enable it, then chat.
-- If the user asks about getting a custom/unique pet or NFT, point them to /#subasta.
-- Always respond in the same language as the user's last message.
-- Keep it concise (2-6 sentences).
-`;
+function sanitizeShortKey(input: unknown): string {
+  if (typeof input !== "string") return "";
+  return input.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
 }
 
-function sanitizeMessage(input: unknown): string {
-  const s = typeof input === "string" ? input : "";
-  return s.trim().slice(0, 2000);
+function sanitizeModel(input: unknown): string {
+  if (typeof input !== "string") return DEFAULT_MODEL;
+  const cleaned = input.trim().slice(0, 120);
+  return cleaned || DEFAULT_MODEL;
 }
 
-function coerceHistory(input: unknown): ChatMessage[] {
-  if (!Array.isArray(input)) return [];
-  const out: ChatMessage[] = [];
-  for (const item of input) {
-    if (!item || typeof item !== "object") continue;
-    const role = (item as any).role;
-    const content = sanitizeMessage((item as any).content);
-    if ((role === "user" || role === "assistant") && content) out.push({ role, content });
+function parseServerProvider(input: unknown): SupportedServerProvider {
+  return input === "openrouter" ? "openrouter" : "site";
+}
+
+async function resolvePromptContext(characterKey: string, personalityKey: string) {
+  try {
+    const catalog = await getRuntimeCoreSiteShimejiCatalog();
+    const characterLabel = catalog.characters.find((entry) => entry.key === characterKey)?.label;
+    const personality = catalog.personalities.find((entry) => entry.key === personalityKey);
+    return {
+      characterLabel,
+      personalityLabel: personality?.label,
+      personalityPrompt: personality?.prompt,
+    };
+  } catch {
+    return {
+      characterLabel: undefined,
+      personalityLabel: undefined,
+      personalityPrompt: undefined,
+    };
   }
-  return out.slice(-10);
+}
+
+async function sendOpenRouterRequest(args: {
+  apiKey: string;
+  model: string;
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+  request: NextRequest;
+}) {
+  const referer =
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    args.request.headers.get("origin") ||
+    args.request.headers.get("referer") ||
+    "https://shimeji.dev";
+
+  const upstream = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${args.apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": referer,
+      "X-Title": "Shimeji AI Pets Site Shimeji",
+    },
+    body: JSON.stringify({
+      model: args.model,
+      temperature: 0.7,
+      max_tokens: 250,
+      messages: args.messages,
+    }),
+    cache: "no-store",
+  });
+
+  if (!upstream.ok) {
+    let payload: any = null;
+    try {
+      payload = await upstream.json();
+    } catch {
+      payload = null;
+    }
+    if (upstream.status === 402) {
+      throw new Error("NO_CREDITS");
+    }
+    if (upstream.status === 429) {
+      const errorCode = payload?.error?.code || payload?.error?.type;
+      if (errorCode === "insufficient_quota") {
+        throw new Error("NO_CREDITS");
+      }
+    }
+    const details = payload ? JSON.stringify(payload).slice(0, 500) : "";
+    const err = new Error("OPENROUTER_REQUEST_FAILED");
+    (err as any).status = upstream.status;
+    (err as any).details = details;
+    throw err;
+  }
+
+  const json = await upstream.json().catch(() => null);
+  const reply = json?.choices?.[0]?.message?.content;
+  if (typeof reply !== "string" || !reply.trim()) {
+    throw new Error("INVALID_OPENROUTER_RESPONSE");
+  }
+
+  return reply.trim();
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "OpenRouter not configured" }, { status: 500 });
-    }
-
     const body = await request.json().catch(() => ({}));
-    const message = sanitizeMessage((body as any)?.message);
-    const history = coerceHistory((body as any)?.history);
+    const message = sanitizeSiteShimejiMessage((body as any)?.message);
+    const history = coerceSiteShimejiHistory((body as any)?.history);
 
     if (!message) {
       return NextResponse.json({ error: "Missing message" }, { status: 400 });
     }
 
-    const referer =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      request.headers.get("origin") ||
-      request.headers.get("referer") ||
-      "https://shimeji.dev";
+    const provider = parseServerProvider((body as any)?.provider);
+    if (provider !== "site" && provider !== "openrouter") {
+      return NextResponse.json({ error: "Unsupported provider for this endpoint" }, { status: 400 });
+    }
 
-    const upstream = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": referer,
-        "X-Title": "Shimeji AI Pets Site Shimeji",
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        temperature: 0.7,
-        max_tokens: 250,
-        messages: [
-          { role: "system", content: buildSystemPrompt() },
-          ...history,
-          { role: "user", content: message },
-        ],
-      }),
-      cache: "no-store",
+    const providerConfig = ((body as any)?.providerConfig || {}) as Record<string, unknown>;
+    const customOpenRouterKey =
+      typeof providerConfig.openrouterApiKey === "string"
+        ? providerConfig.openrouterApiKey.trim().slice(0, 600)
+        : "";
+    const customOpenRouterModel = sanitizeModel(providerConfig.openrouterModel);
+
+    const apiKey =
+      provider === "openrouter" ? customOpenRouterKey : process.env.OPENROUTER_API_KEY || "";
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            provider === "openrouter"
+              ? "Missing OpenRouter API key"
+              : "Site credits are not configured right now",
+        },
+        { status: provider === "openrouter" ? 400 : 500 },
+      );
+    }
+
+    const characterKey = sanitizeShortKey((body as any)?.character);
+    const personalityKey = sanitizeShortKey((body as any)?.personality);
+    const promptContext = await resolvePromptContext(characterKey, personalityKey);
+
+    const messages = buildSiteShimejiChatMessages({
+      message,
+      history,
+      language: typeof (body as any)?.lang === "string" ? (body as any).lang : undefined,
+      characterLabel: promptContext.characterLabel,
+      personalityLabel: promptContext.personalityLabel,
+      personalityPrompt: promptContext.personalityPrompt,
     });
 
-    if (!upstream.ok) {
-      const text = await upstream.text().catch(() => "");
+    const reply = await sendOpenRouterRequest({
+      apiKey,
+      model: provider === "openrouter" ? customOpenRouterModel : DEFAULT_MODEL,
+      messages,
+      request,
+    });
+
+    return NextResponse.json({ reply, providerUsed: provider });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Server error";
+
+    if (message === "NO_CREDITS") {
+      return NextResponse.json({ error: "NO_CREDITS" }, { status: 402 });
+    }
+
+    if (message === "INVALID_OPENROUTER_RESPONSE") {
+      return NextResponse.json({ error: "Invalid OpenRouter response" }, { status: 502 });
+    }
+
+    if (message === "OPENROUTER_REQUEST_FAILED") {
       return NextResponse.json(
-        { error: "OpenRouter request failed", status: upstream.status, details: text.slice(0, 500) },
+        {
+          error: "OpenRouter request failed",
+          status: (error as any)?.status ?? 502,
+          details: (error as any)?.details ?? "",
+        },
         { status: 502 },
       );
     }
 
-    const json = await upstream.json().catch(() => null);
-    const reply = json?.choices?.[0]?.message?.content;
-    if (typeof reply !== "string" || !reply.trim()) {
-      return NextResponse.json({ error: "Invalid OpenRouter response" }, { status: 502 });
-    }
-
-    return NextResponse.json({ reply: reply.trim() });
-  } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

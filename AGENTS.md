@@ -30,7 +30,7 @@ For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` f
 
 - `./shimeji-xlm/launch.sh` is the canonical entrypoint (chain + deploy + frontend).
 - Core scripts: `scripts/chain.sh`, `scripts/deploy.sh`, `scripts/start.sh`, `scripts/vercel-env-sync.sh`.
-- The auction lives on the homepage (no separate `/auction` route).
+- The auction lives on `/auction` (the homepage is now a separate landing/customizer experience).
 - Wallet integration uses `@creit.tech/stellar-wallets-kit` with `allowAllModules()` — supports Freighter, Lobstr, and any Stellar-compatible wallet.
 - When changing deploy flow, keep docs aligned: `shimeji-xlm/README.md`, `nextjs/README.md`, `soroban/README.md`, `AGENTS.md`.
 

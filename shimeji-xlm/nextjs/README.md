@@ -5,7 +5,7 @@ Frontend for the Stellar auction experience.
 ## What This App Includes
 
 - Landing page + giveaway CTA.
-- Auction page (`/#subasta`) with Freighter wallet flow.
+- Auction page (`/auction`) with Freighter wallet flow.
 - API routes for feedback/subscription/email/chat.
 
 ## Related Docs
@@ -71,11 +71,11 @@ pnpm start
 1. Import project and set root directory to `shimeji-xlm/nextjs`.
 2. Add the environment variables listed above.
 3. Deploy.
-4. Verify `https://<domain>/#subasta` loads the active auction.
+4. Verify `https://<domain>/auction` loads the active auction.
 
 ## Notes
 
 - Auction data comes from `NEXT_PUBLIC_AUCTION_CONTRACT_ID`.
-- Giveaway CTA points to `/#subasta` by default.
-- On `local`, `/#subasta` auto-uses a burner wallet (browser-stored) with a faucet shortcut.
+- Giveaway CTA points to `/auction` by default.
+- On `local`, `/auction` auto-uses a burner wallet (browser-stored) with a faucet shortcut.
 - On `testnet`, faucet shortcut funds XLM through friendbot for the connected wallet.

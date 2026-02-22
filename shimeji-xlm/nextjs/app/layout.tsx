@@ -11,6 +11,8 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 import { FreighterProvider } from "@/components/freighter-provider";
 import { SiteShimejiMascot } from "@/components/site-shimeji-mascot";
+import { SiteShimejiConfigPanel } from "@/components/site-shimeji-config-panel";
+import { SiteShimejiProvider } from "@/components/site-shimeji-provider";
 import { Header } from "@/components/header";
 import { createPageMetadata } from "@/lib/metadata";
 
@@ -85,9 +87,12 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <FreighterProvider>
           <LanguageProvider>
-            <Header />
-            {children}
-            <SiteShimejiMascot />
+            <SiteShimejiProvider>
+              <Header />
+              {children}
+              <SiteShimejiMascot />
+              <SiteShimejiConfigPanel />
+            </SiteShimejiProvider>
           </LanguageProvider>
         </FreighterProvider>
         <Analytics />
