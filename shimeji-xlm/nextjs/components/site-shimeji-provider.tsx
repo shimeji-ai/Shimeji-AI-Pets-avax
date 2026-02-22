@@ -92,7 +92,7 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   openclawGatewayToken: "",
   openclawAgentName: "web-shimeji-1",
   soundInputProvider: "off",
-  soundInputAutoSend: true,
+  soundInputAutoSend: false,
   soundOutputProvider: "off",
   soundOutputAutoSpeak: false,
   soundOutputVolumePercent: 95,
@@ -324,6 +324,7 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
             ? {
                 ...migratedConfig,
                 soundInputProvider: "off",
+                soundInputAutoSend: false,
                 soundOutputProvider: "off",
                 soundOutputAutoSpeak: false,
               }

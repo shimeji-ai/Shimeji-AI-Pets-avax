@@ -6,6 +6,7 @@ import { Bot, ExternalLink, Download, Gavel, RefreshCw, User } from "lucide-reac
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-personality-labels";
+import { SoundFields } from "@/components/site-shimeji-config-panel";
 
 type ProviderKey = "openrouter" | "ollama" | "openclaw";
 const OPENCLAW_AGENT_MARKDOWN_URL = "https://www.shimeji.dev/agent/openclaw-web.md";
@@ -596,19 +597,12 @@ export function SiteShimejiLandingSection() {
                 {/* ── Sound tab ── */}
                 {activeTab === "sound" && (
                   <div className="space-y-4">
-                    <div className="rounded-xl border border-border bg-muted/20 p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {isSpanish ? "Sonido" : "Sound"}
-                      </div>
-                      <p className="mt-2 text-sm text-foreground">
+                    <SoundFields />
+                    <div className="rounded-xl border border-border bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground">
                         {isSpanish
-                          ? "La pestaña de sonido ya está reservada. Los controles de volumen/efectos del Shimeji web llegan en una próxima actualización."
-                          : "The sound tab is now reserved. Web Shimeji volume/effects controls will arrive in a future update."}
-                      </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {isSpanish
-                          ? "Por ahora, el comportamiento de audio depende de la configuración de tu navegador y del sistema."
-                          : "For now, audio behavior depends on your browser and system settings."}
+                          ? "Todo viene desactivado por defecto. Activá micrófono y/o voz del navegador cuando quieras usar conversación por voz."
+                          : "Everything is disabled by default. Enable microphone and/or browser voice when you want voice conversations."}
                       </p>
                     </div>
                   </div>

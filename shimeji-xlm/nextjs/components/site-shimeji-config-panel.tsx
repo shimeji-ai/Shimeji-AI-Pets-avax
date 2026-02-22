@@ -149,7 +149,7 @@ function ProviderFields() {
   );
 }
 
-function SoundFields() {
+export function SoundFields() {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteShimeji();
 
@@ -179,8 +179,8 @@ function SoundFields() {
             }
             className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
           >
-            <option value="browser">{isSpanish ? "Navegador (gratis)" : "Browser (free)"}</option>
             <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
+            <option value="browser">{isSpanish ? "Navegador (gratis)" : "Browser (free)"}</option>
           </select>
         </label>
 
@@ -217,9 +217,9 @@ function SoundFields() {
             }
             className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
           >
+            <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
             <option value="browser">{isSpanish ? "Voz del navegador (gratis)" : "Browser voice (free)"}</option>
             <option value="elevenlabs">ElevenLabs</option>
-            <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
           </select>
         </label>
 
