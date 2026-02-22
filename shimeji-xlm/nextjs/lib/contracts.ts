@@ -4,6 +4,8 @@ export const AUCTION_CONTRACT_ID =
   process.env.NEXT_PUBLIC_AUCTION_CONTRACT_ID ?? "";
 export const NFT_CONTRACT_ID =
   process.env.NEXT_PUBLIC_NFT_CONTRACT_ID ?? "";
+export const MARKETPLACE_CONTRACT_ID =
+  process.env.NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID ?? "";
 
 export const RPC_URL =
   process.env.NEXT_PUBLIC_STELLAR_RPC_URL ??

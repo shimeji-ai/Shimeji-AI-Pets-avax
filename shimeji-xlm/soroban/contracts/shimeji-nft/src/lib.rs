@@ -83,6 +83,21 @@ impl ShimejiNft {
         env.storage().instance().set(&DataKey::Minter, &minter);
     }
 
+    pub fn transfer(env: Env, from: Address, to: Address, token_id: u64) {
+        from.require_auth();
+        let owner: Address = env
+            .storage()
+            .persistent()
+            .get(&DataKey::TokenOwner(token_id))
+            .unwrap_or_else(|| panic!("token does not exist"));
+        if owner != from {
+            panic!("not the owner");
+        }
+        env.storage()
+            .persistent()
+            .set(&DataKey::TokenOwner(token_id), &to);
+    }
+
     pub fn owner_of(env: Env, token_id: u64) -> Address {
         env.storage()
             .persistent()
