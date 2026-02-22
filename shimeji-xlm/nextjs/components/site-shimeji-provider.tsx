@@ -91,10 +91,10 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   openclawGatewayUrl: "ws://127.0.0.1:18789",
   openclawGatewayToken: "",
   openclawAgentName: "web-shimeji-1",
-  soundInputProvider: "browser",
+  soundInputProvider: "off",
   soundInputAutoSend: true,
-  soundOutputProvider: "browser",
-  soundOutputAutoSpeak: true,
+  soundOutputProvider: "off",
+  soundOutputAutoSpeak: false,
   soundOutputVolumePercent: 95,
   elevenlabsApiKey: "",
   elevenlabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
@@ -164,6 +164,48 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): bool
       openclawGatewayUrl === DEFAULT_CONFIG.openclawGatewayUrl &&
       !openclawGatewayToken &&
       openclawAgentName === DEFAULT_CONFIG.openclawAgentName,
+  );
+}
+
+function looksLikeAutoEnabledSoundDefaults(raw: Partial<SiteShimejiConfig>): boolean {
+  const soundInputProvider =
+    raw.soundInputProvider === "browser" || raw.soundInputProvider === "off"
+      ? raw.soundInputProvider
+      : undefined;
+  const soundOutputProvider =
+    raw.soundOutputProvider === "browser" ||
+    raw.soundOutputProvider === "elevenlabs" ||
+    raw.soundOutputProvider === "off"
+      ? raw.soundOutputProvider
+      : undefined;
+  const soundInputAutoSend = sanitizeBoolean(raw.soundInputAutoSend, DEFAULT_CONFIG.soundInputAutoSend);
+  const soundOutputAutoSpeak = sanitizeBoolean(
+    raw.soundOutputAutoSpeak,
+    DEFAULT_CONFIG.soundOutputAutoSpeak,
+  );
+  const soundOutputVolumePercent = clampPercent(
+    raw.soundOutputVolumePercent,
+    DEFAULT_CONFIG.soundOutputVolumePercent,
+    0,
+    100,
+  );
+  const elevenlabsApiKey = sanitizeString(raw.elevenlabsApiKey, "", 600);
+  const elevenlabsVoiceId =
+    sanitizeString(raw.elevenlabsVoiceId, DEFAULT_CONFIG.elevenlabsVoiceId, 120) ||
+    DEFAULT_CONFIG.elevenlabsVoiceId;
+  const elevenlabsModelId =
+    sanitizeString(raw.elevenlabsModelId, DEFAULT_CONFIG.elevenlabsModelId, 120) ||
+    DEFAULT_CONFIG.elevenlabsModelId;
+
+  return Boolean(
+    soundInputProvider === "browser" &&
+      soundInputAutoSend === true &&
+      soundOutputProvider === "browser" &&
+      soundOutputAutoSpeak === true &&
+      soundOutputVolumePercent === 95 &&
+      !elevenlabsApiKey &&
+      elevenlabsVoiceId === "EXAVITQu4vr4xnSDxMaL" &&
+      elevenlabsModelId === "eleven_flash_v2_5",
   );
 }
 
@@ -270,10 +312,22 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
           parsed &&
           typeof parsed === "object" &&
           looksLikeUntouchedProviderConfig(parsed as Partial<SiteShimejiConfig>);
+        const shouldMigrateAutoEnabledSoundDefaults =
+          parsed &&
+          typeof parsed === "object" &&
+          looksLikeAutoEnabledSoundDefaults(parsed as Partial<SiteShimejiConfig>);
+        const migratedConfig = shouldMigrateLegacyUntouchedProvider
+          ? { ...sanitized, provider: "site" as const }
+          : sanitized;
         setConfig(
-          shouldMigrateLegacyUntouchedProvider
-            ? { ...sanitized, provider: "site" }
-            : sanitized,
+          shouldMigrateAutoEnabledSoundDefaults
+            ? {
+                ...migratedConfig,
+                soundInputProvider: "off",
+                soundOutputProvider: "off",
+                soundOutputAutoSpeak: false,
+              }
+            : migratedConfig,
         );
       }
     } catch {

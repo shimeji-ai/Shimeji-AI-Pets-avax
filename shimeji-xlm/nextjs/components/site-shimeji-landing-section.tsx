@@ -475,9 +475,6 @@ export function SiteShimejiLandingSection() {
                     type="button"
                     onClick={() => {
                       setActiveTab(tab);
-                      if (tab === "provider" && config.provider === "site") {
-                        updateConfig({ provider: "openrouter" });
-                      }
                     }}
                     className={`flex-1 py-3 text-sm font-semibold transition-colors ${
                       activeTab === tab
