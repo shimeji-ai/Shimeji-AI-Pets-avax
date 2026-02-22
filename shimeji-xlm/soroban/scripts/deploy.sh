@@ -1363,7 +1363,7 @@ install_wasm() {
   local attempt=1
   local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
   local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
-  echo "==> Installing ${label} Wasm..."
+  echo "==> Installing ${label} Wasm..." >&2
 
   while true; do
     install_output="$(stellar contract install \
@@ -1377,9 +1377,9 @@ install_wasm() {
       die "Failed to install ${label} Wasm after ${attempt} attempt(s)."
     fi
 
-    echo "==> ${label} Wasm install failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..."
+    echo "==> ${label} Wasm install failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..." >&2
     if printf "%s" "$install_output" | grep -qi 'TxBadSeq'; then
-      echo "    Detected TxBadSeq (sequence propagation lag on RPC/testnet)."
+      echo "    Detected TxBadSeq (sequence propagation lag on RPC/testnet)." >&2
     fi
     sleep "$retry_delay"
     attempt=$((attempt + 1))
@@ -1395,7 +1395,7 @@ install_wasm() {
     echo "$install_output" >&2
     die "Could not determine Wasm hash for ${label} after install."
   fi
-  echo "  ${label} Wasm hash: $hash"
+  echo "  ${label} Wasm hash: $hash" >&2
   printf "%s" "$hash"
 }
 
@@ -1407,7 +1407,7 @@ deploy_from_hash() {
   local attempt=1
   local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
   local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
-  echo "==> Deploying ${label} from hash..."
+  echo "==> Deploying ${label} from hash..." >&2
 
   while true; do
     deploy_output="$(stellar contract deploy \
@@ -1421,7 +1421,7 @@ deploy_from_hash() {
       die "Failed to deploy ${label} from hash after ${attempt} attempt(s)."
     fi
 
-    echo "==> ${label} deploy failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..."
+    echo "==> ${label} deploy failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..." >&2
     sleep "$retry_delay"
     attempt=$((attempt + 1))
   done
@@ -1430,7 +1430,7 @@ deploy_from_hash() {
   if [ -z "$contract_id" ]; then
     die "Could not determine contract ID for ${label} after deploy."
   fi
-  echo "  ${label} Contract: $contract_id"
+  echo "  ${label} Contract: $contract_id" >&2
   printf "%s" "$contract_id"
 }
 
