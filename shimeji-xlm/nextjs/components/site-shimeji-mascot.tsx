@@ -106,6 +106,10 @@ export function SiteShimejiMascot() {
   useEffect(() => {
     openRef.current = open;
   }, [open]);
+  const isSpanishRef = useRef(isSpanish);
+  useEffect(() => {
+    isSpanishRef.current = isSpanish;
+  }, [isSpanish]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const messagesRef = useRef<Msg[]>([]);
   const messagesListRef = useRef<HTMLDivElement | null>(null);
@@ -159,6 +163,24 @@ export function SiteShimejiMascot() {
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+
+  // External trigger: dispatch window event 'shimeji:open-chat' to open and greet
+  useEffect(() => {
+    function handleOpenChat() {
+      if (!config.enabled) return;
+      setOpen(true);
+      setHasMascotBeenClicked(true);
+      setMessages((prev) => {
+        if (prev.length) return prev;
+        const hello = isSpanishRef.current
+          ? "¡Hola! Soy tu Shimeji. Estoy listo para chatear, ¿en qué puedo ayudarte?"
+          : "Hi! I'm your Shimeji assistant. Ready to chat — what can I help you with?";
+        return [{ role: "assistant", content: hello }];
+      });
+    }
+    window.addEventListener("shimeji:open-chat", handleOpenChat);
+    return () => window.removeEventListener("shimeji:open-chat", handleOpenChat);
+  }, [config.enabled]);
 
   useEffect(() => {
     return () => {
@@ -549,8 +571,8 @@ export function SiteShimejiMascot() {
 
     if (siteCreditsExhausted) {
       const lockMessage = isSpanish
-        ? "Se terminaron los créditos gratis del sitio. Abre el botón de engranaje arriba y configura OpenRouter, Ollama u OpenClaw para seguir chateando."
-        : "The website free credits are exhausted. Open the gear button in the header and configure OpenRouter, Ollama, or OpenClaw to keep chatting.";
+        ? "Se terminaron los créditos gratis del sitio. Configurá un proveedor (OpenRouter, Ollama u OpenClaw) en la sección de proveedor de la página principal para seguir chateando."
+        : "Website free credits are exhausted. Set up a provider (OpenRouter, Ollama, or OpenClaw) in the provider section on the homepage to keep chatting.";
       setMessages(prev => [
         ...prev,
         {
@@ -565,8 +587,8 @@ export function SiteShimejiMascot() {
 
     if (!canUseCurrentProvider) {
       const configMessage = isSpanish
-        ? "Falta configuración para ese proveedor. Abre el engranaje y completa los datos."
-        : "That provider is not fully configured yet. Open the gear icon and finish the settings.";
+        ? "Falta configuración para ese proveedor. Completá los datos en la sección de proveedor de la página principal."
+        : "That provider is not fully configured yet. Complete the setup in the provider section on the homepage.";
       setMessages(prev => [...prev, { role: "assistant", content: configMessage }]);
       return;
     }

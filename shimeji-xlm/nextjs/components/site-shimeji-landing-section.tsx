@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Download, Gavel, RefreshCw, Sparkles } from "lucide-react";
+import { Bot, ExternalLink, Download, Gavel, RefreshCw, Sparkles, User } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 
@@ -55,6 +55,130 @@ function OpenRouterModelField() {
           placeholder="provider/model-name"
           className="w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)] placeholder:text-muted-foreground/50"
         />
+      )}
+    </div>
+  );
+}
+
+function OpenClawFields() {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteShimeji();
+  const [mode, setMode] = useState<"human" | "agent">("human");
+
+  const inputClass =
+    "w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)] placeholder:text-muted-foreground/50";
+
+  function greet() {
+    window.dispatchEvent(new CustomEvent("shimeji:open-chat"));
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Mode toggle */}
+      <div className="flex overflow-hidden rounded-xl border border-border">
+        <button
+          type="button"
+          onClick={() => setMode("human")}
+          className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors ${
+            mode === "human"
+              ? "bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)] text-foreground"
+              : "text-muted-foreground hover:bg-muted/40"
+          }`}
+        >
+          <User className="h-3.5 w-3.5" />
+          {isSpanish ? "Soy humano" : "I'm a human"}
+        </button>
+        <div className="w-px bg-border" />
+        <button
+          type="button"
+          onClick={() => setMode("agent")}
+          className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-colors ${
+            mode === "agent"
+              ? "bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)] text-foreground"
+              : "text-muted-foreground hover:bg-muted/40"
+          }`}
+        >
+          <Bot className="h-3.5 w-3.5" />
+          {isSpanish ? "Soy un agente" : "I'm an agent"}
+        </button>
+      </div>
+
+      {/* Connection fields — always visible */}
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Gateway URL
+        </span>
+        <input
+          type="text"
+          value={config.openclawGatewayUrl}
+          onChange={(e) => updateConfig({ openclawGatewayUrl: e.target.value })}
+          placeholder="ws://127.0.0.1:18789"
+          className={inputClass}
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {isSpanish ? "Nombre del agente" : "Agent name"}
+        </span>
+        <input
+          type="text"
+          value={config.openclawAgentName}
+          onChange={(e) => updateConfig({ openclawAgentName: e.target.value })}
+          placeholder="web-shimeji-1"
+          className={inputClass}
+          maxLength={32}
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {isSpanish ? "Token del gateway" : "Gateway auth token"}
+        </span>
+        <input
+          type="password"
+          value={config.openclawGatewayToken}
+          onChange={(e) => updateConfig({ openclawGatewayToken: e.target.value })}
+          placeholder={isSpanish ? "Token de autenticación" : "Auth token"}
+          className={inputClass}
+          autoComplete="off"
+        />
+      </label>
+
+      {/* Human mode: informational note */}
+      {mode === "human" && (
+        <p className="text-xs text-muted-foreground">
+          {isSpanish
+            ? "OpenClaw en la web habilita modo agente, pero sin acceso a terminal local ni WSL."
+            : "Website OpenClaw enables agent mode, but without local terminal or WSL access."}
+        </p>
+      )}
+
+      {/* Agent mode: instructions + greet */}
+      {mode === "agent" && (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+            <p className="mb-2 font-semibold text-foreground">
+              {isSpanish ? "Instrucciones para el agente" : "Agent connection instructions"}
+            </p>
+            <p className="mb-2">
+              {isSpanish
+                ? "Configurá tu gateway OpenClaw con los valores de arriba para comunicarte a través de este Shimeji. Los mensajes del usuario llegarán a tu agente; tus respuestas aparecerán en la burbuja del Shimeji."
+                : "Configure your OpenClaw gateway with the values above to communicate through this Shimeji. User messages will be routed to your agent; your replies will appear in the Shimeji chat bubble."}
+            </p>
+            <pre className="overflow-x-auto rounded-lg border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
+              {`gateway_url:  ${config.openclawGatewayUrl || "ws://127.0.0.1:18789"}
+agent_name:   ${config.openclawAgentName || "web-shimeji-1"}
+auth_token:   ${config.openclawGatewayToken ? "••••••••" : "(not set)"}`}
+            </pre>
+          </div>
+          <button
+            type="button"
+            onClick={greet}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)] px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[color-mix(in_srgb,var(--brand-accent)_20%,transparent)]"
+          >
+            <Bot className="h-4 w-4" />
+            {isSpanish ? "Saludar — abrir chat" : "Greet — open chat"}
+          </button>
+        </div>
       )}
     </div>
   );
@@ -125,53 +249,7 @@ function ProviderFields({ provider }: { provider: ProviderKey }) {
   }
 
   // openclaw
-  return (
-    <div className="space-y-3">
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Gateway URL
-        </span>
-        <input
-          type="text"
-          value={config.openclawGatewayUrl}
-          onChange={(e) => updateConfig({ openclawGatewayUrl: e.target.value })}
-          placeholder="ws://127.0.0.1:18789"
-          className={inputClass}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Nombre del agente" : "Agent name"}
-        </span>
-        <input
-          type="text"
-          value={config.openclawAgentName}
-          onChange={(e) => updateConfig({ openclawAgentName: e.target.value })}
-          placeholder="web-shimeji-1"
-          className={inputClass}
-          maxLength={32}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Token del gateway" : "Gateway auth token"}
-        </span>
-        <input
-          type="password"
-          value={config.openclawGatewayToken}
-          onChange={(e) => updateConfig({ openclawGatewayToken: e.target.value })}
-          placeholder={isSpanish ? "Token de autenticación" : "Auth token"}
-          className={inputClass}
-          autoComplete="off"
-        />
-      </label>
-      <p className="text-xs text-muted-foreground">
-        {isSpanish
-          ? "OpenClaw en la web habilita modo agente, pero sin acceso a terminal local ni WSL."
-          : "Website OpenClaw enables agent mode, but without local terminal or WSL access."}
-      </p>
-    </div>
-  );
+  return <OpenClawFields />;
 }
 
 type ProviderMeta = {
