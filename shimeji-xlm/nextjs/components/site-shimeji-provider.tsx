@@ -73,7 +73,7 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   character: "shimeji",
   personality: "cozy",
   sizePercent: 100,
-  provider: "site",
+  provider: "openrouter",
   openrouterApiKey: "",
   openrouterModel: "openai/gpt-4o-mini",
   ollamaUrl: "http://127.0.0.1:11434",

@@ -2,11 +2,63 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, Gavel, RefreshCw, Sparkles } from "lucide-react";
+import { ExternalLink, Download, Gavel, RefreshCw, Sparkles } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 
 type ProviderKey = "openrouter" | "ollama" | "openclaw";
+
+const OPENROUTER_PRESET_MODELS = [
+  { value: "openai/gpt-4o-mini", label: "GPT-4o Mini (fast & cheap)" },
+  { value: "openai/gpt-4o", label: "GPT-4o" },
+  { value: "anthropic/claude-3-haiku", label: "Claude 3 Haiku" },
+  { value: "google/gemini-flash-1.5", label: "Gemini Flash 1.5" },
+  { value: "meta-llama/llama-3.1-8b-instruct:free", label: "Llama 3.1 8B (free)" },
+  { value: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B (free)" },
+  { value: "__custom__", label: "Custom model…" },
+];
+
+function OpenRouterModelField() {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteShimeji();
+
+  const isCustom = !OPENROUTER_PRESET_MODELS.slice(0, -1).some(
+    (m) => m.value === config.openrouterModel,
+  );
+  const selectValue = isCustom ? "__custom__" : config.openrouterModel;
+
+  return (
+    <div className="space-y-2">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {isSpanish ? "Modelo" : "Model"}
+      </span>
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          if (e.target.value !== "__custom__") {
+            updateConfig({ openrouterModel: e.target.value });
+          }
+        }}
+        className="w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+      >
+        {OPENROUTER_PRESET_MODELS.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label}
+          </option>
+        ))}
+      </select>
+      {isCustom && (
+        <input
+          type="text"
+          value={config.openrouterModel}
+          onChange={(e) => updateConfig({ openrouterModel: e.target.value })}
+          placeholder="provider/model-name"
+          className="w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)] placeholder:text-muted-foreground/50"
+        />
+      )}
+    </div>
+  );
+}
 
 function ProviderFields({ provider }: { provider: ProviderKey }) {
   const { isSpanish } = useLanguage();
@@ -20,7 +72,7 @@ function ProviderFields({ provider }: { provider: ProviderKey }) {
       <div className="space-y-3">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            OpenRouter API Key
+            API Key
           </span>
           <input
             type="password"
@@ -31,23 +83,7 @@ function ProviderFields({ provider }: { provider: ProviderKey }) {
             autoComplete="off"
           />
         </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isSpanish ? "Modelo" : "Model"}
-          </span>
-          <input
-            type="text"
-            value={config.openrouterModel}
-            onChange={(e) => updateConfig({ openrouterModel: e.target.value })}
-            placeholder="openai/gpt-4o-mini"
-            className={inputClass}
-          />
-        </label>
-        <p className="text-xs text-muted-foreground">
-          {isSpanish
-            ? "Obtené una key en openrouter.ai. Modelos baratos como gpt-4o-mini funcionan perfecto."
-            : "Get a key at openrouter.ai. Cheap models like gpt-4o-mini work great."}
-        </p>
+        <OpenRouterModelField />
       </div>
     );
   }
@@ -138,6 +174,54 @@ function ProviderFields({ provider }: { provider: ProviderKey }) {
   );
 }
 
+type ProviderMeta = {
+  key: ProviderKey;
+  label: string;
+  taglineEn: string;
+  taglineEs: string;
+  bestForEn: string;
+  bestForEs: string;
+  linkHref: string;
+  linkLabelEn: string;
+  linkLabelEs: string;
+};
+
+const PROVIDER_META: ProviderMeta[] = [
+  {
+    key: "openrouter",
+    label: "OpenRouter",
+    taglineEn: "Cloud · API key",
+    taglineEs: "Nube · API key",
+    bestForEn: "Fastest setup — many model options, free tiers available.",
+    bestForEs: "Setup más rápido — muchas opciones de modelos, tiers gratuitos disponibles.",
+    linkHref: "https://openrouter.ai/settings/keys",
+    linkLabelEn: "Get API keys",
+    linkLabelEs: "Conseguir API keys",
+  },
+  {
+    key: "ollama",
+    label: "Ollama",
+    taglineEn: "Local · Private",
+    taglineEs: "Local · Privado",
+    bestForEn: "Run models locally — no API key, fully private, works offline.",
+    bestForEs: "Modelos locales — sin API key, totalmente privado, funciona offline.",
+    linkHref: "https://ollama.com",
+    linkLabelEn: "Download Ollama",
+    linkLabelEs: "Descargar Ollama",
+  },
+  {
+    key: "openclaw",
+    label: "OpenClaw",
+    taglineEn: "Agent · Actions",
+    taglineEs: "Agente · Acciones",
+    bestForEn: "Agent mode — actions and tools beyond normal chat.",
+    bestForEs: "Modo agente — acciones y herramientas más allá del chat.",
+    linkHref: "https://github.com/openclaw/openclaw",
+    linkLabelEn: "Setup OpenClaw",
+    linkLabelEs: "Configurar OpenClaw",
+  },
+];
+
 export function SiteShimejiLandingSection() {
   const { isSpanish } = useLanguage();
   const {
@@ -151,9 +235,9 @@ export function SiteShimejiLandingSection() {
     resetConfig,
   } = useSiteShimeji();
 
-  const [activeTab, setActiveTab] = useState<"appearance" | "provider">("appearance");
+  const [activeTab, setActiveTab] = useState<"appearance" | "provider">("provider");
 
-  // Normalize "site" (legacy default) to "openrouter" for display purposes
+  // Normalize legacy "site" provider to "openrouter"
   const effectiveProvider: ProviderKey =
     config.provider === "site" || config.provider === "openrouter"
       ? "openrouter"
@@ -161,31 +245,16 @@ export function SiteShimejiLandingSection() {
         ? "ollama"
         : "openclaw";
 
+  const activeMeta =
+    PROVIDER_META.find((p) => p.key === effectiveProvider) ?? PROVIDER_META[0];
+
   const heroTitle = isSpanish
-    ? "Mascotas IA que caminan por tu pantalla."
-    : "AI pets that walk your screen.";
+    ? "Un asistente de IA siempre a la vista."
+    : "An AI assistant always on screen.";
 
   const heroSubtitle = isSpanish
-    ? "Compañeros pixelados animados con tu propia IA. Conectalos a OpenRouter, Ollama u OpenClaw — sin suscripciones, sin límites."
-    : "Animated pixel companions powered by your own AI. Connect OpenRouter, Ollama, or OpenClaw — no subscriptions, no limits.";
-
-  const providers: { key: ProviderKey; label: string; desc: string }[] = [
-    {
-      key: "openrouter",
-      label: "OpenRouter",
-      desc: isSpanish ? "API key en la nube" : "Cloud API key",
-    },
-    {
-      key: "ollama",
-      label: "Ollama",
-      desc: isSpanish ? "Local / autoalojado" : "Local / self-hosted",
-    },
-    {
-      key: "openclaw",
-      label: "OpenClaw",
-      desc: isSpanish ? "Modo agente" : "Agent mode",
-    },
-  ];
+    ? "Chateá, hacé preguntas y delegá tareas a un asistente siempre disponible en tu navegador. Conectá tu propio proveedor — OpenRouter, Ollama u OpenClaw. También camina por tu pantalla."
+    : "Chat, ask questions, and delegate tasks to an always-on assistant right in your browser. Connect your own provider — OpenRouter, Ollama, or OpenClaw. It also walks around your screen.";
 
   return (
     <section className="relative overflow-hidden px-4 pb-12 pt-28 sm:px-6 lg:px-8">
@@ -205,8 +274,8 @@ export function SiteShimejiLandingSection() {
                 <Sparkles className="h-3.5 w-3.5 text-[var(--brand-accent)]" />
                 <span>
                   {isSpanish
-                    ? "Shimeji para el navegador · Sin instalación"
-                    : "Browser shimeji · No install needed"}
+                    ? "Asistente de IA para el navegador · Sin instalación"
+                    : "Browser AI assistant · No install needed"}
                 </span>
               </div>
 
@@ -238,15 +307,15 @@ export function SiteShimejiLandingSection() {
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-border bg-muted/30 p-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {isSpanish ? "Qué es" : "What it is"}
+                    {isSpanish ? "Qué puede hacer" : "What it can do"}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-foreground">
-                    {isSpanish ? "Tu compañero de escritorio" : "Your desktop companion"}
+                    {isSpanish ? "Habla, responde y actúa" : "Talks, answers, and acts"}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {isSpanish
-                      ? "Camina por la pantalla, chatea con IA y puede correr tareas como agente."
-                      : "Walks your screen, chats with AI, and can run autonomous agent tasks."}
+                      ? "Chatea con IA, responde preguntas, ejecuta tareas como agente y camina por tu pantalla."
+                      : "AI chat, Q&A, autonomous agent tasks — and walks across your screen."}
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-muted/30 p-4">
@@ -254,12 +323,12 @@ export function SiteShimejiLandingSection() {
                     {isSpanish ? "Cómo empezar" : "How to start"}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-foreground">
-                    {isSpanish ? "Configurá un proveedor →" : "Set up a provider →"}
+                    {isSpanish ? "Pegá tu API key →" : "Paste your API key →"}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {isSpanish
-                      ? "Pegá tu API key a la derecha y hacé clic en el shimeji que camina."
-                      : "Paste your API key on the right, then click the shimeji walking on screen."}
+                      ? "Elegí un proveedor a la derecha, pegá tu key y hacé clic en el shimeji."
+                      : "Pick a provider on the right, paste your key, and click the shimeji to chat."}
                   </div>
                 </div>
               </div>
@@ -269,13 +338,12 @@ export function SiteShimejiLandingSection() {
             <div className="flex flex-col overflow-hidden rounded-3xl border border-border bg-background/40 backdrop-blur-sm">
               {/* Tab bar */}
               <div className="flex shrink-0 border-b border-border">
-                {(["appearance", "provider"] as const).map((tab) => (
+                {(["provider", "appearance"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => {
                       setActiveTab(tab);
-                      // Migrate legacy "site" provider when entering Provider tab
                       if (tab === "provider" && config.provider === "site") {
                         updateConfig({ provider: "openrouter" });
                       }
@@ -286,18 +354,103 @@ export function SiteShimejiLandingSection() {
                         : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     }`}
                   >
-                    {tab === "appearance"
+                    {tab === "provider"
                       ? isSpanish
-                        ? "Apariencia"
-                        : "Appearance"
-                      : isSpanish
                         ? "Proveedor"
-                        : "Provider"}
+                        : "Provider"
+                      : isSpanish
+                        ? "Apariencia"
+                        : "Appearance"}
                   </button>
                 ))}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">
+                {/* ── Provider tab ── */}
+                {activeTab === "provider" && (
+                  <div className="space-y-4">
+                    {/* Provider selector */}
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {isSpanish ? "Proveedor de IA" : "AI Provider"}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {PROVIDER_META.map((p) => (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => updateConfig({ provider: p.key })}
+                            className={`rounded-xl border px-2 py-2.5 text-left transition-colors ${
+                              effectiveProvider === p.key
+                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
+                                : "border-border bg-muted/30 hover:bg-muted/60"
+                            }`}
+                          >
+                            <div className="text-sm font-semibold text-foreground">{p.label}</div>
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                              {isSpanish ? p.taglineEs : p.taglineEn}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Provider context: best-for + link */}
+                    <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+                      <p className="text-xs text-muted-foreground">
+                        {isSpanish ? activeMeta.bestForEs : activeMeta.bestForEn}
+                      </p>
+                      <Link
+                        href={activeMeta.linkHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--brand-accent)] hover:underline"
+                      >
+                        {isSpanish ? activeMeta.linkLabelEs : activeMeta.linkLabelEn}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
+
+                    {/* Provider-specific fields */}
+                    <ProviderFields provider={effectiveProvider} />
+
+                    {/* Status */}
+                    <div
+                      className={`rounded-xl border p-3 text-xs font-medium text-foreground ${
+                        canUseCurrentProvider
+                          ? "border-emerald-500/40 bg-emerald-500/10"
+                          : "border-amber-500/40 bg-amber-500/10"
+                      }`}
+                    >
+                      {canUseCurrentProvider
+                        ? isSpanish
+                          ? "✓ Listo — hacé clic en el shimeji para chatear"
+                          : "✓ Ready — click the shimeji to start chatting"
+                        : isSpanish
+                          ? "Completá la configuración de arriba para empezar a chatear."
+                          : "Complete the config above to start chatting."}
+                    </div>
+
+                    {/* Security note */}
+                    <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                      {isSpanish
+                        ? "🔒 Las claves se guardan solo en tu navegador (localStorage). El servidor nunca las recibe."
+                        : "🔒 Keys are stored only in your browser (localStorage). They never reach the server."}
+                    </div>
+
+                    {/* Reset */}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={resetConfig}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40"
+                      >
+                        {isSpanish ? "Restablecer" : "Reset settings"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── Appearance tab ── */}
                 {activeTab === "appearance" && (
                   <div className="space-y-4">
@@ -401,73 +554,6 @@ export function SiteShimejiLandingSection() {
                           />
                         </div>
                       </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Provider tab ── */}
-                {activeTab === "provider" && (
-                  <div className="space-y-4">
-                    {/* Provider selector */}
-                    <div>
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {isSpanish ? "Proveedor de IA" : "AI Provider"}
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {providers.map((p) => (
-                          <button
-                            key={p.key}
-                            type="button"
-                            onClick={() => updateConfig({ provider: p.key })}
-                            className={`rounded-xl border px-2 py-2.5 text-left transition-colors ${
-                              effectiveProvider === p.key
-                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
-                                : "border-border bg-muted/30 hover:bg-muted/60"
-                            }`}
-                          >
-                            <div className="text-sm font-semibold text-foreground">{p.label}</div>
-                            <div className="mt-0.5 text-[11px] text-muted-foreground">{p.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Provider-specific fields */}
-                    <ProviderFields provider={effectiveProvider} />
-
-                    {/* Status */}
-                    <div
-                      className={`rounded-xl border p-3 text-xs font-medium text-foreground ${
-                        canUseCurrentProvider
-                          ? "border-emerald-500/40 bg-emerald-500/10"
-                          : "border-amber-500/40 bg-amber-500/10"
-                      }`}
-                    >
-                      {canUseCurrentProvider
-                        ? isSpanish
-                          ? "✓ Listo — hacé clic en el shimeji para chatear"
-                          : "✓ Ready — click the shimeji to start chatting"
-                        : isSpanish
-                          ? "Completá la configuración de arriba para empezar a chatear."
-                          : "Complete the config above to start chatting."}
-                    </div>
-
-                    {/* Security note */}
-                    <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-                      {isSpanish
-                        ? "🔒 Las claves se guardan solo en tu navegador (localStorage). El servidor nunca las recibe."
-                        : "🔒 Keys are stored only in your browser (localStorage). They never reach the server."}
-                    </div>
-
-                    {/* Reset */}
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={resetConfig}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40"
-                      >
-                        {isSpanish ? "Restablecer" : "Reset settings"}
-                      </button>
                     </div>
                   </div>
                 )}

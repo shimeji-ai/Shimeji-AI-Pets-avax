@@ -20,28 +20,28 @@ const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
 
 const features = [
   {
-    titleEn: "AI Chat with Personality",
-    titleEs: "Chat IA con personalidad",
+    titleEn: "Always-on AI assistant",
+    titleEs: "Asistente de IA siempre disponible",
     descriptionEn:
-      "Your Shimeji talks back in a voice you choose — cozy, philosophical, chaotic, or noir.",
+      "Ask questions, get answers, brainstorm, and have real conversations — powered by your own OpenRouter or Ollama.",
     descriptionEs:
-      "Tu Shimeji te responde con la personalidad que elijas.",
+      "Hacé preguntas, conseguí respuestas y conversá en profundidad — con tu propio OpenRouter u Ollama.",
   },
   {
-    titleEn: "AI Agent Mode",
-    titleEs: "Modo agente IA",
+    titleEn: "Autonomous agent mode",
+    titleEs: "Modo agente autónomo",
     descriptionEn:
-      "Your Shimeji interacts with online and onchain tools.",
+      "Delegate real tasks: browse pages, interact with web tools, and execute onchain actions through OpenClaw.",
     descriptionEs:
-      "Tu Shimeji interactúa con herramientas online y onchain.",
+      "Delegá tareas reales: navegar páginas, interactuar con herramientas web y ejecutar acciones onchain via OpenClaw.",
   },
   {
-    titleEn: "Terminal Interaction",
-    titleEs: "Interacción con la terminal",
+    titleEn: "Terminal & desktop control",
+    titleEs: "Control de terminal y escritorio",
     descriptionEn:
-      "Run commands through your Shimeji.",
+      "Run commands, automate workflows, and control your desktop through your Shimeji (desktop app).",
     descriptionEs:
-      "Ejecutá comandos a través de tu Shimeji.",
+      "Ejecutá comandos, automatizá flujos de trabajo y controlá tu escritorio desde tu Shimeji (app de escritorio).",
   },
 ];
 
@@ -89,12 +89,12 @@ export function FeaturesSection() {
           <div className="text-center mb-16">
             
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight">
-              {isSpanish ? "¿Qué puede hacer tu Shimeji?" : "What Can Your Shimeji Do?"}
+              {isSpanish ? "Tu asistente de IA personal" : "Your personal AI assistant"}
             </h2>
             <p className="text-lg text-muted-foreground mt-4 max-w-xl mx-auto">
               {isSpanish
-                ? "Una mascota con IA que conversa y hace cosas por ti"
-                : "A pet that chats and does things for you"}
+                ? "Habla, actúa y opera de forma autónoma — y además camina por tu pantalla"
+                : "Talks, acts, and operates autonomously — and also walks across your screen"}
             </p>
           </div>
 
