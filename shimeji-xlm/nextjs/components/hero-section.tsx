@@ -79,9 +79,9 @@ export function HeroSection() {
                   size="lg"
                   className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
                 >
-                  <Link href="/auction">
+                  <Link href="/marketplace">
                     <Wand2 className="w-4 h-4" />
-                    {isSpanish ? "Ver Subasta" : "View Auction"}
+                    {isSpanish ? "Ver Mercado" : "View Marketplace"}
                   </Link>
                 </Button>
                 <SparkleAnimation isHovering={isViewCollectionHovered} />

@@ -1137,6 +1137,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "shimeji-commission"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "shimeji-escrow-vault"
 version = "0.1.0"
 dependencies = [

@@ -14,7 +14,7 @@ export function GiveawayWidget() {
   const handleGoToAuction = () => {
     setIsOpen(false);
     window.requestAnimationFrame(() => {
-      router.push("/auction");
+      router.push("/marketplace");
     });
   };
 
@@ -81,7 +81,7 @@ export function GiveawayWidget() {
               ×
             </button>
             <p className="text-[10px] md:text-xs font-black uppercase tracking-[0.14em] text-[var(--brand-accent)]">
-              {isSpanish ? "Subasta Testnet" : "Testnet Auction"}
+              {isSpanish ? "Mercado Testnet" : "Testnet Marketplace"}
             </p>
             <p className="mt-1 text-sm md:text-base font-black leading-tight break-words">
               {isSpanish ? "Primer shimeji en subasta." : "First shimeji is live."}
@@ -96,7 +96,7 @@ export function GiveawayWidget() {
               onClick={handleGoToAuction}
               className="mt-3 inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-bold neural-button"
             >
-              {isSpanish ? "Ir a la subasta" : "Go to auction"}
+              {isSpanish ? "Ir al mercado" : "Go to marketplace"}
             </button>
           </div>
         </div>

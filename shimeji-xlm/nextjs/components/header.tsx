@@ -15,7 +15,7 @@ import { STELLAR_NETWORK } from "@/lib/contracts";
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 
 const NAV_LINKS = [
-  { href: "/auction", pathMatch: "/auction", labelEn: "Auction", labelEs: "Subasta" },
+  { href: "/marketplace", pathMatch: "/marketplace", labelEn: "Marketplace", labelEs: "Mercado" },
   // { href: "/collection", pathMatch: "/collection", labelEn: "Collection", labelEs: "Colección" },
   { href: "/download", pathMatch: "/download", labelEn: "Download", labelEs: "Descarga" },
   { href: "/help", pathMatch: "/help", labelEn: "Help", labelEs: "Ayuda" },

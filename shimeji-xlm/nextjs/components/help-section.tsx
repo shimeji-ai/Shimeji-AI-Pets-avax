@@ -233,14 +233,14 @@ export function HelpSection() {
                 </h3>
                 <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
                   {isSpanish
-                    ? "Adquirí un NFT en la subasta para acceder a skins exclusivos."
-                    : "Acquire a NFT at auction to access exclusive skins."}
+                    ? "Adquirí un NFT en el marketplace para acceder a skins exclusivos."
+                    : "Acquire an NFT in the marketplace to access exclusive skins."}
                 </p>
                 <div className="flex justify-center">
                   <DownloadButton
-                    href="/auction"
-                    labelEn="SEE AUCTION"
-                    labelEs="VER SUBASTA"
+                    href="/marketplace"
+                    labelEn="SEE MARKETPLACE"
+                    labelEs="VER MERCADO"
                   />
                 </div>
               </div>

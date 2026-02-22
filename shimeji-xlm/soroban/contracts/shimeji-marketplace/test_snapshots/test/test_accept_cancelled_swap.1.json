@@ -65,6 +65,9 @@
                 },
                 {
                   "u64": 1
+                },
+                {
+                  "string": "Testing cancelled swap"
                 }
               ]
             }
@@ -416,6 +419,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "intention"
+                      },
+                      "val": {
+                        "string": "Testing cancelled swap"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "offered_token_id"
                       },
                       "val": {
@@ -472,6 +483,18 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "NextCommissionOrderId"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u64": 0
                         }
                       },
                       {

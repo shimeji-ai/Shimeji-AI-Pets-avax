@@ -67,10 +67,10 @@ export function Footer() {
                 
                 <li>
                   <Link
-                    href="/auction"
+                    href="/marketplace"
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {isSpanish ? "Subasta" : "Auction"}
+                    {isSpanish ? "Mercado" : "Marketplace"}
                   </Link>
                 </li>
                 {/* <li>

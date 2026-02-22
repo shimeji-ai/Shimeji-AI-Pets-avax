@@ -10,13 +10,13 @@ interface AuctionButtonProps {
 }
 
 const AuctionButton = ({
-  labelEn = "VIEW AUCTION",
-  labelEs = "VER SUBASTA",
+  labelEn = "VIEW MARKETPLACE",
+  labelEs = "VER MERCADO",
 }: AuctionButtonProps) => {
   const { isSpanish } = useLanguage();
   return (
     <StyledWrapper>
-      <Link href="/auction" className="btn">
+      <Link href="/marketplace" className="btn">
         <strong>{isSpanish ? labelEs : labelEn}</strong>
         <div id="container-stars">
           <div id="stars" />

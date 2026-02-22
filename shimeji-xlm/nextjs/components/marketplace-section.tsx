@@ -8,24 +8,39 @@ import { ShimejiCharacter } from "@/components/shimeji-character";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { CurrencyToggle } from "@/components/currency-toggle";
-import { CheckCircle, Loader2, Copy, Check, Tag, RefreshCw, Gavel } from "lucide-react";
+import { CheckCircle, Loader2, Copy, Check, Tag, RefreshCw, Gavel, Pencil } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
 import {
   fetchListings,
   fetchSwapOffers,
+  fetchCommissionOrders,
   buildBuyXlmTx,
   buildBuyUsdcTx,
+  buildBuyCommissionXlmTx,
+  buildBuyCommissionUsdcTx,
   buildCancelListingTx,
   buildListForSaleTx,
+  buildListCommissionEggTx,
   buildCreateSwapOfferTx,
   buildAcceptSwapTx,
   buildCancelSwapTx,
+  buildMarkCommissionFulfilledTx,
 } from "@/lib/marketplace";
-import type { ListingInfo, SwapOffer } from "@/lib/marketplace";
+import type { CommissionOrder, ListingInfo, SwapOffer } from "@/lib/marketplace";
+import { buildTransferNftTx, buildUpdateTokenUriAsCreatorTx } from "@/lib/nft";
+import {
+  fetchCommissions,
+  buildCreateCommissionTx,
+  buildMarkDeliveredTx,
+  buildApproveDeliveryTx,
+  buildCancelCommissionTx,
+} from "@/lib/commission";
+import type { CommissionRequest, CommissionCurrency } from "@/lib/commission";
 import {
   AUCTION_CONTRACT_ID,
   MARKETPLACE_CONTRACT_ID,
+  COMMISSION_CONTRACT_ID,
   getServer,
   HORIZON_URL,
   NETWORK_PASSPHRASE,
@@ -47,7 +62,7 @@ const MONTHS_SHORT = [
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
 ] as const;
 
-type Tab = "auction" | "buy" | "swap";
+type Tab = "auction" | "buy" | "swap" | "commission";
 type WalletMode = "burner" | "freighter" | "none";
 type WalletBalances = { xlm: string; usdc: string };
 
@@ -141,15 +156,20 @@ export function MarketplaceSection() {
   // ── Buy/Swap state ────────────────────────────────────────────────────────
   const [listings, setListings] = useState<ListingInfo[]>([]);
   const [swapOffers, setSwapOffers] = useState<SwapOffer[]>([]);
+  const [commissionOrders, setCommissionOrders] = useState<CommissionOrder[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
   const [swapsLoading, setSwapsLoading] = useState(true);
+  const [commissionOrdersLoading, setCommissionOrdersLoading] = useState(true);
   const [buyCurrency, setBuyCurrency] = useState<"XLM" | "USDC">("XLM");
   const [txPending, setTxPending] = useState<string | null>(null); // listingId or swapId string
   const [txSuccess, setTxSuccess] = useState<string | null>(null);
   const [txError, setTxError] = useState("");
+  const [commissionIntentionByListing, setCommissionIntentionByListing] = useState<Record<number, string>>({});
+  const [commissionReferenceByListing, setCommissionReferenceByListing] = useState<Record<number, string>>({});
 
   // Sell form
   const [sellTokenId, setSellTokenId] = useState("");
+  const [sellListingType, setSellListingType] = useState<"finished" | "commission">("finished");
   const [sellPriceXlm, setSellPriceXlm] = useState("500");
   const [sellPriceUsdc, setSellPriceUsdc] = useState("50");
   const [sellLoading, setSellLoading] = useState(false);
@@ -159,9 +179,45 @@ export function MarketplaceSection() {
   // Swap form
   const [swapOfferedToken, setSwapOfferedToken] = useState("");
   const [swapDesiredToken, setSwapDesiredToken] = useState("");
+  const [swapIntention, setSwapIntention] = useState("");
   const [swapLoading, setSwapLoading] = useState(false);
   const [swapSuccess, setSwapSuccess] = useState(false);
   const [swapError, setSwapError] = useState("");
+
+  // ── Buyer-posted Commission state ─────────────────────────────────────────
+  const [escrowCommissions, setEscrowCommissions] = useState<CommissionRequest[]>([]);
+  const [escrowCommissionsLoading, setEscrowCommissionsLoading] = useState(true);
+  // Create commission form
+  const [cIntention, setCIntention] = useState("");
+  const [cRefImage, setCRefImage] = useState("");
+  const [cPriceXlm, setCPriceXlm] = useState("100");
+  const [cPriceUsdc, setCPriceUsdc] = useState("10");
+  const [cCurrency, setCCurrency] = useState<CommissionCurrency>("Xlm");
+  const [cLoading, setCLoading] = useState(false);
+  const [cSuccess, setCSuccess] = useState(false);
+  const [cError, setCError] = useState("");
+  // Commission action pending state
+  const [cActionPending, setCActionPending] = useState<string | null>(null);
+  const [cActionSuccess, setCActionSuccess] = useState<string | null>(null);
+  const [cActionError, setCActionError] = useState("");
+
+  // Creator delivery / direct NFT management
+  const [deliveryTokenId, setDeliveryTokenId] = useState("");
+  const [deliveryMetadataUri, setDeliveryMetadataUri] = useState("");
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliverySuccess, setDeliverySuccess] = useState(false);
+  const [deliveryError, setDeliveryError] = useState("");
+
+  const [fulfillOrderId, setFulfillOrderId] = useState("");
+  const [fulfillLoading, setFulfillLoading] = useState(false);
+  const [fulfillSuccess, setFulfillSuccess] = useState(false);
+  const [fulfillError, setFulfillError] = useState("");
+
+  const [transferTokenId, setTransferTokenId] = useState("");
+  const [transferRecipient, setTransferRecipient] = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferSuccess, setTransferSuccess] = useState(false);
+  const [transferError, setTransferError] = useState("");
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -205,12 +261,38 @@ export function MarketplaceSection() {
     }
   }, []);
 
+  const loadCommissionOrders = useCallback(async () => {
+    setCommissionOrdersLoading(true);
+    try {
+      const data = await fetchCommissionOrders();
+      setCommissionOrders(data);
+    } catch {
+      setCommissionOrders([]);
+    } finally {
+      setCommissionOrdersLoading(false);
+    }
+  }, []);
+
+  const loadEscrowCommissions = useCallback(async () => {
+    setEscrowCommissionsLoading(true);
+    try {
+      const data = await fetchCommissions();
+      setEscrowCommissions(data);
+    } catch {
+      setEscrowCommissions([]);
+    } finally {
+      setEscrowCommissionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     loadAuction();
     loadListings();
     loadSwapOffers();
-  }, [loadAuction, loadListings, loadSwapOffers]);
+    loadCommissionOrders();
+    loadEscrowCommissions();
+  }, [loadAuction, loadListings, loadSwapOffers, loadCommissionOrders, loadEscrowCommissions]);
 
   // ── Burner wallet ─────────────────────────────────────────────────────────
 
@@ -436,16 +518,35 @@ export function MarketplaceSection() {
 
   const handleBuy = async (listing: ListingInfo) => {
     if (!activePublicKey) { setTxError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
+    const commissionIntention = (commissionIntentionByListing[listing.listingId] ?? "").trim();
+    const commissionReference = (commissionReferenceByListing[listing.listingId] ?? "").trim();
+    if (listing.isCommissionEgg && !commissionIntention) {
+      setTxError(t("Commission purchases require an intention/prompt.", "Las comisiones requieren una intención/prompt."));
+      return;
+    }
     setTxPending(`listing-${listing.listingId}`);
     setTxError("");
     setTxSuccess(null);
     try {
-      const txXdr = buyCurrency === "XLM"
-        ? await buildBuyXlmTx(activePublicKey, listing.listingId)
-        : await buildBuyUsdcTx(activePublicKey, listing.listingId);
+      const txXdr = listing.isCommissionEgg
+        ? (buyCurrency === "XLM"
+            ? await buildBuyCommissionXlmTx(activePublicKey, listing.listingId, commissionIntention, commissionReference)
+            : await buildBuyCommissionUsdcTx(activePublicKey, listing.listingId, commissionIntention, commissionReference))
+        : (buyCurrency === "XLM"
+            ? await buildBuyXlmTx(activePublicKey, listing.listingId)
+            : await buildBuyUsdcTx(activePublicKey, listing.listingId));
       await signAndSubmit(txXdr);
       setTxSuccess(`listing-${listing.listingId}`);
-      setTimeout(() => { loadListings(); loadBalances(activePublicKey); setTxSuccess(null); }, 3000);
+      if (listing.isCommissionEgg) {
+        setCommissionIntentionByListing((prev) => ({ ...prev, [listing.listingId]: "" }));
+        setCommissionReferenceByListing((prev) => ({ ...prev, [listing.listingId]: "" }));
+      }
+      setTimeout(() => {
+        loadListings();
+        loadCommissionOrders();
+        loadBalances(activePublicKey);
+        setTxSuccess(null);
+      }, 3000);
     } catch (error) {
       setTxError(error instanceof Error ? error.message : t("Transaction failed.", "La transacción falló."));
     } finally {
@@ -478,7 +579,9 @@ export function MarketplaceSection() {
     setSellError("");
     setSellSuccess(false);
     try {
-      const txXdr = await buildListForSaleTx(activePublicKey, tokenId, BigInt(priceXlm), BigInt(priceUsdc), BigInt(1600000));
+      const txXdr = sellListingType === "commission"
+        ? await buildListCommissionEggTx(activePublicKey, tokenId, BigInt(priceXlm), BigInt(priceUsdc), BigInt(1600000))
+        : await buildListForSaleTx(activePublicKey, tokenId, BigInt(priceXlm), BigInt(priceUsdc), BigInt(1600000));
       await signAndSubmit(txXdr);
       setSellSuccess(true);
       setSellTokenId("");
@@ -496,18 +599,21 @@ export function MarketplaceSection() {
     if (!activePublicKey) { setSwapError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
     const offered = parseInt(swapOfferedToken);
     const desired = parseInt(swapDesiredToken);
+    const intention = swapIntention.trim();
     if (!Number.isInteger(offered) || offered < 0) { setSwapError(t("Invalid offered token ID.", "ID ofrecido inválido.")); return; }
     if (!Number.isInteger(desired) || desired < 0) { setSwapError(t("Invalid desired token ID.", "ID deseado inválido.")); return; }
     if (offered === desired) { setSwapError(t("Cannot swap a token with itself.", "No podés intercambiar el mismo token.")); return; }
+    if (!intention) { setSwapError(t("Add a public swap intention.", "Agregá una intención pública de swap.")); return; }
     setSwapLoading(true);
     setSwapError("");
     setSwapSuccess(false);
     try {
-      const txXdr = await buildCreateSwapOfferTx(activePublicKey, offered, desired);
+      const txXdr = await buildCreateSwapOfferTx(activePublicKey, offered, desired, intention);
       await signAndSubmit(txXdr);
       setSwapSuccess(true);
       setSwapOfferedToken("");
       setSwapDesiredToken("");
+      setSwapIntention("");
       setTimeout(() => { loadSwapOffers(); setSwapSuccess(false); }, 3000);
     } catch (error) {
       setSwapError(error instanceof Error ? error.message : t("Swap offer failed.", "Error al crear oferta de swap."));
@@ -544,6 +650,167 @@ export function MarketplaceSection() {
     } catch (error) {
       setTxError(error instanceof Error ? error.message : t("Cancel failed.", "Cancelación falló."));
       setTxPending(null);
+    }
+  };
+
+  // ── Escrow commission handlers ────────────────────────────────────────────
+
+  const handleCreateEscrowCommission = async () => {
+    if (!activePublicKey) { setCError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
+    const intention = cIntention.trim();
+    if (!intention) { setCError(t("Intention is required.", "La intención es requerida.")); return; }
+    const priceXlm = parseFloat(cPriceXlm);
+    const priceUsdc = parseFloat(cPriceUsdc);
+    if (isNaN(priceXlm) || priceXlm <= 0) { setCError(t("Invalid XLM price.", "Precio XLM inválido.")); return; }
+    if (isNaN(priceUsdc) || priceUsdc <= 0) { setCError(t("Invalid USDC price.", "Precio USDC inválido.")); return; }
+    setCLoading(true);
+    setCError("");
+    setCSuccess(false);
+    try {
+      const xlmRate = BigInt(1_600_000);
+      const txXdr = await buildCreateCommissionTx(
+        activePublicKey,
+        intention,
+        cRefImage.trim(),
+        BigInt(Math.round(priceXlm * 1e7)),
+        BigInt(Math.round(priceUsdc * 1e7)),
+        xlmRate,
+        cCurrency,
+      );
+      await signAndSubmit(txXdr);
+      setCSuccess(true);
+      setCIntention("");
+      setCRefImage("");
+      setTimeout(() => { loadEscrowCommissions(); setCSuccess(false); }, 3000);
+    } catch (error) {
+      setCError(error instanceof Error ? error.message : t("Commission creation failed.", "Falló la creación de la comisión."));
+    } finally {
+      setCLoading(false);
+    }
+  };
+
+  const handleMarkDelivered = async (req: CommissionRequest) => {
+    if (!activePublicKey) return;
+    const key = `deliver-${req.commissionId}`;
+    setCActionPending(key);
+    setCActionError("");
+    setCActionSuccess(null);
+    try {
+      const txXdr = await buildMarkDeliveredTx(activePublicKey, req.commissionId);
+      await signAndSubmit(txXdr);
+      setCActionSuccess(key);
+      setTimeout(() => { loadEscrowCommissions(); setCActionSuccess(null); }, 3000);
+    } catch (error) {
+      setCActionError(error instanceof Error ? error.message : t("Action failed.", "Acción falló."));
+    } finally {
+      setCActionPending(null);
+    }
+  };
+
+  const handleApproveDelivery = async (req: CommissionRequest) => {
+    if (!activePublicKey) return;
+    const key = `approve-${req.commissionId}`;
+    setCActionPending(key);
+    setCActionError("");
+    setCActionSuccess(null);
+    try {
+      const txXdr = await buildApproveDeliveryTx(activePublicKey, req.commissionId);
+      await signAndSubmit(txXdr);
+      setCActionSuccess(key);
+      setTimeout(() => { loadEscrowCommissions(); setCActionSuccess(null); }, 3000);
+    } catch (error) {
+      setCActionError(error instanceof Error ? error.message : t("Action failed.", "Acción falló."));
+    } finally {
+      setCActionPending(null);
+    }
+  };
+
+  const handleCancelEscrowCommission = async (req: CommissionRequest) => {
+    if (!activePublicKey) return;
+    const key = `cancel-c-${req.commissionId}`;
+    setCActionPending(key);
+    setCActionError("");
+    try {
+      const txXdr = await buildCancelCommissionTx(activePublicKey, req.commissionId);
+      await signAndSubmit(txXdr);
+      setTimeout(() => { loadEscrowCommissions(); setCActionPending(null); }, 3000);
+    } catch (error) {
+      setCActionError(error instanceof Error ? error.message : t("Cancel failed.", "Cancelación falló."));
+      setCActionPending(null);
+    }
+  };
+
+  const handleUpdateCommissionMetadata = async () => {
+    if (!activePublicKey) { setDeliveryError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
+    const tokenId = parseInt(deliveryTokenId);
+    const uri = deliveryMetadataUri.trim();
+    if (!Number.isInteger(tokenId) || tokenId < 0) { setDeliveryError(t("Invalid token ID.", "ID de token inválido.")); return; }
+    if (!uri) { setDeliveryError(t("Enter a final metadata URI.", "Ingresa un URI final de metadata.")); return; }
+
+    setDeliveryLoading(true);
+    setDeliveryError("");
+    setDeliverySuccess(false);
+    try {
+      const txXdr = await buildUpdateTokenUriAsCreatorTx(activePublicKey, tokenId, uri);
+      await signAndSubmit(txXdr);
+      setDeliverySuccess(true);
+      setTimeout(() => {
+        loadCommissionOrders();
+        setDeliverySuccess(false);
+      }, 3000);
+    } catch (error) {
+      setDeliveryError(error instanceof Error ? error.message : t("Metadata update failed.", "Falló la actualización de metadata."));
+    } finally {
+      setDeliveryLoading(false);
+    }
+  };
+
+  const handleMarkCommissionFulfilled = async () => {
+    if (!activePublicKey) { setFulfillError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
+    const orderId = parseInt(fulfillOrderId);
+    if (!Number.isInteger(orderId) || orderId < 0) { setFulfillError(t("Invalid order ID.", "ID de orden inválido.")); return; }
+
+    setFulfillLoading(true);
+    setFulfillError("");
+    setFulfillSuccess(false);
+    try {
+      const txXdr = await buildMarkCommissionFulfilledTx(activePublicKey, orderId);
+      await signAndSubmit(txXdr);
+      setFulfillSuccess(true);
+      setTimeout(() => {
+        loadCommissionOrders();
+        setFulfillSuccess(false);
+      }, 3000);
+    } catch (error) {
+      setFulfillError(error instanceof Error ? error.message : t("Could not mark commission fulfilled.", "No se pudo marcar la comisión como cumplida."));
+    } finally {
+      setFulfillLoading(false);
+    }
+  };
+
+  const handleTransferNft = async () => {
+    if (!activePublicKey) { setTransferError(t("Connect wallet first.", "Conecta tu wallet primero.")); return; }
+    const tokenId = parseInt(transferTokenId);
+    const recipient = transferRecipient.trim();
+    if (!Number.isInteger(tokenId) || tokenId < 0) { setTransferError(t("Invalid token ID.", "ID de token inválido.")); return; }
+    if (!recipient) { setTransferError(t("Enter a recipient address.", "Ingresa una dirección destinataria.")); return; }
+
+    setTransferLoading(true);
+    setTransferError("");
+    setTransferSuccess(false);
+    try {
+      const txXdr = await buildTransferNftTx(activePublicKey, recipient, tokenId);
+      await signAndSubmit(txXdr);
+      setTransferSuccess(true);
+      setTimeout(() => {
+        loadListings();
+        loadSwapOffers();
+        setTransferSuccess(false);
+      }, 3000);
+    } catch (error) {
+      setTransferError(error instanceof Error ? error.message : t("Transfer failed.", "La transferencia falló."));
+    } finally {
+      setTransferLoading(false);
     }
   };
 
@@ -764,11 +1031,22 @@ export function MarketplaceSection() {
       {hasConnectedWallet ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
           <p className="text-sm font-bold text-foreground mb-3">{t("List your Shimeji for sale", "Listá tu Shimeji a la venta")}</p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <div>
               <label className="block text-[11px] text-muted-foreground mb-1">{t("Token ID", "ID de token")}</label>
               <input type="number" value={sellTokenId} onChange={(e) => setSellTokenId(e.target.value)} placeholder="0" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Sale Type", "Tipo de venta")}</label>
+              <select
+                value={sellListingType}
+                onChange={(e) => setSellListingType(e.target.value as "finished" | "commission")}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+              >
+                <option value="finished">{t("Finished Shimeji", "Shimeji terminado")}</option>
+                <option value="commission">{t("Commission Egg", "Huevo de comisión")}</option>
+              </select>
             </div>
             <div>
               <label className="block text-[11px] text-muted-foreground mb-1">{t("Price XLM", "Precio XLM")}</label>
@@ -781,14 +1059,103 @@ export function MarketplaceSection() {
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
           </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {sellListingType === "commission"
+              ? t(
+                  "Commission egg buyers will be required to submit a public intention and optional reference image URL.",
+                  "Quien compre un huevo de comisión deberá enviar una intención pública y una URL opcional de imagen de referencia."
+                )
+              : t(
+                  "Finished Shimeji sale: buyer receives the current NFT metadata as-is.",
+                  "Venta de Shimeji terminado: quien compra recibe la metadata actual del NFT."
+                )}
+          </p>
           <Button onClick={handleSell} disabled={sellLoading} className="mt-3 auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
             {sellLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Listing...", "Listando...")}</span>
-              : <span className="inline-flex items-center gap-2"><Tag className="w-4 h-4" />{t("List for Sale", "Listar a la venta")}</span>}
+              : <span className="inline-flex items-center gap-2"><Tag className="w-4 h-4" />{sellListingType === "commission" ? t("List Commission Egg", "Listar huevo de comisión") : t("List for Sale", "Listar a la venta")}</span>}
           </Button>
           {sellSuccess ? <p className="mt-2 text-xs text-green-400">{t("Listed successfully!", "¡Listado exitosamente!")}</p> : null}
           {sellError ? <p className="mt-2 text-xs text-red-500">{sellError}</p> : null}
         </div>
       ) : walletConnectPrompt}
+
+      {hasConnectedWallet ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-bold text-foreground">{t("Direct NFT Transfer", "Transferencia directa NFT")}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{t("Send a Shimeji directly to another Stellar address.", "Enviar un Shimeji directo a otra dirección Stellar.")}</p>
+            <div className="mt-3 space-y-2">
+              <input
+                type="number"
+                value={transferTokenId}
+                onChange={(e) => setTransferTokenId(e.target.value)}
+                placeholder={t("Token ID", "ID de token")}
+                min={0}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+              />
+              <input
+                type="text"
+                value={transferRecipient}
+                onChange={(e) => setTransferRecipient(e.target.value)}
+                placeholder={t("Recipient address (G...)", "Dirección destino (G...)")}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+              />
+              <Button onClick={handleTransferNft} disabled={transferLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                {transferLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Transferring...", "Transfiriendo...")}</span> : t("Transfer NFT", "Transferir NFT")}
+              </Button>
+              {transferSuccess ? <p className="text-xs text-green-400">{t("Transfer submitted!", "¡Transferencia enviada!")}</p> : null}
+              {transferError ? <p className="text-xs text-red-500">{transferError}</p> : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-bold text-foreground">{t("Commission Delivery", "Entrega de comisión")}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{t("Creators can update commission egg metadata with the final art URI.", "Los creadores pueden actualizar la metadata del huevo de comisión con el URI del arte final.")}</p>
+            <div className="mt-3 space-y-2">
+              <input
+                type="number"
+                value={deliveryTokenId}
+                onChange={(e) => setDeliveryTokenId(e.target.value)}
+                placeholder={t("Commission token ID", "Token ID de comisión")}
+                min={0}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+              />
+              <input
+                type="text"
+                value={deliveryMetadataUri}
+                onChange={(e) => setDeliveryMetadataUri(e.target.value)}
+                placeholder="ipfs://..."
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+              />
+              <Button onClick={handleUpdateCommissionMetadata} disabled={deliveryLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                {deliveryLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Updating...", "Actualizando...")}</span> : t("Update Commission Metadata", "Actualizar metadata de comisión")}
+              </Button>
+              {deliverySuccess ? <p className="text-xs text-green-400">{t("Metadata update submitted!", "¡Actualización de metadata enviada!")}</p> : null}
+              {deliveryError ? <p className="text-xs text-red-500">{deliveryError}</p> : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-bold text-foreground">{t("Mark Commission Fulfilled", "Marcar comisión cumplida")}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">{t("Updates the public commission order status after you deliver the final art.", "Actualiza el estado público de la orden de comisión luego de entregar el arte final.")}</p>
+            <div className="mt-3 space-y-2">
+              <input
+                type="number"
+                value={fulfillOrderId}
+                onChange={(e) => setFulfillOrderId(e.target.value)}
+                placeholder={t("Commission order ID", "ID de orden de comisión")}
+                min={0}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+              />
+              <Button onClick={handleMarkCommissionFulfilled} disabled={fulfillLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                {fulfillLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Marking...", "Marcando...")}</span> : t("Mark Fulfilled", "Marcar cumplida")}
+              </Button>
+              {fulfillSuccess ? <p className="text-xs text-green-400">{t("Commission marked fulfilled!", "¡Comisión marcada como cumplida!")}</p> : null}
+              {fulfillError ? <p className="text-xs text-red-500">{fulfillError}</p> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Buy currency toggle */}
       <div className="flex items-center justify-between">
@@ -819,7 +1186,7 @@ export function MarketplaceSection() {
                     <p className="text-xl font-black text-foreground">#{listing.tokenId}</p>
                   </div>
                   <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {t("For Sale", "En venta")}
+                    {listing.isCommissionEgg ? t("Commission Egg", "Huevo comisión") : t("For Sale", "En venta")}
                   </span>
                 </div>
                 <div>
@@ -832,9 +1199,48 @@ export function MarketplaceSection() {
                 <p className="text-[11px] text-muted-foreground font-mono truncate" title={listing.seller}>
                   {t("Seller", "Vendedor")}: {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
                 </p>
+                {listing.isCommissionEgg ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t(
+                      "Buyer must include a public commission intention (and can add a reference image URL).",
+                      "Quien compra debe incluir una intención pública de comisión (y puede agregar una URL de imagen de referencia)."
+                    )}
+                  </p>
+                ) : null}
+                {!isOwnListing && hasConnectedWallet && listing.isCommissionEgg && !isSuccess ? (
+                  <div className="space-y-2 rounded-xl border border-white/10 bg-black/10 p-3">
+                    <label className="block text-[11px] text-muted-foreground">
+                      {t("Commission intention (public)", "Intención de comisión (pública)")}
+                    </label>
+                    <textarea
+                      value={commissionIntentionByListing[listing.listingId] ?? ""}
+                      onChange={(e) =>
+                        setCommissionIntentionByListing((prev) => ({
+                          ...prev,
+                          [listing.listingId]: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder={t("Describe the character/style/details you want...", "Describe el personaje/estilo/detalles que querés...")}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                    />
+                    <input
+                      type="text"
+                      value={commissionReferenceByListing[listing.listingId] ?? ""}
+                      onChange={(e) =>
+                        setCommissionReferenceByListing((prev) => ({
+                          ...prev,
+                          [listing.listingId]: e.target.value,
+                        }))
+                      }
+                      placeholder={t("Optional reference image URL", "URL opcional de imagen de referencia")}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                ) : null}
                 {isSuccess ? (
                   <div className="flex items-center gap-2 text-green-400 text-xs">
-                    <CheckCircle className="w-4 h-4" />{t("Purchased!", "¡Comprado!")}
+                    <CheckCircle className="w-4 h-4" />{listing.isCommissionEgg ? t("Commission purchased!", "¡Comisión comprada!") : t("Purchased!", "¡Comprado!")}
                   </div>
                 ) : isOwnListing ? (
                   <Button variant="outline" size="sm" disabled={isCancelPending}
@@ -847,7 +1253,7 @@ export function MarketplaceSection() {
                   <Button onClick={() => handleBuy(listing)} disabled={isBuyPending}
                     className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
                     {isBuyPending ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Buying...", "Comprando...")}</span>
-                      : `${t("Buy with", "Comprar con")} ${buyCurrency}`}
+                      : `${listing.isCommissionEgg ? t("Buy commission with", "Comprar comisión con") : t("Buy with", "Comprar con")} ${buyCurrency}`}
                   </Button>
                 ) : (
                   <FreighterConnectButton />
@@ -857,6 +1263,56 @@ export function MarketplaceSection() {
           })}
         </div>
       )}
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-foreground">{t("Public Commission Orders", "Órdenes públicas de comisión")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("Prompts + references are stored on-chain.", "Prompts + referencias quedan almacenados on-chain.")}</p>
+        </div>
+        {commissionOrdersLoading ? (
+          <p className="text-sm text-muted-foreground">{t("Loading commission orders...", "Cargando órdenes de comisión...")}</p>
+        ) : commissionOrders.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
+            <p className="text-muted-foreground">{t("No commission orders yet.", "Todavía no hay órdenes de comisión.")}</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {[...commissionOrders].sort((a, b) => b.orderId - a.orderId).map((order) => (
+              <div key={order.orderId} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-foreground">#{order.orderId} · Shimeji #{order.tokenId}</p>
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] ${order.fulfilled ? "border-green-400/30 text-green-400" : "border-white/20 text-muted-foreground"}`}>
+                    {order.fulfilled ? t("Fulfilled", "Cumplida") : t("Open", "Abierta")}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {t("Price paid", "Pago")}: {formatTokenAmount(order.amountPaid)} {String(order.currency).toUpperCase()}
+                </p>
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words">{order.intention}</p>
+                {order.referenceImageUrl ? (
+                  <a
+                    href={order.referenceImageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex text-xs underline text-foreground"
+                  >
+                    {t("Open reference image", "Abrir imagen de referencia")}
+                  </a>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">{t("No reference image URL provided.", "No se indicó URL de imagen de referencia.")}</p>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                  <p title={order.buyer}>{t("Buyer", "Comprador")}: {order.buyer.slice(0, 6)}...{order.buyer.slice(-4)}</p>
+                  <p title={order.seller}>{t("Seller", "Vendedor")}: {order.seller.slice(0, 6)}...{order.seller.slice(-4)}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(order.createdAt * 1000).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -880,6 +1336,16 @@ export function MarketplaceSection() {
               <input type="number" value={swapDesiredToken} onChange={(e) => setSwapDesiredToken(e.target.value)} placeholder="1" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
+          </div>
+          <div className="mt-3">
+            <label className="block text-[11px] text-muted-foreground mb-1">{t("Public swap intention", "Intención pública de swap")}</label>
+            <textarea
+              value={swapIntention}
+              onChange={(e) => setSwapIntention(e.target.value)}
+              rows={3}
+              placeholder={t("Why are you offering this swap? (shown publicly)", "¿Por qué ofrecés este swap? (se muestra públicamente)")}
+              className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+            />
           </div>
           <Button onClick={handleCreateSwap} disabled={swapLoading} className="mt-3 auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
             {swapLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Creating...", "Creando...")}</span>
@@ -919,6 +1385,10 @@ export function MarketplaceSection() {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">{t("Offerer wants to trade Shimeji", "Ofertante quiere intercambiar Shimeji")} #{offer.offeredTokenId} {t("for", "por")} #{offer.desiredTokenId}</p>
+                <div className="rounded-xl border border-white/10 bg-black/10 p-2">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("Intention", "Intención")}</p>
+                  <p className="mt-1 text-xs text-foreground break-words whitespace-pre-wrap">{offer.intention || t("No intention provided.", "Sin intención.")}</p>
+                </div>
                 <p className="text-[11px] text-muted-foreground font-mono truncate" title={offer.offerer}>
                   {t("By", "Por")}: {offer.offerer.slice(0, 6)}...{offer.offerer.slice(-4)}
                 </p>
@@ -950,6 +1420,230 @@ export function MarketplaceSection() {
     </div>
   );
 
+  // ── Commission tab ────────────────────────────────────────────────────────
+
+  const STATUS_LABELS: Record<string, { en: string; es: string; color: string }> = {
+    Open:      { en: "Open",      es: "Abierta",    color: "text-blue-400" },
+    Accepted:  { en: "Accepted",  es: "Aceptada",   color: "text-yellow-400" },
+    Delivered: { en: "Delivered", es: "Entregada",  color: "text-purple-400" },
+    Completed: { en: "Completed", es: "Completada", color: "text-green-400" },
+    Cancelled: { en: "Cancelled", es: "Cancelada",  color: "text-red-400" },
+  };
+
+  const renderCommissionTab = () => (
+    <div className="space-y-8">
+      {/* Create commission form */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <p className="text-sm font-bold text-foreground mb-1">{t("Post a Commission Request", "Publicar una solicitud de comisión")}</p>
+        <p className="text-xs text-muted-foreground mb-4">
+          {t(
+            "Describe what you want. Payment is held in escrow until you approve the delivered art.",
+            "Describe qué querés. El pago se guarda en escrow hasta que apruebes el arte entregado.",
+          )}
+        </p>
+        {hasConnectedWallet ? (
+          <div className="space-y-3">
+            {/* Intention */}
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {t("Your intention (what you want the artist to create) *", "Tu intención (qué querés que cree el artista) *")}
+              </label>
+              <textarea
+                value={cIntention}
+                onChange={(e) => setCIntention(e.target.value)}
+                rows={4}
+                maxLength={500}
+                placeholder={t("E.g. Draw my shimeji as a samurai with a katana, anime style.", "Ej. Dibuja a mi shimeji como un samurái con katana, estilo anime.")}
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+              />
+              <p className="text-[10px] text-muted-foreground mt-0.5 text-right">{cIntention.length}/500</p>
+            </div>
+            {/* Reference image */}
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-1">
+                {t("Reference image URL (optional, IPFS or HTTPS)", "URL de imagen de referencia (opcional, IPFS o HTTPS)")}
+              </label>
+              <input
+                type="text"
+                value={cRefImage}
+                onChange={(e) => setCRefImage(e.target.value)}
+                placeholder="ipfs://Qm... or https://..."
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+              />
+            </div>
+            {/* Price + currency */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">{t("Price XLM", "Precio XLM")}</label>
+                <input
+                  type="number"
+                  value={cPriceXlm}
+                  onChange={(e) => setCPriceXlm(e.target.value)}
+                  min={0}
+                  step={0.1}
+                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">{t("Price USDC", "Precio USDC")}</label>
+                <input
+                  type="number"
+                  value={cPriceUsdc}
+                  onChange={(e) => setCPriceUsdc(e.target.value)}
+                  min={0}
+                  step={0.1}
+                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">{t("Pay in", "Pagar en")}</label>
+                <select
+                  value={cCurrency}
+                  onChange={(e) => setCCurrency(e.target.value as CommissionCurrency)}
+                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                >
+                  <option value="Xlm">XLM</option>
+                  <option value="Usdc">USDC</option>
+                </select>
+              </div>
+            </div>
+            <Button onClick={handleCreateEscrowCommission} disabled={cLoading}
+              className="auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
+              {cLoading
+                ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Posting...", "Publicando...")}</span>
+                : <span className="inline-flex items-center gap-2"><Pencil className="w-4 h-4" />{t("Post Commission", "Publicar comisión")}</span>}
+            </Button>
+            {cSuccess && <p className="text-xs text-green-400 mt-1">{t("Commission posted! Payment escrowed.", "¡Comisión publicada! Pago en escrow.")}</p>}
+            {cError && <p className="text-xs text-red-500 mt-1">{cError}</p>}
+          </div>
+        ) : walletConnectPrompt}
+      </div>
+
+      {/* Commission listing */}
+      <div>
+        <p className="text-sm font-bold text-foreground mb-3">{t("Open Commissions", "Comisiones abiertas")}</p>
+        {cActionError && <p className="text-xs text-red-500 mb-2">{cActionError}</p>}
+        {escrowCommissionsLoading ? (
+          <p className="text-sm text-muted-foreground">{t("Loading commissions...", "Cargando comisiones...")}</p>
+        ) : escrowCommissions.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
+            <p className="text-muted-foreground">{t("No commissions posted yet. Be the first!", "Aún no hay comisiones. ¡Sé el primero!")}</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {escrowCommissions.map((req) => {
+              const statusInfo = STATUS_LABELS[req.status] ?? STATUS_LABELS.Open;
+              const isBuyer = req.buyer === activePublicKey;
+              const isArtist = req.artist === activePublicKey;
+              const approveKey = `approve-${req.commissionId}`;
+              const deliverKey = `deliver-${req.commissionId}`;
+              const cancelKey = `cancel-c-${req.commissionId}`;
+              return (
+                <div key={req.commissionId} className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-foreground">#{req.commissionId}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-wide ${statusInfo.color}`}>
+                      {isSpanish ? statusInfo.es : statusInfo.en}
+                    </span>
+                  </div>
+
+                  {/* Intention */}
+                  <div className="rounded-xl border border-white/10 bg-black/10 p-2">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Intention", "Intención")}</p>
+                    <p className="text-xs text-foreground break-words whitespace-pre-wrap">{req.intention}</p>
+                  </div>
+
+                  {/* Reference image */}
+                  {req.referenceImage ? (
+                    <div className="rounded-xl border border-white/10 bg-black/10 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Reference", "Referencia")}</p>
+                      <a
+                        href={req.referenceImage}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-400 underline break-all"
+                      >
+                        {req.referenceImage.length > 48 ? `${req.referenceImage.slice(0, 48)}…` : req.referenceImage}
+                      </a>
+                    </div>
+                  ) : null}
+
+                  {/* Price */}
+                  <p className="text-xs text-muted-foreground">
+                    {t("Price", "Precio")}:{" "}
+                    <span className="text-foreground font-bold">
+                      {req.currency === "Usdc"
+                        ? `${formatTokenAmount(req.priceUsdc)} USDC`
+                        : `${formatTokenAmount(req.priceXlm)} XLM`}
+                    </span>
+                  </p>
+
+                  {/* Buyer */}
+                  <p className="text-[11px] text-muted-foreground font-mono truncate" title={req.buyer}>
+                    {t("By", "Por")}: {req.buyer.slice(0, 6)}...{req.buyer.slice(-4)}
+                    {isBuyer && <span className="ml-1 text-[10px] text-yellow-400">{t("(you)", "(vos)")}</span>}
+                  </p>
+
+                  {/* Artist (if assigned) */}
+                  {req.status !== "Open" && req.artist ? (
+                    <p className="text-[11px] text-muted-foreground font-mono truncate" title={req.artist}>
+                      {t("Artist", "Artista")}: {req.artist.slice(0, 6)}...{req.artist.slice(-4)}
+                      {isArtist && <span className="ml-1 text-[10px] text-yellow-400">{t("(you)", "(vos)")}</span>}
+                    </p>
+                  ) : null}
+
+                  {/* Action buttons */}
+                  {cActionSuccess === approveKey || cActionSuccess === deliverKey ? (
+                    <div className="flex items-center gap-2 text-green-400 text-xs">
+                      <CheckCircle className="w-4 h-4" />{t("Done!", "¡Hecho!")}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {/* Buyer: approve delivery */}
+                      {isBuyer && req.status === "Delivered" && (
+                        <Button onClick={() => handleApproveDelivery(req)} disabled={cActionPending === approveKey}
+                          className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                          {cActionPending === approveKey
+                            ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Approving...", "Aprobando...")}</span>
+                            : <span className="inline-flex items-center gap-2"><CheckCircle className="w-4 h-4" />{t("Approve & Release Payment", "Aprobar y liberar pago")}</span>}
+                        </Button>
+                      )}
+                      {/* Buyer: cancel open commission */}
+                      {isBuyer && req.status === "Open" && (
+                        <Button variant="outline" size="sm" onClick={() => handleCancelEscrowCommission(req)}
+                          disabled={cActionPending === cancelKey}
+                          className="w-full rounded-xl border-white/20 text-xs">
+                          {cActionPending === cancelKey
+                            ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
+                            : t("Cancel & Refund", "Cancelar y reembolsar")}
+                        </Button>
+                      )}
+                      {/* Artist: mark as delivered */}
+                      {isArtist && req.status === "Accepted" && (
+                        <Button onClick={() => handleMarkDelivered(req)} disabled={cActionPending === deliverKey}
+                          className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                          {cActionPending === deliverKey
+                            ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Marking...", "Marcando...")}</span>
+                            : <span className="inline-flex items-center gap-2"><Pencil className="w-4 h-4" />{t("Mark as Delivered", "Marcar como entregado")}</span>}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {!COMMISSION_CONTRACT_ID && (
+        <p className="text-xs text-muted-foreground text-center">
+          {t("Commission contract not deployed yet.", "El contrato de comisiones aún no está desplegado.")}
+        </p>
+      )}
+    </div>
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (!mounted) {
@@ -961,9 +1655,10 @@ export function MarketplaceSection() {
   }
 
   const tabs: { id: Tab; label: string; labelEs: string; icon: React.ReactNode }[] = [
-    { id: "auction", label: "Auction", labelEs: "Subasta", icon: <Gavel className="w-4 h-4" /> },
-    { id: "buy",     label: "Buy",     labelEs: "Comprar",  icon: <Tag className="w-4 h-4" /> },
-    { id: "swap",    label: "Swap",    labelEs: "Swap",     icon: <RefreshCw className="w-4 h-4" /> },
+    { id: "auction",    label: "Auction",     labelEs: "Subasta",    icon: <Gavel className="w-4 h-4" /> },
+    { id: "buy",        label: "Buy",         labelEs: "Comprar",    icon: <Tag className="w-4 h-4" /> },
+    { id: "swap",       label: "Swap",        labelEs: "Swap",       icon: <RefreshCw className="w-4 h-4" /> },
+    { id: "commission", label: "Commission",  labelEs: "Comisión",   icon: <Pencil className="w-4 h-4" /> },
   ];
 
   return (
@@ -988,7 +1683,7 @@ export function MarketplaceSection() {
         <div className="mt-4 mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
           {tabs.map(({ id, label, labelEs, icon }) => (
             <button key={id} type="button"
-              onClick={() => { setActiveTab(id); setTxError(""); setBidError(""); setSellError(""); setSwapError(""); }}
+              onClick={() => { setActiveTab(id); setTxError(""); setBidError(""); setSellError(""); setSwapError(""); setCError(""); setCActionError(""); }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
                 activeTab === id
                   ? "bg-white/10 text-foreground shadow"
@@ -1006,6 +1701,7 @@ export function MarketplaceSection() {
           {activeTab === "auction" && renderAuctionTab()}
           {activeTab === "buy" && renderBuyTab()}
           {activeTab === "swap" && renderSwapTab()}
+          {activeTab === "commission" && renderCommissionTab()}
         </div>
 
         {/* Marketplace contract badge */}

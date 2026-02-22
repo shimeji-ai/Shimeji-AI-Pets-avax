@@ -39,6 +39,9 @@ set -euo pipefail
 #   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
 #   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
+#   DEPLOY_STEP_DELAY_SECONDS=0 (extra wait after non-local deploy/init steps)
+#   DEPLOY_RETRY_ATTEMPTS=3 (non-local retries for deploy/invoke)
+#   DEPLOY_RETRY_DELAY_SECONDS=4
 
 NETWORK="${NETWORK:-}"
 SECRET="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
@@ -74,6 +77,9 @@ INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
 INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
 INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1600000}"
 INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
+DEPLOY_STEP_DELAY_SECONDS="${DEPLOY_STEP_DELAY_SECONDS:-0}"
+DEPLOY_RETRY_ATTEMPTS="${DEPLOY_RETRY_ATTEMPTS:-3}"
+DEPLOY_RETRY_DELAY_SECONDS="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
   NETWORK="$1"
@@ -117,6 +123,7 @@ RPC_API_KEY_STATUS="not-used"
 NFT_WASM_HASH_ONCHAIN=""
 AUCTION_WASM_HASH_ONCHAIN=""
 MARKETPLACE_WASM_HASH_ONCHAIN=""
+COMMISSION_WASM_HASH_ONCHAIN=""
 INITIAL_AUCTION_STATUS="not-run"
 INITIAL_AUCTION_ID=""
 INITIAL_AUCTION_STARTING_XLM=""
@@ -1107,6 +1114,7 @@ sync_frontend_env_local() {
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_NFT_CONTRACT_ID" "$NFT_ID"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_AUCTION_CONTRACT_ID" "$AUCTION_ID"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID" "$MARKETPLACE_ID"
+  upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_COMMISSION_CONTRACT_ID" "$COMMISSION_ID"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_RPC_URL" "$RPC_URL"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_HORIZON_URL" "$HORIZON_URL"
   upsert_env_value "$FRONTEND_ENV_FILE" "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "\"$PASSPHRASE\""
@@ -1149,6 +1157,7 @@ write_deploy_env_export_file() {
     printf "NEXT_PUBLIC_NFT_CONTRACT_ID=%q\n" "$NFT_ID"
     printf "NEXT_PUBLIC_AUCTION_CONTRACT_ID=%q\n" "$AUCTION_ID"
     printf "NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID=%q\n" "$MARKETPLACE_ID"
+    printf "NEXT_PUBLIC_COMMISSION_CONTRACT_ID=%q\n" "$COMMISSION_ID"
     printf "NEXT_PUBLIC_STELLAR_RPC_URL=%q\n" "$RPC_URL"
     printf "NEXT_PUBLIC_STELLAR_HORIZON_URL=%q\n" "$HORIZON_URL"
     printf "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=%q\n" "$PASSPHRASE"
@@ -1307,24 +1316,27 @@ build_contracts() {
   WASM_DIR_V1="$ROOT_DIR/target/wasm32v1-none/release"
   WASM_DIR_LEGACY="$ROOT_DIR/target/wasm32-unknown-unknown/release"
 
-  if [[ -f "$WASM_DIR_V1/shimeji_nft.wasm" && -f "$WASM_DIR_V1/shimeji_auction.wasm" && -f "$WASM_DIR_V1/shimeji_escrow_vault.wasm" && -f "$WASM_DIR_V1/shimeji_marketplace.wasm" ]]; then
+  if [[ -f "$WASM_DIR_V1/shimeji_nft.wasm" && -f "$WASM_DIR_V1/shimeji_auction.wasm" && -f "$WASM_DIR_V1/shimeji_escrow_vault.wasm" && -f "$WASM_DIR_V1/shimeji_marketplace.wasm" && -f "$WASM_DIR_V1/shimeji_commission.wasm" ]]; then
     NFT_WASM="$WASM_DIR_V1/shimeji_nft.wasm"
     AUCTION_WASM="$WASM_DIR_V1/shimeji_auction.wasm"
     ESCROW_VAULT_WASM="$WASM_DIR_V1/shimeji_escrow_vault.wasm"
     MARKETPLACE_WASM="$WASM_DIR_V1/shimeji_marketplace.wasm"
-  elif [[ -f "$WASM_DIR_LEGACY/shimeji_nft.wasm" && -f "$WASM_DIR_LEGACY/shimeji_auction.wasm" && -f "$WASM_DIR_LEGACY/shimeji_escrow_vault.wasm" && -f "$WASM_DIR_LEGACY/shimeji_marketplace.wasm" ]]; then
+    COMMISSION_WASM="$WASM_DIR_V1/shimeji_commission.wasm"
+  elif [[ -f "$WASM_DIR_LEGACY/shimeji_nft.wasm" && -f "$WASM_DIR_LEGACY/shimeji_auction.wasm" && -f "$WASM_DIR_LEGACY/shimeji_escrow_vault.wasm" && -f "$WASM_DIR_LEGACY/shimeji_marketplace.wasm" && -f "$WASM_DIR_LEGACY/shimeji_commission.wasm" ]]; then
     NFT_WASM="$WASM_DIR_LEGACY/shimeji_nft.wasm"
     AUCTION_WASM="$WASM_DIR_LEGACY/shimeji_auction.wasm"
     ESCROW_VAULT_WASM="$WASM_DIR_LEGACY/shimeji_escrow_vault.wasm"
     MARKETPLACE_WASM="$WASM_DIR_LEGACY/shimeji_marketplace.wasm"
+    COMMISSION_WASM="$WASM_DIR_LEGACY/shimeji_commission.wasm"
   else
-    die "Could not find built WASM artifacts (shimeji_nft.wasm, shimeji_auction.wasm, shimeji_escrow_vault.wasm, shimeji_marketplace.wasm) in target directories"
+    die "Could not find built WASM artifacts (shimeji_nft.wasm, shimeji_auction.wasm, shimeji_escrow_vault.wasm, shimeji_marketplace.wasm, shimeji_commission.wasm) in target directories"
   fi
 
   NFT_WASM_HASH_LOCAL="$(hash_file "$NFT_WASM")"
   AUCTION_WASM_HASH_LOCAL="$(hash_file "$AUCTION_WASM")"
   ESCROW_VAULT_WASM_HASH_LOCAL="$(hash_file "$ESCROW_VAULT_WASM")"
   MARKETPLACE_WASM_HASH_LOCAL="$(hash_file "$MARKETPLACE_WASM")"
+  COMMISSION_WASM_HASH_LOCAL="$(hash_file "$COMMISSION_WASM")"
 }
 
 derive_sac_addresses() {
@@ -1366,13 +1378,30 @@ deploy_from_hash() {
   local label="$1"
   local wasm_hash="$2"
   local contract_id
+  local deploy_output
+  local attempt=1
+  local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
+  local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
   echo "==> Deploying ${label} from hash..."
-  contract_id="$(stellar contract deploy \
-    --wasm-hash "$wasm_hash" \
-    --source "$IDENTITY" \
-    --rpc-url "$RPC_URL" \
-    --network-passphrase "$PASSPHRASE")"
-  contract_id="$(printf "%s" "$contract_id" | tr -d '\r' | grep -E '^C[A-Z0-9]{55}$' | tail -n1)"
+
+  while true; do
+    deploy_output="$(stellar contract deploy \
+      --wasm-hash "$wasm_hash" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" 2>&1)" && break
+
+    if [ "$NETWORK" = "local" ] || [ "$attempt" -ge "$max_attempts" ]; then
+      echo "$deploy_output" >&2
+      die "Failed to deploy ${label} from hash after ${attempt} attempt(s)."
+    fi
+
+    echo "==> ${label} deploy failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..."
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
+
+  contract_id="$(printf "%s" "$deploy_output" | tr -d '\r' | grep -E '^C[A-Z0-9]{55}$' | tail -n1)"
   if [ -z "$contract_id" ]; then
     die "Could not determine contract ID for ${label} after deploy."
   fi
@@ -1380,30 +1409,76 @@ deploy_from_hash() {
   printf "%s" "$contract_id"
 }
 
+wait_for_network_propagation_step() {
+  local label="$1"
+  local delay="${DEPLOY_STEP_DELAY_SECONDS:-0}"
+
+  if [ "$NETWORK" = "local" ]; then
+    return 0
+  fi
+
+  if [ "$delay" = "0" ]; then
+    return 0
+  fi
+
+  echo "==> Waiting ${delay}s for network propagation (${label})..."
+  sleep "$delay"
+}
+
+run_with_deploy_retries() {
+  local label="$1"
+  shift
+  local attempt=1
+  local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
+  local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
+
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+
+    if [ "$NETWORK" = "local" ] || [ "$attempt" -ge "$max_attempts" ]; then
+      return 1
+    fi
+
+    echo "==> ${label} failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..."
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
+}
+
 deploy_contracts() {
   # Install all Wasms first (each install waits for ledger confirmation
   # before returning the hash, eliminating the race condition where the
   # deploy simulation runs before the Wasm is available on-chain).
-  local nft_hash auction_hash escrow_hash marketplace_hash
+  local nft_hash auction_hash escrow_hash marketplace_hash commission_hash
 
   nft_hash="$(install_wasm "ShimejiNFT" "$NFT_WASM")"
   auction_hash="$(install_wasm "ShimejiAuction" "$AUCTION_WASM")"
   escrow_hash="$(install_wasm "ShimejiEscrowVault" "$ESCROW_VAULT_WASM")"
   marketplace_hash="$(install_wasm "ShimejiMarketplace" "$MARKETPLACE_WASM")"
+  # Add a small pause between installs on testnet/mainnet to avoid rate limits
+  if [ "$NETWORK" != "local" ]; then sleep 3; fi
+  commission_hash="$(install_wasm "ShimejiCommission" "$COMMISSION_WASM")"
 
   # Deploy contracts using their confirmed Wasm hashes
   NFT_ID="$(deploy_from_hash "ShimejiNFT" "$nft_hash")"
+  wait_for_network_propagation_step "ShimejiNFT deploy"
   echo "==> Initializing ShimejiNFT..."
-  stellar contract invoke \
+  run_with_deploy_retries "Initialize ShimejiNFT" \
+    stellar contract invoke \
     --id "$NFT_ID" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
     --network-passphrase "$PASSPHRASE" \
     -- initialize --admin "$ADMIN"
+  wait_for_network_propagation_step "ShimejiNFT initialize"
 
   AUCTION_ID="$(deploy_from_hash "ShimejiAuction" "$auction_hash")"
+  wait_for_network_propagation_step "ShimejiAuction deploy"
   echo "==> Initializing ShimejiAuction..."
-  stellar contract invoke \
+  run_with_deploy_retries "Initialize ShimejiAuction" \
+    stellar contract invoke \
     --id "$AUCTION_ID" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
@@ -1413,17 +1488,21 @@ deploy_contracts() {
     --nft_contract "$NFT_ID" \
     --usdc_token "$USDC_TOKEN" \
     --xlm_token "$XLM_TOKEN"
+  wait_for_network_propagation_step "ShimejiAuction initialize"
 
   if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
     if [ "$NETWORK" = "local" ]; then
       echo "==> Deploying local mock escrow vault (Trustless Work dev parity)..."
       ESCROW_VAULT_ID="$(deploy_from_hash "ShimejiEscrowVault" "$escrow_hash")"
-      stellar contract invoke \
+      wait_for_network_propagation_step "ShimejiEscrowVault deploy"
+      run_with_deploy_retries "Initialize ShimejiEscrowVault" \
+        stellar contract invoke \
         --id "$ESCROW_VAULT_ID" \
         --source "$IDENTITY" \
         --rpc-url "$RPC_URL" \
         --network-passphrase "$PASSPHRASE" \
         -- initialize --admin "$ADMIN"
+      wait_for_network_propagation_step "ShimejiEscrowVault initialize"
       TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
       TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
       TRUSTLESS_ESCROW_STATUS="local-mock-enabled"
@@ -1431,12 +1510,15 @@ deploy_contracts() {
       if [ -z "$TRUSTLESS_ESCROW_XLM_ADDRESS" ] || [ -z "$TRUSTLESS_ESCROW_USDC_ADDRESS" ]; then
         echo "==> Deploying fallback escrow vault on $NETWORK (Trustless routing enabled)..."
         ESCROW_VAULT_ID="$(deploy_from_hash "ShimejiEscrowVault" "$escrow_hash")"
-        stellar contract invoke \
+        wait_for_network_propagation_step "ShimejiEscrowVault deploy"
+        run_with_deploy_retries "Initialize ShimejiEscrowVault fallback" \
+          stellar contract invoke \
           --id "$ESCROW_VAULT_ID" \
           --source "$IDENTITY" \
           --rpc-url "$RPC_URL" \
           --network-passphrase "$PASSPHRASE" \
           -- initialize --admin "$ADMIN"
+        wait_for_network_propagation_step "ShimejiEscrowVault initialize"
         TRUSTLESS_ESCROW_XLM_ADDRESS="$ESCROW_VAULT_ID"
         TRUSTLESS_ESCROW_USDC_ADDRESS="$ESCROW_VAULT_ID"
         TRUSTLESS_ESCROW_STATUS="${NETWORK}-fallback-vault-enabled"
@@ -1446,7 +1528,8 @@ deploy_contracts() {
     fi
 
     echo "==> Configuring auction contract to settle into Trustless escrow destinations..."
-    stellar contract invoke \
+    run_with_deploy_retries "Configure trustless escrow" \
+      stellar contract invoke \
       --id "$AUCTION_ID" \
       --source "$IDENTITY" \
       --rpc-url "$RPC_URL" \
@@ -1454,28 +1537,35 @@ deploy_contracts() {
       -- configure_trustless_escrow \
       --xlm_destination "$TRUSTLESS_ESCROW_XLM_ADDRESS" \
       --usdc_destination "$TRUSTLESS_ESCROW_USDC_ADDRESS"
+    wait_for_network_propagation_step "ShimejiAuction escrow configuration"
   else
     echo "==> Using internal auction escrow mode (Trustless escrow disabled)."
-    stellar contract invoke \
+    run_with_deploy_retries "Configure internal escrow" \
+      stellar contract invoke \
       --id "$AUCTION_ID" \
       --source "$IDENTITY" \
       --rpc-url "$RPC_URL" \
       --network-passphrase "$PASSPHRASE" \
       -- configure_internal_escrow
+    wait_for_network_propagation_step "ShimejiAuction internal escrow configuration"
     TRUSTLESS_ESCROW_STATUS="internal"
   fi
 
   echo "==> Setting auction contract as NFT minter..."
-  stellar contract invoke \
+  run_with_deploy_retries "Set NFT minter" \
+    stellar contract invoke \
     --id "$NFT_ID" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
     --network-passphrase "$PASSPHRASE" \
     -- set_minter --minter "$AUCTION_ID"
+  wait_for_network_propagation_step "ShimejiNFT set_minter"
 
   MARKETPLACE_ID="$(deploy_from_hash "ShimejiMarketplace" "$marketplace_hash")"
+  wait_for_network_propagation_step "ShimejiMarketplace deploy"
   echo "==> Initializing ShimejiMarketplace..."
-  stellar contract invoke \
+  run_with_deploy_retries "Initialize ShimejiMarketplace" \
+    stellar contract invoke \
     --id "$MARKETPLACE_ID" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
@@ -1485,6 +1575,29 @@ deploy_contracts() {
     --nft_contract "$NFT_ID" \
     --usdc_token "$USDC_TOKEN" \
     --xlm_token "$XLM_TOKEN"
+  wait_for_network_propagation_step "ShimejiMarketplace initialize"
+
+  # Allow a short pause before deploying the commission contract on non-local
+  # networks to ensure the previous transaction is fully settled.
+  if [ "$NETWORK" != "local" ]; then
+    echo "==> Waiting for network settlement before deploying Commission contract..."
+    sleep 5
+  fi
+
+  COMMISSION_ID="$(deploy_from_hash "ShimejiCommission" "$commission_hash")"
+  wait_for_network_propagation_step "ShimejiCommission deploy"
+  echo "==> Initializing ShimejiCommission..."
+  run_with_deploy_retries "Initialize ShimejiCommission" \
+    stellar contract invoke \
+    --id "$COMMISSION_ID" \
+    --source "$IDENTITY" \
+    --rpc-url "$RPC_URL" \
+    --network-passphrase "$PASSPHRASE" \
+    -- initialize \
+    --admin "$ADMIN" \
+    --usdc_token "$USDC_TOKEN" \
+    --xlm_token "$XLM_TOKEN"
+  wait_for_network_propagation_step "ShimejiCommission initialize"
 }
 
 read_total_auctions() {
@@ -1726,6 +1839,7 @@ print_success_summary() {
   echo "  NFT Contract:     $NFT_ID"
   echo "  Auction Contract: $AUCTION_ID"
   echo "  Marketplace:      $MARKETPLACE_ID"
+  echo "  Commission:       $COMMISSION_ID"
   echo "  XLM SAC:          $XLM_TOKEN"
   echo "  USDC SAC:         $USDC_TOKEN"
   if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
@@ -1761,6 +1875,7 @@ print_success_summary() {
   echo "  NFT Wasm Hash:    $NFT_WASM_HASH_LOCAL"
   echo "  Auction Wasm Hash:$AUCTION_WASM_HASH_LOCAL"
   echo "  Mktplace Wasm Hash:$MARKETPLACE_WASM_HASH_LOCAL"
+  echo "  Commission Hash:  $COMMISSION_WASM_HASH_LOCAL"
   if [ -n "$NFT_WASM_HASH_ONCHAIN" ]; then
     echo "  NFT On-chain Hash:$NFT_WASM_HASH_ONCHAIN"
   fi
@@ -1784,6 +1899,7 @@ print_success_summary() {
     echo "  NFT Contract:     $EXPLORER_ROOT/contract/$NFT_ID"
     echo "  Auction Contract: $EXPLORER_ROOT/contract/$AUCTION_ID"
     echo "  Marketplace:      $EXPLORER_ROOT/contract/$MARKETPLACE_ID"
+    echo "  Commission:       $EXPLORER_ROOT/contract/$COMMISSION_ID"
     echo "  Admin Account:    $EXPLORER_ROOT/account/$ADMIN"
     if [ -n "$CONTRACT_SOURCE_REPO" ]; then
       echo "  Source Repo Meta: $CONTRACT_SOURCE_REPO"
@@ -1833,6 +1949,7 @@ print_success_summary() {
   echo "   NEXT_PUBLIC_NFT_CONTRACT_ID=$NFT_ID"
   echo "   NEXT_PUBLIC_AUCTION_CONTRACT_ID=$AUCTION_ID"
   echo "   NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID=$MARKETPLACE_ID"
+  echo "   NEXT_PUBLIC_COMMISSION_CONTRACT_ID=$COMMISSION_ID"
   echo "   NEXT_PUBLIC_STELLAR_RPC_URL=$RPC_URL"
   echo "   NEXT_PUBLIC_STELLAR_HORIZON_URL=$HORIZON_URL"
   echo "   NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE=\"$PASSPHRASE\""

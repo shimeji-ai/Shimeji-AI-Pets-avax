@@ -5,6 +5,7 @@ members = [
     "contracts/shimeji-auction",
     "contracts/shimeji-escrow-vault",
     "contracts/shimeji-marketplace",
+    "contracts/shimeji-commission",
 ]
 
 [workspace.dependencies]

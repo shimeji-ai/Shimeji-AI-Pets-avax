@@ -449,6 +449,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "is_commission_egg"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "price_usdc"
                       },
                       "val": {
@@ -538,6 +546,18 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "NextCommissionOrderId"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u64": 0
                         }
                       },
                       {

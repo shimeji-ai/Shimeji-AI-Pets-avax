@@ -34,6 +34,7 @@ export interface ListingInfo {
   priceXlm: bigint;
   priceUsdc: bigint;
   xlmUsdcRate: bigint;
+  isCommissionEgg: boolean;
   active: boolean;
 }
 
@@ -42,7 +43,22 @@ export interface SwapOffer {
   offerer: string;
   offeredTokenId: number;
   desiredTokenId: number;
+  intention: string;
   active: boolean;
+}
+
+export interface CommissionOrder {
+  orderId: number;
+  buyer: string;
+  seller: string;
+  listingId: number;
+  tokenId: number;
+  currency: "Xlm" | "Usdc" | string;
+  amountPaid: bigint;
+  intention: string;
+  referenceImageUrl: string;
+  fulfilled: boolean;
+  createdAt: number;
 }
 
 function parseScVal(val: xdr.ScVal): unknown {
@@ -116,6 +132,7 @@ export async function fetchListings(): Promise<ListingInfo[]> {
           priceXlm: data.price_xlm as bigint,
           priceUsdc: data.price_usdc as bigint,
           xlmUsdcRate: data.xlm_usdc_rate as bigint,
+          isCommissionEgg: Boolean(data.is_commission_egg),
           active: data.active as boolean,
         });
       } catch {
@@ -161,6 +178,7 @@ export async function fetchSwapOffers(): Promise<SwapOffer[]> {
           offerer: data.offerer as string,
           offeredTokenId: data.offered_token_id as number,
           desiredTokenId: data.desired_token_id as number,
+          intention: (data.intention as string) ?? "",
           active: data.active as boolean,
         });
       } catch {
@@ -168,6 +186,55 @@ export async function fetchSwapOffers(): Promise<SwapOffer[]> {
       }
     }
     return offers;
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchCommissionOrders(): Promise<CommissionOrder[]> {
+  if (!MARKETPLACE_CONTRACT_ID) return [];
+  const server = getServer();
+  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+
+  try {
+    const totalResult = await server.simulateTransaction(
+      buildReadOnlyTx(contract.call("total_commission_orders"))
+    );
+    if (rpc.Api.isSimulationError(totalResult)) return [];
+    const total = Number(
+      (totalResult as rpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
+    );
+    if (total === 0) return [];
+
+    const orders: CommissionOrder[] = [];
+    for (let i = 0; i < total; i++) {
+      try {
+        const result = await server.simulateTransaction(
+          buildReadOnlyTx(contract.call("get_commission_order", nativeToScVal(i, { type: "u64" })))
+        );
+        if (rpc.Api.isSimulationError(result)) continue;
+        const data = parseScVal(
+          (result as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
+        ) as Record<string, unknown>;
+
+        orders.push({
+          orderId: i,
+          buyer: data.buyer as string,
+          seller: data.seller as string,
+          listingId: data.listing_id as number,
+          tokenId: data.token_id as number,
+          currency: (data.currency as string) ?? "Xlm",
+          amountPaid: data.amount_paid as bigint,
+          intention: (data.intention as string) ?? "",
+          referenceImageUrl: (data.reference_image_url as string) ?? "",
+          fulfilled: Boolean(data.fulfilled),
+          createdAt: data.created_at as number,
+        });
+      } catch {
+        // skip bad entries
+      }
+    }
+    return orders;
   } catch {
     return [];
   }
@@ -214,6 +281,22 @@ export async function buildListForSaleTx(
   ]);
 }
 
+export async function buildListCommissionEggTx(
+  sellerPublicKey: string,
+  tokenId: number,
+  priceXlm: bigint,
+  priceUsdc: bigint,
+  xlmUsdcRate: bigint
+): Promise<string> {
+  return buildMarketplaceTx(sellerPublicKey, "list_commission_egg", [
+    new Address(sellerPublicKey).toScVal(),
+    nativeToScVal(tokenId, { type: "u64" }),
+    nativeToScVal(priceXlm, { type: "i128" }),
+    nativeToScVal(priceUsdc, { type: "i128" }),
+    nativeToScVal(xlmUsdcRate, { type: "i128" }),
+  ]);
+}
+
 export async function buildBuyXlmTx(
   buyerPublicKey: string,
   listingId: number
@@ -224,6 +307,20 @@ export async function buildBuyXlmTx(
   ]);
 }
 
+export async function buildBuyCommissionXlmTx(
+  buyerPublicKey: string,
+  listingId: number,
+  intention: string,
+  referenceImageUrl: string
+): Promise<string> {
+  return buildMarketplaceTx(buyerPublicKey, "buy_commission_xlm", [
+    new Address(buyerPublicKey).toScVal(),
+    nativeToScVal(listingId, { type: "u64" }),
+    nativeToScVal(intention),
+    nativeToScVal(referenceImageUrl),
+  ]);
+}
+
 export async function buildBuyUsdcTx(
   buyerPublicKey: string,
   listingId: number
@@ -231,6 +328,20 @@ export async function buildBuyUsdcTx(
   return buildMarketplaceTx(buyerPublicKey, "buy_usdc", [
     new Address(buyerPublicKey).toScVal(),
     nativeToScVal(listingId, { type: "u64" }),
+  ]);
+}
+
+export async function buildBuyCommissionUsdcTx(
+  buyerPublicKey: string,
+  listingId: number,
+  intention: string,
+  referenceImageUrl: string
+): Promise<string> {
+  return buildMarketplaceTx(buyerPublicKey, "buy_commission_usdc", [
+    new Address(buyerPublicKey).toScVal(),
+    nativeToScVal(listingId, { type: "u64" }),
+    nativeToScVal(intention),
+    nativeToScVal(referenceImageUrl),
   ]);
 }
 
@@ -247,12 +358,14 @@ export async function buildCancelListingTx(
 export async function buildCreateSwapOfferTx(
   offererPublicKey: string,
   offeredTokenId: number,
-  desiredTokenId: number
+  desiredTokenId: number,
+  intention: string
 ): Promise<string> {
   return buildMarketplaceTx(offererPublicKey, "create_swap_offer", [
     new Address(offererPublicKey).toScVal(),
     nativeToScVal(offeredTokenId, { type: "u64" }),
     nativeToScVal(desiredTokenId, { type: "u64" }),
+    nativeToScVal(intention),
   ]);
 }
 
@@ -273,5 +386,15 @@ export async function buildCancelSwapTx(
   return buildMarketplaceTx(offererPublicKey, "cancel_swap", [
     new Address(offererPublicKey).toScVal(),
     nativeToScVal(swapId, { type: "u64" }),
+  ]);
+}
+
+export async function buildMarkCommissionFulfilledTx(
+  sellerPublicKey: string,
+  orderId: number
+): Promise<string> {
+  return buildMarketplaceTx(sellerPublicKey, "mark_commission_fulfilled", [
+    new Address(sellerPublicKey).toScVal(),
+    nativeToScVal(orderId, { type: "u64" }),
   ]);
 }

@@ -65,6 +65,9 @@
                 },
                 {
                   "u64": 1
+                },
+                {
+                  "string": "I love Bob's shimeji design!"
                 }
               ]
             }
@@ -440,6 +443,14 @@
                     },
                     {
                       "key": {
+                        "symbol": "intention"
+                      },
+                      "val": {
+                        "string": "I love Bob's shimeji design!"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "offered_token_id"
                       },
                       "val": {
@@ -496,6 +507,18 @@
                         },
                         "val": {
                           "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                        }
+                      },
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "NextCommissionOrderId"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "u64": 0
                         }
                       },
                       {
