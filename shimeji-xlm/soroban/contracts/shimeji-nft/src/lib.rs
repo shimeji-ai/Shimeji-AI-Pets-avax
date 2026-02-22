@@ -56,9 +56,9 @@ impl ShimejiNft {
         token_kind: TokenKind,
         creator_can_update_metadata: bool,
     ) -> u64 {
-        let token_id: u64 = env.storage().instance().get(&DataKey::NextTokenId).unwrap();
+        let token_id: u64 = env.storage().persistent().get(&DataKey::NextTokenId).unwrap();
         env.storage()
-            .instance()
+            .persistent()
             .set(&DataKey::NextTokenId, &(token_id + 1));
         env.storage()
             .persistent()
@@ -81,21 +81,21 @@ impl ShimejiNft {
     }
 
     pub fn initialize(env: Env, admin: Address) {
-        if env.storage().instance().has(&DataKey::Admin) {
+        if env.storage().persistent().has(&DataKey::Admin) {
             panic!("already initialized");
         }
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::NextTokenId, &0u64);
+        env.storage().persistent().set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::NextTokenId, &0u64);
     }
 
     pub fn mint(env: Env, to: Address, token_uri: String) -> u64 {
         validate_token_uri(&token_uri);
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
 
         // Before a minter is configured, only admin can mint.
         // After a minter is configured, mint is reserved for the minter (auction contract).
-        if env.storage().instance().has(&DataKey::Minter) {
-            let minter: Address = env.storage().instance().get(&DataKey::Minter).unwrap();
+        if env.storage().persistent().has(&DataKey::Minter) {
+            let minter: Address = env.storage().persistent().get(&DataKey::Minter).unwrap();
             minter.require_auth();
         } else {
             admin.require_auth();
@@ -113,7 +113,7 @@ impl ShimejiNft {
 
     pub fn mint_commission_egg(env: Env, to: Address, creator: Address, token_uri: String) -> u64 {
         validate_token_uri(&token_uri);
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
         admin.require_auth();
 
         Self::mint_internal(
@@ -131,11 +131,11 @@ impl ShimejiNft {
         require_existing_token(&env, token_id);
 
         // Allow admin or designated metadata_updater (e.g. commission contract)
-        if env.storage().instance().has(&DataKey::MetadataUpdater) {
-            let updater: Address = env.storage().instance().get(&DataKey::MetadataUpdater).unwrap();
+        if env.storage().persistent().has(&DataKey::MetadataUpdater) {
+            let updater: Address = env.storage().persistent().get(&DataKey::MetadataUpdater).unwrap();
             updater.require_auth();
         } else {
-            let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+            let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
             admin.require_auth();
         }
 
@@ -201,15 +201,15 @@ impl ShimejiNft {
     }
 
     pub fn set_minter(env: Env, minter: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::Minter, &minter);
+        env.storage().persistent().set(&DataKey::Minter, &minter);
     }
 
     pub fn set_metadata_updater(env: Env, updater: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let admin: Address = env.storage().persistent().get(&DataKey::Admin).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::MetadataUpdater, &updater);
+        env.storage().persistent().set(&DataKey::MetadataUpdater, &updater);
     }
 
     pub fn transfer(env: Env, from: Address, to: Address, token_id: u64) {
@@ -276,7 +276,7 @@ impl ShimejiNft {
 
     pub fn total_supply(env: Env) -> u64 {
         env.storage()
-            .instance()
+            .persistent()
             .get(&DataKey::NextTokenId)
             .unwrap_or(0u64)
     }
