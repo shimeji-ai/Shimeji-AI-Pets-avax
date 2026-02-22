@@ -39,9 +39,9 @@ set -euo pipefail
 #   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
 #   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
-#   DEPLOY_STEP_DELAY_SECONDS=0 (extra wait after non-local deploy/init steps)
-#   DEPLOY_RETRY_ATTEMPTS=3 (non-local retries for deploy/invoke)
-#   DEPLOY_RETRY_DELAY_SECONDS=4
+#   DEPLOY_STEP_DELAY_SECONDS=5 (extra wait after non-local deploy/init steps; default tuned for testnet)
+#   DEPLOY_RETRY_ATTEMPTS=8 (non-local retries for upload/deploy/invoke; default tuned for testnet)
+#   DEPLOY_RETRY_DELAY_SECONDS=8 (seconds between non-local retries; default tuned for testnet)
 
 NETWORK="${NETWORK:-}"
 SECRET="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
@@ -77,9 +77,9 @@ INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
 INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
 INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1600000}"
 INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
-DEPLOY_STEP_DELAY_SECONDS="${DEPLOY_STEP_DELAY_SECONDS:-0}"
-DEPLOY_RETRY_ATTEMPTS="${DEPLOY_RETRY_ATTEMPTS:-3}"
-DEPLOY_RETRY_DELAY_SECONDS="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
+DEPLOY_STEP_DELAY_SECONDS="${DEPLOY_STEP_DELAY_SECONDS:-5}"
+DEPLOY_RETRY_ATTEMPTS="${DEPLOY_RETRY_ATTEMPTS:-8}"
+DEPLOY_RETRY_DELAY_SECONDS="${DEPLOY_RETRY_DELAY_SECONDS:-8}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
   NETWORK="$1"
