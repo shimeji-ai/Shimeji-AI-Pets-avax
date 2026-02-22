@@ -14,7 +14,7 @@ export function GiveawayWidget() {
   const handleGoToAuction = () => {
     setIsOpen(false);
     window.requestAnimationFrame(() => {
-      router.push("/auction#subasta");
+      router.push("/auction");
     });
   };
 

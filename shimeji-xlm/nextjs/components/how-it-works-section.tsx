@@ -112,7 +112,7 @@ export function HowItWorksSection() {
                     isSpanish ? (
                       <>
                         <Link
-                          href="/auction#subasta"
+                          href="/auction"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
                     Participá en nuestras subastas
@@ -123,7 +123,7 @@ export function HowItWorksSection() {
                     ) : (
                       <>
                         <Link
-                          href="/auction#subasta"
+                          href="/auction"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
                           Bid in our auctions

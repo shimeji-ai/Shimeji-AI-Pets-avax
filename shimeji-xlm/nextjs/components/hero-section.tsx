@@ -79,7 +79,7 @@ export function HeroSection() {
                   size="lg"
                   className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
                 >
-                  <Link href="/auction#subasta">
+                  <Link href="/auction">
                     <Wand2 className="w-4 h-4" />
                     {isSpanish ? "Ver Subasta" : "View Auction"}
                   </Link>
