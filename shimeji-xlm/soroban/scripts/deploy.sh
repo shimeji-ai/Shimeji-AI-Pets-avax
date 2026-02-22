@@ -1359,15 +1359,40 @@ install_wasm() {
   local label="$1"
   local wasm_file="$2"
   local hash
+  local install_output
+  local attempt=1
+  local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
+  local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
   echo "==> Installing ${label} Wasm..."
-  hash="$(stellar contract install \
-    --wasm "$wasm_file" \
-    --source "$IDENTITY" \
-    --rpc-url "$RPC_URL" \
-    --network-passphrase "$PASSPHRASE")"
+
+  while true; do
+    install_output="$(stellar contract install \
+      --wasm "$wasm_file" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" 2>&1)" && break
+
+    if [ "$NETWORK" = "local" ] || [ "$attempt" -ge "$max_attempts" ]; then
+      echo "$install_output" >&2
+      die "Failed to install ${label} Wasm after ${attempt} attempt(s)."
+    fi
+
+    echo "==> ${label} Wasm install failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..."
+    if printf "%s" "$install_output" | grep -qi 'TxBadSeq'; then
+      echo "    Detected TxBadSeq (sequence propagation lag on RPC/testnet)."
+    fi
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
+
   # stellar contract install prints the hash as the last non-empty line
-  hash="$(printf "%s" "$hash" | tr -d '\r' | grep -E '^[0-9a-f]{64}$' | tail -n1)"
+  hash="$(printf "%s" "$install_output" | tr -d '\r' | grep -E '^[0-9a-f]{64}$' | tail -n1)"
+  if [ -z "$hash" ] && printf "%s" "$install_output" | grep -qi 'already installed'; then
+    # Some CLI versions skip printing the hash consistently on deduped installs.
+    hash="$(hash_file "$wasm_file")"
+  fi
   if [ -z "$hash" ]; then
+    echo "$install_output" >&2
     die "Could not determine Wasm hash for ${label} after install."
   fi
   echo "  ${label} Wasm hash: $hash"
