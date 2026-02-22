@@ -14,6 +14,15 @@ pub enum DataKey {
 #[contract]
 pub struct ShimejiNft;
 
+fn validate_token_uri(token_uri: &String) {
+    if token_uri.is_empty() {
+        panic!("token_uri cannot be empty");
+    }
+    if token_uri.len() < 7 {
+        panic!("token_uri too short");
+    }
+}
+
 #[contractimpl]
 impl ShimejiNft {
     pub fn initialize(env: Env, admin: Address) {
@@ -25,6 +34,7 @@ impl ShimejiNft {
     }
 
     pub fn mint(env: Env, to: Address, token_uri: String) -> u64 {
+        validate_token_uri(&token_uri);
         let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
 
         // Allow admin or minter to call mint
