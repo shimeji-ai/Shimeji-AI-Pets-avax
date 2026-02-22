@@ -1664,17 +1664,13 @@ export function MarketplaceSection() {
   return (
     <section id="subasta" className="pt-28 px-4 pb-16">
       <div className="max-w-6xl mx-auto">
-        {/* Header row */}
-        <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
-          <h1 className="text-3xl font-black uppercase tracking-tight text-foreground">
-            {t("Marketplace", "Mercado")}
-          </h1>
-          <div className="flex items-center gap-2">
+        {/* Header actions */}
+        {(headerFaucetButton || headerWalletButton) ? (
+          <div className="mb-6 flex items-center justify-end gap-2 flex-wrap">
             {headerFaucetButton}
             {headerWalletButton}
-            {!isLocalNetwork ? <FreighterConnectButton /> : null}
           </div>
-        </div>
+        ) : null}
 
         {globalError ? <p className="mb-4 text-xs text-red-500">{globalError}</p> : null}
         {balanceBadge}
