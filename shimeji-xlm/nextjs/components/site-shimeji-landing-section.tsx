@@ -427,7 +427,7 @@ export function SiteShimejiLandingSection() {
                   {isSpanish ? "Descargas" : "Downloads"}
                 </Link>
                 <Link
-                  href="/auction"
+                  href="/auction#subasta"
                   className="inline-flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/70"
                 >
                   <Gavel className="h-4 w-4" />

@@ -16,17 +16,15 @@ const AuctionButton = ({
   const { isSpanish } = useLanguage();
   return (
     <StyledWrapper>
-      <Link href="/auction">
-        <button type="button" className="btn">
-          <strong>{isSpanish ? labelEs : labelEn}</strong>
-          <div id="container-stars">
-            <div id="stars" />
-          </div>
-          <div id="glow">
-            <div className="circle" />
-            <div className="circle" />
-          </div>
-        </button>
+      <Link href="/auction#subasta" className="btn">
+        <strong>{isSpanish ? labelEs : labelEn}</strong>
+        <div id="container-stars">
+          <div id="stars" />
+        </div>
+        <div id="glow">
+          <div className="circle" />
+          <div className="circle" />
+        </div>
       </Link>
     </StyledWrapper>
   );
@@ -34,6 +32,7 @@ const AuctionButton = ({
 
 const StyledWrapper = styled.div`
   .btn {
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -47,6 +46,7 @@ const StyledWrapper = styled.div`
     transition: 0.5s;
     animation: auction-gradient 5s ease infinite;
     border: double 4px transparent;
+    text-decoration: none;
     background-image: linear-gradient(#0b0f14, #0b0f14),
       linear-gradient(
         120deg,

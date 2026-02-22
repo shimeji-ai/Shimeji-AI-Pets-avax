@@ -74,15 +74,16 @@ export function HeroSection() {
                 onMouseEnter={() => setIsViewCollectionHovered(true)}
                 onMouseLeave={() => setIsViewCollectionHovered(false)}
               >
-                <Link href="/auction">
-                  <Button
-                    size="lg"
-                    className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
-                  >
+                <Button
+                  asChild
+                  size="lg"
+                  className="neural-button-outline rounded-full hover:cursor-pointer px-8 gap-2 text-base"
+                >
+                  <Link href="/auction#subasta">
                     <Wand2 className="w-4 h-4" />
                     {isSpanish ? "Ver Subasta" : "View Auction"}
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
                 <SparkleAnimation isHovering={isViewCollectionHovered} />
               </div>
             </div>

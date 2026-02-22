@@ -9,6 +9,11 @@ type Msg = { role: Role; content: string };
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
 type WallSide = "left" | "right";
 type WallDirection = "up" | "down";
+const WALK_PAUSE_MIN_MS = 650;
+const WALK_PAUSE_MAX_MS = 1800;
+const WALK_SEGMENT_MIN_MS = 1400;
+const WALK_SEGMENT_MAX_MS = 3400;
+const WALK_PAUSE_REVERSE_CHANCE = 0.35;
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -117,6 +122,9 @@ export function SiteShimejiMascot() {
     lastT: 0,
     lastFrameT: 0,
     lastSideT: 0,
+    nextPauseT: 0,
+    pauseUntilT: 0,
+    pauseState: null as MascotState | null,
   });
 
   useEffect(() => {
@@ -146,6 +154,9 @@ export function SiteShimejiMascot() {
     physicsRef.current.state = "falling";
     physicsRef.current.rotation = 0;
     physicsRef.current.dir = Math.random() < 0.5 ? -1 : 1;
+    physicsRef.current.nextPauseT = 0;
+    physicsRef.current.pauseUntilT = 0;
+    physicsRef.current.pauseState = null;
 
     const handleResize = () => {
       const { maxX, floorY } = updateBounds();
@@ -173,6 +184,9 @@ export function SiteShimejiMascot() {
       physicsRef.current.dragOffsetY = clientY - physicsRef.current.y;
       physicsRef.current.vy = 0;
       physicsRef.current.state = "falling";
+      physicsRef.current.nextPauseT = 0;
+      physicsRef.current.pauseUntilT = 0;
+      physicsRef.current.pauseState = null;
     };
 
     const handleMouseMove = (e: MouseEvent | TouchEvent) => {
@@ -193,6 +207,9 @@ export function SiteShimejiMascot() {
       physicsRef.current.isDragging = false;
       physicsRef.current.state = "falling";
       physicsRef.current.rotation = 0;
+      physicsRef.current.nextPauseT = 0;
+      physicsRef.current.pauseUntilT = 0;
+      physicsRef.current.pauseState = null;
     };
 
     document.addEventListener("mousedown", handleMouseDown);
@@ -214,6 +231,23 @@ export function SiteShimejiMascot() {
       p.lastT = t;
 
       const { maxX, floorY } = updateBounds();
+      const canPauseWhileWalking = p.state === "floor-walking" || p.state === "ceiling-walking";
+      if (p.pauseState !== p.state) {
+        p.pauseState = p.state;
+        p.pauseUntilT = 0;
+        p.nextPauseT = canPauseWhileWalking
+          ? t + WALK_SEGMENT_MIN_MS + Math.random() * (WALK_SEGMENT_MAX_MS - WALK_SEGMENT_MIN_MS)
+          : 0;
+      }
+      if (canPauseWhileWalking && p.pauseUntilT <= t && p.nextPauseT > 0 && t >= p.nextPauseT) {
+        p.pauseUntilT = t + WALK_PAUSE_MIN_MS + Math.random() * (WALK_PAUSE_MAX_MS - WALK_PAUSE_MIN_MS);
+        p.nextPauseT =
+          p.pauseUntilT + WALK_SEGMENT_MIN_MS + Math.random() * (WALK_SEGMENT_MAX_MS - WALK_SEGMENT_MIN_MS);
+        if (Math.random() < WALK_PAUSE_REVERSE_CHANCE) {
+          p.dir = p.dir === 1 ? -1 : 1;
+        }
+      }
+      const isWalkPaused = canPauseWhileWalking && p.pauseUntilT > t;
 
       if (!openRef.current && !p.isDragging) {
         if (p.state === "falling") {
@@ -229,7 +263,9 @@ export function SiteShimejiMascot() {
         } else if (p.state === "floor-walking") {
           p.rotation = 0;
           p.y = floorY;
-          p.x += p.dir * speedPxPerSec * dt;
+          if (!isWalkPaused) {
+            p.x += p.dir * speedPxPerSec * dt;
+          }
           if (p.x <= minX) {
             p.x = minX;
             p.state = "wall-climbing";
@@ -272,7 +308,9 @@ export function SiteShimejiMascot() {
         } else if (p.state === "ceiling-walking") {
           p.rotation = 180;
           p.y = minY;
-          p.x += p.dir * speedPxPerSec * dt;
+          if (!isWalkPaused) {
+            p.x += p.dir * speedPxPerSec * dt;
+          }
           if (p.x <= minX) {
             p.x = minX;
             p.state = "wall-climbing";
@@ -298,7 +336,12 @@ export function SiteShimejiMascot() {
       }
 
       if (imgRef.current) {
-        if (openRef.current || p.isDragging || p.state === "falling") {
+        const pausedLocomotion =
+          !openRef.current &&
+          !p.isDragging &&
+          (p.state === "floor-walking" || p.state === "ceiling-walking") &&
+          p.pauseUntilT > t;
+        if (openRef.current || p.isDragging || p.state === "falling" || pausedLocomotion) {
           if (imgRef.current.getAttribute("src") !== frames.stand) {
             imgRef.current.setAttribute("src", frames.stand);
           }

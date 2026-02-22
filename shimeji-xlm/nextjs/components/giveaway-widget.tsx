@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLanguage } from "./language-provider";
 
 export function GiveawayWidget() {
   const { isSpanish } = useLanguage();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<number | null>(null);
@@ -12,7 +14,7 @@ export function GiveawayWidget() {
   const handleGoToAuction = () => {
     setIsOpen(false);
     window.requestAnimationFrame(() => {
-      window.location.assign("/auction");
+      router.push("/auction#subasta");
     });
   };
 

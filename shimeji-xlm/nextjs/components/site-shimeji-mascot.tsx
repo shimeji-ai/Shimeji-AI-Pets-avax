@@ -54,6 +54,11 @@ const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
 const MASCOT_HINT_TEXT = "🐱 Click me";
+const WALK_PAUSE_MIN_MS = 650;
+const WALK_PAUSE_MAX_MS = 1800;
+const WALK_SEGMENT_MIN_MS = 1400;
+const WALK_SEGMENT_MAX_MS = 3400;
+const WALK_PAUSE_REVERSE_CHANCE = 0.35;
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -64,6 +69,12 @@ type DragState = {
   offsetX: number;
   offsetY: number;
   pos: { x: number; y: number };
+};
+
+type WanderPauseState = {
+  nextPauseAt: number;
+  pauseUntil: number;
+  lastMovementState: MascotState | null;
 };
 
 function getBoundsFromWindow(spriteScale = 1) {
@@ -170,6 +181,11 @@ export function SiteShimejiMascot() {
   const floorDirRef = useRef<1 | -1>(Math.random() < 0.5 ? -1 : 1);
   const ceilingDirRef = useRef<1 | -1>(1);
   const fallVelocityRef = useRef(0);
+  const wanderPauseRef = useRef<WanderPauseState>({
+    nextPauseAt: 0,
+    pauseUntil: 0,
+    lastMovementState: null,
+  });
   const phaseRef = useRef<"auto" | "held">("auto");
   const dragStateRef = useRef<DragState | null>(null);
   const isDraggingRef = useRef(false);
@@ -287,6 +303,9 @@ export function SiteShimejiMascot() {
       offsetY: event.clientY - currY,
       pos: { x: currX, y: currY },
     };
+    wanderPauseRef.current.nextPauseAt = 0;
+    wanderPauseRef.current.pauseUntil = 0;
+    wanderPauseRef.current.lastMovementState = null;
     phaseRef.current = "held";
   };
 
@@ -334,6 +353,9 @@ export function SiteShimejiMascot() {
         movementStateRef.current = "falling";
       }
       phaseRef.current = "auto";
+      wanderPauseRef.current.nextPauseAt = 0;
+      wanderPauseRef.current.pauseUntil = 0;
+      wanderPauseRef.current.lastMovementState = null;
       if (wasDragging) triggerJumpBurst();
       event.preventDefault();
     };
@@ -362,6 +384,9 @@ export function SiteShimejiMascot() {
       fallVelocityRef.current = 0;
       floorDirRef.current = Math.random() < 0.5 ? -1 : 1;
       ceilingDirRef.current = floorDirRef.current;
+      wanderPauseRef.current.nextPauseAt = 0;
+      wanderPauseRef.current.pauseUntil = 0;
+      wanderPauseRef.current.lastMovementState = null;
       isInitializedRef.current = true;
       
       if (wrapRef.current) {
@@ -474,6 +499,33 @@ export function SiteShimejiMascot() {
       } else {
         const state = movementStateRef.current;
         const next = { ...targetPos };
+        const pauseState = wanderPauseRef.current;
+        const canPauseWhileWalking = state === "floor-walking" || state === "ceiling-walking";
+        if (pauseState.lastMovementState !== state) {
+          pauseState.lastMovementState = state;
+          pauseState.pauseUntil = 0;
+          pauseState.nextPauseAt = canPauseWhileWalking
+            ? time + WALK_SEGMENT_MIN_MS + Math.random() * (WALK_SEGMENT_MAX_MS - WALK_SEGMENT_MIN_MS)
+            : 0;
+        }
+        if (
+          canPauseWhileWalking &&
+          pauseState.pauseUntil <= time &&
+          pauseState.nextPauseAt > 0 &&
+          time >= pauseState.nextPauseAt
+        ) {
+          pauseState.pauseUntil = time + WALK_PAUSE_MIN_MS + Math.random() * (WALK_PAUSE_MAX_MS - WALK_PAUSE_MIN_MS);
+          pauseState.nextPauseAt =
+            pauseState.pauseUntil + WALK_SEGMENT_MIN_MS + Math.random() * (WALK_SEGMENT_MAX_MS - WALK_SEGMENT_MIN_MS);
+          if (Math.random() < WALK_PAUSE_REVERSE_CHANCE) {
+            if (state === "floor-walking") {
+              floorDirRef.current = floorDirRef.current === 1 ? -1 : 1;
+            } else {
+              ceilingDirRef.current = ceilingDirRef.current === 1 ? -1 : 1;
+            }
+          }
+        }
+        const isWalkPaused = canPauseWhileWalking && pauseState.pauseUntil > time;
 
         if (state === "falling") {
           fallVelocityRef.current += GRAVITY * dt;
@@ -487,7 +539,9 @@ export function SiteShimejiMascot() {
           }
         } else if (state === "floor-walking") {
           next.y = bounds.maxY;
-          next.x += floorDirRef.current * WALK_SPEED * dt;
+          if (!isWalkPaused) {
+            next.x += floorDirRef.current * WALK_SPEED * dt;
+          }
           if (next.x <= bounds.minX) {
             next.x = bounds.minX;
             wallSideRef.current = "left";
@@ -507,7 +561,9 @@ export function SiteShimejiMascot() {
           }
         } else {
           next.y = bounds.minY;
-          next.x += ceilingDirRef.current * WALK_SPEED * dt;
+          if (!isWalkPaused) {
+            next.x += ceilingDirRef.current * WALK_SPEED * dt;
+          }
           if (next.x <= bounds.minX) {
             next.x = bounds.minX;
             ceilingDirRef.current = 1;
@@ -524,13 +580,20 @@ export function SiteShimejiMascot() {
           frameIdx = 0;
           imgRef.current?.setAttribute("src", frames.stand);
         } else {
+          const isPausedLocomotion =
+            (animState === "floor-walking" || animState === "ceiling-walking") &&
+            wanderPauseRef.current.pauseUntil > time;
           const activeFrames =
             animState === "floor-walking"
               ? frames.walk
               : animState === "wall-climbing"
                 ? frames.wallClimb
                 : frames.ceilingWalk;
-          if (lastAnimState !== animState) {
+          if (isPausedLocomotion) {
+            frameIdx = 0;
+            lastFrameT = time;
+            imgRef.current?.setAttribute("src", animState === "floor-walking" ? frames.stand : frames.ceilingWalk[0]);
+          } else if (lastAnimState !== animState) {
             frameIdx = 0;
             lastFrameT = time;
             imgRef.current?.setAttribute("src", activeFrames[frameIdx]);
