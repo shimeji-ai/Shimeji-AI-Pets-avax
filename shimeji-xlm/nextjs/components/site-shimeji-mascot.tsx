@@ -659,6 +659,10 @@ export function SiteShimejiMascot() {
           ? "Ollama"
           : "OpenClaw";
   const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
+  const canAutoFallbackToSiteCredits =
+    config.provider === "openrouter" &&
+    !config.openrouterApiKey.trim() &&
+    (freeSiteMessagesRemaining ?? 0) > 0;
 
   function setVoiceInfoStatus(message: string) {
     setVoiceStatusTone("info");
@@ -885,6 +889,7 @@ export function SiteShimejiMascot() {
 
   async function send(inputOverride?: string) {
     const text = (typeof inputOverride === "string" ? inputOverride : input).trim();
+    const providerForRequest = canAutoFallbackToSiteCredits ? ("site" as const) : config.provider;
     if (!text || sending) return;
 
     if (!config.enabled) {
@@ -908,7 +913,7 @@ export function SiteShimejiMascot() {
       return;
     }
 
-    if (!canUseCurrentProvider) {
+    if (!canUseCurrentProvider && !canAutoFallbackToSiteCredits) {
       const configMessage = isSpanish
         ? "Falta configuración para ese proveedor. Abrí la configuración del shimeji (engranaje) y completá los datos en Chat > Proveedor."
         : "That provider is not fully configured yet. Open the shimeji settings (gear) and complete the setup in Chat > Provider.";
@@ -928,7 +933,7 @@ export function SiteShimejiMascot() {
         .map((m) => ({ role: m.role, content: m.content }));
       let reply = "";
 
-      if (config.provider === "ollama" || config.provider === "openclaw") {
+      if (providerForRequest === "ollama" || providerForRequest === "openclaw") {
         const providerMessages = buildSiteShimejiChatMessages({
           message: text,
           history,
@@ -938,7 +943,7 @@ export function SiteShimejiMascot() {
           personalityPrompt: selectedPersonality?.prompt,
         });
         reply =
-          config.provider === "ollama"
+          providerForRequest === "ollama"
             ? await sendOllamaBrowserChat({
                 messages: providerMessages,
                 ollamaUrl: config.ollamaUrl,
@@ -958,9 +963,9 @@ export function SiteShimejiMascot() {
             message: text,
             history,
             lang: language,
-            provider: config.provider,
+            provider: providerForRequest,
             providerConfig:
-              config.provider === "openrouter"
+              providerForRequest === "openrouter"
                 ? {
                     openrouterApiKey: config.openrouterApiKey,
                     openrouterModel: config.openrouterModel,
@@ -984,14 +989,14 @@ export function SiteShimejiMascot() {
       const finalReply = reply.trim();
       setMessages(prev => [...prev, { role: "assistant", content: finalReply }]);
       void speakReply(finalReply);
-      if (config.provider === "site") {
+      if (providerForRequest === "site") {
         incrementFreeSiteMessagesUsed();
       }
     } catch (error) {
       const fallback = formatSiteShimejiProviderError(
         error,
         isSpanish,
-        config.provider,
+        providerForRequest,
       );
       setMessages(prev => [...prev, { role: "assistant", content: fallback }]);
       void speakReply(fallback);
