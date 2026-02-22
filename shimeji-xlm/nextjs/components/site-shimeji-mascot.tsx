@@ -27,7 +27,7 @@ const FALL_START_Y = -SPRITE_SIZE;
 const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
-const MASCOT_HINT_TEXT = "🐱 Press me";
+const MASCOT_HINT_TEXT = "🐱 Click me";
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -727,7 +727,7 @@ export function SiteShimejiMascot() {
         >
           {showPressMeHint && (
             <div className={styles.pressHint}>
-              {isSpanish ? "🐱 Tócame" : MASCOT_HINT_TEXT}
+              {isSpanish ? "🐱 Clickeame" : MASCOT_HINT_TEXT}
             </div>
           )}
           <img className={styles.sprite} src={frames.stand} alt="" ref={imgRef} draggable={false} />

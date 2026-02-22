@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bot, ExternalLink, Download, Gavel, RefreshCw, Sparkles, User } from "lucide-react";
+import { Bot, ExternalLink, Download, Gavel, RefreshCw, User } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 
@@ -143,12 +143,12 @@ function OpenClawFields() {
         />
       </label>
 
-      {/* Human mode: informational note */}
+      {/* Human mode: compact note only */}
       {mode === "human" && (
         <p className="text-xs text-muted-foreground">
           {isSpanish
-            ? "OpenClaw en la web habilita modo agente, pero sin acceso a terminal local ni WSL."
-            : "Website OpenClaw enables agent mode, but without local terminal or WSL access."}
+            ? "Usá este modo para conectar el Shimeji web a tu gateway y chatear. Si querés ver instrucciones para integrar un agente, hacé clic en “Soy un agente”."
+            : "Use this mode to connect the website Shimeji to your gateway and chat. If you want agent integration instructions, click “I'm an agent”."}
         </p>
       )}
 
@@ -157,15 +157,38 @@ function OpenClawFields() {
         <div className="space-y-3">
           <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
             <p className="mb-2 font-semibold text-foreground">
-              {isSpanish ? "Instrucciones para el agente" : "Agent connection instructions"}
+              {isSpanish ? "Instrucciones para integrar tu agente" : "Agent integration instructions"}
             </p>
             <p className="mb-2">
               {isSpanish
-                ? "Configurá tu gateway OpenClaw con los valores de arriba para comunicarte a través de este Shimeji. Los mensajes del usuario llegarán a tu agente; tus respuestas aparecerán en la burbuja del Shimeji."
-                : "Configure your OpenClaw gateway with the values above to communicate through this Shimeji. User messages will be routed to your agent; your replies will appear in the Shimeji chat bubble."}
+                ? "Este Shimeji web se conecta por WebSocket a tu gateway OpenClaw usando los campos de arriba. No son instrucciones para el modelo: son los datos de conexión que usa la web para hablar con tu agente."
+                : "This website Shimeji connects to your OpenClaw gateway over WebSocket using the fields above. These are not model prompts: they are the connection values the website uses to talk to your agent."}
+            </p>
+            <ul className="mb-2 list-disc space-y-1 pl-4">
+              <li>
+                {isSpanish
+                  ? "Gateway URL: URL ws:// o wss:// de tu gateway OpenClaw."
+                  : "Gateway URL: your OpenClaw gateway ws:// or wss:// URL."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Nombre del agente: identificador del agente/sesión que querés usar desde este Shimeji."
+                  : "Agent name: the agent/session identifier you want this Shimeji to use."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Token del gateway: token de autenticación del gateway (se guarda localmente en tu navegador)."
+                  : "Gateway auth token: gateway authentication token (stored locally in your browser)."}
+              </li>
+            </ul>
+            <p className="mb-2">
+              {isSpanish
+                ? "Cuando el usuario chatea con el Shimeji, los mensajes se enrutan a ese agente y la respuesta vuelve a la burbuja del Shimeji. No habilita acceso local a terminal ni WSL."
+                : "When the user chats with the Shimeji, messages are routed to that agent and the reply returns to the Shimeji bubble. This does not enable local terminal or WSL access."}
             </p>
             <pre className="overflow-x-auto rounded-lg border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
-              {`gateway_url:  ${config.openclawGatewayUrl || "ws://127.0.0.1:18789"}
+              {`# ${isSpanish ? "Valores actuales (referencia)" : "Current values (reference)"}
+gateway_url:  ${config.openclawGatewayUrl || "ws://127.0.0.1:18789"}
 agent_name:   ${config.openclawAgentName || "web-shimeji-1"}
 auth_token:   ${config.openclawGatewayToken ? "••••••••" : "(not set)"}`}
             </pre>
@@ -313,7 +336,7 @@ export function SiteShimejiLandingSection() {
     resetConfig,
   } = useSiteShimeji();
 
-  const [activeTab, setActiveTab] = useState<"appearance" | "provider">("appearance");
+  const [activeTab, setActiveTab] = useState<"appearance" | "sound" | "provider">("appearance");
 
   // Normalize legacy "site" provider to "openrouter"
   const effectiveProvider: ProviderKey =
@@ -348,15 +371,6 @@ export function SiteShimejiLandingSection() {
           <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
             {/* ── Left: hero ── */}
             <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-foreground/80">
-                <Sparkles className="h-3.5 w-3.5 text-[var(--brand-accent)]" />
-                <span>
-                  {isSpanish
-                    ? "Asistente de IA para el navegador · Sin instalación"
-                    : "Browser AI assistant · No install needed"}
-                </span>
-              </div>
-
               <h1 className="text-balance text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]">
                 {heroTitle}
               </h1>
@@ -416,7 +430,7 @@ export function SiteShimejiLandingSection() {
             <div className="flex flex-col overflow-hidden rounded-3xl border border-border bg-background/40 backdrop-blur-sm">
               {/* Tab bar */}
               <div className="flex shrink-0 border-b border-border">
-                {(["provider", "appearance"] as const).map((tab) => (
+                {(["appearance", "sound", "provider"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -432,103 +446,22 @@ export function SiteShimejiLandingSection() {
                         : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
                     }`}
                   >
-                    {tab === "provider"
+                    {tab === "appearance"
                       ? isSpanish
-                        ? "Proveedor"
-                        : "Provider"
-                      : isSpanish
                         ? "Apariencia"
-                        : "Appearance"}
+                        : "Appearance"
+                      : tab === "sound"
+                        ? isSpanish
+                          ? "Sonido"
+                          : "Sound"
+                        : isSpanish
+                          ? "Proveedor"
+                          : "Provider"}
                   </button>
                 ))}
               </div>
 
               <div className="flex-1 overflow-y-auto p-5">
-                {/* ── Provider tab ── */}
-                {activeTab === "provider" && (
-                  <div className="space-y-4">
-                    {/* Provider selector */}
-                    <div>
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {isSpanish ? "Proveedor de IA" : "AI Provider"}
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {PROVIDER_META.map((p) => (
-                          <button
-                            key={p.key}
-                            type="button"
-                            onClick={() => updateConfig({ provider: p.key })}
-                            className={`rounded-xl border px-2 py-2.5 text-left transition-colors ${
-                              effectiveProvider === p.key
-                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
-                                : "border-border bg-muted/30 hover:bg-muted/60"
-                            }`}
-                          >
-                            <div className="text-sm font-semibold text-foreground">{p.label}</div>
-                            <div className="mt-0.5 text-[11px] text-muted-foreground">
-                              {isSpanish ? p.taglineEs : p.taglineEn}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Provider context: best-for + link */}
-                    <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
-                      <p className="text-xs text-muted-foreground">
-                        {isSpanish ? activeMeta.bestForEs : activeMeta.bestForEn}
-                      </p>
-                      <Link
-                        href={activeMeta.linkHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--brand-accent)] hover:underline"
-                      >
-                        {isSpanish ? activeMeta.linkLabelEs : activeMeta.linkLabelEn}
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </div>
-
-                    {/* Provider-specific fields */}
-                    <ProviderFields provider={effectiveProvider} />
-
-                    {/* Status */}
-                    <div
-                      className={`rounded-xl border p-3 text-xs font-medium text-foreground ${
-                        canUseCurrentProvider
-                          ? "border-emerald-500/40 bg-emerald-500/10"
-                          : "border-amber-500/40 bg-amber-500/10"
-                      }`}
-                    >
-                      {canUseCurrentProvider
-                        ? isSpanish
-                          ? "✓ Listo — hacé clic en el shimeji para chatear"
-                          : "✓ Ready — click the shimeji to start chatting"
-                        : isSpanish
-                          ? "Completá la configuración de arriba para empezar a chatear."
-                          : "Complete the config above to start chatting."}
-                    </div>
-
-                    {/* Security note */}
-                    <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
-                      {isSpanish
-                        ? "🔒 Las claves se guardan solo en tu navegador (localStorage). El servidor nunca las recibe."
-                        : "🔒 Keys are stored only in your browser (localStorage). They never reach the server."}
-                    </div>
-
-                    {/* Reset */}
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={resetConfig}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40"
-                      >
-                        {isSpanish ? "Restablecer" : "Reset settings"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* ── Appearance tab ── */}
                 {activeTab === "appearance" && (
                   <div className="space-y-4">
@@ -622,6 +555,113 @@ export function SiteShimejiLandingSection() {
                     </div>
                   </div>
                 )}
+
+                {/* ── Sound tab ── */}
+                {activeTab === "sound" && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-border bg-muted/20 p-4">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {isSpanish ? "Sonido" : "Sound"}
+                      </div>
+                      <p className="mt-2 text-sm text-foreground">
+                        {isSpanish
+                          ? "La pestaña de sonido ya está reservada. Los controles de volumen/efectos del Shimeji web llegan en una próxima actualización."
+                          : "The sound tab is now reserved. Web Shimeji volume/effects controls will arrive in a future update."}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {isSpanish
+                          ? "Por ahora, el comportamiento de audio depende de la configuración de tu navegador y del sistema."
+                          : "For now, audio behavior depends on your browser and system settings."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Provider tab ── */}
+                {activeTab === "provider" && (
+                  <div className="space-y-4">
+                    {/* Provider selector */}
+                    <div>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {isSpanish ? "Proveedor de IA" : "AI Provider"}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {PROVIDER_META.map((p) => (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => updateConfig({ provider: p.key })}
+                            className={`rounded-xl border px-2 py-2.5 text-left transition-colors ${
+                              effectiveProvider === p.key
+                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
+                                : "border-border bg-muted/30 hover:bg-muted/60"
+                            }`}
+                          >
+                            <div className="text-sm font-semibold text-foreground">{p.label}</div>
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">
+                              {isSpanish ? p.taglineEs : p.taglineEn}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Provider context: best-for + link */}
+                    <div className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+                      <p className="text-xs text-muted-foreground">
+                        {isSpanish ? activeMeta.bestForEs : activeMeta.bestForEn}
+                      </p>
+                      <Link
+                        href={activeMeta.linkHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--brand-accent)] hover:underline"
+                      >
+                        {isSpanish ? activeMeta.linkLabelEs : activeMeta.linkLabelEn}
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
+
+                    {/* Provider-specific fields */}
+                    <ProviderFields provider={effectiveProvider} />
+
+                    {/* Status */}
+                    <div
+                      className={`rounded-xl border p-3 text-xs font-medium text-foreground ${
+                        canUseCurrentProvider
+                          ? "border-emerald-500/40 bg-emerald-500/10"
+                          : "border-amber-500/40 bg-amber-500/10"
+                      }`}
+                    >
+                      {canUseCurrentProvider
+                        ? isSpanish
+                          ? "✓ Listo — hacé clic en el shimeji para chatear"
+                          : "✓ Ready — click the shimeji to start chatting"
+                        : isSpanish
+                          ? "Completá la configuración de arriba para empezar a chatear."
+                          : "Complete the config above to start chatting."}
+                    </div>
+
+                    {/* Security note */}
+                    <div className="rounded-xl border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                      {isSpanish
+                        ? "🔒 Las claves se guardan solo en tu navegador (localStorage). El servidor nunca las recibe."
+                        : "🔒 Keys are stored only in your browser (localStorage). They never reach the server."}
+                    </div>
+
+                    {/* Reset */}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={resetConfig}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40"
+                      >
+                        {isSpanish ? "Restablecer" : "Reset settings"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           </div>

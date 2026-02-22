@@ -7,6 +7,9 @@ This directory is the canonical shared source for desktop + browser runtimes.
 - `characters/`: sprite sets used by desktop, Chrome, and Firefox.
 - `personalities/`: Markdown personality prompts and generated `index.json`.
 - `assets/`: shared runtime audio assets.
+- `shimeji-shared.js`: shared runtime logic (constants, pure functions, animation data).
+  Exposed as `window.ShimejiShared` / `globalThis.ShimejiShared`.
+  Loaded before the main script in each target (see overlay.html and manifests).
 
 ## Sync workflow
 

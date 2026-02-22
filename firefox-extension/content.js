@@ -6,9 +6,39 @@
     }
     window.__shimejiInitialized = true;
 
-    const SPRITE_SIZE = 128;
-    const TICK_MS = 40;
-    const MAX_SHIMEJIS = 5;
+    // ─── Import shared runtime ────────────────────────────────────────────────
+    const {
+        SPRITE_SIZE, TICK_MS, MAX_SHIMEJIS,
+        CALL_BACK_LINE_SPACING, CALL_BACK_LINE_MARGIN, CALL_BACK_RESET_DELAY,
+        computeCallBackX, resetCallBackLineCounters, scheduleCallBackLineReset,
+        PERSONALITY_TTS, PERSONALITY_SOUND_RATE: PERSONALITY_PITCH,
+        TTS_VOICE_PROFILES, TTS_PROFILE_MODIFIERS, TTS_PROFILE_POOL,
+        SHIMEJI_PITCH_FACTORS,
+        getShimejiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
+        getVoicesAsync, pickVoiceByProfile,
+        CHAT_THEMES,
+        weightedRandom, clamp, hexToRgb, detectBrowserLanguage,
+        CHARACTER_KEYS, PERSONALITY_KEYS, MODEL_KEYS, MODEL_KEYS_ENABLED,
+        SIZE_KEYS, THEME_COLOR_POOL, OPENCLAW_AGENT_NAME_MAX,
+        SPRITES, ANIMATIONS_FULL, ANIMATIONS_SIMPLE,
+        defaultOpenClawAgentName, normalizeOpenClawAgentName,
+        normalizeMode, normalizePageUrl, isDisabledForCurrentPage,
+        getNoApiKeyMessage: _getNoApiKeyMessageRaw,
+        getNoCreditsMessage: _getNoCreditsMessageRaw,
+        getNoResponseMessage: _getNoResponseMessageRaw,
+        getLockedMessage: _getLockedMessageRaw,
+        getDefaultShimeji,
+        SHIMEJI_NOTE_FREQ, synthesizeFluteNote,
+        synthesizeShimejiSounds: _synthesizeShimejiSoundsRaw
+    } = ShimejiShared;
+
+    // Locale-aware i18n wrappers (isSpanishLocale is a hoisted function declaration below)
+    function getNoApiKeyMessage() { return _getNoApiKeyMessageRaw(isSpanishLocale()); }
+    function getNoCreditsMessage() { return _getNoCreditsMessageRaw(isSpanishLocale()); }
+    function getNoResponseMessage() { return _getNoResponseMessageRaw(isSpanishLocale()); }
+    function getLockedMessage() { return _getLockedMessageRaw(isSpanishLocale()); }
+    // Audio synthesis wrapper (getAudioContext is a hoisted function declaration below)
+    function synthesizeShimejiSounds(shimejiId) { return _synthesizeShimejiSoundsRaw(shimejiId, getAudioContext); }
 
     const sizes = {
         small: { scale: 0.5 },
@@ -40,277 +70,12 @@
         WALKING_ON: 'walking_on'
     };
 
-    const CALL_BACK_LINE_SPACING = 150;
-    const CALL_BACK_LINE_MARGIN = 22;
-    const CALL_BACK_RESET_DELAY = 1200;
-    const callBackLineCount = { left: 0, right: 0 };
-    let callBackLineResetTimer = null;
-
-    function resetCallBackLineCounters() {
-        callBackLineCount.left = 0;
-        callBackLineCount.right = 0;
-        callBackLineResetTimer = null;
-    }
-
-    function scheduleCallBackLineReset() {
-        if (callBackLineResetTimer) {
-            clearTimeout(callBackLineResetTimer);
-        }
-        callBackLineResetTimer = setTimeout(resetCallBackLineCounters, CALL_BACK_RESET_DELAY);
-    }
-
-    function computeCallBackX(edge, size) {
-        const safeEdge = edge === -1 ? -1 : 1;
-        const sideKey = safeEdge === -1 ? 'left' : 'right';
-        const slot = Math.min(callBackLineCount[sideKey], MAX_SHIMEJIS - 1);
-        callBackLineCount[sideKey] = Math.min(callBackLineCount[sideKey] + 1, MAX_SHIMEJIS);
-        scheduleCallBackLineReset();
-        const spacing = Math.max(CALL_BACK_LINE_SPACING, size * 1.1);
-        const leftBase = CALL_BACK_LINE_MARGIN;
-        const screenWidth = Math.max(window.innerWidth, size + CALL_BACK_LINE_MARGIN * 2);
-        const rightBase = Math.max(screenWidth - size - CALL_BACK_LINE_MARGIN, CALL_BACK_LINE_MARGIN);
-        if (safeEdge === -1) {
-            return Math.min(leftBase + slot * spacing, window.innerWidth - size - CALL_BACK_LINE_MARGIN);
-        }
-        return Math.max(rightBase - slot * spacing, CALL_BACK_LINE_MARGIN);
-    }
-
-    const SPRITES = {
-        'stand-neutral': 'stand-neutral.png',
-        'walk-step-left': 'walk-step-left.png',
-        'walk-step-right': 'walk-step-right.png',
-        'fall': 'fall.png',
-        'bounce-squish': 'bounce-squish.png',
-        'bounce-recover': 'bounce-recover.png',
-        'sit': 'sit.png',
-        'sit-look-up': 'sit-look-up.png',
-        'sprawl-lying': 'sprawl-lying.png',
-        'crawl-crouch': 'crawl-crouch.png',
-        'jump': 'jump.png',
-        'dragged-tilt-left': 'dragged-tilt-left-light.png',
-        'dragged-tilt-right': 'dragged-tilt-right-light.png',
-        'dragged-tilt-left-heavy': 'dragged-tilt-left-heavy.png',
-        'dragged-tilt-right-heavy': 'dragged-tilt-right-heavy.png',
-        'resist-frame-1': 'resist-frame-1.png',
-        'resist-frame-2': 'resist-frame-2.png',
-        'grab-wall': 'grab-wall.png',
-        'climb-wall-frame-1': 'climb-wall-frame-1.png',
-        'climb-wall-frame-2': 'climb-wall-frame-2.png',
-        'grab-ceiling': 'grab-ceiling.png',
-        'climb-ceiling-frame-1': 'climb-ceiling-frame-1.png',
-        'climb-ceiling-frame-2': 'climb-ceiling-frame-2.png',
-        'sit-edge-legs-up': 'sit-edge-legs-up.png',
-        'sit-edge-legs-down': 'sit-edge-legs-down.png',
-        'sit-edge-dangle-frame-1': 'sit-edge-dangle-frame-1.png',
-        'sit-edge-dangle-frame-2': 'sit-edge-dangle-frame-2.png',
-        'spin-head-frame-1': 'spin-head-frame-1.png',
-        'spin-head-frame-2': 'spin-head-frame-2.png',
-        'spin-head-frame-3': 'spin-head-frame-3.png',
-        'spin-head-frame-4': 'spin-head-frame-4.png',
-        'spin-head-frame-5': 'spin-head-frame-5.png',
-        'spin-head-frame-6': 'spin-head-frame-6.png'
-    };
-
-    const ANIMATIONS_FULL = {
-        idle: [
-            { sprite: 'stand-neutral', duration: 1 }
-        ],
-        walking: [
-            { sprite: 'stand-neutral', duration: 6 },
-            { sprite: 'walk-step-left', duration: 6 },
-            { sprite: 'stand-neutral', duration: 6 },
-            { sprite: 'walk-step-right', duration: 6 }
-        ],
-        crawling: [
-            { sprite: 'crawl-crouch', duration: 8 },
-            { sprite: 'sprawl-lying', duration: 8 }
-        ],
-        falling: [
-            { sprite: 'fall', duration: 1 }
-        ],
-        jumping: [
-            { sprite: 'jump', duration: 1 }
-        ],
-        landing: [
-            { sprite: 'bounce-squish', duration: 4 },
-            { sprite: 'bounce-recover', duration: 4 }
-        ],
-        sitting: [
-            { sprite: 'sit', duration: 1 }
-        ],
-        sittingLookUp: [
-            { sprite: 'sit-look-up', duration: 1 }
-        ],
-        sprawled: [
-            { sprite: 'sprawl-lying', duration: 1 }
-        ],
-        climbingWall: [
-            { sprite: 'grab-wall', duration: 16 },
-            { sprite: 'climb-wall-frame-1', duration: 4 },
-            { sprite: 'grab-wall', duration: 4 },
-            { sprite: 'climb-wall-frame-2', duration: 4 }
-        ],
-        climbingCeiling: [
-            { sprite: 'grab-ceiling', duration: 16 },
-            { sprite: 'climb-ceiling-frame-1', duration: 4 },
-            { sprite: 'grab-ceiling', duration: 4 },
-            { sprite: 'climb-ceiling-frame-2', duration: 4 }
-        ],
-        sittingEdge: [
-            { sprite: 'sit-edge-legs-up', duration: 10 },
-            { sprite: 'sit-edge-legs-down', duration: 20 },
-            { sprite: 'sit-edge-dangle-frame-1', duration: 15 },
-            { sprite: 'sit-edge-legs-down', duration: 20 },
-            { sprite: 'sit-edge-dangle-frame-2', duration: 15 }
-        ],
-        headSpin: [
-            { sprite: 'sit-look-up', duration: 5 },
-            { sprite: 'spin-head-frame-1', duration: 5 },
-            { sprite: 'spin-head-frame-4', duration: 5 },
-            { sprite: 'spin-head-frame-2', duration: 5 },
-            { sprite: 'spin-head-frame-5', duration: 5 },
-            { sprite: 'spin-head-frame-3', duration: 5 },
-            { sprite: 'spin-head-frame-6', duration: 5 },
-            { sprite: 'sit', duration: 5 }
-        ]
-    };
-    const ANIMATIONS_SIMPLE = {
-        idle: [
-            { sprite: 'stand-neutral', duration: 1 }
-        ],
-        walking: [
-            { sprite: 'stand-neutral', duration: 8 },
-            { sprite: 'walk-step-left', duration: 8 },
-            { sprite: 'stand-neutral', duration: 8 },
-            { sprite: 'walk-step-right', duration: 8 }
-        ],
-        crawling: [
-            { sprite: 'sprawl-lying', duration: 1 }
-        ],
-        falling: [
-            { sprite: 'fall', duration: 1 }
-        ],
-        jumping: [
-            { sprite: 'jump', duration: 1 }
-        ],
-        landing: [
-            { sprite: 'bounce-recover', duration: 6 }
-        ],
-        sitting: [
-            { sprite: 'sit', duration: 1 }
-        ],
-        sittingLookUp: [
-            { sprite: 'sit', duration: 1 }
-        ],
-        sprawled: [
-            { sprite: 'sprawl-lying', duration: 1 }
-        ],
-        climbingWall: [
-            { sprite: 'grab-wall', duration: 1 }
-        ],
-        climbingCeiling: [
-            { sprite: 'grab-ceiling', duration: 1 }
-        ],
-        sittingEdge: [
-            { sprite: 'sit-edge-legs-down', duration: 1 }
-        ],
-        headSpin: [
-            { sprite: 'sit', duration: 1 }
-        ]
-    };
-
     const STORAGE_KEYS = {
         disabledAll: 'disabledAll',
         disabledPages: 'disabledPages'
     };
 
-    const PERSONALITY_PITCH = {
-        cryptid: 1.0, cozy: 0.85, chaotic: 1.35,
-        philosopher: 0.75, hype: 1.25, noir: 0.7,
-        egg: 0.95
-    };
-    const PERSONALITY_TTS = {
-        cryptid: { pitch: 0.9, rate: 1.0 },
-        cozy: { pitch: 1.1, rate: 0.85 },
-        chaotic: { pitch: 1.4, rate: 1.4 },
-        philosopher: { pitch: 0.7, rate: 0.8 },
-        hype: { pitch: 1.3, rate: 1.3 },
-        noir: { pitch: 0.6, rate: 0.9 },
-        egg: { pitch: 1.15, rate: 0.95 }
-    };
-
-    const TTS_VOICE_PROFILES = {
-        random: [],
-        warm: ['female', 'maria', 'maria', 'samantha', 'sofia', 'sofia', 'lucia', 'lucía'],
-        bright: ['google', 'zira', 'susan', 'catherine', 'linda'],
-        deep: ['male', 'daniel', 'alex', 'jorge', 'diego', 'miguel'],
-        calm: ['serena', 'paulina', 'audrey', 'amelie'],
-        energetic: ['fred', 'mark', 'david', 'juan']
-    };
-    // Pitch/rate offsets applied on top of personality settings to make each voice profile distinct
-    const TTS_PROFILE_MODIFIERS = {
-        random: { pitchOffset: 0, rateOffset: 0 },
-        warm: { pitchOffset: 0.15, rateOffset: -0.1 },
-        bright: { pitchOffset: 0.3, rateOffset: 0.1 },
-        deep: { pitchOffset: -0.35, rateOffset: -0.1 },
-        calm: { pitchOffset: -0.1, rateOffset: -0.2 },
-        energetic: { pitchOffset: 0.2, rateOffset: 0.25 }
-    };
-    const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
-
-    const SHIMEJI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
-
-    function getShimejiPitchFactor(shimejiId) {
-        const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
-        return SHIMEJI_PITCH_FACTORS[idx % SHIMEJI_PITCH_FACTORS.length];
-    }
-
-    function pickRandomTtsProfile() {
-        if (!TTS_PROFILE_POOL.length) return 'random';
-        return TTS_PROFILE_POOL[Math.floor(Math.random() * TTS_PROFILE_POOL.length)];
-    }
-
-    function getVoicesAsync() {
-        return new Promise((resolve) => {
-            const synth = window.speechSynthesis;
-            if (!synth) return resolve([]);
-            let voices = synth.getVoices();
-            if (voices && voices.length) return resolve(voices);
-            const handler = () => {
-                voices = synth.getVoices();
-                resolve(voices || []);
-                synth.removeEventListener?.('voiceschanged', handler);
-            };
-            synth.addEventListener?.('voiceschanged', handler);
-            setTimeout(() => resolve(synth.getVoices() || []), 600);
-        });
-    }
-
-    function pickVoiceByProfile(profile, voices, langPrefix) {
-        const filtered = voices.filter(v => (v.lang || '').toLowerCase().startsWith(langPrefix));
-        const pool = filtered.length ? filtered : voices;
-        if (!pool.length) return null;
-        if (profile === 'random') {
-            return pool[Math.floor(Math.random() * pool.length)];
-        }
-        const keywords = TTS_VOICE_PROFILES[profile] || [];
-        if (!keywords.length) return pool[0];
-        const found = pool.find(v => {
-            const name = (v.name || '').toLowerCase();
-            return keywords.some(k => name.includes(k));
-        });
-        return found || pool[0];
-    }
-
     let uiLanguage = null;
-
-    function detectBrowserLanguage() {
-        const languages = Array.isArray(navigator.languages) && navigator.languages.length
-            ? navigator.languages
-            : [navigator.language];
-        const hasSpanish = languages.some((lang) => (lang || '').toLowerCase().startsWith('es'));
-        return hasSpanish ? 'es' : 'en';
-    }
 
     function isSpanishLocale() {
         if (uiLanguage === 'es') return true;
@@ -323,49 +88,8 @@
         lastCursorY = e.clientY;
     });
 
-    function getNoApiKeyMessage() {
-        return isSpanishLocale()
-            ? 'Para hablar, necesito una API key de OpenRouter (tiene free trial). Créala y pégala en la configuración de la extensión.'
-            : 'To talk, I need an OpenRouter API key (free trial available). Create it and paste it in the extension settings.';
-    }
-
-    function getNoCreditsMessage() {
-        return isSpanishLocale()
-            ? 'No puedo hablar sin créditos. Necesito que cargues créditos en tu cuenta para seguir vivo.'
-            : 'I cannot speak without credits. Please add credits to your account so I can stay alive.';
-    }
-
-    function getNoResponseMessage() {
-        return isSpanishLocale()
-            ? 'No pude recibir respuesta. Puede ser falta de créditos o conexión. Si puedes, revisa tu saldo.'
-            : 'I could not get a response. It may be a lack of credits or a connection issue. Please check your balance.';
-    }
-
-        function getLockedMessage() {
-            return isSpanishLocale()
-            ? 'Estoy bloqueado. Abre la extensión y desbloquea la contraseña para poder hablar.'
-            : 'I am locked. Open the extension and unlock the password to chat.';
-        }
-
-    function normalizeMode(modeValue) {
-        if (modeValue === 'disabled') return 'off';
-        if (modeValue === 'off') return 'off';
-        if (modeValue === 'agent') return 'agent';
-        if (modeValue === 'decorative') return 'off';
-        return 'standard';
-    }
-
     // Chrome Web Store readiness: avoid injecting remotely hosted fonts.
     function injectFontIfNeeded() {}
-
-    function normalizePageUrl(url) {
-        try {
-            const parsed = new URL(url);
-            return parsed.origin;
-        } catch (error) {
-            return null;
-        }
-    }
 
     function isExtensionContextValid() {
         try {
@@ -487,14 +211,6 @@
         }
     }
 
-    function isDisabledForCurrentPage(disabledAll, disabledPages) {
-        if (disabledAll) return true;
-        const pageKey = normalizePageUrl(window.location.href);
-        if (!pageKey) return false;
-        const pageList = Array.isArray(disabledPages) ? disabledPages : [];
-        return pageList.includes(pageKey);
-    }
-
     const fontSizeMap = { small: '11px', medium: '13px', large: '15px' };
     const widthMap = { small: '220px', medium: '280px', large: '360px' };
     const RESIZE_EDGE_PX = 10;
@@ -556,222 +272,6 @@
         } catch (e) {
             return null;
         }
-    }
-
-    // Pentatonic notes so each shimeji slot sounds distinct
-    const SHIMEJI_NOTE_FREQ = [523.25, 659.25, 783.99, 880.00, 1046.50]; // C5 E5 G5 A5 C6
-
-    function synthesizeFluteNote(sampleRate, freq, duration) {
-        const len = Math.ceil(sampleRate * duration);
-        const data = new Float32Array(len);
-        const attack = 0.045;
-        const release = 0.15;
-        const releaseStart = duration - release;
-        for (let i = 0; i < len; i++) {
-            const t = i / sampleRate;
-            let env;
-            if (t < attack) env = t / attack;
-            else if (t < releaseStart) env = 1.0;
-            else env = Math.max(0, (duration - t) / release);
-            const vibrato = Math.sin(2 * Math.PI * 5.2 * t) * 2.5;
-            const f = freq + vibrato;
-            const s = Math.sin(2 * Math.PI * f * t) * 0.55
-                + Math.sin(2 * Math.PI * f * 2 * t) * 0.22
-                + Math.sin(2 * Math.PI * f * 3 * t) * 0.07;
-            data[i] = s * env;
-        }
-        return data;
-    }
-
-    function synthesizeShimejiSounds(shimejiId) {
-        const ctx = getAudioContext();
-        if (!ctx) {
-            return { success: null, error: null };
-        }
-        const sr = ctx.sampleRate;
-        const idx = parseInt((shimejiId.match(/(\d+)/) || [, '1'])[1], 10) - 1;
-        const baseFreq = SHIMEJI_NOTE_FREQ[idx % SHIMEJI_NOTE_FREQ.length];
-
-        // Success: single flute note
-        const successSamples = synthesizeFluteNote(sr, baseFreq, 0.38);
-        const successBuf = ctx.createBuffer(1, successSamples.length, sr);
-        successBuf.getChannelData(0).set(successSamples);
-
-        // Error: two notes — second lower with slight dissonance (detuned tritone)
-        const errorFreq2 = baseFreq * 0.69;
-        const note1 = synthesizeFluteNote(sr, baseFreq, 0.2);
-        const gapLen = Math.ceil(sr * 0.06);
-        const note2 = synthesizeFluteNote(sr, errorFreq2, 0.28);
-        const errorBuf = ctx.createBuffer(1, note1.length + gapLen + note2.length, sr);
-        const errorData = errorBuf.getChannelData(0);
-        errorData.set(note1, 0);
-        errorData.set(note2, note1.length + gapLen);
-        return { success: successBuf, error: errorBuf };
-    }
-
-    const CHARACTER_KEYS = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob', 'lobster', 'mushroom', 'penguin'];
-    const PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir', 'egg'];
-    const MODEL_KEYS = [
-        'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
-        'meta-llama/llama-4-maverick', 'deepseek/deepseek-chat-v3-0324', 'mistralai/mistral-large-2411'
-    ];
-    const MODEL_KEYS_ENABLED = MODEL_KEYS.filter((model) => model !== 'moonshotai/kimi-k2.5');
-
-    const SIZE_KEYS = ['small', 'medium', 'big'];
-    const THEME_COLOR_POOL = [
-        '#2a1f4e', '#1e3a5f', '#4a2040', '#0f4c3a', '#5c2d0e',
-        '#3b1260', '#0e3d6b', '#6b1d3a', '#2e4a12', '#4c1a6b'
-    ];
-
-    const CHAT_THEMES = [
-        {
-            id: 'pastel',
-            labelEn: 'Pastel',
-            labelEs: 'Pastel',
-            theme: '#3b1a77',
-            bg: '#f0e8ff',
-            bubble: 'glass'
-        },
-        {
-            id: 'pink',
-            labelEn: 'Pink',
-            labelEs: 'Rosa',
-            theme: '#7a124b',
-            bg: '#ffd2ea',
-            bubble: 'glass'
-        },
-        {
-            id: 'kawaii',
-            labelEn: 'Kawaii',
-            labelEs: 'Kawaii',
-            theme: '#5b1456',
-            bg: '#ffd8f0',
-            bubble: 'glass'
-        },
-        {
-            id: 'mint',
-            labelEn: 'Mint',
-            labelEs: 'Menta',
-            theme: '#0f5f54',
-            bg: '#c7fff0',
-            bubble: 'glass'
-        },
-        {
-            id: 'ocean',
-            labelEn: 'Ocean',
-            labelEs: 'Océano',
-            theme: '#103a7a',
-            bg: '#cfe6ff',
-            bubble: 'glass'
-        },
-        {
-            id: 'neural',
-            labelEn: 'Neural',
-            labelEs: 'Neural',
-            theme: '#86f0ff',
-            bg: '#0b0d1f',
-            bubble: 'dark'
-        },
-        {
-            id: 'cyberpunk',
-            labelEn: 'Cyberpunk',
-            labelEs: 'Cyberpunk',
-            theme: '#19d3ff',
-            bg: '#0a0830',
-            bubble: 'dark'
-        },
-        {
-            id: 'noir-rose',
-            labelEn: 'Noir Rose',
-            labelEs: 'Noir Rosa',
-            theme: '#ff5fbf',
-            bg: '#0b0717',
-            bubble: 'dark'
-        },
-        {
-            id: 'midnight',
-            labelEn: 'Midnight',
-            labelEs: 'Medianoche',
-            theme: '#7aa7ff',
-            bg: '#0b1220',
-            bubble: 'dark'
-        },
-        {
-            id: 'ember',
-            labelEn: 'Ember',
-            labelEs: 'Brasas',
-            theme: '#ff8b3d',
-            bg: '#1a0c08',
-            bubble: 'dark'
-        }
-    ];
-
-    function pickRandomChatTheme() {
-        return CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
-    }
-
-    const OPENCLAW_AGENT_NAME_MAX = 32;
-
-    function defaultOpenClawAgentName(indexOrId) {
-        if (typeof indexOrId === 'number') {
-            return `chrome-shimeji-${indexOrId + 1}`;
-        }
-        const match = String(indexOrId || '').match(/(\d+)/);
-        const suffix = match ? match[1] : '1';
-        return `chrome-shimeji-${suffix}`;
-    }
-
-    function normalizeOpenClawAgentName(rawValue, fallback) {
-        const fallbackName = String(fallback || 'chrome-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
-        const normalized = String(rawValue || '')
-            .trim()
-            .replace(/\s+/g, '-')
-            .replace(/[^a-zA-Z0-9_-]/g, '')
-            .replace(/-+/g, '-')
-            .replace(/_+/g, '_')
-            .replace(/^[-_]+|[-_]+$/g, '')
-            .slice(0, OPENCLAW_AGENT_NAME_MAX);
-        return normalized || fallbackName;
-    }
-
-    function getDefaultShimeji(index) {
-        const randomChar = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
-        const randomPersonality = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
-        const randomModel = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
-        const randomVoiceProfile = pickRandomTtsProfile();
-        const randomSize = SIZE_KEYS[Math.floor(Math.random() * SIZE_KEYS.length)];
-        const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
-            const preset = pickRandomChatTheme();
-        return {
-            id: `shimeji-${index + 1}`,
-            character: randomChar,
-            size: randomSize,
-            mode: 'standard',
-            standardProvider: 'openrouter',
-            openrouterApiKey: '',
-            openrouterModel: 'random',
-            openrouterModelResolved: randomModel,
-            ollamaUrl: 'http://127.0.0.1:11434',
-            ollamaModel: 'gemma3:1b',
-            openclawGatewayUrl: 'ws://127.0.0.1:18789',
-            openclawGatewayToken: '',
-            openclawAgentName: defaultOpenClawAgentName(index),
-            personality: randomPersonality,
-            enabled: true,
-            chatThemeColor: preset?.theme || randomThemeColor,
-            chatBgColor: preset?.bg || '#ffffff',
-            chatFontSize: 'medium',
-            chatWidth: 'medium',
-            chatHeightPx: 320,
-            chatBubbleStyle: preset?.bubble || 'glass',
-            chatThemePreset: 'random',
-            ttsEnabled: false,
-            ttsVoiceProfile: randomVoiceProfile,
-            ttsVoiceId: '',
-            openMicEnabled: false,
-            relayEnabled: false,
-            animationQuality: 'full'
-        };
     }
 
     function migrateLegacy(data) {

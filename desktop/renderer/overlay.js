@@ -1,6 +1,17 @@
-const SPRITE_SIZE = 128;
-const TICK_MS = 40;
-const MAX_SHIMEJIS = 5;
+// ─── Shared runtime (loaded from shimeji-shared.js) ──────────────────────────
+const {
+  SPRITE_SIZE, TICK_MS, MAX_SHIMEJIS,
+  CALL_BACK_LINE_SPACING, CALL_BACK_LINE_MARGIN, CALL_BACK_RESET_DELAY,
+  computeCallBackX, resetCallBackLineCounters, scheduleCallBackLineReset,
+  PERSONALITY_TTS, PERSONALITY_SOUND_RATE,
+  TTS_VOICE_PROFILES, TTS_PROFILE_MODIFIERS, TTS_PROFILE_POOL,
+  SHIMEJI_PITCH_FACTORS,
+  getShimejiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
+  getVoicesAsync, pickVoiceByProfile,
+  CHAT_THEMES,
+  weightedRandom, clamp, hexToRgb,
+  detectBrowserLanguage
+} = window.ShimejiShared;
 const UPDATE_PANEL_ID = 'shimeji-update-panel';
 const UPDATE_STYLE_ID = 'shimeji-update-style';
 const UPDATE_NOTES_LIMIT = 280;
@@ -302,40 +313,6 @@ function setupUpdateListeners() {
 // covers the full display.bounds height, but the panel is drawn on top of it.
 // Using workArea keeps shimejis walking ON the panel surface instead of behind it.
 let screenWorkAreaBottom = null;
-const CALL_BACK_LINE_SPACING = 150;
-const CALL_BACK_LINE_MARGIN = 22;
-const CALL_BACK_RESET_DELAY = 1200;
-const callBackLineCount = { left: 0, right: 0 };
-let callBackLineResetTimer = null;
-
-function resetCallBackLineCounters() {
-  callBackLineCount.left = 0;
-  callBackLineCount.right = 0;
-  callBackLineResetTimer = null;
-}
-
-function scheduleCallBackLineReset() {
-  if (callBackLineResetTimer) {
-    clearTimeout(callBackLineResetTimer);
-  }
-  callBackLineResetTimer = setTimeout(resetCallBackLineCounters, CALL_BACK_RESET_DELAY);
-}
-
-function computeCallBackX(edge, size) {
-  const safeEdge = edge === -1 ? -1 : 1;
-  const sideKey = safeEdge === -1 ? 'left' : 'right';
-  const slot = Math.min(callBackLineCount[sideKey], MAX_SHIMEJIS - 1);
-  callBackLineCount[sideKey] = Math.min(callBackLineCount[sideKey] + 1, MAX_SHIMEJIS);
-  scheduleCallBackLineReset();
-  const spacing = Math.max(CALL_BACK_LINE_SPACING, size * 1.1);
-  const screenWidth = Math.max(window.innerWidth, size + CALL_BACK_LINE_MARGIN * 2);
-  const leftBase = CALL_BACK_LINE_MARGIN;
-  const rightBase = Math.max(screenWidth - size - CALL_BACK_LINE_MARGIN, CALL_BACK_LINE_MARGIN);
-  if (safeEdge === -1) {
-    return Math.min(leftBase + slot * spacing, window.innerWidth - size - CALL_BACK_LINE_MARGIN);
-  }
-  return Math.max(rightBase - slot * spacing, CALL_BACK_LINE_MARGIN);
-}
 const DRAG_THRESHOLD_PX = 4;
 const CHAT_EDGE_MARGIN_PX = 8;
 const CHAT_VERTICAL_GAP_PX = 10;
@@ -412,30 +389,6 @@ const PHYSICS = {
   jumpForce: -12
 };
 
-// Weighted behavior selection (inspired by shimeji-ee frequency system)
-function weightedRandom(choices) {
-  const total = choices.reduce((sum, c) => sum + c.weight, 0);
-  let r = Math.random() * total;
-  for (const choice of choices) {
-    r -= choice.weight;
-    if (r <= 0) return choice.action;
-  }
-  return choices[choices.length - 1].action;
-}
-
-const CHAT_THEMES = [
-  { id: 'pastel', labelEn: 'Pastel', labelEs: 'Pastel', theme: '#3b1a77', bg: '#f0e8ff', bubble: 'glass' },
-  { id: 'pink', labelEn: 'Pink', labelEs: 'Rosa', theme: '#7a124b', bg: '#ffd2ea', bubble: 'glass' },
-  { id: 'kawaii', labelEn: 'Kawaii', labelEs: 'Kawaii', theme: '#5b1456', bg: '#ffd8f0', bubble: 'glass' },
-  { id: 'mint', labelEn: 'Mint', labelEs: 'Menta', theme: '#0f5f54', bg: '#c7fff0', bubble: 'glass' },
-  { id: 'ocean', labelEn: 'Ocean', labelEs: 'Océano', theme: '#103a7a', bg: '#cfe6ff', bubble: 'glass' },
-  { id: 'neural', labelEn: 'Neural', labelEs: 'Neural', theme: '#86f0ff', bg: '#0b0d1f', bubble: 'dark' },
-  { id: 'cyberpunk', labelEn: 'Cyberpunk', labelEs: 'Cyberpunk', theme: '#19d3ff', bg: '#0a0830', bubble: 'dark' },
-  { id: 'noir-rose', labelEn: 'Noir Rose', labelEs: 'Noir Rosa', theme: '#ff5fbf', bg: '#0b0717', bubble: 'dark' },
-  { id: 'midnight', labelEn: 'Midnight', labelEs: 'Medianoche', theme: '#7aa7ff', bg: '#0b1220', bubble: 'dark' },
-  { id: 'ember', labelEn: 'Ember', labelEs: 'Brasas', theme: '#ff8b3d', bg: '#1a0c08', bubble: 'dark' }
-];
-
 const CHAT_THEME_PRESETS = CHAT_THEMES;
 const FONT_SIZE_MAP = { small: '11px', medium: '13px', large: '15px' };
 const CHAT_WIDTH_MAP = { small: 220, medium: 280, large: 360 };
@@ -447,46 +400,6 @@ const CHAT_MIN_HEIGHT = 150;
 const CHAT_MAX_WIDTH = 9999;
 const CHAT_MAX_HEIGHT = 560;
 
-const PERSONALITY_TTS = {
-  cryptid: { pitch: 0.9, rate: 1.0 },
-  cozy: { pitch: 1.1, rate: 0.85 },
-  chaotic: { pitch: 1.4, rate: 1.4 },
-  philosopher: { pitch: 0.7, rate: 0.8 },
-  hype: { pitch: 1.3, rate: 1.3 },
-  noir: { pitch: 0.6, rate: 0.9 },
-  egg: { pitch: 1.15, rate: 0.95 }
-};
-
-const PERSONALITY_SOUND_RATE = {
-  cryptid: 1.0,
-  cozy: 0.85,
-  chaotic: 1.35,
-  philosopher: 0.75,
-  hype: 1.25,
-  noir: 0.7,
-  egg: 0.95
-};
-
-const TTS_VOICE_PROFILES = {
-  random: [],
-  warm: ['female', 'maria', 'samantha', 'sofia', 'lucia', 'lucía'],
-  bright: ['google', 'zira', 'susan', 'catherine', 'linda'],
-  deep: ['male', 'daniel', 'alex', 'jorge', 'diego', 'miguel'],
-  calm: ['serena', 'paulina', 'audrey', 'amelie'],
-  energetic: ['fred', 'mark', 'david', 'juan']
-};
-
-const TTS_PROFILE_MODIFIERS = {
-  random: { pitchOffset: 0, rateOffset: 0 },
-  warm: { pitchOffset: 0.15, rateOffset: -0.1 },
-  bright: { pitchOffset: 0.3, rateOffset: 0.1 },
-  deep: { pitchOffset: -0.35, rateOffset: -0.1 },
-  calm: { pitchOffset: -0.1, rateOffset: -0.2 },
-  energetic: { pitchOffset: 0.2, rateOffset: 0.25 }
-};
-
-const TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter((k) => k !== 'random');
-const SHIMEJI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
 const SOUND_ASSET_PATHS = {
   success: 'assets/shimeji-success.wav',
   error: 'assets/shimeji-error.wav'
@@ -516,56 +429,6 @@ let sharedAudioCtx = null;
 const sharedSoundBuffers = { success: null, error: null };
 let sharedSoundBuffersLoaded = false;
 let sharedSoundBuffersLoading = null;
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function getShimejiPitchFactor(shimejiId) {
-  const idx = parseInt((`${shimejiId}`.match(/(\d+)/) || [, '1'])[1], 10) - 1;
-  return SHIMEJI_PITCH_FACTORS[idx % SHIMEJI_PITCH_FACTORS.length];
-}
-
-function pickRandomTtsProfile() {
-  if (!TTS_PROFILE_POOL.length) return 'random';
-  return TTS_PROFILE_POOL[Math.floor(Math.random() * TTS_PROFILE_POOL.length)];
-}
-
-function pickRandomChatTheme() {
-  return CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
-}
-
-function getVoicesAsync() {
-  return new Promise((resolve) => {
-    const synth = window.speechSynthesis;
-    if (!synth) return resolve([]);
-    let voices = synth.getVoices();
-    if (voices && voices.length) return resolve(voices);
-    const handler = () => {
-      voices = synth.getVoices();
-      resolve(voices || []);
-      synth.removeEventListener?.('voiceschanged', handler);
-    };
-    synth.addEventListener?.('voiceschanged', handler);
-    setTimeout(() => resolve(synth.getVoices() || []), 650);
-  });
-}
-
-function pickVoiceByProfile(profile, voices, langPrefix) {
-  const filtered = voices.filter((v) => (v.lang || '').toLowerCase().startsWith(langPrefix));
-  const pool = filtered.length ? filtered : voices;
-  if (!pool.length) return null;
-  if (profile === 'random') {
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-  const keywords = TTS_VOICE_PROFILES[profile] || [];
-  if (!keywords.length) return pool[0];
-  const found = pool.find((voice) => {
-    const name = (voice.name || '').toLowerCase();
-    return keywords.some((kw) => name.includes(kw));
-  });
-  return found || pool[0];
-}
 
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -626,19 +489,6 @@ async function ensureSharedSoundBuffersLoaded() {
   await sharedSoundBuffersLoading;
 }
 
-function hexToRgb(hex) {
-  if (!hex) return null;
-  const cleaned = hex.replace('#', '');
-  if (cleaned.length !== 6) return null;
-  const num = parseInt(cleaned, 16);
-  if (Number.isNaN(num)) return null;
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255
-  };
-}
-
 const CHARACTERS = [
   { id: 'shimeji', label: 'Shimeji' },
   { id: 'bunny', label: 'Bunny' },
@@ -655,14 +505,6 @@ let shimejis = [];
 let globalConfig = {};
 let uiLanguage = null;
 let activeMicShimejiId = null;
-
-function detectBrowserLanguage() {
-  const languages = Array.isArray(navigator.languages) && navigator.languages.length
-    ? navigator.languages
-    : [navigator.language];
-  const hasSpanish = languages.some((lang) => (lang || '').toLowerCase().startsWith('es'));
-  return hasSpanish ? 'es' : 'en';
-}
 
 function syncUiLanguageFromConfig(config = globalConfig) {
   const fromConfig = config && (config.shimejiLanguage === 'es' || config.shimejiLanguage === 'en')

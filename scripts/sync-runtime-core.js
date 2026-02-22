@@ -7,6 +7,13 @@ const CORE_DIR = path.join(ROOT_DIR, 'runtime-core');
 const CORE_PERSONALITIES_DIR = path.join(CORE_DIR, 'personalities');
 const CORE_CHARACTERS_DIR = path.join(CORE_DIR, 'characters');
 const CORE_ASSETS_DIR = path.join(CORE_DIR, 'assets');
+const CORE_SHARED_JS = path.join(CORE_DIR, 'shimeji-shared.js');
+
+const SHARED_JS_TARGETS = [
+  path.join(ROOT_DIR, 'chrome-extension', 'shimeji-shared.js'),
+  path.join(ROOT_DIR, 'firefox-extension', 'shimeji-shared.js'),
+  path.join(ROOT_DIR, 'desktop', 'renderer', 'shimeji-shared.js')
+];
 
 const PERSONALITY_TARGET_DIRS = [
   path.join(ROOT_DIR, 'chrome-extension', 'personalities'),
@@ -107,6 +114,17 @@ function syncDirectories(sourceDir, targets) {
   targets.forEach((targetDir) => replaceDirectory(sourceDir, targetDir));
 }
 
+function syncSharedJs() {
+  if (!fs.existsSync(CORE_SHARED_JS)) {
+    throw new Error(`Missing shared JS: ${CORE_SHARED_JS}`);
+  }
+  const src = fs.readFileSync(CORE_SHARED_JS);
+  SHARED_JS_TARGETS.forEach((dest) => {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, src);
+  });
+}
+
 function syncRuntimeCore() {
   ensureDirectoryExists(CORE_DIR, 'runtime core');
   ensureDirectoryExists(CORE_PERSONALITIES_DIR, 'core personalities');
@@ -116,6 +134,7 @@ function syncRuntimeCore() {
   const personalities = collectPersonalityFiles(CORE_PERSONALITIES_DIR);
   writeIndex(CORE_PERSONALITIES_DIR, personalities);
 
+  syncSharedJs();
   syncDirectories(CORE_CHARACTERS_DIR, CHARACTER_TARGET_DIRS);
   syncDirectories(CORE_ASSETS_DIR, ASSET_TARGET_DIRS);
   syncDirectories(CORE_PERSONALITIES_DIR, PERSONALITY_TARGET_DIRS);
@@ -125,7 +144,8 @@ function syncRuntimeCore() {
     personalityCount: personalities.length,
     characterTargets: CHARACTER_TARGET_DIRS.length,
     assetTargets: ASSET_TARGET_DIRS.length,
-    personalityTargets: PERSONALITY_TARGET_DIRS.length
+    personalityTargets: PERSONALITY_TARGET_DIRS.length,
+    sharedJsTargets: SHARED_JS_TARGETS.length
   };
 }
 
@@ -134,7 +154,8 @@ function main() {
   console.log(
     `Synced runtime core: ${result.personalityCount} personalities -> ` +
     `${result.personalityTargets} personality targets, ` +
-    `${result.characterTargets} character targets, ${result.assetTargets} asset targets`
+    `${result.characterTargets} character targets, ${result.assetTargets} asset targets, ` +
+    `shimeji-shared.js -> ${result.sharedJsTargets} targets`
   );
 }
 

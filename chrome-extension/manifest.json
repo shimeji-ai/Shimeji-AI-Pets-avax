@@ -27,7 +27,7 @@
         "https://shimeji.dev/*",
         "https://www.shimeji.dev/*"
       ],
-      "js": ["content.js"],
+      "js": ["shimeji-shared.js", "content.js"],
       "css": ["style.css"],
       "run_at": "document_idle"
     },

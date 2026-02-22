@@ -10,6 +10,8 @@ import {
 } from "react";
 
 export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw";
+export type SiteShimejiSoundInputProviderKind = "off" | "browser";
+export type SiteShimejiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
 
 export type SiteShimejiCharacterOption = {
   key: string;
@@ -42,6 +44,14 @@ export type SiteShimejiConfig = {
   openclawGatewayUrl: string;
   openclawGatewayToken: string;
   openclawAgentName: string;
+  soundInputProvider: SiteShimejiSoundInputProviderKind;
+  soundInputAutoSend: boolean;
+  soundOutputProvider: SiteShimejiSoundOutputProviderKind;
+  soundOutputAutoSpeak: boolean;
+  soundOutputVolumePercent: number;
+  elevenlabsApiKey: string;
+  elevenlabsVoiceId: string;
+  elevenlabsModelId: string;
 };
 
 type SiteShimejiContextValue = {
@@ -81,6 +91,14 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   openclawGatewayUrl: "ws://127.0.0.1:18789",
   openclawGatewayToken: "",
   openclawAgentName: "web-shimeji-1",
+  soundInputProvider: "browser",
+  soundInputAutoSend: true,
+  soundOutputProvider: "browser",
+  soundOutputAutoSpeak: true,
+  soundOutputVolumePercent: 95,
+  elevenlabsApiKey: "",
+  elevenlabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
+  elevenlabsModelId: "eleven_flash_v2_5",
 };
 
 const SiteShimejiContext = createContext<SiteShimejiContextValue | undefined>(
@@ -98,6 +116,21 @@ function clampSizePercent(value: unknown): number {
   return Math.max(60, Math.min(180, Math.round(numeric)));
 }
 
+function clampPercent(value: unknown, fallback: number, min = 0, max = 100): number {
+  const numeric =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : fallback;
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(numeric)));
+}
+
+function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function sanitizeString(value: unknown, fallback = "", maxLength = 256): string {
   if (typeof value !== "string") return fallback;
   return value.trim().slice(0, maxLength);
@@ -113,6 +146,16 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     raw.provider === "site"
       ? raw.provider
       : DEFAULT_CONFIG.provider;
+  const soundInputProvider: SiteShimejiSoundInputProviderKind =
+    raw.soundInputProvider === "browser" || raw.soundInputProvider === "off"
+      ? raw.soundInputProvider
+      : DEFAULT_CONFIG.soundInputProvider;
+  const soundOutputProvider: SiteShimejiSoundOutputProviderKind =
+    raw.soundOutputProvider === "browser" ||
+    raw.soundOutputProvider === "elevenlabs" ||
+    raw.soundOutputProvider === "off"
+      ? raw.soundOutputProvider
+      : DEFAULT_CONFIG.soundOutputProvider;
 
   return {
     enabled: true,
@@ -136,6 +179,26 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     openclawAgentName:
       sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32) ||
       DEFAULT_CONFIG.openclawAgentName,
+    soundInputProvider,
+    soundInputAutoSend: sanitizeBoolean(raw.soundInputAutoSend, DEFAULT_CONFIG.soundInputAutoSend),
+    soundOutputProvider,
+    soundOutputAutoSpeak: sanitizeBoolean(
+      raw.soundOutputAutoSpeak,
+      DEFAULT_CONFIG.soundOutputAutoSpeak,
+    ),
+    soundOutputVolumePercent: clampPercent(
+      raw.soundOutputVolumePercent,
+      DEFAULT_CONFIG.soundOutputVolumePercent,
+      0,
+      100,
+    ),
+    elevenlabsApiKey: sanitizeString(raw.elevenlabsApiKey, "", 600),
+    elevenlabsVoiceId:
+      sanitizeString(raw.elevenlabsVoiceId, DEFAULT_CONFIG.elevenlabsVoiceId, 120) ||
+      DEFAULT_CONFIG.elevenlabsVoiceId,
+    elevenlabsModelId:
+      sanitizeString(raw.elevenlabsModelId, DEFAULT_CONFIG.elevenlabsModelId, 120) ||
+      DEFAULT_CONFIG.elevenlabsModelId,
   };
 }
 
