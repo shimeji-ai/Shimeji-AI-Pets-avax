@@ -39,9 +39,17 @@ set -euo pipefail
 #   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
 #   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
+#   AUTO_SEED_MARKETPLACE_SHOWCASE=auto|1|0 (default auto; enabled for local/testnet)
+#   MARKETPLACE_SHOWCASE_BASE_URL=https://<domain> (default NEXT_PUBLIC_BASE_URL/NEXT_PUBLIC_SITE_URL or http://localhost:3000)
+#   MARKETPLACE_SHOWCASE_LIST_PRICE_XLM=120 (human amount)
+#   MARKETPLACE_SHOWCASE_LIST_PRICE_USDC=20 (human amount)
+#   MARKETPLACE_SHOWCASE_EGG_PRICE_XLM=90 (human amount)
+#   MARKETPLACE_SHOWCASE_EGG_PRICE_USDC=15 (human amount)
 #   DEPLOY_STEP_DELAY_SECONDS=5 (extra wait after non-local deploy/init steps; default tuned for testnet)
 #   DEPLOY_RETRY_ATTEMPTS=8 (non-local retries for upload/deploy/invoke; default tuned for testnet)
 #   DEPLOY_RETRY_DELAY_SECONDS=8 (seconds between non-local retries; default tuned for testnet)
+#   LOCAL_FRIENDBOT_RETRY_ATTEMPTS=12 (local-only retries while friendbot finishes booting)
+#   LOCAL_FRIENDBOT_RETRY_DELAY_SECONDS=2 (seconds between local friendbot retries)
 
 NETWORK="${NETWORK:-}"
 SECRET="${STELLAR_SECRET_KEY:-${STELLAR_SECRET_SEED:-${STELLAR_SEED:-}}}"
@@ -77,9 +85,17 @@ INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
 INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
 INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1600000}"
 INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
+AUTO_SEED_MARKETPLACE_SHOWCASE="${AUTO_SEED_MARKETPLACE_SHOWCASE:-auto}"
+MARKETPLACE_SHOWCASE_BASE_URL="${MARKETPLACE_SHOWCASE_BASE_URL:-${NEXT_PUBLIC_BASE_URL:-${NEXT_PUBLIC_SITE_URL:-}}}"
+MARKETPLACE_SHOWCASE_LIST_PRICE_XLM="${MARKETPLACE_SHOWCASE_LIST_PRICE_XLM:-120}"
+MARKETPLACE_SHOWCASE_LIST_PRICE_USDC="${MARKETPLACE_SHOWCASE_LIST_PRICE_USDC:-20}"
+MARKETPLACE_SHOWCASE_EGG_PRICE_XLM="${MARKETPLACE_SHOWCASE_EGG_PRICE_XLM:-90}"
+MARKETPLACE_SHOWCASE_EGG_PRICE_USDC="${MARKETPLACE_SHOWCASE_EGG_PRICE_USDC:-15}"
 DEPLOY_STEP_DELAY_SECONDS="${DEPLOY_STEP_DELAY_SECONDS:-5}"
 DEPLOY_RETRY_ATTEMPTS="${DEPLOY_RETRY_ATTEMPTS:-8}"
 DEPLOY_RETRY_DELAY_SECONDS="${DEPLOY_RETRY_DELAY_SECONDS:-8}"
+LOCAL_FRIENDBOT_RETRY_ATTEMPTS="${LOCAL_FRIENDBOT_RETRY_ATTEMPTS:-12}"
+LOCAL_FRIENDBOT_RETRY_DELAY_SECONDS="${LOCAL_FRIENDBOT_RETRY_DELAY_SECONDS:-2}"
 
 if [ -z "$NETWORK" ] && [ $# -ge 1 ]; then
   NETWORK="$1"
@@ -128,6 +144,28 @@ INITIAL_AUCTION_STATUS="not-run"
 INITIAL_AUCTION_ID=""
 INITIAL_AUCTION_STARTING_XLM=""
 INITIAL_AUCTION_STARTING_USDC=""
+MARKETPLACE_SHOWCASE_STATUS="not-run"
+MARKETPLACE_SHOWCASE_ASSETS_STATUS="not-prepared"
+MARKETPLACE_SHOWCASE_PROFILE_STATUS="not-run"
+MARKETPLACE_SHOWCASE_PUBLIC_DIR=""
+MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED=""
+SHOWCASE_AUCTION_CHARACTER=""
+SHOWCASE_SALE_CHARACTER=""
+SHOWCASE_SWAP_CHARACTER=""
+SHOWCASE_SWAP_TARGET_CHARACTER=""
+SHOWCASE_EGG_CHARACTER="egg"
+SHOWCASE_AUCTION_TOKEN_URI=""
+SHOWCASE_SALE_TOKEN_URI=""
+SHOWCASE_SWAP_TOKEN_URI=""
+SHOWCASE_SWAP_TARGET_TOKEN_URI=""
+SHOWCASE_EGG_TOKEN_URI=""
+SHOWCASE_SALE_TOKEN_ID=""
+SHOWCASE_SWAP_TOKEN_ID=""
+SHOWCASE_SWAP_TARGET_TOKEN_ID=""
+SHOWCASE_EGG_TOKEN_ID=""
+SHOWCASE_SALE_LISTING_ID=""
+SHOWCASE_EGG_LISTING_ID=""
+SHOWCASE_SWAP_ID=""
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -472,6 +510,269 @@ human_amount_to_stroops() {
   fi
 
   printf "%s" "$parsed"
+}
+
+normalize_base_url() {
+  local raw="${1:-}"
+  local normalized
+  normalized="$(printf "%s" "$raw" | tr -d '\r\n' | sed -E 's/[[:space:]]+$//; s/^[[:space:]]+//')"
+  if [ -z "$normalized" ]; then
+    printf "%s" "http://localhost:3000"
+    return
+  fi
+  case "$normalized" in
+    http://*|https://*) printf "%s" "${normalized%/}" ;;
+    *) printf "%s" "https://${normalized%/}" ;;
+  esac
+}
+
+extract_last_u64_from_output() {
+  local raw="$1"
+  printf "%s\n" "$raw" | tr -d '\r' | awk '/^[0-9]+$/ {print $1}' | tail -n1
+}
+
+invoke_contract_capture_with_retries() {
+  local label="$1"
+  shift
+  local output
+  local attempt=1
+  local max_attempts="${DEPLOY_RETRY_ATTEMPTS:-1}"
+  local retry_delay="${DEPLOY_RETRY_DELAY_SECONDS:-4}"
+
+  while true; do
+    output="$("$@" 2>&1)" && {
+      printf "%s" "$output"
+      return 0
+    }
+
+    if [ "$NETWORK" = "local" ] || [ "$attempt" -ge "$max_attempts" ]; then
+      echo "$output" >&2
+      return 1
+    fi
+
+    echo "==> ${label} failed (attempt ${attempt}/${max_attempts}); retrying in ${retry_delay}s..." >&2
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
+}
+
+resolve_marketplace_showcase_seed_mode() {
+  case "$AUTO_SEED_MARKETPLACE_SHOWCASE" in
+    1|true|TRUE|yes|YES) AUTO_SEED_MARKETPLACE_SHOWCASE="1" ;;
+    0|false|FALSE|no|NO) AUTO_SEED_MARKETPLACE_SHOWCASE="0" ;;
+    auto|"")
+      if [ "$NETWORK" = "mainnet" ]; then
+        AUTO_SEED_MARKETPLACE_SHOWCASE="0"
+      else
+        AUTO_SEED_MARKETPLACE_SHOWCASE="1"
+      fi
+      ;;
+    *)
+      die "AUTO_SEED_MARKETPLACE_SHOWCASE must be auto, 1 or 0"
+      ;;
+  esac
+}
+
+prepare_marketplace_showcase_assets() {
+  local runtime_characters_dir public_seed_dir seed_public_rel sprites_dir metadata_dir
+  local repo_runtime_characters_dir
+  local -a all_characters=()
+  local -a non_egg_characters=()
+  local char
+  local base_url
+  local catalog_file
+
+  resolve_marketplace_showcase_seed_mode
+  if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" != "1" ]; then
+    MARKETPLACE_SHOWCASE_ASSETS_STATUS="disabled"
+    MARKETPLACE_SHOWCASE_STATUS="disabled"
+    return
+  fi
+
+  runtime_characters_dir="$PROJECT_ROOT/runtime-core/characters"
+  repo_runtime_characters_dir="$(cd "$PROJECT_ROOT/.." && pwd)/runtime-core/characters"
+  if [ ! -d "$runtime_characters_dir" ] && [ -d "$repo_runtime_characters_dir" ]; then
+    runtime_characters_dir="$repo_runtime_characters_dir"
+  fi
+  if [ ! -d "$runtime_characters_dir" ]; then
+    MARKETPLACE_SHOWCASE_ASSETS_STATUS="missing-runtime-core"
+    MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+    echo "==> Skipping marketplace showcase seed: runtime-core characters directory not found."
+    return
+  fi
+
+  while IFS= read -r char; do
+    [ -z "$char" ] && continue
+    if [ -f "$runtime_characters_dir/$char/stand-neutral.png" ]; then
+      all_characters+=("$char")
+      if [ "$char" != "egg" ]; then
+        non_egg_characters+=("$char")
+      fi
+    fi
+  done < <(find "$runtime_characters_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+
+  if [ "${#all_characters[@]}" -eq 0 ] || [ "${#non_egg_characters[@]}" -lt 3 ]; then
+    MARKETPLACE_SHOWCASE_ASSETS_STATUS="insufficient-characters"
+    MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+    echo "==> Skipping marketplace showcase seed: not enough character idle sprites found."
+    return
+  fi
+
+  SHOWCASE_AUCTION_CHARACTER="${non_egg_characters[0]}"
+  SHOWCASE_SALE_CHARACTER="${non_egg_characters[1]}"
+  SHOWCASE_SWAP_CHARACTER="${non_egg_characters[2]}"
+  SHOWCASE_SWAP_TARGET_CHARACTER="${non_egg_characters[3]:-${non_egg_characters[0]}}"
+  SHOWCASE_EGG_CHARACTER="egg"
+
+  base_url="$(normalize_base_url "$MARKETPLACE_SHOWCASE_BASE_URL")"
+  MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED="$base_url"
+
+  seed_public_rel="deploy-seed/${NETWORK}"
+  public_seed_dir="$PROJECT_ROOT/nextjs/public/${seed_public_rel}"
+  sprites_dir="$public_seed_dir/sprites"
+  metadata_dir="$public_seed_dir/metadata"
+  mkdir -p "$sprites_dir" "$metadata_dir"
+  MARKETPLACE_SHOWCASE_PUBLIC_DIR="$public_seed_dir"
+
+  echo "==> Preparing marketplace showcase metadata in $public_seed_dir"
+
+  catalog_file="$metadata_dir/catalog.json"
+  {
+    echo "{"
+    echo "  \"generated_at\": \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\","
+    echo "  \"network\": \"${NETWORK}\","
+    echo "  \"characters\": ["
+    local idx=0
+    local image_rel image_url metadata_url escaped_name
+    for char in "${all_characters[@]}"; do
+      cp "$runtime_characters_dir/$char/stand-neutral.png" "$sprites_dir/${char}-idle.png"
+      image_rel="/${seed_public_rel}/sprites/${char}-idle.png"
+      image_url="${base_url}${image_rel}"
+      metadata_url="${base_url}/${seed_public_rel}/metadata/${char}.json"
+      escaped_name="$(printf "%s" "$char" | sed 's/"/\\"/g')"
+      cat > "$metadata_dir/${char}.json" <<EOF
+{
+  "name": "Shimeji Placeholder - ${char}",
+  "description": "Auto-generated placeholder NFT metadata for ${NETWORK} deploy showcase using the ${char} idle sprite.",
+  "image": "${image_url}",
+  "external_url": "${base_url}/marketplace",
+  "attributes": [
+    { "trait_type": "placeholder", "value": "true" },
+    { "trait_type": "network", "value": "${NETWORK}" },
+    { "trait_type": "character", "value": "${char}" },
+    { "trait_type": "sprite_state", "value": "idle" }
+  ]
+}
+EOF
+      if [ "$idx" -gt 0 ]; then
+        echo "    ,"
+      fi
+      echo "    { \"character\": \"${escaped_name}\", \"image\": \"${image_url}\", \"metadata\": \"${metadata_url}\" }"
+      idx=$((idx + 1))
+    done
+    echo "  ]"
+    echo "}"
+  } > "$catalog_file"
+
+  SHOWCASE_AUCTION_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_AUCTION_CHARACTER}.json"
+  SHOWCASE_SALE_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SALE_CHARACTER}.json"
+  SHOWCASE_SWAP_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SWAP_CHARACTER}.json"
+  SHOWCASE_SWAP_TARGET_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SWAP_TARGET_CHARACTER}.json"
+  SHOWCASE_EGG_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_EGG_CHARACTER}.json"
+
+  # If the initial auction token URI is still the default placeholder, swap in the generated sprite metadata.
+  if [ "$INITIAL_AUCTION_TOKEN_URI" = "ipfs://shimeji/default-auction.json" ]; then
+    INITIAL_AUCTION_TOKEN_URI="$SHOWCASE_AUCTION_TOKEN_URI"
+  fi
+
+  MARKETPLACE_SHOWCASE_ASSETS_STATUS="prepared"
+}
+
+seed_deployer_artist_profile_showcase() {
+  local store_path
+
+  if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" != "1" ]; then
+    MARKETPLACE_SHOWCASE_PROFILE_STATUS="disabled"
+    return
+  fi
+  if [ "$MARKETPLACE_SHOWCASE_ASSETS_STATUS" != "prepared" ]; then
+    MARKETPLACE_SHOWCASE_PROFILE_STATUS="skipped-no-assets"
+    return
+  fi
+  if ! need_cmd python3; then
+    MARKETPLACE_SHOWCASE_PROFILE_STATUS="skipped-no-python"
+    echo "==> Skipping deployer artist profile seed (python3 not available)."
+    return
+  fi
+
+  store_path="${SHIMEJI_ARTIST_PROFILE_STORE_PATH:-/tmp/shimeji-xlm-artist-profiles-store.json}"
+  if python3 - "$store_path" "$ADMIN" "$NETWORK" "$MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED" "$SHOWCASE_SALE_CHARACTER" "$SHOWCASE_AUCTION_CHARACTER" <<'PY'
+import json, os, sys, time
+
+store_path, wallet, network, base_url, avatar_char, banner_char = sys.argv[1:]
+now = int(time.time() * 1000)
+
+def image_url(ch):
+    return f"{base_url}/deploy-seed/{network}/sprites/{ch}-idle.png"
+
+store = {
+    "profiles": {},
+    "authChallenges": {},
+    "authSessions": {},
+    "reports": [],
+}
+if os.path.exists(store_path):
+    try:
+        with open(store_path, "r", encoding="utf-8") as f:
+            parsed = json.load(f)
+        if isinstance(parsed, dict):
+            store.update({
+                "profiles": parsed.get("profiles") if isinstance(parsed.get("profiles"), dict) else {},
+                "authChallenges": parsed.get("authChallenges") if isinstance(parsed.get("authChallenges"), dict) else {},
+                "authSessions": parsed.get("authSessions") if isinstance(parsed.get("authSessions"), dict) else {},
+                "reports": parsed.get("reports") if isinstance(parsed.get("reports"), list) else [],
+            })
+    except Exception:
+        pass
+
+existing = store["profiles"].get(wallet, {})
+created_at = existing.get("createdAt", now)
+profile = {
+    "walletAddress": wallet,
+    "displayName": f"Deployer Artist ({network})",
+    "avatarUrl": image_url(avatar_char),
+    "bannerUrl": image_url(banner_char),
+    "bio": "Auto-seeded artist profile for local/testnet marketplace showcase items.",
+    "languages": ["es", "en"],
+    "styleTags": ["placeholder", "shimeji", "seeded"],
+    "socialLinks": {},
+    "artistEnabled": True,
+    "commissionEnabled": True,
+    "acceptingNewClients": True,
+    "basePriceXlm": "90",
+    "basePriceUsdc": "15",
+    "turnaroundDaysMin": 2,
+    "turnaroundDaysMax": 7,
+    "slotsTotal": 1,
+    "slotsOpen": 1,
+    "preferredAuctionDurationHours": 24,
+    "reportCount": int(existing.get("reportCount", 0) or 0),
+    "visibilityStatus": "active",
+    "createdAt": created_at,
+    "updatedAt": now,
+}
+store["profiles"][wallet] = profile
+os.makedirs(os.path.dirname(store_path), exist_ok=True)
+with open(store_path, "w", encoding="utf-8") as f:
+    json.dump(store, f, indent=2)
+PY
+  then
+    MARKETPLACE_SHOWCASE_PROFILE_STATUS="seeded"
+    echo "==> Seeded deployer artist profile in ${store_path}"
+  else
+    MARKETPLACE_SHOWCASE_PROFILE_STATUS="failed"
+    echo "==> Warning: could not seed deployer artist profile store."
+  fi
 }
 
 fetch_xlm_usdc_rate() {
@@ -954,9 +1255,50 @@ ensure_local_network_running() {
 
 fund_local() {
   ensure_local_network_running
+  local attempt=1
+  local max_attempts="${LOCAL_FRIENDBOT_RETRY_ATTEMPTS:-12}"
+  local retry_delay="${LOCAL_FRIENDBOT_RETRY_DELAY_SECONDS:-2}"
+  local friendbot_request_url="${LOCAL_FRIENDBOT_URL}?addr=$ADMIN"
+  local err_file
+  local curl_rc=0
+  local last_error=""
+
   echo "==> Funding account on local network via friendbot..."
-  curl -fsS "${LOCAL_FRIENDBOT_URL}?addr=$ADMIN" >/dev/null
-  echo "    Local funding requested via ${LOCAL_FRIENDBOT_URL}."
+  err_file="$(mktemp)"
+  while true; do
+    if curl -fsS "$friendbot_request_url" >/dev/null 2>"$err_file"; then
+      rm -f "$err_file"
+      echo "    Local funding requested via ${LOCAL_FRIENDBOT_URL}."
+      return 0
+    fi
+
+    curl_rc=$?
+    last_error="$(tr '\n' ' ' < "$err_file" | sed 's/[[:space:]]\\+/ /g; s/^ //; s/ $//')"
+
+    # Local friendbot often returns HTTP 400 once an account already exists.
+    # For repeat local deploys we can treat that as "already funded" and continue.
+    if printf "%s" "$last_error" | grep -q "requested URL returned error: 400"; then
+      rm -f "$err_file"
+      echo "    Local friendbot returned HTTP 400 (account likely already funded); continuing."
+      return 0
+    fi
+
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      rm -f "$err_file"
+      if [ -n "$last_error" ]; then
+        die "Local friendbot funding failed after ${attempt} attempt(s) (curl exit ${curl_rc}: ${last_error}). Endpoint: ${LOCAL_FRIENDBOT_URL}"
+      fi
+      die "Local friendbot funding failed after ${attempt} attempt(s) (curl exit ${curl_rc}). Endpoint: ${LOCAL_FRIENDBOT_URL}"
+    fi
+
+    if [ -n "$last_error" ]; then
+      echo "    Friendbot not ready yet (attempt ${attempt}/${max_attempts}, retrying in ${retry_delay}s): ${last_error}"
+    else
+      echo "    Friendbot not ready yet (attempt ${attempt}/${max_attempts}, retrying in ${retry_delay}s)."
+    fi
+    sleep "$retry_delay"
+    attempt=$((attempt + 1))
+  done
 }
 
 fund_testnet() {
@@ -1472,6 +1814,170 @@ run_with_deploy_retries() {
   done
 }
 
+mint_marketplace_showcase_tokens_pre_minter_if_enabled() {
+  local output
+
+  if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" != "1" ]; then
+    return
+  fi
+  if [ "$MARKETPLACE_SHOWCASE_ASSETS_STATUS" != "prepared" ]; then
+    MARKETPLACE_SHOWCASE_STATUS="skipped-no-assets"
+    return
+  fi
+
+  echo "==> Minting showcase NFTs for marketplace seed (before auction minter lock)..."
+
+  if ! output="$(invoke_contract_capture_with_retries "Mint showcase sale NFT" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint --to "$ADMIN" --token_uri "$SHOWCASE_SALE_TOKEN_URI")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-mint-sale"
+    return
+  fi
+  SHOWCASE_SALE_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+
+  if ! output="$(invoke_contract_capture_with_retries "Mint showcase swap NFT" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint --to "$ADMIN" --token_uri "$SHOWCASE_SWAP_TOKEN_URI")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-mint-swap"
+    return
+  fi
+  SHOWCASE_SWAP_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+
+  if ! output="$(invoke_contract_capture_with_retries "Mint showcase swap target NFT" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint --to "$ADMIN" --token_uri "$SHOWCASE_SWAP_TARGET_TOKEN_URI")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-mint-swap-target"
+    return
+  fi
+  SHOWCASE_SWAP_TARGET_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+
+  if ! output="$(invoke_contract_capture_with_retries "Mint showcase commission egg" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint_commission_egg \
+      --to "$ADMIN" \
+      --creator "$ADMIN" \
+      --token_uri "$SHOWCASE_EGG_TOKEN_URI")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-mint-egg"
+    return
+  fi
+  SHOWCASE_EGG_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+
+  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-parse-token-ids"
+    return
+  fi
+
+  MARKETPLACE_SHOWCASE_STATUS="minted"
+  echo "  Seed NFTs minted: sale=#${SHOWCASE_SALE_TOKEN_ID}, swap=#${SHOWCASE_SWAP_TOKEN_ID}, target=#${SHOWCASE_SWAP_TARGET_TOKEN_ID}, egg=#${SHOWCASE_EGG_TOKEN_ID}"
+}
+
+seed_marketplace_showcase_examples_if_enabled() {
+  local list_price_xlm_stroops list_price_usdc_stroops egg_price_xlm_stroops egg_price_usdc_stroops
+  local xlm_usdc_rate intention output
+
+  if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" != "1" ]; then
+    return
+  fi
+  if [ "$MARKETPLACE_SHOWCASE_ASSETS_STATUS" != "prepared" ]; then
+    [ "$MARKETPLACE_SHOWCASE_STATUS" = "not-run" ] && MARKETPLACE_SHOWCASE_STATUS="skipped-no-assets"
+    return
+  fi
+  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
+    MARKETPLACE_SHOWCASE_STATUS="skipped-no-seed-tokens"
+    return
+  fi
+
+  list_price_xlm_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_LIST_PRICE_XLM")" || {
+    MARKETPLACE_SHOWCASE_STATUS="invalid-sale-price-xlm"
+    return
+  }
+  list_price_usdc_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_LIST_PRICE_USDC")" || {
+    MARKETPLACE_SHOWCASE_STATUS="invalid-sale-price-usdc"
+    return
+  }
+  egg_price_xlm_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_EGG_PRICE_XLM")" || {
+    MARKETPLACE_SHOWCASE_STATUS="invalid-egg-price-xlm"
+    return
+  }
+  egg_price_usdc_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_EGG_PRICE_USDC")" || {
+    MARKETPLACE_SHOWCASE_STATUS="invalid-egg-price-usdc"
+    return
+  }
+  xlm_usdc_rate="$INITIAL_AUCTION_XLM_USDC_RATE"
+
+  echo "==> Seeding marketplace showcase items (sale, swap, commission egg)..."
+
+  if ! output="$(invoke_contract_capture_with_retries "Create showcase sale listing" \
+    stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- list_for_sale \
+      --seller "$ADMIN" \
+      --token_id "$SHOWCASE_SALE_TOKEN_ID" \
+      --price_xlm "$list_price_xlm_stroops" \
+      --price_usdc "$list_price_usdc_stroops" \
+      --xlm_usdc_rate "$xlm_usdc_rate")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-list-sale"
+    return
+  fi
+  SHOWCASE_SALE_LISTING_ID="$(extract_last_u64_from_output "$output")"
+
+  intention="Auto-seeded swap offer from deployer artist profile (seeking token #${SHOWCASE_SWAP_TARGET_TOKEN_ID})"
+  if ! output="$(invoke_contract_capture_with_retries "Create showcase swap offer" \
+    stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- create_swap_offer \
+      --offerer "$ADMIN" \
+      --offered_token_id "$SHOWCASE_SWAP_TOKEN_ID" \
+      --desired_token_id "$SHOWCASE_SWAP_TARGET_TOKEN_ID" \
+      --intention "$intention")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-create-swap"
+    return
+  fi
+  SHOWCASE_SWAP_ID="$(extract_last_u64_from_output "$output")"
+
+  if ! output="$(invoke_contract_capture_with_retries "Create showcase commission egg listing" \
+    stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- list_commission_egg \
+      --seller "$ADMIN" \
+      --token_id "$SHOWCASE_EGG_TOKEN_ID" \
+      --price_xlm "$egg_price_xlm_stroops" \
+      --price_usdc "$egg_price_usdc_stroops" \
+      --xlm_usdc_rate "$xlm_usdc_rate")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-list-egg"
+    return
+  fi
+  SHOWCASE_EGG_LISTING_ID="$(extract_last_u64_from_output "$output")"
+
+  MARKETPLACE_SHOWCASE_STATUS="seeded-sale-swap-egg"
+  echo "  Showcase listing IDs: sale=#${SHOWCASE_SALE_LISTING_ID}, egg=#${SHOWCASE_EGG_LISTING_ID}; swap=#${SHOWCASE_SWAP_ID}"
+}
+
 deploy_contracts() {
   # Install all Wasms first (each install waits for ledger confirmation
   # before returning the hash, eliminating the race condition where the
@@ -1575,6 +2081,8 @@ deploy_contracts() {
     wait_for_network_propagation_step "ShimejiAuction internal escrow configuration"
     TRUSTLESS_ESCROW_STATUS="internal"
   fi
+
+  mint_marketplace_showcase_tokens_pre_minter_if_enabled
 
   echo "==> Setting auction contract as NFT minter..."
   run_with_deploy_retries "Set NFT minter" \
@@ -2024,9 +2532,9 @@ print_success_summary() {
   echo "   - Set STELLAR_RPC_HEADERS in shimeji-xlm/.env (example: STELLAR_RPC_HEADERS=\"X-API-Key: <key>\")"
   echo "   - The deploy wizard can also prompt for this key automatically when verification requests are denied."
   echo ""
-  echo "Auction quickstart:"
+  echo "Marketplace quickstart:"
   if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
-    echo "1) Initial auction already created automatically."
+    echo "1) Initial auction (shown in the marketplace auction tab) was created automatically."
     echo "   - auction_id: $INITIAL_AUCTION_ID"
     echo "   - token_uri: $INITIAL_AUCTION_TOKEN_URI"
     echo "   - starting_price_xlm: $INITIAL_AUCTION_STARTING_XLM"
@@ -2034,7 +2542,7 @@ print_success_summary() {
     echo "   - xlm_usdc_rate: $INITIAL_AUCTION_XLM_USDC_RATE"
     echo ""
   else
-    echo "1) No auction auto-created. Create one manually (admin only):"
+    echo "1) No initial auction was auto-created. Create one manually (admin only):"
     echo "   stellar contract invoke \\"
     echo "     --id \"$AUCTION_ID\" \\"
     echo "     --source \"$IDENTITY\" \\"
@@ -2047,15 +2555,38 @@ print_success_summary() {
     echo "     --xlm_usdc_rate 1000000"
     echo ""
   fi
-  echo "2) Confirm auction exists:"
+  echo "2) Confirm the auction contract has at least one auction:"
   echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- total_auctions"
   echo "   stellar contract invoke --id \"$AUCTION_ID\" --source \"$IDENTITY\" --rpc-url \"$RPC_URL\" --network-passphrase \"$PASSPHRASE\" -- get_auction --auction_id 0"
   echo ""
-  echo "3) Open the auction UI:"
+  echo "3) Marketplace showcase seed (deployer artist profile + sample items):"
+  echo "   - showcase: $MARKETPLACE_SHOWCASE_STATUS"
+  echo "   - assets: $MARKETPLACE_SHOWCASE_ASSETS_STATUS"
+  echo "   - artist profile: $MARKETPLACE_SHOWCASE_PROFILE_STATUS"
+  if [ -n "$MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED" ]; then
+    echo "   - base_url: $MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED"
+  fi
+  if [ -n "$MARKETPLACE_SHOWCASE_PUBLIC_DIR" ]; then
+    echo "   - public_assets_dir: $MARKETPLACE_SHOWCASE_PUBLIC_DIR"
+  fi
+  if [ -n "$SHOWCASE_AUCTION_CHARACTER" ] || [ -n "$SHOWCASE_SALE_CHARACTER" ] || [ -n "$SHOWCASE_SWAP_CHARACTER" ]; then
+    echo "   - placeholders: auction=${SHOWCASE_AUCTION_CHARACTER:-n/a}, sale=${SHOWCASE_SALE_CHARACTER:-n/a}, swap=${SHOWCASE_SWAP_CHARACTER:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_CHARACTER:-n/a}, egg=${SHOWCASE_EGG_CHARACTER:-egg}"
+  fi
+  if [ -n "$SHOWCASE_SALE_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -n "$SHOWCASE_EGG_TOKEN_ID" ]; then
+    echo "   - minted token ids: sale=${SHOWCASE_SALE_TOKEN_ID:-n/a}, swap=${SHOWCASE_SWAP_TOKEN_ID:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_TOKEN_ID:-n/a}, egg=${SHOWCASE_EGG_TOKEN_ID:-n/a}"
+  fi
+  if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
+    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_offer=${SHOWCASE_SWAP_ID:-n/a}"
+  fi
+  if [ "$INITIAL_AUCTION_STATUS" != "created" ] && [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" = "1" ]; then
+    echo "   - note: no auction sample was created because AUTO_CREATE_INITIAL_AUCTION is disabled or failed."
+  fi
+  echo ""
+  echo "4) Open the marketplace UI:"
   if [ "$NETWORK" = "local" ]; then
-    echo "   http://localhost:3000/auction"
+    echo "   http://localhost:3000/marketplace"
   else
-    echo "   <your deployed frontend>/auction"
+    echo "   <your deployed frontend>/marketplace"
   fi
 }
 
@@ -2075,6 +2606,8 @@ main() {
 
   setup_identity
   write_secret_backup_file
+  prepare_marketplace_showcase_assets
+  seed_deployer_artist_profile_showcase
 
   if [ "$NETWORK" = "local" ]; then
     fund_local
@@ -2093,6 +2626,7 @@ main() {
   derive_sac_addresses
   deploy_contracts
   create_initial_auction_if_enabled
+  seed_marketplace_showcase_examples_if_enabled
   verify_deployed_contracts_onchain
   write_deploy_env_export_file
   sync_frontend_env_local

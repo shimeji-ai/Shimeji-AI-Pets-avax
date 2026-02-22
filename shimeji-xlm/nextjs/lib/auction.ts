@@ -30,18 +30,29 @@ function buildReadOnlyTx(operation: xdr.Operation) {
 
 export interface AuctionInfo {
   tokenUri: string;
+  isItemAuction: boolean;
+  seller: string | null;
+  tokenId: number | null;
   startTime: number;
   endTime: number;
   startingPriceXlm: bigint;
   startingPriceUsdc: bigint;
   xlmUsdcRate: bigint;
   finalized: boolean;
+  escrowProvider: "Internal" | "TrustlessWork" | string | null;
+  escrowSettled: boolean;
 }
 
 export interface BidInfo {
   bidder: string;
   amount: bigint;
   currency: "Xlm" | "Usdc";
+}
+
+export interface AuctionSnapshot {
+  auction: AuctionInfo;
+  highestBid: BidInfo | null;
+  auctionId: number;
 }
 
 function parseScVal(val: xdr.ScVal): unknown {
@@ -239,82 +250,150 @@ async function fetchRecentBidsFromHorizon(
   return found;
 }
 
+function auctionIsActive(auction: AuctionInfo): boolean {
+  const now = Math.floor(Date.now() / 1000);
+  return !auction.finalized && auction.endTime > now;
+}
+
+function mapAuctionInfoFromScVal(auctionData: Record<string, unknown>): AuctionInfo {
+  const isItemAuction = Boolean(auctionData.is_item_auction);
+  const tokenIdRaw = auctionData.token_id;
+  const tokenId = typeof tokenIdRaw === "number" && Number.isFinite(tokenIdRaw) ? tokenIdRaw : null;
+  const seller = typeof auctionData.seller === "string" ? auctionData.seller : null;
+
+  return {
+    tokenUri: String(auctionData.token_uri ?? ""),
+    isItemAuction,
+    seller: isItemAuction ? seller : seller,
+    tokenId: isItemAuction ? tokenId : null,
+    startTime: Number(auctionData.start_time ?? 0),
+    endTime: Number(auctionData.end_time ?? 0),
+    startingPriceXlm: (auctionData.starting_price_xlm as bigint) ?? BigInt(0),
+    startingPriceUsdc: (auctionData.starting_price_usdc as bigint) ?? BigInt(0),
+    xlmUsdcRate: (auctionData.xlm_usdc_rate as bigint) ?? BigInt(0),
+    finalized: Boolean(auctionData.finalized),
+    escrowProvider:
+      typeof auctionData.escrow_provider === "string" ? (auctionData.escrow_provider as string) : null,
+    escrowSettled: Boolean(auctionData.escrow_settled),
+  };
+}
+
+async function fetchHighestBidForAuction(
+  server: ReturnType<typeof getServer>,
+  contract: Contract,
+  auctionId: number,
+): Promise<BidInfo | null> {
+  try {
+    const bidResult = await server.simulateTransaction(
+      buildReadOnlyTx(contract.call("get_highest_bid", nativeToScVal(auctionId, { type: "u64" })))
+    );
+
+    if (rpc.Api.isSimulationError(bidResult)) {
+      return null;
+    }
+    const bidData = parseScVal(
+      (bidResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
+    ) as Record<string, unknown>;
+    return {
+      bidder: bidData.bidder as string,
+      amount: bidData.amount as bigint,
+      currency: bidData.currency as "Xlm" | "Usdc",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAuctionSnapshotById(
+  server: ReturnType<typeof getServer>,
+  contract: Contract,
+  auctionId: number,
+): Promise<AuctionSnapshot | null> {
+  const auctionResult = await server.simulateTransaction(
+    buildReadOnlyTx(contract.call("get_auction", nativeToScVal(auctionId, { type: "u64" })))
+  );
+
+  if (rpc.Api.isSimulationError(auctionResult)) return null;
+  const auctionData = parseScVal(
+    (auctionResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
+  ) as Record<string, unknown>;
+
+  const auction = mapAuctionInfoFromScVal(auctionData);
+  const highestBid = await fetchHighestBidForAuction(server, contract, auctionId);
+  return { auction, highestBid, auctionId };
+}
+
+export async function fetchAuctions(opts?: {
+  includeEnded?: boolean;
+  includeSystem?: boolean;
+  includeItemAuctions?: boolean;
+  limit?: number;
+}): Promise<AuctionSnapshot[]> {
+  const server = getServer();
+  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const includeEnded = Boolean(opts?.includeEnded);
+  const includeSystem = opts?.includeSystem ?? true;
+  const includeItemAuctions = opts?.includeItemAuctions ?? true;
+  const limit = opts?.limit && opts.limit > 0 ? Math.floor(opts.limit) : Number.POSITIVE_INFINITY;
+
+  try {
+    const totalResult = await server.simulateTransaction(
+      buildReadOnlyTx(contract.call("total_auctions"))
+    );
+    if (rpc.Api.isSimulationError(totalResult)) return [];
+    const total = Number(
+      (totalResult as rpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
+    );
+    if (!Number.isFinite(total) || total <= 0) return [];
+
+    const auctions: AuctionSnapshot[] = [];
+    for (let auctionId = total - 1; auctionId >= 0; auctionId -= 1) {
+      const snapshot = await fetchAuctionSnapshotById(server, contract, auctionId);
+      if (!snapshot) continue;
+
+      if (snapshot.auction.isItemAuction && !includeItemAuctions) continue;
+      if (!snapshot.auction.isItemAuction && !includeSystem) continue;
+      if (!includeEnded && !auctionIsActive(snapshot.auction)) continue;
+
+      auctions.push(snapshot);
+      if (auctions.length >= limit) break;
+      if (auctionId === 0) break;
+    }
+    return auctions;
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchActiveAuction(): Promise<{
   auction: AuctionInfo;
   highestBid: BidInfo | null;
   recentBids: BidInfo[];
   auctionId: number;
 } | null> {
-  const server = getServer();
-  const contract = new Contract(AUCTION_CONTRACT_ID);
-
   try {
-    // Get total auctions
-    const totalResult = await server.simulateTransaction(
-      buildReadOnlyTx(contract.call("total_auctions"))
-    );
-
-    if (rpc.Api.isSimulationError(totalResult)) return null;
-    const total = Number(
-      (totalResult as rpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
-    );
-    if (total === 0) return null;
-
-    const auctionId = total - 1;
-
-    // Get auction info
-    const auctionResult = await server.simulateTransaction(
-      buildReadOnlyTx(contract.call("get_auction", nativeToScVal(auctionId, { type: "u64" })))
-    );
-
-    if (rpc.Api.isSimulationError(auctionResult)) return null;
-    const auctionData = parseScVal(
-      (auctionResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
-    ) as Record<string, unknown>;
-
-    const auction: AuctionInfo = {
-      tokenUri: auctionData.token_uri as string,
-      startTime: auctionData.start_time as number,
-      endTime: auctionData.end_time as number,
-      startingPriceXlm: auctionData.starting_price_xlm as bigint,
-      startingPriceUsdc: auctionData.starting_price_usdc as bigint,
-      xlmUsdcRate: auctionData.xlm_usdc_rate as bigint,
-      finalized: auctionData.finalized as boolean,
-    };
-
-    // Try to get highest bid
-    let highestBid: BidInfo | null = null;
-    try {
-      const bidResult = await server.simulateTransaction(
-        buildReadOnlyTx(contract.call("get_highest_bid", nativeToScVal(auctionId, { type: "u64" })))
-      );
-
-      if (!rpc.Api.isSimulationError(bidResult)) {
-        const bidData = parseScVal(
-          (bidResult as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
-        ) as Record<string, unknown>;
-        highestBid = {
-          bidder: bidData.bidder as string,
-          amount: bidData.amount as bigint,
-          currency: bidData.currency as "Xlm" | "Usdc",
-        };
-      }
-    } catch {
-      // No bids yet
-    }
+    const candidates = await fetchAuctions({ includeEnded: false, limit: 40 });
+    if (candidates.length === 0) return null;
+    const selected =
+      candidates.find((snapshot) => !snapshot.auction.isItemAuction) ?? candidates[0];
 
     let recentBids: BidInfo[] = [];
     try {
       recentBids = await fetchRecentBidsFromHorizon(
-        auctionId,
-        auction.startTime,
+        selected.auctionId,
+        selected.auction.startTime,
         8
       );
     } catch {
       recentBids = [];
     }
 
-    return { auction, highestBid, recentBids, auctionId };
+    return {
+      auction: selected.auction,
+      highestBid: selected.highestBid,
+      recentBids,
+      auctionId: selected.auctionId,
+    };
   } catch {
     return null;
   }
@@ -340,6 +419,44 @@ export async function buildBidXlmTx(
         new Address(sourcePublicKey).toScVal(),
         nativeToScVal(amount, { type: "i128" })
       )
+    )
+    .setTimeout(300)
+    .build();
+
+  const sim = await server.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(sim)) {
+    throw new Error("Transaction simulation failed");
+  }
+  const prepared = rpc.assembleTransaction(tx, sim).build();
+  return prepared.toXDR();
+}
+
+export async function buildCreateItemAuctionTx(
+  sourcePublicKey: string,
+  tokenId: number,
+  startingPriceXlm: bigint,
+  startingPriceUsdc: bigint,
+  xlmUsdcRate: bigint,
+  durationSeconds: number,
+): Promise<string> {
+  const server = getServer();
+  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const account = await server.getAccount(sourcePublicKey);
+
+  const tx = new TransactionBuilder(account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(
+      contract.call(
+        "create_item_auction",
+        new Address(sourcePublicKey).toScVal(),
+        nativeToScVal(tokenId, { type: "u64" }),
+        nativeToScVal(startingPriceXlm, { type: "i128" }),
+        nativeToScVal(startingPriceUsdc, { type: "i128" }),
+        nativeToScVal(xlmUsdcRate, { type: "i128" }),
+        nativeToScVal(durationSeconds, { type: "u64" }),
+      ),
     )
     .setTimeout(300)
     .build();

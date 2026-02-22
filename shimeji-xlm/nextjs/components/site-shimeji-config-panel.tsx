@@ -1,12 +1,263 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Settings2, X } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-personality-labels";
+import {
+  SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+  SITE_SHIMEJI_CHAT_FONT_SIZE_MAP,
+  SITE_SHIMEJI_CHAT_THEMES,
+  SITE_SHIMEJI_CHAT_WIDTH_MAP,
+  pickRandomSiteShimejiChatTheme,
+} from "@/lib/site-shimeji-chat-ui";
 
 type ConfigPanelTab = "mascot" | "chat" | "sound";
+
+function ChatAppearanceFields() {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteShimeji();
+
+  const matchedPreset = useMemo(
+    () =>
+      SITE_SHIMEJI_CHAT_THEMES.find(
+        (theme) =>
+          theme.theme.toLowerCase() === config.chatThemeColor.toLowerCase() &&
+          theme.bg.toLowerCase() === config.chatBgColor.toLowerCase() &&
+          theme.bubble === config.chatBubbleStyle,
+      ) ?? null,
+    [config.chatBgColor, config.chatBubbleStyle, config.chatThemeColor],
+  );
+
+  const activeThemeChip = config.chatThemePreset === "random" ? "random" : matchedPreset?.id ?? "custom";
+  const hasManualSize =
+    config.chatWidthPx !== null || config.chatHeightPx !== SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX;
+
+  function applyThemePreset(presetId: string) {
+    if (presetId === "custom") {
+      updateConfig({ chatThemePreset: "custom" });
+      return;
+    }
+
+    if (presetId === "random") {
+      const randomPreset = pickRandomSiteShimejiChatTheme();
+      updateConfig({
+        chatThemePreset: "random",
+        chatThemeColor: randomPreset.theme,
+        chatBgColor: randomPreset.bg,
+        chatBubbleStyle: randomPreset.bubble,
+      });
+      return;
+    }
+
+    const preset = SITE_SHIMEJI_CHAT_THEMES.find((theme) => theme.id === presetId);
+    if (!preset) return;
+    updateConfig({
+      chatThemePreset: preset.id,
+      chatThemeColor: preset.theme,
+      chatBgColor: preset.bg,
+      chatBubbleStyle: preset.bubble,
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+        {isSpanish
+          ? "La burbuja puede redimensionarse con el mouse desde los bordes (izquierdo/derecho y superior) cuando está abierta."
+          : "The chat bubble can be resized with the mouse from its edges (left/right and top) while it is open."}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {isSpanish ? "Tema del chat" : "Chat theme"}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => applyThemePreset("custom")}
+            className={`inline-flex h-9 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
+              activeThemeChip === "custom"
+                ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                : "border-white/15 bg-white/5 text-foreground/80 hover:bg-white/10"
+            }`}
+            title={isSpanish ? "Tema personalizado" : "Custom theme"}
+          >
+            🎨
+          </button>
+          <button
+            type="button"
+            onClick={() => applyThemePreset("random")}
+            className={`inline-flex h-9 items-center justify-center rounded-full border px-3 text-xs font-semibold ${
+              activeThemeChip === "random"
+                ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                : "border-white/15 bg-white/5 text-foreground/80 hover:bg-white/10"
+            }`}
+            title={isSpanish ? "Tema aleatorio" : "Random theme"}
+          >
+            🎲
+          </button>
+
+          {SITE_SHIMEJI_CHAT_THEMES.map((theme) => {
+            const isActive = activeThemeChip === theme.id;
+            const title = isSpanish ? theme.labelEs : theme.labelEn;
+            return (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => applyThemePreset(theme.id)}
+                className={`relative h-9 w-9 rounded-full border p-1 transition ${
+                  isActive
+                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15"
+                    : "border-white/15 bg-white/5 hover:bg-white/10"
+                }`}
+                title={title}
+                aria-label={title}
+              >
+                <span
+                  className="flex h-full w-full items-center justify-center rounded-full border border-black/15"
+                  style={{ background: theme.bg }}
+                >
+                  <span
+                    className="block h-1/2 w-1/2 rounded-full border border-black/15"
+                    style={{ background: theme.theme }}
+                  />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Color acento" : "Accent color"}
+            </span>
+            <input
+              type="color"
+              value={config.chatThemeColor}
+              onChange={(event) =>
+                updateConfig({
+                  chatThemePreset: "custom",
+                  chatThemeColor: event.target.value,
+                })
+              }
+              className="h-10 w-full cursor-pointer rounded-xl border border-white/15 bg-black/30 p-1"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Color fondo" : "Background color"}
+            </span>
+            <input
+              type="color"
+              value={config.chatBgColor}
+              onChange={(event) =>
+                updateConfig({
+                  chatThemePreset: "custom",
+                  chatBgColor: event.target.value,
+                })
+              }
+              className="h-10 w-full cursor-pointer rounded-xl border border-white/15 bg-black/30 p-1"
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {isSpanish ? "Estilo de burbuja" : "Bubble style"}
+          </span>
+          <select
+            value={config.chatBubbleStyle}
+            onChange={(event) =>
+              updateConfig({
+                chatThemePreset: "custom",
+                chatBubbleStyle: event.target.value as "glass" | "solid" | "dark",
+              })
+            }
+            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+          >
+            <option value="glass">{isSpanish ? "Glass (transparente)" : "Glass (transparent)"}</option>
+            <option value="solid">{isSpanish ? "Solid (sólido)" : "Solid"}</option>
+            <option value="dark">{isSpanish ? "Dark (oscuro)" : "Dark"}</option>
+          </select>
+        </label>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Texto" : "Text size"}
+            </span>
+            <select
+              value={config.chatFontSize}
+              onChange={(event) =>
+                updateConfig({ chatFontSize: event.target.value as "small" | "medium" | "large" })
+              }
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            >
+              <option value="small">
+                {isSpanish ? "Pequeño" : "Small"} ({SITE_SHIMEJI_CHAT_FONT_SIZE_MAP.small}px)
+              </option>
+              <option value="medium">
+                {isSpanish ? "Medio" : "Medium"} ({SITE_SHIMEJI_CHAT_FONT_SIZE_MAP.medium}px)
+              </option>
+              <option value="large">
+                {isSpanish ? "Grande" : "Large"} ({SITE_SHIMEJI_CHAT_FONT_SIZE_MAP.large}px)
+              </option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Ancho base" : "Base width"}
+            </span>
+            <select
+              value={config.chatWidth}
+              onChange={(event) =>
+                updateConfig({ chatWidth: event.target.value as "small" | "medium" | "large" })
+              }
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            >
+              <option value="small">
+                {isSpanish ? "Pequeño" : "Small"} ({SITE_SHIMEJI_CHAT_WIDTH_MAP.small}px)
+              </option>
+              <option value="medium">
+                {isSpanish ? "Medio" : "Medium"} ({SITE_SHIMEJI_CHAT_WIDTH_MAP.medium}px)
+              </option>
+              <option value="large">
+                {isSpanish ? "Grande" : "Large"} ({SITE_SHIMEJI_CHAT_WIDTH_MAP.large}px)
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <button
+            type="button"
+            onClick={() =>
+              updateConfig({
+                chatWidthPx: null,
+                chatHeightPx: SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+              })
+            }
+            disabled={!hasManualSize}
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-semibold text-foreground hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSpanish ? "Restablecer tamaño manual" : "Reset manual size"}
+          </button>
+          <span className="text-muted-foreground">
+            {isSpanish
+              ? `Actual: ${config.chatWidthPx ?? SITE_SHIMEJI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`
+              : `Current: ${config.chatWidthPx ?? SITE_SHIMEJI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProviderFields() {
   const { isSpanish } = useLanguage();
@@ -152,6 +403,28 @@ function ProviderFields() {
 export function SoundFields() {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteShimeji();
+  const [browserVoices, setBrowserVoices] = useState<Array<{ name: string; lang: string }>>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+
+    const syncVoices = () => {
+      const voices = synth
+        .getVoices()
+        .map((voice) => ({
+          name: String(voice.name || "").trim(),
+          lang: String(voice.lang || "").trim(),
+        }))
+        .filter((voice) => voice.name)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setBrowserVoices(voices);
+    };
+
+    syncVoices();
+    synth.addEventListener?.("voiceschanged", syncVoices);
+    return () => synth.removeEventListener?.("voiceschanged", syncVoices);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -256,6 +529,28 @@ export function SoundFields() {
             disabled={config.soundOutputProvider === "off"}
           />
         </label>
+
+        {config.soundOutputProvider === "browser" && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Voz del navegador" : "Browser voice"}
+            </span>
+            <select
+              value={config.soundOutputBrowserVoiceName}
+              onChange={(event) => updateConfig({ soundOutputBrowserVoiceName: event.target.value })}
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            >
+              <option value="">
+                {isSpanish ? "Automática (por idioma del sitio)" : "Automatic (site language)"}
+              </option>
+              {browserVoices.map((voice) => (
+                <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
+                  {voice.name} {voice.lang ? `(${voice.lang})` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {config.soundOutputProvider === "elevenlabs" && (
           <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
@@ -495,7 +790,7 @@ export function SiteShimejiConfigPanel() {
             {activeTab === "chat" && (
               <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
               <h3 className="text-sm font-semibold text-foreground">
-                {isSpanish ? "Chat y proveedor" : "Chat and provider"}
+                {isSpanish ? "Chat, proveedor y estilo" : "Chat, provider and style"}
               </h3>
 
               <label className="block">
@@ -555,6 +850,8 @@ export function SiteShimejiConfigPanel() {
                   ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
                   : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
               </p>
+
+              <ChatAppearanceFields />
               </section>
             )}
 

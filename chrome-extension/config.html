@@ -19,6 +19,30 @@
       line-height: 1.6;
       margin: 16px 0;
     }
+    .field {
+      margin: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 280px;
+    }
+    label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    select {
+      padding: 10px 12px;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(42, 31, 78, 0.25);
+      font-size: 14px;
+      background: rgba(255,255,255,0.9);
+      color: #2a1f4e;
+    }
+    .hint {
+      margin: 0;
+      font-size: 12px;
+      color: rgba(42, 31, 78, 0.7);
+    }
     #go-to-dapp {
       padding: 12px 24px;
       background: #2a1f4e;
@@ -40,6 +64,11 @@
 <body>
   <h1>Shimeji Configuration Page</h1>
   <p>This is where you can configure your Shimeji extension. Use the button below to open the Shimeji configuration page.</p>
+  <div class="field">
+    <label for="ui-text-scale-select">UI Text Size</label>
+    <select id="ui-text-scale-select"></select>
+    <p class="hint" id="ui-text-scale-hint">Ctrl/Cmd + or - to resize, Ctrl/Cmd + 0 to reset.</p>
+  </div>
   <button id="go-to-dapp">Open Shimeji Config Page</button>
   <script src="config.js"></script>
 </body>

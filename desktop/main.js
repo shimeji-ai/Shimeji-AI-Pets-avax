@@ -3264,6 +3264,7 @@ ipcMain.on('update-config', (event, nextConfig) => {
     'showShimejis',
     'shimejiCount',
     'popupTheme',
+    'uiTextScale',
     'shimejiLanguage',
     'openrouterApiKey',
     'openrouterModel',

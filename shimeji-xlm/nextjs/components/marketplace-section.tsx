@@ -8,7 +8,7 @@ import { ShimejiCharacter } from "@/components/shimeji-character";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { CurrencyToggle } from "@/components/currency-toggle";
-import { CheckCircle, Loader2, Copy, Check, Tag, RefreshCw, Gavel, Pencil } from "lucide-react";
+import { CheckCircle, Loader2, Copy, Check, Tag, RefreshCw, Gavel, Pencil, ChevronDown, ChevronRight, AlertTriangle, Info } from "lucide-react";
 import { fetchActiveAuction, buildBidXlmTx, buildBidUsdcTx } from "@/lib/auction";
 import type { AuctionInfo, BidInfo } from "@/lib/auction";
 import {
@@ -25,7 +25,7 @@ import {
   buildCreateSwapOfferTx,
   buildAcceptSwapTx,
   buildCancelSwapTx,
-  buildMarkCommissionFulfilledTx,
+  buildMarkCommissionDeliveredTx,
 } from "@/lib/marketplace";
 import type { CommissionOrder, ListingInfo, SwapOffer } from "@/lib/marketplace";
 import { buildTransferNftTx, buildUpdateTokenUriAsCreatorTx } from "@/lib/nft";
@@ -52,7 +52,6 @@ import {
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const LOCAL_BURNER_STORAGE_KEY = "shimeji_local_burner_secret";
-const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 const TOKEN_SCALE = BigInt(10_000_000);
 const MIN_INCREMENT_BPS = BigInt(500);
 const BPS_DENOMINATOR = BigInt(10_000);
@@ -119,7 +118,6 @@ export function MarketplaceSection() {
   const [burnerPublicKey, setBurnerPublicKey] = useState<string | null>(null);
   const [balances, setBalances] = useState<WalletBalances>({ xlm: "0", usdc: "0" });
   const [balancesLoading, setBalancesLoading] = useState(false);
-  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const [globalError, setGlobalError] = useState("");
 
   const { isSpanish } = useLanguage();
@@ -200,6 +198,12 @@ export function MarketplaceSection() {
   const [cActionPending, setCActionPending] = useState<string | null>(null);
   const [cActionSuccess, setCActionSuccess] = useState<string | null>(null);
   const [cActionError, setCActionError] = useState("");
+
+  // UI state: collapsible creator tools, cancel confirmations
+  const [creatorToolsOpen, setCreatorToolsOpen] = useState(false);
+  const [cancelListingConfirmId, setCancelListingConfirmId] = useState<number | null>(null);
+  const [cancelSwapConfirmId, setCancelSwapConfirmId] = useState<number | null>(null);
+  const [cancelCommissionConfirmId, setCancelCommissionConfirmId] = useState<number | null>(null);
 
   // Creator delivery / direct NFT management
   const [deliveryTokenId, setDeliveryTokenId] = useState("");
@@ -341,51 +345,6 @@ export function MarketplaceSection() {
     if (!mounted) return;
     loadBalances(activePublicKey);
   }, [activePublicKey, loadBalances, mounted]);
-
-  // ── Faucet ────────────────────────────────────────────────────────────────
-
-  const ensureLocalUsdcTrustline = useCallback(async (): Promise<boolean> => {
-    if (!isLocalNetwork || !burnerPublicKey || !burnerSecret || !USDC_ISSUER) return false;
-    const { Asset, BASE_FEE: BF, Horizon, Keypair, Operation, TransactionBuilder: TB } = await import("@stellar/stellar-sdk");
-    const horizon = new Horizon.Server(HORIZON_URL.replace(/\/$/, ""));
-    let burnerAccount;
-    try { burnerAccount = await horizon.loadAccount(burnerPublicKey); } catch { return false; }
-    const hasTrustline = burnerAccount.balances.some(
-      (e) => "asset_code" in e && "asset_issuer" in e && e.asset_code === "USDC" && e.asset_issuer === USDC_ISSUER
-    );
-    if (hasTrustline) return true;
-    const trustTx = new TB(burnerAccount, { fee: BF, networkPassphrase: NETWORK_PASSPHRASE })
-      .addOperation(Operation.changeTrust({ asset: new Asset("USDC", USDC_ISSUER) }))
-      .setTimeout(30).build();
-    trustTx.sign(Keypair.fromSecret(burnerSecret));
-    await horizon.submitTransaction(trustTx);
-    return true;
-  }, [burnerPublicKey, burnerSecret, isLocalNetwork]);
-
-  const handleFaucet = useCallback(async () => {
-    if (isMainnetNetwork) { window.open(MAINNET_XLM_ONRAMP_URL, "_blank", "noopener,noreferrer"); return; }
-    if (!activePublicKey) return;
-    setGlobalError("");
-    setIsFaucetLoading(true);
-    try {
-      const requestBody = { address: activePublicKey };
-      const res = await fetch("/api/faucet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
-      const payload = (await res.json()) as { error?: string; needsTrustline?: boolean; pendingAccount?: boolean };
-      if (!res.ok) throw new Error(payload.error || t("Faucet failed.", "Falló el faucet."));
-      if (payload.needsTrustline && isLocalNetwork && walletMode === "burner") {
-        const ready = await ensureLocalUsdcTrustline();
-        if (ready) {
-          const retry = await fetch("/api/faucet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
-          if (!retry.ok) { const rp = (await retry.json()) as { error?: string }; throw new Error(rp.error || t("USDC faucet failed.", "Falló el faucet de USDC.")); }
-        }
-      }
-      await loadBalances(activePublicKey);
-    } catch (error) {
-      setGlobalError(error instanceof Error ? error.message : t("Could not fund wallet.", "No se pudo fondear la wallet."));
-    } finally {
-      setIsFaucetLoading(false);
-    }
-  }, [activePublicKey, ensureLocalUsdcTrustline, isLocalNetwork, isMainnetNetwork, loadBalances, t, walletMode]);
 
   // ── Transaction helper ────────────────────────────────────────────────────
 
@@ -774,7 +733,7 @@ export function MarketplaceSection() {
     setFulfillError("");
     setFulfillSuccess(false);
     try {
-      const txXdr = await buildMarkCommissionFulfilledTx(activePublicKey, orderId);
+      const txXdr = await buildMarkCommissionDeliveredTx(activePublicKey, orderId);
       await signAndSubmit(txXdr);
       setFulfillSuccess(true);
       setTimeout(() => {
@@ -845,15 +804,6 @@ export function MarketplaceSection() {
     </Button>
   ) : null;
 
-  const headerFaucetButton = (isLocalNetwork || isTestnetNetwork || isMainnetNetwork) ? (
-    <button type="button" onClick={handleFaucet} disabled={isFaucetLoading || (!isMainnetNetwork && !activePublicKey)}
-      title={isMainnetNetwork ? t("Open MoneyGram ramps.", "Abrir MoneyGram ramps.") : t("Load test funds.", "Cargar fondos de prueba.")}
-      className="auction-faucet-button inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-lg hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <span className={isFaucetLoading ? "animate-pulse" : ""}>💸</span>
-    </button>
-  ) : null;
-
   const walletConnectPrompt = (
     <div className="mt-4 flex flex-col items-center gap-3">
       <div className="flex items-center justify-center gap-2 sm:gap-4">
@@ -865,16 +815,36 @@ export function MarketplaceSection() {
           <img src="/bunny-hero.png" alt="" className="auction-wallet-bunny" />
         </span>
       </div>
+      <p className="text-xs text-muted-foreground text-center max-w-md">
+        {isSpanish ? (
+          <>Necesitás una billetera Stellar para comprar, vender o intercambiar Shimejis.</>
+        ) : (
+          <>You need a Stellar wallet to buy, sell, or trade Shimejis.</>
+        )}
+      </p>
       {!isAvailable ? (
-        <p className="text-xs text-muted-foreground text-center max-w-md">
+        <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-muted-foreground text-center max-w-md space-y-1.5">
+          <p className="font-semibold text-foreground">
+            {isSpanish ? "¿Cómo conectar?" : "How to connect?"}
+          </p>
           {isSpanish ? (
-            <>Si usás Lobstr en mobile, abrí esta web desde el navegador interno de Lobstr. También podés{" "}
-              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">instalar Freighter</a>.</>
+            <>
+              <p>📱 <strong>Mobile:</strong> Abrí esta web desde el navegador interno de Lobstr o XBULL Wallet.</p>
+              <p>💻 <strong>Escritorio:</strong>{" "}
+                <a className="underline text-foreground" href="https://www.freighter.app/" target="_blank" rel="noreferrer">Instalá Freighter</a>{" "}
+                (extensión gratuita de Chrome/Firefox) y luego volvé aquí.
+              </p>
+            </>
           ) : (
-            <>If you use Lobstr on mobile, open this site from Lobstr&apos;s in-app browser. You can also{" "}
-              <a className="underline" href="https://www.freighter.app/" target="_blank" rel="noreferrer">install Freighter</a>.</>
+            <>
+              <p>📱 <strong>Mobile:</strong> Open this site from the Lobstr or XBULL Wallet in-app browser.</p>
+              <p>💻 <strong>Desktop:</strong>{" "}
+                <a className="underline text-foreground" href="https://www.freighter.app/" target="_blank" rel="noreferrer">Install Freighter</a>{" "}
+                (free Chrome/Firefox extension) then come back here.
+              </p>
+            </>
           )}
-        </p>
+        </div>
       ) : null}
     </div>
   );
@@ -943,16 +913,27 @@ export function MarketplaceSection() {
             </div>
 
             {hasConnectedWallet ? (
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                <input type="number" value={bidAmounts[currency]}
-                  onChange={(e) => setBidAmounts((p) => ({ ...p, [currency]: e.target.value }))}
-                  placeholder={minimumBidText} min={0} step="any"
-                  className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
-                <Button onClick={handleBid} disabled={isBidding || !auction || auction.finalized}
-                  className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide">
-                  {isBidding ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}</span>
-                    : t("OFFER!", "¡OFERTAR!")}
-                </Button>
+              <div className="mt-4 flex flex-col gap-2">
+                <p className="text-[11px] text-muted-foreground">
+                  {t("Minimum bid", "Oferta mínima")}:{" "}
+                  <span className="font-semibold text-foreground">{minimumBidText} {currency}</span>
+                  {highestBid ? (
+                    <span className="ml-1 opacity-70">{t("(5% above current highest bid)", "(5% sobre la oferta más alta)")}</span>
+                  ) : (
+                    <span className="ml-1 opacity-70">{t("(starting price)", "(precio inicial)")}</span>
+                  )}
+                </p>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input type="number" value={bidAmounts[currency]}
+                    onChange={(e) => setBidAmounts((p) => ({ ...p, [currency]: e.target.value }))}
+                    placeholder={minimumBidText} min={0} step="any"
+                    className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
+                  <Button onClick={handleBid} disabled={isBidding || !auction || auction.finalized}
+                    className="w-full sm:w-auto sm:min-w-[170px] auction-bid-button rounded-xl py-6 text-lg font-black tracking-wide">
+                    {isBidding ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> {t("Placing bid...", "Ofertando...")}</span>
+                      : t("PLACE BID!", "¡OFERTAR!")}
+                  </Button>
+                </div>
               </div>
             ) : walletConnectPrompt}
 
@@ -1015,8 +996,10 @@ export function MarketplaceSection() {
             {bidError ? <p className="mt-3 text-xs text-red-500">{bidError}</p> : null}
           </div>
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
-            <p className="text-muted-foreground">{t("No active auction right now. Check back soon!", "No hay subasta activa en este momento. ¡Volvé pronto!")}</p>
+          <div className="rounded-2xl border border-white/10 bg-transparent p-10 text-center">
+            <p className="text-4xl mb-3">🔨</p>
+            <p className="text-foreground font-semibold">{t("No active auction right now", "No hay subasta activa en este momento")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("Check back soon — auctions are announced on our socials!", "¡Volvé pronto! Las subastas se anuncian en nuestras redes sociales.")}</p>
           </div>
         )}
       </div>
@@ -1030,136 +1013,165 @@ export function MarketplaceSection() {
       {/* Sell form */}
       {hasConnectedWallet ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <p className="text-sm font-bold text-foreground mb-3">{t("List your Shimeji for sale", "Listá tu Shimeji a la venta")}</p>
+          <p className="text-sm font-bold text-foreground mb-1">{t("List your Shimeji for sale", "Listá tu Shimeji a la venta")}</p>
+          <p className="text-[11px] text-muted-foreground mb-3">
+            {t("Your Shimeji's token ID can be found in your wallet or on the explorer.", "El ID de tu Shimeji se encuentra en tu billetera o en el explorador.")}
+          </p>
           <div className="grid gap-3 sm:grid-cols-4">
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Token ID", "ID de token")}</label>
-              <input type="number" value={sellTokenId} onChange={(e) => setSellTokenId(e.target.value)} placeholder="0" min={0}
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Shimeji Token ID", "ID de tu Shimeji")}</label>
+              <input type="number" value={sellTokenId} onChange={(e) => setSellTokenId(e.target.value)} placeholder="e.g. 42" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Sale Type", "Tipo de venta")}</label>
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("What are you selling?", "¿Qué estás vendiendo?")}</label>
               <select
                 value={sellListingType}
                 onChange={(e) => setSellListingType(e.target.value as "finished" | "commission")}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
               >
-                <option value="finished">{t("Finished Shimeji", "Shimeji terminado")}</option>
-                <option value="commission">{t("Commission Egg", "Huevo de comisión")}</option>
+                <option value="finished">{t("Finished Shimeji (ready-made)", "Shimeji terminado (ya hecho)")}</option>
+                <option value="commission">{t("Commission Slot (buyer gets custom art)", "Slot de comisión (arte personalizado)")}</option>
               </select>
             </div>
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Price XLM", "Precio XLM")}</label>
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Price in XLM", "Precio en XLM")}</label>
               <input type="number" value={sellPriceXlm} onChange={(e) => setSellPriceXlm(e.target.value)} placeholder="500" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Price USDC", "Precio USDC")}</label>
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Price in USDC", "Precio en USDC")}</label>
               <input type="number" value={sellPriceUsdc} onChange={(e) => setSellPriceUsdc(e.target.value)} placeholder="50" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-[11px] text-muted-foreground flex items-start gap-1.5">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             {sellListingType === "commission"
               ? t(
-                  "Commission egg buyers will be required to submit a public intention and optional reference image URL.",
-                  "Quien compre un huevo de comisión deberá enviar una intención pública y una URL opcional de imagen de referencia."
+                  "Buyers of a commission slot will describe what they want you to create before paying.",
+                  "Quien compre el slot deberá describir qué quiere que crees antes de pagar."
                 )
               : t(
-                  "Finished Shimeji sale: buyer receives the current NFT metadata as-is.",
-                  "Venta de Shimeji terminado: quien compra recibe la metadata actual del NFT."
+                  "Buyers receive your Shimeji exactly as it is right now. Set both XLM and USDC prices so buyers can pay with either.",
+                  "El comprador recibe tu Shimeji tal como está. Ponés ambos precios para que puedan pagar con cualquiera de los dos."
                 )}
           </p>
           <Button onClick={handleSell} disabled={sellLoading} className="mt-3 auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
             {sellLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Listing...", "Listando...")}</span>
-              : <span className="inline-flex items-center gap-2"><Tag className="w-4 h-4" />{sellListingType === "commission" ? t("List Commission Egg", "Listar huevo de comisión") : t("List for Sale", "Listar a la venta")}</span>}
+              : <span className="inline-flex items-center gap-2"><Tag className="w-4 h-4" />{sellListingType === "commission" ? t("List Commission Slot", "Listar slot de comisión") : t("List for Sale", "Listar a la venta")}</span>}
           </Button>
-          {sellSuccess ? <p className="mt-2 text-xs text-green-400">{t("Listed successfully!", "¡Listado exitosamente!")}</p> : null}
+          {sellSuccess ? (
+            <div className="mt-2 flex items-center gap-2 text-green-400 text-xs">
+              <CheckCircle className="w-4 h-4" />{t("Listed successfully! It will appear in the listings below.", "¡Listado exitosamente! Aparecerá en los listados más abajo.")}
+            </div>
+          ) : null}
           {sellError ? <p className="mt-2 text-xs text-red-500">{sellError}</p> : null}
         </div>
       ) : walletConnectPrompt}
 
+      {/* Seller & Creator Tools (collapsible) */}
       {hasConnectedWallet ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-bold text-foreground">{t("Direct NFT Transfer", "Transferencia directa NFT")}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{t("Send a Shimeji directly to another Stellar address.", "Enviar un Shimeji directo a otra dirección Stellar.")}</p>
-            <div className="mt-3 space-y-2">
-              <input
-                type="number"
-                value={transferTokenId}
-                onChange={(e) => setTransferTokenId(e.target.value)}
-                placeholder={t("Token ID", "ID de token")}
-                min={0}
-                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
-              />
-              <input
-                type="text"
-                value={transferRecipient}
-                onChange={(e) => setTransferRecipient(e.target.value)}
-                placeholder={t("Recipient address (G...)", "Dirección destino (G...)")}
-                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
-              />
-              <Button onClick={handleTransferNft} disabled={transferLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                {transferLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Transferring...", "Transfiriendo...")}</span> : t("Transfer NFT", "Transferir NFT")}
-              </Button>
-              {transferSuccess ? <p className="text-xs text-green-400">{t("Transfer submitted!", "¡Transferencia enviada!")}</p> : null}
-              {transferError ? <p className="text-xs text-red-500">{transferError}</p> : null}
+        <div className="rounded-2xl border border-white/10 bg-white/5">
+          <button
+            type="button"
+            onClick={() => setCreatorToolsOpen((p) => !p)}
+            className="flex w-full items-center justify-between px-5 py-3 text-left"
+          >
+            <div>
+              <p className="text-sm font-bold text-foreground">{t("Seller & Creator Tools", "Herramientas de vendedor y creador")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("Transfer NFTs, update commission art, manage orders", "Transferir NFTs, actualizar arte, gestionar órdenes")}</p>
             </div>
-          </div>
+            {creatorToolsOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+          </button>
+          {creatorToolsOpen && (
+            <div className="border-t border-white/10 p-4">
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm font-bold text-foreground">{t("Send Shimeji to Someone", "Enviar Shimeji a alguien")}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{t("Transfer a Shimeji directly to another Stellar wallet address.", "Enviá un Shimeji directamente a otra dirección de billetera Stellar.")}</p>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="number"
+                      value={transferTokenId}
+                      onChange={(e) => setTransferTokenId(e.target.value)}
+                      placeholder={t("Shimeji Token ID (e.g. 42)", "ID del Shimeji (ej. 42)")}
+                      min={0}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+                    />
+                    <input
+                      type="text"
+                      value={transferRecipient}
+                      onChange={(e) => setTransferRecipient(e.target.value)}
+                      placeholder={t("Recipient's wallet address (starts with G)", "Dirección del destinatario (empieza con G)")}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+                    />
+                    <Button onClick={handleTransferNft} disabled={transferLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                      {transferLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Sending...", "Enviando...")}</span> : t("Send Shimeji", "Enviar Shimeji")}
+                    </Button>
+                    {transferSuccess ? <p className="text-xs text-green-400">{t("✓ Sent! The Shimeji is on its way.", "✓ ¡Enviado! El Shimeji está en camino.")}</p> : null}
+                    {transferError ? <p className="text-xs text-red-500">{transferError}</p> : null}
+                  </div>
+                </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-bold text-foreground">{t("Commission Delivery", "Entrega de comisión")}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{t("Creators can update commission egg metadata with the final art URI.", "Los creadores pueden actualizar la metadata del huevo de comisión con el URI del arte final.")}</p>
-            <div className="mt-3 space-y-2">
-              <input
-                type="number"
-                value={deliveryTokenId}
-                onChange={(e) => setDeliveryTokenId(e.target.value)}
-                placeholder={t("Commission token ID", "Token ID de comisión")}
-                min={0}
-                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
-              />
-              <input
-                type="text"
-                value={deliveryMetadataUri}
-                onChange={(e) => setDeliveryMetadataUri(e.target.value)}
-                placeholder="ipfs://..."
-                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
-              />
-              <Button onClick={handleUpdateCommissionMetadata} disabled={deliveryLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                {deliveryLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Updating...", "Actualizando...")}</span> : t("Update Commission Metadata", "Actualizar metadata de comisión")}
-              </Button>
-              {deliverySuccess ? <p className="text-xs text-green-400">{t("Metadata update submitted!", "¡Actualización de metadata enviada!")}</p> : null}
-              {deliveryError ? <p className="text-xs text-red-500">{deliveryError}</p> : null}
-            </div>
-          </div>
+                <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm font-bold text-foreground">{t("Deliver Commissioned Art", "Entregar arte de comisión")}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{t("Creators: once your art is uploaded (e.g. on IPFS or Arweave), paste the metadata URL here to deliver it to the buyer's Shimeji.", "Creadores: cuando el arte esté subido, pegá la URL de la metadata aquí para entregarlo al Shimeji del comprador.")}</p>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="number"
+                      value={deliveryTokenId}
+                      onChange={(e) => setDeliveryTokenId(e.target.value)}
+                      placeholder={t("Commission Shimeji Token ID", "Token ID del Shimeji de comisión")}
+                      min={0}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+                    />
+                    <input
+                      type="text"
+                      value={deliveryMetadataUri}
+                      onChange={(e) => setDeliveryMetadataUri(e.target.value)}
+                      placeholder="ipfs://Qm... or https://..."
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+                    />
+                    <Button onClick={handleUpdateCommissionMetadata} disabled={deliveryLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                      {deliveryLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Uploading...", "Subiendo...")}</span> : t("Deliver Art", "Entregar arte")}
+                    </Button>
+                    {deliverySuccess ? <p className="text-xs text-green-400">{t("✓ Art delivered to the Shimeji!", "✓ ¡Arte entregado al Shimeji!")}</p> : null}
+                    {deliveryError ? <p className="text-xs text-red-500">{deliveryError}</p> : null}
+                  </div>
+                </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-bold text-foreground">{t("Mark Commission Fulfilled", "Marcar comisión cumplida")}</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">{t("Updates the public commission order status after you deliver the final art.", "Actualiza el estado público de la orden de comisión luego de entregar el arte final.")}</p>
-            <div className="mt-3 space-y-2">
-              <input
-                type="number"
-                value={fulfillOrderId}
-                onChange={(e) => setFulfillOrderId(e.target.value)}
-                placeholder={t("Commission order ID", "ID de orden de comisión")}
-                min={0}
-                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
-              />
-              <Button onClick={handleMarkCommissionFulfilled} disabled={fulfillLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                {fulfillLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Marking...", "Marcando...")}</span> : t("Mark Fulfilled", "Marcar cumplida")}
-              </Button>
-              {fulfillSuccess ? <p className="text-xs text-green-400">{t("Commission marked fulfilled!", "¡Comisión marcada como cumplida!")}</p> : null}
-              {fulfillError ? <p className="text-xs text-red-500">{fulfillError}</p> : null}
+                <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-sm font-bold text-foreground">{t("Mark Order as Complete", "Marcar orden como completada")}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{t("After delivering the final art, mark the public commission order as fulfilled so the buyer knows it's done.", "Luego de entregar el arte, marcá la orden pública como cumplida para que el comprador lo vea.")}</p>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      type="number"
+                      value={fulfillOrderId}
+                      onChange={(e) => setFulfillOrderId(e.target.value)}
+                      placeholder={t("Commission Order ID (e.g. 3)", "ID de la orden (ej. 3)")}
+                      min={0}
+                      className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground"
+                    />
+                    <Button onClick={handleMarkCommissionFulfilled} disabled={fulfillLoading} className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                      {fulfillLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Marking...", "Marcando...")}</span> : t("Mark as Complete", "Marcar como completada")}
+                    </Button>
+                    {fulfillSuccess ? <p className="text-xs text-green-400">{t("✓ Order marked as fulfilled!", "✓ ¡Orden marcada como cumplida!")}</p> : null}
+                    {fulfillError ? <p className="text-xs text-red-500">{fulfillError}</p> : null}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : null}
 
       {/* Buy currency toggle */}
       <div className="flex items-center justify-between">
-        <p className="text-sm font-bold text-foreground">{t("Active Listings", "Listados activos")}</p>
+        <div>
+          <p className="text-sm font-bold text-foreground">{t("Active Listings", "Listados activos")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("Browse Shimejis available to buy or commission", "Explorá Shimejis disponibles para comprar o encargar")}</p>
+        </div>
         <CurrencyToggle value={buyCurrency} onChange={setBuyCurrency} />
       </div>
 
@@ -1168,8 +1180,10 @@ export function MarketplaceSection() {
       {listingsLoading ? (
         <p className="text-sm text-muted-foreground">{t("Loading listings...", "Cargando listados...")}</p>
       ) : listings.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
-          <p className="text-muted-foreground">{t("No listings yet. Be the first to sell a Shimeji!", "Aún no hay listados. ¡Sé el primero en vender un Shimeji!")}</p>
+        <div className="rounded-2xl border border-white/10 bg-transparent p-8 text-center">
+          <p className="text-3xl mb-2">🪺</p>
+          <p className="text-foreground font-semibold">{t("No Shimejis for sale right now", "No hay Shimejis en venta por ahora")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("Be the first to list one using the form above!", "¡Sé el primero en listar uno con el formulario de arriba!")}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1185,8 +1199,8 @@ export function MarketplaceSection() {
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("Shimeji", "Shimeji")}</p>
                     <p className="text-xl font-black text-foreground">#{listing.tokenId}</p>
                   </div>
-                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {listing.isCommissionEgg ? t("Commission Egg", "Huevo comisión") : t("For Sale", "En venta")}
+                  <span className={`rounded-full border px-2 py-0.5 text-[10px] ${listing.isCommissionEgg ? "border-purple-400/30 text-purple-300 bg-purple-400/10" : "border-white/20 text-muted-foreground bg-white/10"}`}>
+                    {listing.isCommissionEgg ? t("🎨 Commission Slot", "🎨 Slot de comisión") : t("For Sale", "En venta")}
                   </span>
                 </div>
                 <div>
@@ -1200,17 +1214,18 @@ export function MarketplaceSection() {
                   {t("Seller", "Vendedor")}: {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
                 </p>
                 {listing.isCommissionEgg ? (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-muted-foreground flex items-start gap-1">
+                    <Info className="w-3 h-3 mt-0.5 shrink-0" />
                     {t(
-                      "Buyer must include a public commission intention (and can add a reference image URL).",
-                      "Quien compra debe incluir una intención pública de comisión (y puede agregar una URL de imagen de referencia)."
+                      "You'll describe what you want the artist to create before purchasing.",
+                      "Describirás qué querés que el artista cree antes de comprar."
                     )}
                   </p>
                 ) : null}
                 {!isOwnListing && hasConnectedWallet && listing.isCommissionEgg && !isSuccess ? (
-                  <div className="space-y-2 rounded-xl border border-white/10 bg-black/10 p-3">
-                    <label className="block text-[11px] text-muted-foreground">
-                      {t("Commission intention (public)", "Intención de comisión (pública)")}
+                  <div className="space-y-2 rounded-xl border border-purple-400/20 bg-purple-400/5 p-3">
+                    <label className="block text-[11px] font-semibold text-foreground">
+                      {t("Describe what you want created", "Describí qué querés que se cree")}
                     </label>
                     <textarea
                       value={commissionIntentionByListing[listing.listingId] ?? ""}
@@ -1221,7 +1236,7 @@ export function MarketplaceSection() {
                         }))
                       }
                       rows={3}
-                      placeholder={t("Describe the character/style/details you want...", "Describe el personaje/estilo/detalles que querés...")}
+                      placeholder={t("E.g. A cute anime shimeji with cat ears, in pastel colors, looking surprised...", "Ej. Un shimeji anime kawaii con orejas de gato, en colores pastel, con cara de sorpresa...")}
                       className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                     />
                     <input
@@ -1233,27 +1248,47 @@ export function MarketplaceSection() {
                           [listing.listingId]: e.target.value,
                         }))
                       }
-                      placeholder={t("Optional reference image URL", "URL opcional de imagen de referencia")}
+                      placeholder={t("Reference image URL (optional — any image link works)", "URL de imagen de referencia (opcional — cualquier link de imagen)")}
                       className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
                 ) : null}
                 {isSuccess ? (
                   <div className="flex items-center gap-2 text-green-400 text-xs">
-                    <CheckCircle className="w-4 h-4" />{listing.isCommissionEgg ? t("Commission purchased!", "¡Comisión comprada!") : t("Purchased!", "¡Comprado!")}
+                    <CheckCircle className="w-4 h-4" />{listing.isCommissionEgg ? t("Commission purchased! The artist will reach out soon.", "¡Comisión comprada! El artista se pondrá en contacto.") : t("Purchased! Check your wallet.", "¡Comprado! Revisá tu billetera.")}
                   </div>
                 ) : isOwnListing ? (
-                  <Button variant="outline" size="sm" disabled={isCancelPending}
-                    onClick={() => handleCancelListing(listing)}
-                    className="w-full rounded-xl border-white/20 text-xs">
-                    {isCancelPending ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
-                      : t("Cancel Listing", "Cancelar listado")}
-                  </Button>
+                  cancelListingConfirmId === listing.listingId ? (
+                    <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 space-y-2">
+                      <p className="text-xs text-red-300 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        {t("Remove this listing from the marketplace?", "¿Remover este listado del marketplace?")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setCancelListingConfirmId(null)}
+                          className="flex-1 rounded-lg border-white/20 text-xs">
+                          {t("Keep", "Conservar")}
+                        </Button>
+                        <Button size="sm" disabled={isCancelPending}
+                          onClick={() => { setCancelListingConfirmId(null); void handleCancelListing(listing); }}
+                          className="flex-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs">
+                          {isCancelPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t("Yes, remove", "Sí, remover")}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled={isCancelPending}
+                      onClick={() => setCancelListingConfirmId(listing.listingId)}
+                      className="w-full rounded-xl border-white/20 text-xs">
+                      {isCancelPending ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Removing...", "Removiendo...")}</span>
+                        : t("Remove Listing", "Remover listado")}
+                    </Button>
+                  )
                 ) : hasConnectedWallet ? (
                   <Button onClick={() => handleBuy(listing)} disabled={isBuyPending}
                     className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                    {isBuyPending ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Buying...", "Comprando...")}</span>
-                      : `${listing.isCommissionEgg ? t("Buy commission with", "Comprar comisión con") : t("Buy with", "Comprar con")} ${buyCurrency}`}
+                    {isBuyPending ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Purchasing...", "Comprando...")}</span>
+                      : listing.isCommissionEgg ? t(`Commission with ${buyCurrency}`, `Encargar con ${buyCurrency}`) : t(`Buy with ${buyCurrency}`, `Comprar con ${buyCurrency}`)}
                   </Button>
                 ) : (
                   <FreighterConnectButton />
@@ -1265,14 +1300,15 @@ export function MarketplaceSection() {
       )}
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-foreground">{t("Public Commission Orders", "Órdenes públicas de comisión")}</p>
-          <p className="text-[11px] text-muted-foreground">{t("Prompts + references are stored on-chain.", "Prompts + referencias quedan almacenados on-chain.")}</p>
+        <div>
+          <p className="text-sm font-bold text-foreground">{t("Commission Order History", "Historial de órdenes de comisión")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("All commission requests made through the marketplace. Prompts and references are stored permanently on-chain.", "Todas las solicitudes de comisión del marketplace. Prompts y referencias quedan guardados permanentemente en la blockchain.")}</p>
         </div>
         {commissionOrdersLoading ? (
           <p className="text-sm text-muted-foreground">{t("Loading commission orders...", "Cargando órdenes de comisión...")}</p>
         ) : commissionOrders.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
+          <div className="rounded-2xl border border-white/10 bg-transparent p-8 text-center">
+            <p className="text-2xl mb-2">🎨</p>
             <p className="text-muted-foreground">{t("No commission orders yet.", "Todavía no hay órdenes de comisión.")}</p>
           </div>
         ) : (
@@ -1323,47 +1359,57 @@ export function MarketplaceSection() {
       {/* Create swap offer form */}
       {hasConnectedWallet ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <p className="text-sm font-bold text-foreground mb-3">{t("Create a Swap Offer", "Crear una oferta de intercambio")}</p>
-          <p className="text-xs text-muted-foreground mb-3">{t("Offer one of your Shimejis in exchange for another.", "Ofrece uno de tus Shimejis a cambio de otro.")}</p>
+          <p className="text-sm font-bold text-foreground mb-1">{t("Propose a Trade", "Proponer un intercambio")}</p>
+          <p className="text-xs text-muted-foreground mb-3">{t("Offer your Shimeji in exchange for a specific one you want. The other owner can accept or ignore your offer.", "Ofrecé tu Shimeji a cambio de uno específico que querés. El otro dueño puede aceptar o ignorar tu oferta.")}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Your Shimeji (Token ID to offer)", "Tu Shimeji (ID a ofrecer)")}</label>
-              <input type="number" value={swapOfferedToken} onChange={(e) => setSwapOfferedToken(e.target.value)} placeholder="0" min={0}
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Your Shimeji Token ID (what you're giving)", "Tu Shimeji (el que ofrecés)")}</label>
+              <input type="number" value={swapOfferedToken} onChange={(e) => setSwapOfferedToken(e.target.value)} placeholder="e.g. 5" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">{t("Desired Shimeji (Token ID you want)", "Shimeji deseado (ID que querés)")}</label>
-              <input type="number" value={swapDesiredToken} onChange={(e) => setSwapDesiredToken(e.target.value)} placeholder="1" min={0}
+              <label className="block text-[11px] text-muted-foreground mb-1">{t("Shimeji you want in return (Token ID)", "El Shimeji que querés recibir (Token ID)")}</label>
+              <input type="number" value={swapDesiredToken} onChange={(e) => setSwapDesiredToken(e.target.value)} placeholder="e.g. 12" min={0}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]" />
             </div>
           </div>
           <div className="mt-3">
-            <label className="block text-[11px] text-muted-foreground mb-1">{t("Public swap intention", "Intención pública de swap")}</label>
+            <label className="block text-[11px] text-muted-foreground mb-1">{t("Your message to the community (why this trade?)", "Tu mensaje a la comunidad (¿por qué este intercambio?)")}</label>
             <textarea
               value={swapIntention}
               onChange={(e) => setSwapIntention(e.target.value)}
               rows={3}
-              placeholder={t("Why are you offering this swap? (shown publicly)", "¿Por qué ofrecés este swap? (se muestra públicamente)")}
+              placeholder={t("E.g. Looking to trade my dragon shimeji for a bunny one! Both are rare limited editions.", "Ej. Quiero cambiar mi shimeji dragón por un conejo. ¡Los dos son ediciones limitadas raras!")}
               className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
             />
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t("This is shown publicly to help the other owner decide.", "Se muestra públicamente para ayudar al otro dueño a decidir.")}</p>
           </div>
           <Button onClick={handleCreateSwap} disabled={swapLoading} className="mt-3 auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
-            {swapLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Creating...", "Creando...")}</span>
-              : <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4" />{t("Create Swap Offer", "Crear oferta de swap")}</span>}
+            {swapLoading ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Proposing...", "Proponiendo...")}</span>
+              : <span className="inline-flex items-center gap-2"><RefreshCw className="w-4 h-4" />{t("Propose Trade", "Proponer intercambio")}</span>}
           </Button>
-          {swapSuccess ? <p className="mt-2 text-xs text-green-400">{t("Swap offer created!", "¡Oferta de swap creada!")}</p> : null}
+          {swapSuccess ? (
+            <div className="mt-2 flex items-center gap-2 text-green-400 text-xs">
+              <CheckCircle className="w-4 h-4" />{t("Trade offer published! The other owner will be able to accept it.", "¡Oferta publicada! El otro dueño podrá aceptarla.")}
+            </div>
+          ) : null}
           {swapError ? <p className="mt-2 text-xs text-red-500">{swapError}</p> : null}
         </div>
       ) : walletConnectPrompt}
 
-      <p className="text-sm font-bold text-foreground">{t("Active Swap Offers", "Ofertas de intercambio activas")}</p>
+      <div>
+        <p className="text-sm font-bold text-foreground">{t("Open Trade Offers", "Ofertas de intercambio abiertas")}</p>
+        <p className="text-[11px] text-muted-foreground">{t("Browse offers from other Shimeji owners looking to trade.", "Explorá ofertas de otros dueños de Shimejis.")}</p>
+      </div>
       {txError ? <p className="text-xs text-red-500">{txError}</p> : null}
 
       {swapsLoading ? (
-        <p className="text-sm text-muted-foreground">{t("Loading swap offers...", "Cargando ofertas de swap...")}</p>
+        <p className="text-sm text-muted-foreground">{t("Loading trade offers...", "Cargando ofertas de intercambio...")}</p>
       ) : swapOffers.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
-          <p className="text-muted-foreground">{t("No swap offers yet. Create the first one!", "Aún no hay ofertas de swap. ¡Creá la primera!")}</p>
+        <div className="rounded-2xl border border-white/10 bg-transparent p-8 text-center">
+          <p className="text-3xl mb-2">🔄</p>
+          <p className="text-foreground font-semibold">{t("No trade offers right now", "No hay ofertas de intercambio ahora")}</p>
+          <p className="text-sm text-muted-foreground mt-1">{t("Be the first to propose one above!", "¡Sé el primero en proponer una arriba!")}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1384,30 +1430,51 @@ export function MarketplaceSection() {
                     {t("Swap", "Swap")}
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">{t("Offerer wants to trade Shimeji", "Ofertante quiere intercambiar Shimeji")} #{offer.offeredTokenId} {t("for", "por")} #{offer.desiredTokenId}</p>
+                <p className="text-[11px] text-muted-foreground">{t("Offering Shimeji", "Ofrece Shimeji")} #{offer.offeredTokenId} {t("in exchange for", "a cambio del")} #{offer.desiredTokenId}</p>
                 <div className="rounded-xl border border-white/10 bg-black/10 p-2">
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{t("Intention", "Intención")}</p>
-                  <p className="mt-1 text-xs text-foreground break-words whitespace-pre-wrap">{offer.intention || t("No intention provided.", "Sin intención.")}</p>
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Why they want to trade", "Por qué quiere intercambiar")}</p>
+                  <p className="text-xs text-foreground break-words whitespace-pre-wrap">{offer.intention || t("No message provided.", "Sin mensaje.")}</p>
                 </div>
                 <p className="text-[11px] text-muted-foreground font-mono truncate" title={offer.offerer}>
-                  {t("By", "Por")}: {offer.offerer.slice(0, 6)}...{offer.offerer.slice(-4)}
+                  {t("From", "De")}: {offer.offerer.slice(0, 6)}...{offer.offerer.slice(-4)}
+                  {isOwnOffer && <span className="ml-1 text-[10px] text-yellow-400">{t("(you)", "(vos)")}</span>}
                 </p>
                 {isSuccess ? (
                   <div className="flex items-center gap-2 text-green-400 text-xs">
-                    <CheckCircle className="w-4 h-4" />{t("Swapped!", "¡Intercambiado!")}
+                    <CheckCircle className="w-4 h-4" />{t("Trade completed! Check your wallet.", "¡Intercambio completado! Revisá tu billetera.")}
                   </div>
                 ) : isOwnOffer ? (
-                  <Button variant="outline" size="sm" disabled={isCancelPending}
-                    onClick={() => handleCancelSwap(offer)}
-                    className="w-full rounded-xl border-white/20 text-xs">
-                    {isCancelPending ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
-                      : t("Cancel Offer", "Cancelar oferta")}
-                  </Button>
+                  cancelSwapConfirmId === offer.swapId ? (
+                    <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 space-y-2">
+                      <p className="text-xs text-red-300 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        {t("Cancel this trade offer?", "¿Cancelar esta oferta de intercambio?")}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setCancelSwapConfirmId(null)}
+                          className="flex-1 rounded-lg border-white/20 text-xs">
+                          {t("Keep", "Conservar")}
+                        </Button>
+                        <Button size="sm" disabled={isCancelPending}
+                          onClick={() => { setCancelSwapConfirmId(null); void handleCancelSwap(offer); }}
+                          className="flex-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs">
+                          {isCancelPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t("Yes, cancel", "Sí, cancelar")}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" disabled={isCancelPending}
+                      onClick={() => setCancelSwapConfirmId(offer.swapId)}
+                      className="w-full rounded-xl border-white/20 text-xs">
+                      {isCancelPending ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
+                        : t("Cancel Offer", "Cancelar oferta")}
+                    </Button>
+                  )
                 ) : hasConnectedWallet ? (
                   <Button onClick={() => handleAcceptSwap(offer)} disabled={isAcceptPending}
                     className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                    {isAcceptPending ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Accepting...", "Aceptando...")}</span>
-                      : t("Accept Swap", "Aceptar swap")}
+                    {isAcceptPending ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Processing...", "Procesando...")}</span>
+                      : t("Accept Trade", "Aceptar intercambio")}
                   </Button>
                 ) : (
                   <FreighterConnectButton />
@@ -1422,98 +1489,139 @@ export function MarketplaceSection() {
 
   // ── Commission tab ────────────────────────────────────────────────────────
 
-  const STATUS_LABELS: Record<string, { en: string; es: string; color: string }> = {
-    Open:      { en: "Open",      es: "Abierta",    color: "text-blue-400" },
-    Accepted:  { en: "Accepted",  es: "Aceptada",   color: "text-yellow-400" },
-    Delivered: { en: "Delivered", es: "Entregada",  color: "text-purple-400" },
-    Completed: { en: "Completed", es: "Completada", color: "text-green-400" },
-    Cancelled: { en: "Cancelled", es: "Cancelada",  color: "text-red-400" },
+  const STATUS_LABELS: Record<string, { en: string; es: string; color: string; icon: string }> = {
+    Open:      { en: "Open — Waiting for artist",     es: "Abierta — Esperando artista",       color: "text-blue-400",   icon: "🔵" },
+    Accepted:  { en: "In Progress — Artist working",  es: "En progreso — Artista trabajando",  color: "text-yellow-400", icon: "🟡" },
+    Delivered: { en: "Delivered — Awaiting approval", es: "Entregada — Esperando aprobación",  color: "text-purple-400", icon: "🟣" },
+    Completed: { en: "Completed",                     es: "Completada",                        color: "text-green-400",  icon: "🟢" },
+    Cancelled: { en: "Cancelled",                     es: "Cancelada",                         color: "text-red-400",    icon: "🔴" },
   };
 
   const renderCommissionTab = () => (
     <div className="space-y-8">
+      {/* How it works */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <p className="text-sm font-bold text-foreground mb-3">{t("How commissions work", "¿Cómo funcionan las comisiones?")}</p>
+        <div className="grid gap-2 sm:grid-cols-4 text-[11px]">
+          {[
+            { step: "1", icon: "📝", title: t("Post your request", "Publicás tu solicitud"), desc: t("Describe what you want, set your price. Payment is locked safely in escrow.", "Describís qué querés, ponés tu precio. El pago queda bloqueado en escrow.") },
+            { step: "2", icon: "🎨", title: t("Artist gets assigned", "Se asigna un artista"), desc: t("An admin matches you with an artist who accepts your commission.", "Un admin te conecta con un artista que acepta tu comisión.") },
+            { step: "3", icon: "✉️", title: t("Artist delivers", "El artista entrega"), desc: t("The artist marks it as delivered when the art is ready.", "El artista marca como entregado cuando el arte está listo.") },
+            { step: "4", icon: "✅", title: t("You approve & pay", "Vos aprobás y se paga"), desc: t("Review the art. If satisfied, approve it to release the escrowed payment.", "Revisás el arte. Si estás conforme, aprobás y el pago se libera.") },
+          ].map(({ step, icon, title, desc }) => (
+            <div key={step} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-black">{step}</span>
+                <span className="text-xl">{icon}</span>
+                <span className="font-semibold text-foreground">{title}</span>
+              </div>
+              <p className="text-muted-foreground pl-7">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Create commission form */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <p className="text-sm font-bold text-foreground mb-1">{t("Post a Commission Request", "Publicar una solicitud de comisión")}</p>
         <p className="text-xs text-muted-foreground mb-4">
           {t(
-            "Describe what you want. Payment is held in escrow until you approve the delivered art.",
-            "Describe qué querés. El pago se guarda en escrow hasta que apruebes el arte entregado.",
+            "Your payment is held safely in escrow — you only release it when you're happy with the result.",
+            "Tu pago se guarda seguro en escrow — solo lo liberás cuando estés conforme con el resultado.",
           )}
         </p>
         {hasConnectedWallet ? (
           <div className="space-y-3">
-            {/* Intention */}
+            {/* Commission brief */}
             <div>
-              <label className="block text-[11px] text-muted-foreground mb-1">
-                {t("Your intention (what you want the artist to create) *", "Tu intención (qué querés que cree el artista) *")}
+              <label className="block text-[11px] font-semibold text-foreground mb-1">
+                {t("Describe what you want created *", "Describí qué querés que se cree *")}
               </label>
               <textarea
                 value={cIntention}
                 onChange={(e) => setCIntention(e.target.value)}
                 rows={4}
                 maxLength={500}
-                placeholder={t("E.g. Draw my shimeji as a samurai with a katana, anime style.", "Ej. Dibuja a mi shimeji como un samurái con katana, estilo anime.")}
+                placeholder={t(
+                  "E.g. Draw my shimeji as a samurai with a katana, anime style, using orange and black colors. Include a cool action pose.",
+                  "Ej. Dibujá mi shimeji como un samurái con katana, estilo anime, en naranja y negro. Incluí una pose de acción copada."
+                )}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
               />
-              <p className="text-[10px] text-muted-foreground mt-0.5 text-right">{cIntention.length}/500</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 flex justify-between">
+                <span>{t("Be as specific as possible — the artist will follow this brief.", "Sé lo más específico posible — el artista seguirá este brief.")}</span>
+                <span className={cIntention.length > 450 ? "text-yellow-400" : ""}>{cIntention.length}/500</span>
+              </p>
             </div>
             {/* Reference image */}
             <div>
               <label className="block text-[11px] text-muted-foreground mb-1">
-                {t("Reference image URL (optional, IPFS or HTTPS)", "URL de imagen de referencia (opcional, IPFS o HTTPS)")}
+                {t("Reference image (optional)", "Imagen de referencia (opcional)")}
               </label>
               <input
                 type="text"
                 value={cRefImage}
                 onChange={(e) => setCRefImage(e.target.value)}
-                placeholder="ipfs://Qm... or https://..."
+                placeholder={t("Paste any image URL — Imgur, Google Drive, Twitter, etc.", "Pegá cualquier link de imagen — Imgur, Google Drive, Twitter, etc.")}
                 className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
               />
+              <p className="text-[10px] text-muted-foreground mt-0.5">{t("Share an image that shows the style or character you want.", "Compartí una imagen que muestre el estilo o personaje que querés.")}</p>
             </div>
             {/* Price + currency */}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <label className="block text-[11px] text-muted-foreground mb-1">{t("Price XLM", "Precio XLM")}</label>
-                <input
-                  type="number"
-                  value={cPriceXlm}
-                  onChange={(e) => setCPriceXlm(e.target.value)}
-                  min={0}
-                  step={0.1}
-                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                />
+            <div>
+              <label className="block text-[11px] text-muted-foreground mb-2">{t("How much are you willing to pay?", "¿Cuánto estás dispuesto a pagar?")}</label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t("Amount in XLM", "Monto en XLM")}</label>
+                  <input
+                    type="number"
+                    value={cPriceXlm}
+                    onChange={(e) => setCPriceXlm(e.target.value)}
+                    min={0}
+                    step={0.1}
+                    className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t("Amount in USDC", "Monto en USDC")}</label>
+                  <input
+                    type="number"
+                    value={cPriceUsdc}
+                    onChange={(e) => setCPriceUsdc(e.target.value)}
+                    min={0}
+                    step={0.1}
+                    className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t("Pay with", "Pagar con")}</label>
+                  <select
+                    value={cCurrency}
+                    onChange={(e) => setCCurrency(e.target.value as CommissionCurrency)}
+                    className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
+                  >
+                    <option value="Xlm">XLM (Stellar Lumens)</option>
+                    <option value="Usdc">USDC (Stablecoin)</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-[11px] text-muted-foreground mb-1">{t("Price USDC", "Precio USDC")}</label>
-                <input
-                  type="number"
-                  value={cPriceUsdc}
-                  onChange={(e) => setCPriceUsdc(e.target.value)}
-                  min={0}
-                  step={0.1}
-                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] text-muted-foreground mb-1">{t("Pay in", "Pagar en")}</label>
-                <select
-                  value={cCurrency}
-                  onChange={(e) => setCCurrency(e.target.value as CommissionCurrency)}
-                  className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
-                >
-                  <option value="Xlm">XLM</option>
-                  <option value="Usdc">USDC</option>
-                </select>
-              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                <Info className="w-3 h-3 shrink-0" />
+                {t("Set both XLM and USDC amounts so the platform can convert if needed. Escrow will use the currency you select.", "Ingresá ambos montos para que la plataforma pueda convertir si es necesario. El escrow usará la moneda que elijas.")}
+              </p>
             </div>
             <Button onClick={handleCreateEscrowCommission} disabled={cLoading}
               className="auction-bid-button rounded-xl px-6 py-2 text-sm font-bold">
               {cLoading
                 ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Posting...", "Publicando...")}</span>
-                : <span className="inline-flex items-center gap-2"><Pencil className="w-4 h-4" />{t("Post Commission", "Publicar comisión")}</span>}
+                : <span className="inline-flex items-center gap-2"><Pencil className="w-4 h-4" />{t("Post Commission Request", "Publicar solicitud de comisión")}</span>}
             </Button>
-            {cSuccess && <p className="text-xs text-green-400 mt-1">{t("Commission posted! Payment escrowed.", "¡Comisión publicada! Pago en escrow.")}</p>}
+            {cSuccess && (
+              <div className="flex items-center gap-2 text-green-400 text-xs mt-1">
+                <CheckCircle className="w-4 h-4" />
+                {t("Commission posted! Your payment is safely held in escrow while we find you an artist.", "¡Comisión publicada! Tu pago está seguro en escrow mientras buscamos un artista.")}
+              </div>
+            )}
             {cError && <p className="text-xs text-red-500 mt-1">{cError}</p>}
           </div>
         ) : walletConnectPrompt}
@@ -1521,13 +1629,18 @@ export function MarketplaceSection() {
 
       {/* Commission listing */}
       <div>
-        <p className="text-sm font-bold text-foreground mb-3">{t("Open Commissions", "Comisiones abiertas")}</p>
+        <div className="mb-3">
+          <p className="text-sm font-bold text-foreground">{t("All Commission Requests", "Todas las solicitudes de comisión")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("Your commissions show action buttons only you can see.", "Tus comisiones muestran botones de acción solo visibles para vos.")}</p>
+        </div>
         {cActionError && <p className="text-xs text-red-500 mb-2">{cActionError}</p>}
         {escrowCommissionsLoading ? (
           <p className="text-sm text-muted-foreground">{t("Loading commissions...", "Cargando comisiones...")}</p>
         ) : escrowCommissions.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-transparent p-6 text-center">
-            <p className="text-muted-foreground">{t("No commissions posted yet. Be the first!", "Aún no hay comisiones. ¡Sé el primero!")}</p>
+          <div className="rounded-2xl border border-white/10 bg-transparent p-8 text-center">
+            <p className="text-3xl mb-2">✏️</p>
+            <p className="text-foreground font-semibold">{t("No commissions yet", "Aún no hay comisiones")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("Be the first to request a custom Shimeji!", "¡Sé el primero en pedir un Shimeji personalizado!")}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1540,54 +1653,55 @@ export function MarketplaceSection() {
               const cancelKey = `cancel-c-${req.commissionId}`;
               return (
                 <div key={req.commissionId} className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <span className="text-xs font-black text-foreground">#{req.commissionId}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-wide ${statusInfo.color}`}>
-                      {isSpanish ? statusInfo.es : statusInfo.en}
+                    <span className={`text-[10px] font-semibold text-right ${statusInfo.color}`}>
+                      {statusInfo.icon} {isSpanish ? statusInfo.es : statusInfo.en}
                     </span>
                   </div>
 
-                  {/* Intention */}
+                  {/* Commission brief */}
                   <div className="rounded-xl border border-white/10 bg-black/10 p-2">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Intention", "Intención")}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("What was requested", "Qué se pidió")}</p>
                     <p className="text-xs text-foreground break-words whitespace-pre-wrap">{req.intention}</p>
                   </div>
 
                   {/* Reference image */}
                   {req.referenceImage ? (
                     <div className="rounded-xl border border-white/10 bg-black/10 p-2">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Reference", "Referencia")}</p>
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t("Reference image", "Imagen de referencia")}</p>
                       <a
                         href={req.referenceImage}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-400 underline break-all"
                       >
-                        {req.referenceImage.length > 48 ? `${req.referenceImage.slice(0, 48)}…` : req.referenceImage}
+                        {t("View reference →", "Ver referencia →")}
                       </a>
                     </div>
                   ) : null}
 
                   {/* Price */}
                   <p className="text-xs text-muted-foreground">
-                    {t("Price", "Precio")}:{" "}
+                    {t("Budget", "Presupuesto")}:{" "}
                     <span className="text-foreground font-bold">
                       {req.currency === "Usdc"
                         ? `${formatTokenAmount(req.priceUsdc)} USDC`
                         : `${formatTokenAmount(req.priceXlm)} XLM`}
                     </span>
+                    <span className="ml-1 opacity-60">{t("(in escrow)", "(en escrow)")}</span>
                   </p>
 
                   {/* Buyer */}
                   <p className="text-[11px] text-muted-foreground font-mono truncate" title={req.buyer}>
-                    {t("By", "Por")}: {req.buyer.slice(0, 6)}...{req.buyer.slice(-4)}
+                    {t("Requested by", "Pedido por")}: {req.buyer.slice(0, 6)}...{req.buyer.slice(-4)}
                     {isBuyer && <span className="ml-1 text-[10px] text-yellow-400">{t("(you)", "(vos)")}</span>}
                   </p>
 
                   {/* Artist (if assigned) */}
                   {req.status !== "Open" && req.artist ? (
                     <p className="text-[11px] text-muted-foreground font-mono truncate" title={req.artist}>
-                      {t("Artist", "Artista")}: {req.artist.slice(0, 6)}...{req.artist.slice(-4)}
+                      {t("Artist assigned", "Artista asignado")}: {req.artist.slice(0, 6)}...{req.artist.slice(-4)}
                       {isArtist && <span className="ml-1 text-[10px] text-yellow-400">{t("(you)", "(vos)")}</span>}
                     </p>
                   ) : null}
@@ -1595,28 +1709,51 @@ export function MarketplaceSection() {
                   {/* Action buttons */}
                   {cActionSuccess === approveKey || cActionSuccess === deliverKey ? (
                     <div className="flex items-center gap-2 text-green-400 text-xs">
-                      <CheckCircle className="w-4 h-4" />{t("Done!", "¡Hecho!")}
+                      <CheckCircle className="w-4 h-4" />{t("Done! Refreshing...", "¡Hecho! Actualizando...")}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
                       {/* Buyer: approve delivery */}
                       {isBuyer && req.status === "Delivered" && (
-                        <Button onClick={() => handleApproveDelivery(req)} disabled={cActionPending === approveKey}
-                          className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
-                          {cActionPending === approveKey
-                            ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Approving...", "Aprobando...")}</span>
-                            : <span className="inline-flex items-center gap-2"><CheckCircle className="w-4 h-4" />{t("Approve & Release Payment", "Aprobar y liberar pago")}</span>}
-                        </Button>
+                        <div className="rounded-xl border border-green-400/20 bg-green-400/5 p-3 space-y-2">
+                          <p className="text-[11px] text-green-300">{t("🎉 Your commission has been delivered! Review it and approve to release the payment.", "🎉 ¡Tu comisión fue entregada! Revisala y aprobá para liberar el pago.")}</p>
+                          <Button onClick={() => handleApproveDelivery(req)} disabled={cActionPending === approveKey}
+                            className="w-full auction-bid-button rounded-xl py-2 text-sm font-bold">
+                            {cActionPending === approveKey
+                              ? <span className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{t("Releasing payment...", "Liberando pago...")}</span>
+                              : <span className="inline-flex items-center gap-2"><CheckCircle className="w-4 h-4" />{t("Approve & Release Payment", "Aprobar y liberar pago")}</span>}
+                          </Button>
+                        </div>
                       )}
                       {/* Buyer: cancel open commission */}
                       {isBuyer && req.status === "Open" && (
-                        <Button variant="outline" size="sm" onClick={() => handleCancelEscrowCommission(req)}
-                          disabled={cActionPending === cancelKey}
-                          className="w-full rounded-xl border-white/20 text-xs">
-                          {cActionPending === cancelKey
-                            ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
-                            : t("Cancel & Refund", "Cancelar y reembolsar")}
-                        </Button>
+                        cancelCommissionConfirmId === req.commissionId ? (
+                          <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-3 space-y-2">
+                            <p className="text-xs text-red-300 flex items-center gap-1.5">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              {t("Cancel this commission and get your funds back?", "¿Cancelar esta comisión y recuperar tus fondos?")}
+                            </p>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => setCancelCommissionConfirmId(null)}
+                                className="flex-1 rounded-lg border-white/20 text-xs">
+                                {t("Keep it", "Conservarla")}
+                              </Button>
+                              <Button size="sm" disabled={cActionPending === cancelKey}
+                                onClick={() => { setCancelCommissionConfirmId(null); void handleCancelEscrowCommission(req); }}
+                                className="flex-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs">
+                                {cActionPending === cancelKey ? <Loader2 className="w-3 h-3 animate-spin" /> : t("Yes, cancel & refund", "Sí, cancelar y reembolsar")}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => setCancelCommissionConfirmId(req.commissionId)}
+                            disabled={cActionPending === cancelKey}
+                            className="w-full rounded-xl border-white/20 text-xs">
+                            {cActionPending === cancelKey
+                              ? <span className="inline-flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />{t("Cancelling...", "Cancelando...")}</span>
+                              : t("Cancel & Get Refund", "Cancelar y recuperar fondos")}
+                          </Button>
+                        )
                       )}
                       {/* Artist: mark as delivered */}
                       {isArtist && req.status === "Accepted" && (
@@ -1654,20 +1791,19 @@ export function MarketplaceSection() {
     );
   }
 
-  const tabs: { id: Tab; label: string; labelEs: string; icon: React.ReactNode }[] = [
-    { id: "auction",    label: "Auction",     labelEs: "Subasta",    icon: <Gavel className="w-4 h-4" /> },
-    { id: "buy",        label: "Buy",         labelEs: "Comprar",    icon: <Tag className="w-4 h-4" /> },
-    { id: "swap",       label: "Swap",        labelEs: "Swap",       icon: <RefreshCw className="w-4 h-4" /> },
-    { id: "commission", label: "Commission",  labelEs: "Comisión",   icon: <Pencil className="w-4 h-4" /> },
+  const tabs: { id: Tab; label: string; labelEs: string; subLabel: string; subLabelEs: string; icon: React.ReactNode }[] = [
+    { id: "auction",    label: "Auction",     labelEs: "Subasta",    subLabel: "Live bidding",      subLabelEs: "Pujas en vivo",         icon: <Gavel className="w-4 h-4" /> },
+    { id: "buy",        label: "Buy",         labelEs: "Comprar",    subLabel: "Browse & sell",     subLabelEs: "Explorar y vender",     icon: <Tag className="w-4 h-4" /> },
+    { id: "swap",       label: "Trade",       labelEs: "Intercambio", subLabel: "Swap Shimejis",    subLabelEs: "Intercambiar Shimejis", icon: <RefreshCw className="w-4 h-4" /> },
+    { id: "commission", label: "Commission",  labelEs: "Comisión",   subLabel: "Custom art orders", subLabelEs: "Pedidos de arte",       icon: <Pencil className="w-4 h-4" /> },
   ];
 
   return (
     <section id="subasta" className="pt-28 px-4 pb-16">
       <div className="max-w-6xl mx-auto">
         {/* Header actions */}
-        {(headerFaucetButton || headerWalletButton) ? (
+        {headerWalletButton ? (
           <div className="mb-6 flex items-center justify-end gap-2 flex-wrap">
-            {headerFaucetButton}
             {headerWalletButton}
           </div>
         ) : null}
@@ -1677,17 +1813,17 @@ export function MarketplaceSection() {
 
         {/* Tab bar */}
         <div className="mt-4 mb-6 flex gap-1 rounded-2xl border border-white/10 bg-white/5 p-1">
-          {tabs.map(({ id, label, labelEs, icon }) => (
+          {tabs.map(({ id, label, labelEs, subLabel, subLabelEs, icon }) => (
             <button key={id} type="button"
-              onClick={() => { setActiveTab(id); setTxError(""); setBidError(""); setSellError(""); setSwapError(""); setCError(""); setCActionError(""); }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+              onClick={() => { setActiveTab(id); setTxError(""); setBidError(""); setSellError(""); setSwapError(""); setCError(""); setCActionError(""); setCancelListingConfirmId(null); setCancelSwapConfirmId(null); setCancelCommissionConfirmId(null); }}
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-2 text-sm font-bold transition-all ${
                 activeTab === id
                   ? "bg-white/10 text-foreground shadow"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {icon}
-              <span>{isSpanish ? labelEs : label}</span>
+              <span className="flex items-center gap-1.5">{icon}<span>{isSpanish ? labelEs : label}</span></span>
+              <span className="hidden sm:block text-[10px] font-normal opacity-60">{isSpanish ? subLabelEs : subLabel}</span>
             </button>
           ))}
         </div>
@@ -1702,9 +1838,20 @@ export function MarketplaceSection() {
 
         {/* Marketplace contract badge */}
         {MARKETPLACE_CONTRACT_ID ? (
-          <div className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[11px] text-muted-foreground">
-            {t("Marketplace contract", "Contrato de marketplace")}:{" "}
-            <span className="font-mono">{MARKETPLACE_CONTRACT_ID.slice(0, 8)}...{MARKETPLACE_CONTRACT_ID.slice(-8)}</span>
+          <div className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+            <span>{t("Powered by a verified on-chain smart contract:", "Impulsado por un contrato inteligente verificado on-chain:")}</span>
+            {(isTestnetNetwork || isMainnetNetwork) ? (
+              <a
+                href={`https://stellar.expert/explorer/${isTestnetNetwork ? "testnet" : "public"}/contract/${MARKETPLACE_CONTRACT_ID}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono underline text-foreground/60 hover:text-foreground"
+              >
+                {MARKETPLACE_CONTRACT_ID.slice(0, 8)}...{MARKETPLACE_CONTRACT_ID.slice(-8)} ↗
+              </a>
+            ) : (
+              <span className="font-mono">{MARKETPLACE_CONTRACT_ID.slice(0, 8)}...{MARKETPLACE_CONTRACT_ID.slice(-8)}</span>
+            )}
           </div>
         ) : null}
       </div>

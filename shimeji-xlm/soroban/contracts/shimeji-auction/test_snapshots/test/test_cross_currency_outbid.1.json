@@ -577,6 +577,22 @@
                     },
                     {
                       "key": {
+                        "symbol": "is_item_auction"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "seller"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "start_time"
                       },
                       "val": {
@@ -603,6 +619,14 @@
                           "hi": 0,
                           "lo": 5000000000
                         }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "token_id"
+                      },
+                      "val": {
+                        "u64": 0
                       }
                     },
                     {

@@ -130,10 +130,12 @@ const aiTestStatus = document.getElementById('ai-test-status');
 const globalShimejiToggle = document.getElementById('global-shimeji-toggle');
 const popupThemeSelect = document.getElementById('popup-theme-select');
 const popupLanguageSelect = document.getElementById('popup-language-select');
+const uiTextScaleSelect = document.getElementById('ui-text-scale-select');
 const startOnStartupToggle = document.getElementById('start-on-startup-toggle');
 const startMinimizedToggle = document.getElementById('start-minimized-toggle');
 const createShortcutBtn = document.getElementById('create-shortcut-btn');
 const createShortcutStatus = document.getElementById('create-shortcut-status');
+const UI_TEXT_SCALE_OPTIONS = [0.85, 1, 1.15, 1.3, 1.45];
 
 function detectBrowserLanguage() {
   const languages = Array.isArray(navigator.languages) && navigator.languages.length
@@ -231,6 +233,61 @@ function applyTheme(theme, forceRandomize = false) {
   document.body.dataset.theme = resolvedPopupTheme;
 }
 
+function normalizeUiTextScale(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  let nearest = UI_TEXT_SCALE_OPTIONS[0];
+  let minDelta = Math.abs(numeric - nearest);
+  UI_TEXT_SCALE_OPTIONS.forEach((option) => {
+    const delta = Math.abs(numeric - option);
+    if (delta < minDelta) {
+      nearest = option;
+      minDelta = delta;
+    }
+  });
+  return nearest;
+}
+
+function applyUiTextScale(value) {
+  const next = normalizeUiTextScale(value);
+  document.documentElement.style.zoom = String(next);
+  document.documentElement.style.transformOrigin = 'top left';
+  if (uiTextScaleSelect) {
+    uiTextScaleSelect.value = String(next);
+  }
+  return next;
+}
+
+function populateUiTextScaleSelect(value) {
+  if (!uiTextScaleSelect) return;
+  const selected = normalizeUiTextScale(value);
+  uiTextScaleSelect.innerHTML = '';
+  UI_TEXT_SCALE_OPTIONS.forEach((opt) => {
+    const option = document.createElement('option');
+    option.value = String(opt);
+    option.textContent = `${Math.round(opt * 100)}%`;
+    if (opt === selected) option.selected = true;
+    uiTextScaleSelect.appendChild(option);
+  });
+}
+
+function getUiTextScaleShortcutAction(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 'increase';
+  if (event.key === '-' || event.key === '_' || event.code === 'NumpadSubtract') return 'decrease';
+  if (event.key === '0' || event.code === 'Digit0' || event.code === 'Numpad0') return 'reset';
+  return null;
+}
+
+function stepUiTextScale(current, action) {
+  const normalized = normalizeUiTextScale(current);
+  const index = Math.max(0, UI_TEXT_SCALE_OPTIONS.indexOf(normalized));
+  if (action === 'reset') return 1;
+  if (action === 'increase') return UI_TEXT_SCALE_OPTIONS[Math.min(UI_TEXT_SCALE_OPTIONS.length - 1, index + 1)];
+  if (action === 'decrease') return UI_TEXT_SCALE_OPTIONS[Math.max(0, index - 1)];
+  return normalized;
+}
+
 function populatePopupThemeSelect(value) {
   if (!popupThemeSelect) return;
   const selected = POPUP_THEME_OPTIONS.some((opt) => opt.value === value) ? value : 'random';
@@ -287,6 +344,11 @@ function setPopupLabels() {
   setText('popup-theme-note', t('Applies instantly to desktop settings.', 'Se aplica al instante en la configuración de desktop.'));
   setText('popup-language-label', t('Language', 'Idioma'));
   setText('popup-language-note', t('Changes labels in settings and chat UI.', 'Cambia etiquetas en configuración y en la UI del chat.'));
+  setText('ui-text-scale-label', t('UI Text Size', 'Tamaño de texto UI'));
+  setText('ui-text-scale-note', t(
+    'Ctrl/Cmd + or - to resize, Ctrl/Cmd + 0 to reset.',
+    'Ctrl/Cmd + o - para cambiar tamaño, Ctrl/Cmd + 0 para reiniciar.'
+  ));
   setText('link-feedback', t('Feedback', 'Feedback'));
   setText('link-privacy', t('Privacy', 'Privacidad'));
 
@@ -1115,6 +1177,9 @@ function applyConfig(next) {
   applyTheme(popupTheme, popupThemeChanged);
   populatePopupThemeSelect(popupTheme);
   populateLanguageSelect(getUiLanguage());
+  const uiTextScale = currentConfig.uiTextScale ?? 1;
+  populateUiTextScaleSelect(uiTextScale);
+  currentConfig.uiTextScale = applyUiTextScale(uiTextScale);
   setPopupLabels();
 
   if (next.enabled !== undefined && enabledToggle) {
@@ -1293,6 +1358,28 @@ function registerHandlers() {
       }
     });
   }
+
+  if (uiTextScaleSelect) {
+    uiTextScaleSelect.addEventListener('change', () => {
+      const uiTextScale = applyUiTextScale(uiTextScaleSelect.value || 1);
+      currentConfig.uiTextScale = uiTextScale;
+      if (window.shimejiApi) {
+        window.shimejiApi.updateConfig({ uiTextScale });
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    const action = getUiTextScaleShortcutAction(event);
+    if (!action) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const nextScale = applyUiTextScale(stepUiTextScale(currentConfig.uiTextScale ?? 1, action));
+    currentConfig.uiTextScale = nextScale;
+    if (window.shimejiApi) {
+      window.shimejiApi.updateConfig({ uiTextScale: nextScale });
+    }
+  }, true);
 
   if (addShimejiBtn) addShimejiBtn.addEventListener('click', addShimeji);
 
@@ -1558,6 +1645,7 @@ async function init() {
       enabled: true,
       aiMode: 'standard',
       popupTheme: 'random',
+      uiTextScale: 1,
       shimejiLanguage: detectBrowserLanguage()
     };
     shimejis = [{
@@ -1612,6 +1700,8 @@ async function init() {
   applyTheme(currentConfig.popupTheme || 'random', true);
   populatePopupThemeSelect(currentConfig.popupTheme || 'random');
   populateLanguageSelect(getUiLanguage());
+  populateUiTextScaleSelect(currentConfig.uiTextScale ?? 1);
+  currentConfig.uiTextScale = applyUiTextScale(currentConfig.uiTextScale ?? 1);
   setPopupLabels();
 
   registerHandlers();

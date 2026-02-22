@@ -526,6 +526,9 @@ const onboardingClose = document.getElementById("onboarding-close");
 const popupThemeLabel = document.getElementById("popup-theme-label");
 const popupThemeSelect = document.getElementById("popup-theme-select");
 const popupLanguageSelect = document.getElementById("popup-language-select");
+const uiTextScaleLabel = document.getElementById("ui-text-scale-label");
+const uiTextScaleSelect = document.getElementById("ui-text-scale-select");
+const uiTextScaleNote = document.getElementById("ui-text-scale-note");
 const securityTitle = document.getElementById("security-title");
 const masterkeyToggle = document.getElementById("masterkey-toggle");
 const masterkeyLabel = document.getElementById("masterkey-label");
@@ -711,9 +714,27 @@ function buildShimejiPreview(shimeji) {
     });
   }
 
-  let uiLanguage = null;
+let uiLanguage = null;
+let currentUiTextScale = 1;
+const UI_TEXT_SCALE_KEY = "uiTextScale";
+const UI_TEXT_SCALE_OPTIONS = [0.85, 1, 1.15, 1.3, 1.45];
 
-  function detectBrowserLanguage() {
+function normalizeUiTextScale(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  let nearest = UI_TEXT_SCALE_OPTIONS[0];
+  let minDelta = Math.abs(numeric - nearest);
+  UI_TEXT_SCALE_OPTIONS.forEach((option) => {
+    const delta = Math.abs(numeric - option);
+    if (delta < minDelta) {
+      nearest = option;
+      minDelta = delta;
+    }
+  });
+  return nearest;
+}
+
+function detectBrowserLanguage() {
     const languages = Array.isArray(navigator.languages) && navigator.languages.length
       ? navigator.languages
       : [navigator.language];
@@ -733,6 +754,16 @@ function buildShimejiPreview(shimeji) {
 
   function applyTheme(theme) {
     document.body.dataset.theme = theme;
+  }
+
+  function applyUiTextScale(scale) {
+    currentUiTextScale = normalizeUiTextScale(scale);
+    document.documentElement.style.zoom = String(currentUiTextScale);
+    document.documentElement.style.transformOrigin = "top left";
+    if (uiTextScaleSelect) {
+      uiTextScaleSelect.value = String(currentUiTextScale);
+    }
+    return currentUiTextScale;
   }
 
   function getRandomTheme() {
@@ -774,13 +805,58 @@ function buildShimejiPreview(shimeji) {
     });
   }
 
+  function populateUiTextScaleSelect(value) {
+    if (!uiTextScaleSelect) return;
+    const selected = normalizeUiTextScale(value);
+    uiTextScaleSelect.innerHTML = "";
+    UI_TEXT_SCALE_OPTIONS.forEach((opt) => {
+      const option = document.createElement("option");
+      option.value = String(opt);
+      option.textContent = `${Math.round(opt * 100)}%`;
+      if (opt === selected) option.selected = true;
+      uiTextScaleSelect.appendChild(option);
+    });
+  }
+
+  function getUiTextScaleShortcutAction(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+    if (event.key === "+" || event.key === "=" || event.code === "NumpadAdd") return "increase";
+    if (event.key === "-" || event.key === "_" || event.code === "NumpadSubtract") return "decrease";
+    if (event.key === "0" || event.code === "Digit0" || event.code === "Numpad0") return "reset";
+    return null;
+  }
+
+  function stepUiTextScale(current, direction) {
+    const normalized = normalizeUiTextScale(current);
+    const index = Math.max(0, UI_TEXT_SCALE_OPTIONS.indexOf(normalized));
+    if (direction === "reset") return 1;
+    if (direction === "increase") {
+      return UI_TEXT_SCALE_OPTIONS[Math.min(UI_TEXT_SCALE_OPTIONS.length - 1, index + 1)];
+    }
+    if (direction === "decrease") {
+      return UI_TEXT_SCALE_OPTIONS[Math.max(0, index - 1)];
+    }
+    return normalized;
+  }
+
+  function setUiTextScalePreference(value, persist = true) {
+    const next = applyUiTextScale(value);
+    populateUiTextScaleSelect(next);
+    if (persist) {
+      chrome.storage.local.set({ [UI_TEXT_SCALE_KEY]: next });
+    }
+  }
+
   function initPopupThemeAndLanguage() {
-    chrome.storage.local.get(["popupTheme", "shimejiLanguage"], (data) => {
+    chrome.storage.local.get(["popupTheme", "shimejiLanguage", UI_TEXT_SCALE_KEY], (data) => {
       const theme = data.popupTheme || "random";
       uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
+      const uiTextScale = data[UI_TEXT_SCALE_KEY] ?? 1;
       chrome.storage.local.set({ shimejiLanguage: uiLanguage });
       populatePopupThemeSelect(theme);
       populateLanguageSelect(uiLanguage);
+      populateUiTextScaleSelect(uiTextScale);
+      applyUiTextScale(uiTextScale);
       applyTheme(theme === "random" ? getRandomTheme() : theme);
       setPopupLabels();
       loadShimejis();
@@ -1058,6 +1134,11 @@ function buildShimejiPreview(shimeji) {
     if (presenceTitle) presenceTitle.textContent = t("Visibility", "Visibilidad");
     if (popupSubtitle) popupSubtitle.textContent = t("Your AI mascot orchestrator", "Tu orquestador de mascotas AI");
 if (popupThemeLabel) popupThemeLabel.textContent = t("Popup Theme", "Tema del popup");
+if (uiTextScaleLabel) uiTextScaleLabel.textContent = t("UI Text Size", "Tamaño de texto UI");
+if (uiTextScaleNote) uiTextScaleNote.textContent = t(
+  "Ctrl/Cmd + or - to resize, Ctrl/Cmd + 0 to reset.",
+  "Ctrl/Cmd + o - para cambiar tamaño, Ctrl/Cmd + 0 para reiniciar."
+);
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
 if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
@@ -2907,5 +2988,19 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
       renderShimejis();
     });
   }
+
+  if (uiTextScaleSelect) {
+    uiTextScaleSelect.addEventListener("change", () => {
+      setUiTextScalePreference(uiTextScaleSelect.value || 1, true);
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    const action = getUiTextScaleShortcutAction(event);
+    if (!action) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setUiTextScalePreference(stepUiTextScale(currentUiTextScale, action), true);
+  }, true);
 
 });

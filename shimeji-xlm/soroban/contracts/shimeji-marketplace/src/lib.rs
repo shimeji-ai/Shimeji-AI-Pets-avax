@@ -1,6 +1,8 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, IntoVal, String, Symbol};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, token, Address, Env, IntoVal, String, Symbol,
+};
 
 const MAX_SWAP_INTENTION_LEN: u32 = 280;
 const MAX_COMMISSION_INTENTION_LEN: u32 = 500;
@@ -11,6 +13,15 @@ const MAX_REFERENCE_IMAGE_URL_LEN: u32 = 512;
 pub enum Currency {
     Xlm,
     Usdc,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum CommissionOrderStatus {
+    Accepted,
+    Delivered,
+    Completed,
+    Refunded,
 }
 
 #[contracttype]
@@ -46,8 +57,10 @@ pub struct CommissionOrder {
     pub amount_paid: i128,
     pub intention: String,
     pub reference_image_url: String,
-    pub fulfilled: bool,
+    pub status: CommissionOrderStatus,
     pub created_at: u64,
+    pub delivered_at: u64,
+    pub resolved_at: u64,
 }
 
 #[contracttype]
@@ -62,6 +75,8 @@ pub enum DataKey {
     Listing(u64),
     SwapOffer(u64),
     CommissionOrder(u64),
+    SellerActiveCommissionEggListing(Address),
+    SellerOpenCommissionOrder(Address),
 }
 
 #[contract]
@@ -127,18 +142,53 @@ impl ShimejiMarketplace {
             amount_paid,
             intention,
             reference_image_url,
-            fulfilled: false,
+            status: CommissionOrderStatus::Accepted,
             created_at: env.ledger().timestamp(),
+            delivered_at: 0,
+            resolved_at: 0,
         };
 
         env.storage()
             .persistent()
             .set(&DataKey::CommissionOrder(order_id), &order);
+        env.storage().persistent().set(
+            &DataKey::SellerOpenCommissionOrder(listing.seller.clone()),
+            &order_id,
+        );
         env.storage()
             .instance()
             .set(&DataKey::NextCommissionOrderId, &(order_id + 1));
 
         order_id
+    }
+
+    fn ensure_commission_egg_slot_available(env: &Env, seller: &Address) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::SellerActiveCommissionEggListing(seller.clone()))
+        {
+            panic!("seller already has an active commission egg listing");
+        }
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::SellerOpenCommissionOrder(seller.clone()))
+        {
+            panic!("seller has a pending commission order");
+        }
+    }
+
+    fn clear_active_commission_egg_listing(env: &Env, seller: &Address) {
+        env.storage()
+            .persistent()
+            .remove(&DataKey::SellerActiveCommissionEggListing(seller.clone()));
+    }
+
+    fn clear_seller_open_commission_order(env: &Env, seller: &Address) {
+        env.storage()
+            .persistent()
+            .remove(&DataKey::SellerOpenCommissionOrder(seller.clone()));
     }
 }
 
@@ -155,8 +205,12 @@ impl ShimejiMarketplace {
             panic!("already initialized");
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::NftContract, &nft_contract);
-        env.storage().instance().set(&DataKey::UsdcToken, &usdc_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::NftContract, &nft_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::UsdcToken, &usdc_token);
         env.storage().instance().set(&DataKey::XlmToken, &xlm_token);
         env.storage().instance().set(&DataKey::NextListingId, &0u64);
         env.storage().instance().set(&DataKey::NextSwapId, &0u64);
@@ -185,7 +239,12 @@ impl ShimejiMarketplace {
         }
 
         // Take custody of NFT from seller
-        Self::nft_transfer(&env, seller.clone(), env.current_contract_address(), token_id);
+        Self::nft_transfer(
+            &env,
+            seller.clone(),
+            env.current_contract_address(),
+            token_id,
+        );
 
         let listing_id: u64 = env
             .storage()
@@ -203,7 +262,9 @@ impl ShimejiMarketplace {
             active: true,
         };
 
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
         env.storage()
             .instance()
             .set(&DataKey::NextListingId, &(listing_id + 1));
@@ -220,6 +281,7 @@ impl ShimejiMarketplace {
         xlm_usdc_rate: i128,
     ) -> u64 {
         seller.require_auth();
+        Self::ensure_commission_egg_slot_available(&env, &seller);
 
         if price_xlm <= 0 {
             panic!("price_xlm must be positive");
@@ -228,7 +290,12 @@ impl ShimejiMarketplace {
             panic!("price_usdc must be positive");
         }
 
-        Self::nft_transfer(&env, seller.clone(), env.current_contract_address(), token_id);
+        Self::nft_transfer(
+            &env,
+            seller.clone(),
+            env.current_contract_address(),
+            token_id,
+        );
 
         let listing_id: u64 = env
             .storage()
@@ -237,7 +304,7 @@ impl ShimejiMarketplace {
             .unwrap();
 
         let listing = ListingInfo {
-            seller,
+            seller: seller.clone(),
             token_id,
             price_xlm,
             price_usdc,
@@ -246,7 +313,13 @@ impl ShimejiMarketplace {
             active: true,
         };
 
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
+        env.storage().persistent().set(
+            &DataKey::SellerActiveCommissionEggListing(seller),
+            &listing_id,
+        );
         env.storage()
             .instance()
             .set(&DataKey::NextListingId, &(listing_id + 1));
@@ -276,10 +349,17 @@ impl ShimejiMarketplace {
         token_client.transfer(&buyer, &listing.seller, &listing.price_xlm);
 
         // Transfer NFT from marketplace to buyer
-        Self::nft_transfer(&env, env.current_contract_address(), buyer, listing.token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            buyer,
+            listing.token_id,
+        );
 
         listing.active = false;
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
     }
 
     pub fn buy_usdc(env: Env, buyer: Address, listing_id: u64) {
@@ -304,10 +384,17 @@ impl ShimejiMarketplace {
         token_client.transfer(&buyer, &listing.seller, &listing.price_usdc);
 
         // Transfer NFT from marketplace to buyer
-        Self::nft_transfer(&env, env.current_contract_address(), buyer, listing.token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            buyer,
+            listing.token_id,
+        );
 
         listing.active = false;
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
     }
 
     pub fn buy_commission_xlm(
@@ -335,9 +422,14 @@ impl ShimejiMarketplace {
 
         let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
         let token_client = token::Client::new(&env, &xlm_token);
-        token_client.transfer(&buyer, &listing.seller, &listing.price_xlm);
+        token_client.transfer(&buyer, &env.current_contract_address(), &listing.price_xlm);
 
-        Self::nft_transfer(&env, env.current_contract_address(), buyer.clone(), listing.token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            buyer.clone(),
+            listing.token_id,
+        );
 
         let order_id = Self::create_commission_order_record(
             &env,
@@ -351,7 +443,10 @@ impl ShimejiMarketplace {
         );
 
         listing.active = false;
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
+        Self::clear_active_commission_egg_listing(&env, &listing.seller);
 
         order_id
     }
@@ -381,9 +476,14 @@ impl ShimejiMarketplace {
 
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
         let token_client = token::Client::new(&env, &usdc_token);
-        token_client.transfer(&buyer, &listing.seller, &listing.price_usdc);
+        token_client.transfer(&buyer, &env.current_contract_address(), &listing.price_usdc);
 
-        Self::nft_transfer(&env, env.current_contract_address(), buyer.clone(), listing.token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            buyer.clone(),
+            listing.token_id,
+        );
 
         let order_id = Self::create_commission_order_record(
             &env,
@@ -397,7 +497,10 @@ impl ShimejiMarketplace {
         );
 
         listing.active = false;
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
+        Self::clear_active_commission_egg_listing(&env, &listing.seller);
 
         order_id
     }
@@ -419,13 +522,24 @@ impl ShimejiMarketplace {
         }
 
         // Return NFT to seller
-        Self::nft_transfer(&env, env.current_contract_address(), seller, listing.token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            seller,
+            listing.token_id,
+        );
+
+        if listing.is_commission_egg {
+            Self::clear_active_commission_egg_listing(&env, &listing.seller);
+        }
 
         listing.active = false;
-        env.storage().persistent().set(&DataKey::Listing(listing_id), &listing);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Listing(listing_id), &listing);
     }
 
-    pub fn mark_commission_fulfilled(env: Env, seller: Address, order_id: u64) {
+    pub fn mark_commission_delivered(env: Env, seller: Address, order_id: u64) {
         seller.require_auth();
 
         let mut order: CommissionOrder = env
@@ -435,16 +549,112 @@ impl ShimejiMarketplace {
             .unwrap_or_else(|| panic!("commission order does not exist"));
 
         if order.seller != seller {
-            panic!("only seller can mark commission fulfilled");
+            panic!("only seller can mark commission delivered");
         }
-        if order.fulfilled {
-            panic!("commission already fulfilled");
+        if order.status != CommissionOrderStatus::Accepted {
+            panic!("commission is not in accepted state");
         }
 
-        order.fulfilled = true;
+        order.status = CommissionOrderStatus::Delivered;
+        order.delivered_at = env.ledger().timestamp();
         env.storage()
             .persistent()
             .set(&DataKey::CommissionOrder(order_id), &order);
+    }
+
+    pub fn approve_commission_delivery(env: Env, buyer: Address, order_id: u64) {
+        buyer.require_auth();
+
+        let mut order: CommissionOrder = env
+            .storage()
+            .persistent()
+            .get(&DataKey::CommissionOrder(order_id))
+            .unwrap_or_else(|| panic!("commission order does not exist"));
+
+        if order.buyer != buyer {
+            panic!("only buyer can approve commission delivery");
+        }
+        if order.status != CommissionOrderStatus::Delivered {
+            panic!("commission order is not delivered");
+        }
+
+        match &order.currency {
+            Currency::Xlm => {
+                let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
+                token::Client::new(&env, &xlm_token).transfer(
+                    &env.current_contract_address(),
+                    &order.seller,
+                    &order.amount_paid,
+                );
+            }
+            Currency::Usdc => {
+                let usdc_token: Address =
+                    env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+                token::Client::new(&env, &usdc_token).transfer(
+                    &env.current_contract_address(),
+                    &order.seller,
+                    &order.amount_paid,
+                );
+            }
+        }
+
+        order.status = CommissionOrderStatus::Completed;
+        order.resolved_at = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::CommissionOrder(order_id), &order);
+        Self::clear_seller_open_commission_order(&env, &order.seller);
+    }
+
+    pub fn refund_commission_order(env: Env, caller: Address, order_id: u64) {
+        caller.require_auth();
+
+        let mut order: CommissionOrder = env
+            .storage()
+            .persistent()
+            .get(&DataKey::CommissionOrder(order_id))
+            .unwrap_or_else(|| panic!("commission order does not exist"));
+
+        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
+        let caller_is_buyer = caller == order.buyer;
+        let caller_is_seller = caller == order.seller;
+        let caller_is_admin = caller == admin;
+
+        if !(caller_is_buyer || caller_is_seller || caller_is_admin) {
+            panic!("unauthorized refund caller");
+        }
+        if order.status != CommissionOrderStatus::Accepted
+            && order.status != CommissionOrderStatus::Delivered
+        {
+            panic!("commission order cannot be refunded");
+        }
+
+        match &order.currency {
+            Currency::Xlm => {
+                let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
+                token::Client::new(&env, &xlm_token).transfer(
+                    &env.current_contract_address(),
+                    &order.buyer,
+                    &order.amount_paid,
+                );
+            }
+            Currency::Usdc => {
+                let usdc_token: Address =
+                    env.storage().instance().get(&DataKey::UsdcToken).unwrap();
+                token::Client::new(&env, &usdc_token).transfer(
+                    &env.current_contract_address(),
+                    &order.buyer,
+                    &order.amount_paid,
+                );
+            }
+        }
+
+        order.status = CommissionOrderStatus::Refunded;
+        order.resolved_at = env.ledger().timestamp();
+        env.storage()
+            .persistent()
+            .set(&DataKey::CommissionOrder(order_id), &order);
+        Self::clear_seller_open_commission_order(&env, &order.seller);
     }
 
     // ── Swap offers ─────────────────────────────────────────────────────────
@@ -465,13 +675,14 @@ impl ShimejiMarketplace {
         Self::validate_swap_intention(&intention);
 
         // Take custody of offered NFT
-        Self::nft_transfer(&env, offerer.clone(), env.current_contract_address(), offered_token_id);
+        Self::nft_transfer(
+            &env,
+            offerer.clone(),
+            env.current_contract_address(),
+            offered_token_id,
+        );
 
-        let swap_id: u64 = env
-            .storage()
-            .instance()
-            .get(&DataKey::NextSwapId)
-            .unwrap();
+        let swap_id: u64 = env.storage().instance().get(&DataKey::NextSwapId).unwrap();
 
         let offer = SwapOffer {
             offerer,
@@ -481,7 +692,9 @@ impl ShimejiMarketplace {
             active: true,
         };
 
-        env.storage().persistent().set(&DataKey::SwapOffer(swap_id), &offer);
+        env.storage()
+            .persistent()
+            .set(&DataKey::SwapOffer(swap_id), &offer);
         env.storage()
             .instance()
             .set(&DataKey::NextSwapId, &(swap_id + 1));
@@ -503,16 +716,33 @@ impl ShimejiMarketplace {
         }
 
         // Take custody of desired NFT from acceptor
-        Self::nft_transfer(&env, acceptor.clone(), env.current_contract_address(), offer.desired_token_id);
+        Self::nft_transfer(
+            &env,
+            acceptor.clone(),
+            env.current_contract_address(),
+            offer.desired_token_id,
+        );
 
         // Transfer offered NFT to acceptor
-        Self::nft_transfer(&env, env.current_contract_address(), acceptor, offer.offered_token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            acceptor,
+            offer.offered_token_id,
+        );
 
         // Transfer desired NFT to offerer
-        Self::nft_transfer(&env, env.current_contract_address(), offer.offerer.clone(), offer.desired_token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            offer.offerer.clone(),
+            offer.desired_token_id,
+        );
 
         offer.active = false;
-        env.storage().persistent().set(&DataKey::SwapOffer(swap_id), &offer);
+        env.storage()
+            .persistent()
+            .set(&DataKey::SwapOffer(swap_id), &offer);
     }
 
     pub fn cancel_swap(env: Env, offerer: Address, swap_id: u64) {
@@ -532,10 +762,17 @@ impl ShimejiMarketplace {
         }
 
         // Return offered NFT to offerer
-        Self::nft_transfer(&env, env.current_contract_address(), offerer, offer.offered_token_id);
+        Self::nft_transfer(
+            &env,
+            env.current_contract_address(),
+            offerer,
+            offer.offered_token_id,
+        );
 
         offer.active = false;
-        env.storage().persistent().set(&DataKey::SwapOffer(swap_id), &offer);
+        env.storage()
+            .persistent()
+            .set(&DataKey::SwapOffer(swap_id), &offer);
     }
 
     // ── Queries ─────────────────────────────────────────────────────────────
@@ -601,14 +838,24 @@ mod test {
     #[contractimpl]
     impl MockNft {
         pub fn initialize(env: Env, admin: Address) {
-            env.storage().instance().set(&soroban_sdk::symbol_short!("admin"), &admin);
-            env.storage().instance().set(&soroban_sdk::symbol_short!("next"), &0u64);
+            env.storage()
+                .instance()
+                .set(&soroban_sdk::symbol_short!("admin"), &admin);
+            env.storage()
+                .instance()
+                .set(&soroban_sdk::symbol_short!("next"), &0u64);
         }
 
         pub fn mint(env: Env, to: Address, _token_uri: String) -> u64 {
-            let id: u64 = env.storage().instance().get(&soroban_sdk::symbol_short!("next")).unwrap_or(0);
+            let id: u64 = env
+                .storage()
+                .instance()
+                .get(&soroban_sdk::symbol_short!("next"))
+                .unwrap_or(0);
             env.storage().persistent().set(&id, &to);
-            env.storage().instance().set(&soroban_sdk::symbol_short!("next"), &(id + 1));
+            env.storage()
+                .instance()
+                .set(&soroban_sdk::symbol_short!("next"), &(id + 1));
             id
         }
 
@@ -648,7 +895,9 @@ mod test {
         let xlm_issuer = Address::generate(&env);
         let usdc_issuer = Address::generate(&env);
         let xlm_addr = env.register_stellar_asset_contract_v2(xlm_issuer).address();
-        let usdc_addr = env.register_stellar_asset_contract_v2(usdc_issuer).address();
+        let usdc_addr = env
+            .register_stellar_asset_contract_v2(usdc_issuer)
+            .address();
         let xlm = TokenClient::new(&env, &xlm_addr);
         let usdc = TokenClient::new(&env, &usdc_addr);
         let xlm_sac = StellarAssetClient::new(&env, &xlm_addr);
@@ -662,7 +911,16 @@ mod test {
         let marketplace = ShimejiMarketplaceClient::new(&env, &marketplace_addr);
         marketplace.initialize(&admin, &nft_addr, &usdc_addr, &xlm_addr);
 
-        TestEnv { env, marketplace, marketplace_addr, nft_addr, xlm, usdc, xlm_sac, usdc_sac }
+        TestEnv {
+            env,
+            marketplace,
+            marketplace_addr,
+            nft_addr,
+            xlm,
+            usdc,
+            xlm_sac,
+            usdc_sac,
+        }
     }
 
     fn mint_nft(t: &TestEnv, owner: &Address) -> u64 {
@@ -777,13 +1035,14 @@ mod test {
         t.xlm_sac.mint(&buyer, &1000_0000000i128);
         let intention = String::from_str(&t.env, "Please make a pastel bunny with headphones");
         let reference = String::from_str(&t.env, "https://example.com/reference.png");
-        let order_id = t
-            .marketplace
-            .buy_commission_xlm(&buyer, &listing_id, &intention, &reference);
+        let order_id =
+            t.marketplace
+                .buy_commission_xlm(&buyer, &listing_id, &intention, &reference);
 
         let nft = MockNftClient::new(&t.env, &t.nft_addr);
         assert_eq!(nft.owner_of(&token_id), buyer);
-        assert_eq!(t.xlm.balance(&seller), 1000_0000000i128);
+        assert_eq!(t.xlm.balance(&seller), 0i128);
+        assert_eq!(t.xlm.balance(&t.marketplace_addr), 1000_0000000i128);
         assert_eq!(t.marketplace.total_commission_orders(), 1);
 
         let order = t.marketplace.get_commission_order(&order_id);
@@ -794,11 +1053,118 @@ mod test {
         assert_eq!(order.amount_paid, 1000_0000000i128);
         assert_eq!(order.intention, intention);
         assert_eq!(order.reference_image_url, reference);
-        assert!(!order.fulfilled);
+        assert_eq!(order.status, CommissionOrderStatus::Accepted);
 
-        t.marketplace.mark_commission_fulfilled(&seller, &order_id);
+        t.marketplace.mark_commission_delivered(&seller, &order_id);
         let updated = t.marketplace.get_commission_order(&order_id);
-        assert!(updated.fulfilled);
+        assert_eq!(updated.status, CommissionOrderStatus::Delivered);
+
+        t.marketplace.approve_commission_delivery(&buyer, &order_id);
+        let completed = t.marketplace.get_commission_order(&order_id);
+        assert_eq!(completed.status, CommissionOrderStatus::Completed);
+        assert_eq!(t.xlm.balance(&seller), 1000_0000000i128);
+        assert_eq!(t.xlm.balance(&t.marketplace_addr), 0i128);
+    }
+
+    #[test]
+    #[should_panic(expected = "seller already has an active commission egg listing")]
+    fn test_cannot_list_second_active_commission_egg() {
+        let t = setup();
+        let seller = Address::generate(&t.env);
+        let token_a = mint_nft(&t, &seller);
+        let token_b = mint_nft(&t, &seller);
+
+        t.marketplace.list_commission_egg(
+            &seller,
+            &token_a,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+
+        t.marketplace.list_commission_egg(
+            &seller,
+            &token_b,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "seller has a pending commission order")]
+    fn test_cannot_list_new_commission_egg_while_order_pending() {
+        let t = setup();
+        let seller = Address::generate(&t.env);
+        let buyer = Address::generate(&t.env);
+
+        let token_a = mint_nft(&t, &seller);
+        let token_b = mint_nft(&t, &seller);
+
+        let listing_id = t.marketplace.list_commission_egg(
+            &seller,
+            &token_a,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+
+        t.xlm_sac.mint(&buyer, &1000_0000000i128);
+        let intention = String::from_str(&t.env, "Commission me a moon shimeji");
+        let reference = String::from_str(&t.env, "");
+        t.marketplace
+            .buy_commission_xlm(&buyer, &listing_id, &intention, &reference);
+
+        t.marketplace.list_commission_egg(
+            &seller,
+            &token_b,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+    }
+
+    #[test]
+    fn test_seller_can_refund_commission_order_and_unlock_new_egg_listing() {
+        let t = setup();
+        let seller = Address::generate(&t.env);
+        let buyer = Address::generate(&t.env);
+
+        let token_a = mint_nft(&t, &seller);
+        let token_b = mint_nft(&t, &seller);
+
+        let listing_id = t.marketplace.list_commission_egg(
+            &seller,
+            &token_a,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+
+        t.xlm_sac.mint(&buyer, &1000_0000000i128);
+        let intention = String::from_str(&t.env, "Commission me a cyber fox");
+        let reference = String::from_str(&t.env, "");
+        let order_id =
+            t.marketplace
+                .buy_commission_xlm(&buyer, &listing_id, &intention, &reference);
+
+        assert_eq!(t.xlm.balance(&buyer), 0i128);
+        assert_eq!(t.xlm.balance(&t.marketplace_addr), 1000_0000000i128);
+
+        t.marketplace.refund_commission_order(&seller, &order_id);
+        let refunded = t.marketplace.get_commission_order(&order_id);
+        assert_eq!(refunded.status, CommissionOrderStatus::Refunded);
+        assert_eq!(t.xlm.balance(&buyer), 1000_0000000i128);
+        assert_eq!(t.xlm.balance(&t.marketplace_addr), 0i128);
+
+        let relist_id = t.marketplace.list_commission_egg(
+            &seller,
+            &token_b,
+            &1000_0000000i128,
+            &100_0000000i128,
+            &1000000i128,
+        );
+        assert_eq!(relist_id, 1u64);
     }
 
     #[test]
@@ -834,7 +1200,9 @@ mod test {
 
         // Alice offers to swap her token for Bob's
         let intention = String::from_str(&t.env, "I love Bob's shimeji design!");
-        let swap_id = t.marketplace.create_swap_offer(&alice, &alice_token, &bob_token, &intention);
+        let swap_id = t
+            .marketplace
+            .create_swap_offer(&alice, &alice_token, &bob_token, &intention);
         assert_eq!(swap_id, 0);
         assert_eq!(t.marketplace.total_swaps(), 1);
 
@@ -860,7 +1228,9 @@ mod test {
         let bob_token = mint_nft(&t, &bob);
 
         let intention = String::from_str(&t.env, "Trading for the rare dragon skin");
-        let swap_id = t.marketplace.create_swap_offer(&alice, &alice_token, &bob_token, &intention);
+        let swap_id = t
+            .marketplace
+            .create_swap_offer(&alice, &alice_token, &bob_token, &intention);
 
         // Alice cancels - her NFT is returned
         t.marketplace.cancel_swap(&alice, &swap_id);
@@ -906,7 +1276,9 @@ mod test {
         let bob_token = mint_nft(&t, &bob);
 
         let intention = String::from_str(&t.env, "Testing cancelled swap");
-        let swap_id = t.marketplace.create_swap_offer(&alice, &alice_token, &bob_token, &intention);
+        let swap_id = t
+            .marketplace
+            .create_swap_offer(&alice, &alice_token, &bob_token, &intention);
         t.marketplace.cancel_swap(&alice, &swap_id);
         t.marketplace.accept_swap(&bob, &swap_id);
     }
@@ -918,7 +1290,8 @@ mod test {
         let alice = Address::generate(&t.env);
         let token_id = mint_nft(&t, &alice);
         let intention = String::from_str(&t.env, "Self swap attempt");
-        t.marketplace.create_swap_offer(&alice, &token_id, &token_id, &intention);
+        t.marketplace
+            .create_swap_offer(&alice, &token_id, &token_id, &intention);
     }
 
     #[test]

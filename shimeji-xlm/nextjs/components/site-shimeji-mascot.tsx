@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import styles from "./site-shimeji-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
@@ -11,10 +18,21 @@ import {
   sendOllamaBrowserChat,
   sendOpenClawBrowserChat,
 } from "@/lib/site-shimeji-browser-providers";
+import {
+  SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+  SITE_SHIMEJI_CHAT_FONT_SIZE_MAP,
+  SITE_SHIMEJI_CHAT_MIN_HEIGHT_PX,
+  SITE_SHIMEJI_CHAT_MIN_WIDTH_PX,
+  SITE_SHIMEJI_CHAT_RESIZE_EDGE_PX,
+  SITE_SHIMEJI_CHAT_THEMES,
+  SITE_SHIMEJI_CHAT_WIDTH_MAP,
+  pickRandomSiteShimejiChatTheme,
+} from "@/lib/site-shimeji-chat-ui";
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
 type VoiceStatusTone = "info" | "error";
+type BubbleResizeCursor = "" | "w-resize" | "e-resize" | "n-resize" | "nw-resize" | "ne-resize";
 
 type BrowserSpeechRecognitionLike = {
   lang: string;
@@ -78,6 +96,19 @@ type WanderPauseState = {
   lastMovementState: MascotState | null;
 };
 
+type BubbleResizeState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startWidth: number;
+  startHeight: number;
+  startLeft: number;
+  startTop: number;
+  left: boolean;
+  right: boolean;
+  top: boolean;
+};
+
 function getBoundsFromWindow(spriteScale = 1) {
   // Use visualViewport for mobile to account for address bar
   const vw = (window as any).visualViewport;
@@ -136,6 +167,8 @@ export function SiteShimejiMascot() {
     freeSiteMessagesRemaining,
     incrementFreeSiteMessagesUsed,
     canUseCurrentProvider,
+    updateConfig,
+    openConfig,
   } = useSiteShimeji();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const actorRef = useRef<HTMLDivElement | null>(null);
@@ -194,7 +227,10 @@ export function SiteShimejiMascot() {
   const jumpTimeoutRef = useRef<number | undefined>(undefined);
   const isInitializedRef = useRef(false);
   const bubbleRectRef = useRef({ left: 8, top: 8 });
+  const bubbleResizeStateRef = useRef<BubbleResizeState | null>(null);
+  const bubbleIsResizingRef = useRef(false);
   const spriteScaleRef = useRef(config.sizePercent / 100);
+  const [bubbleCursor, setBubbleCursor] = useState<BubbleResizeCursor>("");
   useEffect(() => {
     spriteScaleRef.current = clamp(config.sizePercent / 100, 0.6, 1.8);
   }, [config.sizePercent]);
@@ -426,7 +462,7 @@ export function SiteShimejiMascot() {
       let targetPos = currentPosRef.current;
 
       const updateBubblePosition = (mascotPos: { x: number; y: number }) => {
-        if (!openRef.current || !bubbleRef.current) return;
+        if (!openRef.current || !bubbleRef.current || bubbleIsResizingRef.current) return;
         const { width: viewportWidth, height: viewportHeight } = getViewportSize();
         const margin = 8;
         const gap = CHAT_GAP;
@@ -664,10 +700,50 @@ export function SiteShimejiMascot() {
     config.provider === "openrouter" &&
     !config.openrouterApiKey.trim() &&
     (freeSiteMessagesRemaining ?? 0) > 0;
+  const bubbleStyleClass =
+    config.chatBubbleStyle === "dark"
+      ? styles.chatStyleDark
+      : config.chatBubbleStyle === "solid"
+        ? styles.chatStyleSolid
+        : styles.chatStyleGlass;
+  const bubbleWidthPx = config.chatWidthPx ?? SITE_SHIMEJI_CHAT_WIDTH_MAP[config.chatWidth];
+  const bubbleHeightPx = config.chatHeightPx ?? SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX;
+  const bubbleFontSizePx = SITE_SHIMEJI_CHAT_FONT_SIZE_MAP[config.chatFontSize];
+  const bubbleInlineStyle = {
+    left: bubbleRectRef.current.left,
+    top: bubbleRectRef.current.top,
+    cursor: bubbleCursor || undefined,
+    ["--chat-theme" as const]: config.chatThemeColor,
+    ["--chat-bg" as const]: config.chatBgColor,
+    ["--chat-width" as const]: `${bubbleWidthPx}px`,
+    ["--chat-height" as const]: `${bubbleHeightPx}px`,
+    ["--chat-font-size" as const]: `${bubbleFontSizePx}px`,
+  } as CSSProperties;
+  const browserVoiceEnabled =
+    config.soundOutputProvider !== "off" && config.soundOutputAutoSpeak;
 
   function setVoiceInfoStatus(message: string) {
     setVoiceStatusTone("info");
     setVoiceStatus(message);
+  }
+
+  function cycleChatThemeQuick() {
+    const currentIndex = SITE_SHIMEJI_CHAT_THEMES.findIndex(
+      (theme) =>
+        theme.theme.toLowerCase() === config.chatThemeColor.toLowerCase() &&
+        theme.bg.toLowerCase() === config.chatBgColor.toLowerCase() &&
+        theme.bubble === config.chatBubbleStyle,
+    );
+    const nextTheme =
+      currentIndex >= 0
+        ? SITE_SHIMEJI_CHAT_THEMES[(currentIndex + 1) % SITE_SHIMEJI_CHAT_THEMES.length]
+        : pickRandomSiteShimejiChatTheme();
+    updateConfig({
+      chatThemePreset: nextTheme.id,
+      chatThemeColor: nextTheme.theme,
+      chatBgColor: nextTheme.bg,
+      chatBubbleStyle: nextTheme.bubble,
+    });
   }
 
   function setVoiceErrorStatus(message: string) {
@@ -749,7 +825,10 @@ export function SiteShimejiMascot() {
 
       const voices = window.speechSynthesis.getVoices();
       const langPrefix = language === "es" ? "es" : "en";
-      const preferredVoice = voices.find((voice) =>
+      const selectedBrowserVoice = config.soundOutputBrowserVoiceName
+        ? voices.find((voice) => String(voice.name || "") === config.soundOutputBrowserVoiceName)
+        : null;
+      const preferredVoice = selectedBrowserVoice ?? voices.find((voice) =>
         String(voice.lang || "")
           .toLowerCase()
           .startsWith(langPrefix),
@@ -877,6 +956,119 @@ export function SiteShimejiMascot() {
       stopVoiceOutput();
     };
   }, []);
+
+  function getBubbleResizeHit(clientX: number, clientY: number) {
+    const bubbleEl = bubbleRef.current;
+    if (!bubbleEl) {
+      return { canResize: false, cursor: "" as BubbleResizeCursor, left: false, right: false, top: false };
+    }
+    const { width: viewportWidth } = getViewportSize();
+    if (viewportWidth < MOBILE_BREAKPOINT) {
+      return { canResize: false, cursor: "" as BubbleResizeCursor, left: false, right: false, top: false };
+    }
+    const rect = bubbleEl.getBoundingClientRect();
+    const nearLeft = clientX - rect.left <= SITE_SHIMEJI_CHAT_RESIZE_EDGE_PX;
+    const nearRight = rect.right - clientX <= SITE_SHIMEJI_CHAT_RESIZE_EDGE_PX;
+    const nearTop = clientY - rect.top <= SITE_SHIMEJI_CHAT_RESIZE_EDGE_PX;
+
+    let cursor: BubbleResizeCursor = "";
+    if (nearLeft && nearTop) {
+      cursor = "nw-resize";
+    } else if (nearRight && nearTop) {
+      cursor = "ne-resize";
+    } else if (nearLeft) {
+      cursor = "w-resize";
+    } else if (nearRight) {
+      cursor = "e-resize";
+    } else if (nearTop) {
+      cursor = "n-resize";
+    }
+
+    return {
+      canResize: Boolean(nearLeft || nearRight || nearTop),
+      cursor,
+      left: nearLeft,
+      right: nearRight,
+      top: nearTop,
+    };
+  }
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const resizeState = bubbleResizeStateRef.current;
+      const bubbleEl = bubbleRef.current;
+      if (!resizeState || !bubbleEl) return;
+
+      const dx = event.clientX - resizeState.startX;
+      const dy = event.clientY - resizeState.startY;
+      const { width: viewportWidth, height: viewportHeight } = getViewportSize();
+
+      let nextWidth = resizeState.startWidth;
+      let nextHeight = resizeState.startHeight;
+      let nextLeft = resizeState.startLeft;
+      let nextTop = resizeState.startTop;
+
+      if (resizeState.right) {
+        nextWidth = resizeState.startWidth + dx;
+      }
+      if (resizeState.left) {
+        nextWidth = resizeState.startWidth - dx;
+        nextLeft = resizeState.startLeft + dx;
+      }
+      if (resizeState.top) {
+        nextHeight = resizeState.startHeight - dy;
+        nextTop = resizeState.startTop + dy;
+      }
+
+      nextWidth = Math.max(SITE_SHIMEJI_CHAT_MIN_WIDTH_PX, nextWidth);
+      nextHeight = Math.max(SITE_SHIMEJI_CHAT_MIN_HEIGHT_PX, nextHeight);
+
+      nextLeft = clamp(nextLeft, 0, Math.max(0, viewportWidth - nextWidth));
+      nextTop = clamp(nextTop, 0, Math.max(0, viewportHeight - nextHeight));
+
+      bubbleEl.style.setProperty("--chat-width", `${Math.round(nextWidth)}px`);
+      bubbleEl.style.setProperty("--chat-height", `${Math.round(nextHeight)}px`);
+      bubbleEl.style.left = `${Math.round(nextLeft)}px`;
+      bubbleEl.style.top = `${Math.round(nextTop)}px`;
+      bubbleRectRef.current = { left: nextLeft, top: nextTop };
+
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+    };
+
+    const stopResize = (event?: PointerEvent) => {
+      const resizeState = bubbleResizeStateRef.current;
+      if (!resizeState) return;
+      bubbleResizeStateRef.current = null;
+      bubbleIsResizingRef.current = false;
+      setBubbleCursor("");
+      try {
+        bubbleRef.current?.releasePointerCapture?.(resizeState.pointerId);
+      } catch {
+        // no-op
+      }
+      const rect = bubbleRef.current?.getBoundingClientRect();
+      if (rect) {
+        updateConfig({
+          chatWidthPx: Math.round(rect.width),
+          chatHeightPx: Math.round(rect.height),
+        });
+      }
+      if (event?.cancelable) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", stopResize);
+    window.addEventListener("pointercancel", stopResize);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      window.removeEventListener("pointercancel", stopResize);
+    };
+  }, [updateConfig]);
 
   function ensureGreeting() {
     setMessages(prev => {
@@ -1120,6 +1312,50 @@ export function SiteShimejiMascot() {
     }
   }
 
+  function handleBubblePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType && event.pointerType !== "mouse") return;
+    if (bubbleIsResizingRef.current) return;
+    const hit = getBubbleResizeHit(event.clientX, event.clientY);
+    setBubbleCursor(hit.cursor);
+  }
+
+  function handleBubblePointerLeave() {
+    if (bubbleIsResizingRef.current) return;
+    setBubbleCursor("");
+  }
+
+  function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType && event.pointerType !== "mouse") return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, button, textarea, select, a")) return;
+
+    const hit = getBubbleResizeHit(event.clientX, event.clientY);
+    if (!hit.canResize || !bubbleRef.current) return;
+
+    const rect = bubbleRef.current.getBoundingClientRect();
+    bubbleResizeStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height,
+      startLeft: rect.left,
+      startTop: rect.top,
+      left: hit.left,
+      right: hit.right,
+      top: hit.top,
+    };
+    bubbleIsResizingRef.current = true;
+    setBubbleCursor(hit.cursor);
+    try {
+      bubbleRef.current.setPointerCapture(event.pointerId);
+    } catch {
+      // no-op
+    }
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
   const showPressMeHint = config.enabled && !hasMascotBeenClicked && !open;
   const inputLocked = sending || !config.enabled || siteCreditsExhausted;
   const placeholderText = !config.enabled
@@ -1186,29 +1422,86 @@ export function SiteShimejiMascot() {
       {open && (
         <div
           ref={bubbleRef}
-          className={`${styles.bubble} ${styles.bubbleFixed}`}
-          style={{ left: bubbleRectRef.current.left, top: bubbleRectRef.current.top }}
+          className={`${styles.bubble} ${styles.bubbleFixed} ${bubbleStyleClass}`}
+          style={bubbleInlineStyle}
           onClick={e => e.stopPropagation()}
+          onPointerMove={handleBubblePointerMove}
+          onPointerLeave={handleBubblePointerLeave}
+          onPointerDown={handleBubblePointerDown}
         >
           <div className={styles.bubbleHeader}>
-            <div>
+            <div className={styles.titleWrap}>
               <div className={styles.title}>
                 {selectedCharacter?.label || "Shimeji"} ·{" "}
                 {getSiteShimejiPersonalityDisplayLabel(selectedPersonality, isSpanish) || "Cozy"}
               </div>
-              <div className="text-[10px] uppercase tracking-wide text-white/45">{providerLabel}</div>
+              <div className={styles.metaText}>{providerLabel}</div>
             </div>
-            <button
-              className={styles.closeBtn}
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                setOpen(false);
-              }}
-              aria-label="Close"
-            >
-              ×
-            </button>
+            <div className={styles.headerBtns}>
+              <button
+                className={`${styles.headerIconBtn} ${browserVoiceEnabled ? styles.headerIconBtnActive : ""}`}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (config.soundOutputProvider === "off") {
+                    openConfig();
+                    return;
+                  }
+                  updateConfig({ soundOutputAutoSpeak: !config.soundOutputAutoSpeak });
+                }}
+                title={
+                  config.soundOutputProvider === "off"
+                    ? isSpanish
+                      ? "Configurar voz"
+                      : "Configure voice"
+                    : browserVoiceEnabled
+                      ? isSpanish
+                        ? "Voz activada"
+                        : "Voice on"
+                      : isSpanish
+                        ? "Voz desactivada"
+                        : "Voice off"
+                }
+                aria-label={isSpanish ? "Opciones de voz" : "Voice options"}
+              >
+                {browserVoiceEnabled ? "🔊" : "🔇"}
+              </button>
+              <button
+                className={styles.headerIconBtn}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cycleChatThemeQuick();
+                }}
+                title={isSpanish ? "Cambiar tema del chat" : "Change chat theme"}
+                aria-label={isSpanish ? "Cambiar tema del chat" : "Change chat theme"}
+              >
+                🎨
+              </button>
+              <button
+                className={styles.headerIconBtn}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openConfig();
+                }}
+                title={isSpanish ? "Abrir configuración del shimeji" : "Open shimeji settings"}
+                aria-label={isSpanish ? "Abrir configuración" : "Open settings"}
+              >
+                ⚙
+              </button>
+              <button
+                className={styles.closeBtn}
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  setOpen(false);
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
           </div>
           <div className={styles.bubbleBody}>
           <div className={styles.messages} ref={messagesListRef}>
@@ -1332,6 +1625,10 @@ export function SiteShimejiMascot() {
               </div>
             )}
           </div>
+          <div className={styles.resizeGripLeft} aria-hidden="true" />
+          <div className={styles.resizeGripRight} aria-hidden="true" />
+          <div className={styles.resizeGripTop} aria-hidden="true" />
+          <div className={styles.resizeCorner} aria-hidden="true" />
         </div>
       )}
     </>

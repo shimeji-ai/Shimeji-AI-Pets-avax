@@ -207,6 +207,41 @@
     const fontSizeMap = { small: '11px', medium: '13px', large: '15px' };
     const widthMap = { small: '220px', medium: '280px', large: '360px' };
     const RESIZE_EDGE_PX = 10;
+    const UI_TEXT_SCALE_OPTIONS = [0.85, 1, 1.15, 1.3, 1.45];
+
+    function normalizeUiTextScale(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return 1;
+        let nearest = UI_TEXT_SCALE_OPTIONS[0];
+        let minDelta = Math.abs(numeric - nearest);
+        for (const option of UI_TEXT_SCALE_OPTIONS) {
+            const delta = Math.abs(numeric - option);
+            if (delta < minDelta) {
+                nearest = option;
+                minDelta = delta;
+            }
+        }
+        return nearest;
+    }
+
+    function getUiTextScaleShortcutAction(event) {
+        if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+        if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 'increase';
+        if (event.key === '-' || event.key === '_' || event.code === 'NumpadSubtract') return 'decrease';
+        if (event.key === '0' || event.code === 'Digit0' || event.code === 'Numpad0') return 'reset';
+        return null;
+    }
+
+    function stepUiTextScale(current, action) {
+        const normalized = normalizeUiTextScale(current);
+        const index = Math.max(0, UI_TEXT_SCALE_OPTIONS.indexOf(normalized));
+        if (action === 'reset') return 1;
+        if (action === 'increase') return UI_TEXT_SCALE_OPTIONS[Math.min(UI_TEXT_SCALE_OPTIONS.length - 1, index + 1)];
+        if (action === 'decrease') return UI_TEXT_SCALE_OPTIONS[Math.max(0, index - 1)];
+        return normalized;
+    }
+
+    let globalUiTextScale = 1;
 
     let sharedAudioCtx = null;
     let audioUnlocked = false;
@@ -464,6 +499,7 @@
         let ttsToggleBtnEl = null;
         let quickTtsBtnEl = null;
         let relayToggleBtnEl = null;
+        let uiTextScaleSelectEl = null;
         let micAutoSendEl = null;
         let micAutoSendTimer = null;
         let micAutoSendInterval = null;
@@ -653,6 +689,31 @@
                 } : s);
                 safeStorageLocalSet({ shimejis: updated });
             });
+        }
+
+        function applyChatUiTextScale() {
+            if (!chatBubbleEl) return;
+            chatBubbleEl.style.zoom = String(globalUiTextScale);
+            chatBubbleEl.style.transformOrigin = 'top left';
+            if (uiTextScaleSelectEl) {
+                uiTextScaleSelectEl.value = String(globalUiTextScale);
+            }
+        }
+
+        function setGlobalUiTextScale(nextScale, persist = true) {
+            globalUiTextScale = normalizeUiTextScale(nextScale);
+            applyChatUiTextScale();
+            if (persist) {
+                safeStorageLocalSet({ uiTextScale: globalUiTextScale });
+            }
+        }
+
+        function handleChatUiTextScaleShortcut(event) {
+            const action = getUiTextScaleShortcutAction(event);
+            if (!action) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setGlobalUiTextScale(stepUiTextScale(globalUiTextScale, action), true);
         }
 
         function updateOpenMicBtnVisual() {
@@ -1777,6 +1838,27 @@
             fontRow.appendChild(fontSelect);
             controlsPanel.appendChild(fontRow);
 
+            const uiScaleRow = document.createElement('div');
+            uiScaleRow.className = 'shimeji-chat-control-row';
+            const uiScaleLabel = document.createElement('span');
+            uiScaleLabel.className = 'shimeji-chat-control-label';
+            uiScaleLabel.textContent = isSpanishLocale() ? 'Texto UI' : 'UI text';
+            uiTextScaleSelectEl = document.createElement('select');
+            uiTextScaleSelectEl.className = 'shimeji-chat-font-select';
+            UI_TEXT_SCALE_OPTIONS.forEach((value) => {
+                const optionEl = document.createElement('option');
+                optionEl.value = String(value);
+                optionEl.textContent = `${Math.round(value * 100)}%`;
+                uiTextScaleSelectEl.appendChild(optionEl);
+            });
+            uiTextScaleSelectEl.value = String(globalUiTextScale);
+            uiTextScaleSelectEl.addEventListener('change', () => {
+                setGlobalUiTextScale(uiTextScaleSelectEl.value || 1, true);
+            });
+            uiScaleRow.appendChild(uiScaleLabel);
+            uiScaleRow.appendChild(uiTextScaleSelectEl);
+            controlsPanel.appendChild(uiScaleRow);
+
             function setControlsPanelOpen(isOpen) {
                 controlsPanel.classList.toggle('open', isOpen);
                 if (isOpen) {
@@ -2190,6 +2272,7 @@
 
             syncThemeInputs();
             applyChatStyle();
+            chatBubbleEl.addEventListener('keydown', handleChatUiTextScaleShortcut, true);
 
             document.body.appendChild(chatBubbleEl);
 
@@ -2214,6 +2297,7 @@
             }
             el.classList.remove('chat-style-glass', 'chat-style-solid', 'chat-style-dark');
             el.classList.add('chat-style-' + (config.chatBubbleStyle || 'glass'));
+            applyChatUiTextScale();
             applyAuxBubbleTheme(thinkingBubbleEl);
             applyAuxBubbleTheme(alertBubbleEl);
         }
@@ -4382,6 +4466,10 @@
                 }
                 scheduleNoKeyNudge();
             },
+            setUiTextScale(nextScale) {
+                globalUiTextScale = normalizeUiTextScale(nextScale);
+                applyChatUiTextScale();
+            },
             setPrimary(value) {
                 isPrimary = !!value;
                 scheduleNoKeyNudge();
@@ -4430,9 +4518,10 @@
             visibilityState.disabledAll = !!syncData[STORAGE_KEYS.disabledAll];
             visibilityState.disabledPages = syncData[STORAGE_KEYS.disabledPages] || [];
 
-            safeStorageLocalGet(['shimejiLanguage'], (data) => {
+            safeStorageLocalGet(['shimejiLanguage', 'uiTextScale'], (data) => {
                 uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
-                safeStorageLocalSet({ shimejiLanguage: uiLanguage });
+                globalUiTextScale = normalizeUiTextScale(data.uiTextScale);
+                safeStorageLocalSet({ shimejiLanguage: uiLanguage, uiTextScale: globalUiTextScale });
             });
 
             loadShimejiConfigs((configs) => {
@@ -4486,6 +4575,14 @@
                 if (nextLang === 'es' || nextLang === 'en') {
                     uiLanguage = nextLang;
                 }
+            }
+            if (areaName === 'local' && changes.uiTextScale) {
+                globalUiTextScale = normalizeUiTextScale(changes.uiTextScale.newValue);
+                runtimes.forEach((runtime) => {
+                    if (typeof runtime.setUiTextScale === 'function') {
+                        runtime.setUiTextScale(globalUiTextScale);
+                    }
+                });
             }
             });
         }

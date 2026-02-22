@@ -57,8 +57,11 @@ export interface CommissionOrder {
   amountPaid: bigint;
   intention: string;
   referenceImageUrl: string;
+  status: "Accepted" | "Delivered" | "Completed" | "Refunded" | string;
   fulfilled: boolean;
   createdAt: number;
+  deliveredAt: number;
+  resolvedAt: number;
 }
 
 function parseScVal(val: xdr.ScVal): unknown {
@@ -227,8 +230,11 @@ export async function fetchCommissionOrders(): Promise<CommissionOrder[]> {
           amountPaid: data.amount_paid as bigint,
           intention: (data.intention as string) ?? "",
           referenceImageUrl: (data.reference_image_url as string) ?? "",
-          fulfilled: Boolean(data.fulfilled),
+          status: (data.status as string) ?? "Accepted",
+          fulfilled: String(data.status ?? "").toLowerCase() === "completed",
           createdAt: data.created_at as number,
+          deliveredAt: (data.delivered_at as number) ?? 0,
+          resolvedAt: (data.resolved_at as number) ?? 0,
         });
       } catch {
         // skip bad entries
@@ -389,12 +395,32 @@ export async function buildCancelSwapTx(
   ]);
 }
 
-export async function buildMarkCommissionFulfilledTx(
+export async function buildMarkCommissionDeliveredTx(
   sellerPublicKey: string,
   orderId: number
 ): Promise<string> {
-  return buildMarketplaceTx(sellerPublicKey, "mark_commission_fulfilled", [
+  return buildMarketplaceTx(sellerPublicKey, "mark_commission_delivered", [
     new Address(sellerPublicKey).toScVal(),
+    nativeToScVal(orderId, { type: "u64" }),
+  ]);
+}
+
+export async function buildApproveCommissionDeliveryTx(
+  buyerPublicKey: string,
+  orderId: number
+): Promise<string> {
+  return buildMarketplaceTx(buyerPublicKey, "approve_commission_delivery", [
+    new Address(buyerPublicKey).toScVal(),
+    nativeToScVal(orderId, { type: "u64" }),
+  ]);
+}
+
+export async function buildRefundCommissionOrderTx(
+  callerPublicKey: string,
+  orderId: number
+): Promise<string> {
+  return buildMarketplaceTx(callerPublicKey, "refund_commission_order", [
+    new Address(callerPublicKey).toScVal(),
     nativeToScVal(orderId, { type: "u64" }),
   ]);
 }

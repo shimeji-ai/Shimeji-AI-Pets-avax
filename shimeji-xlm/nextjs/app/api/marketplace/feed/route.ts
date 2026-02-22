@@ -1,0 +1,209 @@
+import { NextRequest, NextResponse } from "next/server";
+import { fetchAuctions } from "@/lib/auction";
+import { getArtistProfilesByWallets } from "@/lib/artist-profiles-store";
+import {
+  type ArtistProfile,
+  type MarketplaceFeedItem,
+  type MarketplaceFeedResponse,
+} from "@/lib/marketplace-hub-types";
+import { fetchListings } from "@/lib/marketplace";
+import { fetchNftTokensByIds } from "@/lib/nft-read";
+
+export const runtime = "nodejs";
+
+function matchesSearch(item: MarketplaceFeedItem, search: string): boolean {
+  if (!search) return true;
+  const q = search.toLowerCase();
+  const haystack = [
+    item.id,
+    item.assetKind,
+    item.saleKind,
+    item.sellerWallet || "",
+    item.tokenUri || "",
+    item.sellerProfile?.displayName || "",
+    ...(item.sellerProfile?.styleTags ?? []),
+    ...(item.sellerProfile?.languages ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
+function sortItems(items: MarketplaceFeedItem[], sort: string): MarketplaceFeedItem[] {
+  const copy = [...items];
+  if (sort === "ending_soon") {
+    return copy.sort((a, b) => {
+      const aEnd = a.auction?.endTime ?? Number.MAX_SAFE_INTEGER;
+      const bEnd = b.auction?.endTime ?? Number.MAX_SAFE_INTEGER;
+      return aEnd - bEnd;
+    });
+  }
+  if (sort === "price_low") {
+    return copy.sort((a, b) => {
+      const aPrice = Number.parseFloat(a.priceXlm || a.priceUsdc || "999999999");
+      const bPrice = Number.parseFloat(b.priceXlm || b.priceUsdc || "999999999");
+      return aPrice - bPrice;
+    });
+  }
+  if (sort === "price_high") {
+    return copy.sort((a, b) => {
+      const aPrice = Number.parseFloat(a.priceXlm || a.priceUsdc || "0");
+      const bPrice = Number.parseFloat(b.priceXlm || b.priceUsdc || "0");
+      return bPrice - aPrice;
+    });
+  }
+  return copy;
+}
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const assetKindFilter = (searchParams.get("assetKind") || "all").toLowerCase();
+  const saleKindFilter = (searchParams.get("saleKind") || "all").toLowerCase();
+  const search = (searchParams.get("search") || "").trim().slice(0, 120);
+  const sort = (searchParams.get("sort") || "ending_soon").toLowerCase();
+  const warnings: string[] = [];
+
+  try {
+    const [listings, auctions] = await Promise.all([
+      fetchListings().catch(() => {
+        warnings.push("Failed to load marketplace listings.");
+        return [];
+      }),
+      fetchAuctions({ includeEnded: false, limit: 100 }).catch(() => {
+        warnings.push("Failed to load auctions.");
+        return [];
+      }),
+    ]);
+
+    const itemAuctionTokenIds = auctions
+      .filter((snapshot) => snapshot.auction.isItemAuction && snapshot.auction.tokenId !== null)
+      .map((snapshot) => snapshot.auction.tokenId as number);
+
+    const tokenRecords = await fetchNftTokensByIds([
+      ...listings.map((listing) => listing.tokenId),
+      ...itemAuctionTokenIds,
+    ]).catch(() => {
+      warnings.push("Failed to enrich listings with NFT metadata.");
+      return [];
+    });
+    const tokenById = new Map(tokenRecords.map((record) => [record.tokenId, record]));
+
+    const sellerProfiles: Record<string, ArtistProfile> = await getArtistProfilesByWallets(
+      [
+        ...listings.map((listing) => listing.seller),
+        ...auctions
+          .filter((snapshot) => snapshot.auction.isItemAuction && snapshot.auction.seller)
+          .map((snapshot) => snapshot.auction.seller as string),
+      ],
+    ).catch(() => {
+      warnings.push("Failed to load artist profiles.");
+      return {} as Record<string, ArtistProfile>;
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+    const listingItems: MarketplaceFeedItem[] = listings.map((listing) => {
+      const token = tokenById.get(listing.tokenId) ?? null;
+      const sellerProfile = sellerProfiles[listing.seller] ?? null;
+      const isCommissionEgg = listing.isCommissionEgg || Boolean(token?.isCommissionEgg);
+      return {
+        id: `listing:${listing.listingId}`,
+        source: "marketplace",
+        assetKind: isCommissionEgg ? "commission_egg" : "nft",
+        saleKind: "fixed_price",
+        status: listing.active ? "active" : "cancelled",
+        tokenId: listing.tokenId,
+        tokenUri: token?.tokenUri ?? null,
+        sellerWallet: listing.seller,
+        sellerProfile,
+        priceXlm: listing.priceXlm.toString(),
+        priceUsdc: listing.priceUsdc.toString(),
+        xlmUsdcRate: listing.xlmUsdcRate.toString(),
+        auction: null,
+        commissionMeta: isCommissionEgg
+          ? {
+              artistWallet: listing.seller,
+              expectedTurnaroundDays: sellerProfile?.turnaroundDaysMax ?? null,
+              slotsAvailable: sellerProfile?.slotsOpen ?? null,
+              styleTags: sellerProfile?.styleTags ?? [],
+            }
+          : null,
+        createdAt: null,
+        updatedAt: null,
+      };
+    });
+
+    const auctionItems: MarketplaceFeedItem[] = auctions
+      .filter((snapshot) => snapshot.auction.isItemAuction)
+      .map((snapshot) => {
+      const auction = snapshot.auction;
+      const isItemAuction = auction.isItemAuction;
+      const token =
+        isItemAuction && auction.tokenId !== null ? (tokenById.get(auction.tokenId) ?? null) : null;
+      const sellerWallet = isItemAuction ? auction.seller : null;
+      const sellerProfile = sellerWallet ? (sellerProfiles[sellerWallet] ?? null) : null;
+      const isCommissionEgg = Boolean(token?.isCommissionEgg);
+
+      return {
+        id: `auction:${snapshot.auctionId}`,
+        source: "auction",
+        assetKind: isCommissionEgg ? "commission_egg" : "nft",
+        saleKind: "auction",
+        status: auction.finalized || auction.endTime <= now ? "ended" : "active",
+        tokenId: isItemAuction ? (auction.tokenId ?? null) : null,
+        tokenUri: token?.tokenUri ?? auction.tokenUri ?? null,
+        sellerWallet,
+        sellerProfile,
+        priceXlm: auction.startingPriceXlm.toString(),
+        priceUsdc: auction.startingPriceUsdc.toString(),
+        xlmUsdcRate: auction.xlmUsdcRate.toString(),
+        auction: {
+          auctionId: snapshot.auctionId,
+          startTime: auction.startTime,
+          endTime: auction.endTime,
+          finalized: auction.finalized,
+          currentBidAmount: snapshot.highestBid?.amount.toString() ?? null,
+          currentBidCurrency: snapshot.highestBid?.currency ?? null,
+          bidCount: snapshot.highestBid ? 1 : 0,
+        },
+        commissionMeta:
+          isCommissionEgg && sellerWallet
+            ? {
+                artistWallet: sellerWallet,
+                expectedTurnaroundDays: sellerProfile?.turnaroundDaysMax ?? null,
+                slotsAvailable: sellerProfile?.slotsOpen ?? null,
+                styleTags: sellerProfile?.styleTags ?? [],
+              }
+            : null,
+        createdAt: auction.startTime,
+        updatedAt: auction.endTime,
+      };
+    });
+
+    let items = [...auctionItems, ...listingItems];
+
+    if (assetKindFilter === "nft" || assetKindFilter === "commission_egg") {
+      items = items.filter((item) => item.assetKind === assetKindFilter);
+    }
+    if (saleKindFilter === "fixed_price" || saleKindFilter === "auction") {
+      items = items.filter((item) => item.saleKind === saleKindFilter);
+    }
+    items = items.filter((item) => matchesSearch(item, search));
+    items = sortItems(items, sort);
+
+    const response: MarketplaceFeedResponse = {
+      items,
+      warnings,
+      generatedAt: Date.now(),
+    };
+
+    return NextResponse.json(response, {
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (error) {
+    console.error("Marketplace feed API error:", error);
+    return NextResponse.json(
+      { error: "Failed to load marketplace feed." },
+      { status: 500 },
+    );
+  }
+}

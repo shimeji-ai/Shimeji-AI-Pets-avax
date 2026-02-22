@@ -505,6 +505,7 @@ let shimejis = [];
 let globalConfig = {};
 let uiLanguage = null;
 let activeMicShimejiId = null;
+const UI_TEXT_SCALE_OPTIONS = [0.85, 1, 1.15, 1.3, 1.45];
 
 function syncUiLanguageFromConfig(config = globalConfig) {
   const fromConfig = config && (config.shimejiLanguage === 'es' || config.shimejiLanguage === 'en')
@@ -525,6 +526,42 @@ function isSpanishLocale() {
 
 function t(en, es) {
   return isSpanishLocale() ? es : en;
+}
+
+function normalizeUiTextScale(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 1;
+  let nearest = UI_TEXT_SCALE_OPTIONS[0];
+  let minDelta = Math.abs(numeric - nearest);
+  UI_TEXT_SCALE_OPTIONS.forEach((option) => {
+    const delta = Math.abs(numeric - option);
+    if (delta < minDelta) {
+      nearest = option;
+      minDelta = delta;
+    }
+  });
+  return nearest;
+}
+
+function getGlobalUiTextScale() {
+  return normalizeUiTextScale(globalConfig?.uiTextScale);
+}
+
+function getUiTextScaleShortcutAction(event) {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
+  if (event.key === '+' || event.key === '=' || event.code === 'NumpadAdd') return 'increase';
+  if (event.key === '-' || event.key === '_' || event.code === 'NumpadSubtract') return 'decrease';
+  if (event.key === '0' || event.code === 'Digit0' || event.code === 'Numpad0') return 'reset';
+  return null;
+}
+
+function stepUiTextScale(current, action) {
+  const normalized = normalizeUiTextScale(current);
+  const index = Math.max(0, UI_TEXT_SCALE_OPTIONS.indexOf(normalized));
+  if (action === 'reset') return 1;
+  if (action === 'increase') return UI_TEXT_SCALE_OPTIONS[Math.min(UI_TEXT_SCALE_OPTIONS.length - 1, index + 1)];
+  if (action === 'decrease') return UI_TEXT_SCALE_OPTIONS[Math.max(0, index - 1)];
+  return normalized;
 }
 
 const IS_WINDOWS_PLATFORM = /win/i.test(`${navigator.platform || navigator.userAgent || ''}`);
@@ -897,6 +934,23 @@ class Shimeji {
     });
     controlsPanel.appendChild(fontRow);
 
+    const uiTextScaleSelect = document.createElement('select');
+    uiTextScaleSelect.className = 'shimeji-chat-font-select';
+    UI_TEXT_SCALE_OPTIONS.forEach((value) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = String(value);
+      optionEl.textContent = `${Math.round(value * 100)}%`;
+      uiTextScaleSelect.appendChild(optionEl);
+    });
+    const uiTextScaleRowParts = makeControlRow(t('UI text', 'Texto UI'), uiTextScaleSelect);
+    const uiTextScaleRow = uiTextScaleRowParts.row;
+    const uiTextScaleLabel = uiTextScaleRowParts.rowLabel;
+    uiTextScaleRow.addEventListener('click', (event) => {
+      if (event.target && event.target.closest && event.target.closest('select')) return;
+      uiTextScaleSelect.focus();
+    });
+    controlsPanel.appendChild(uiTextScaleRow);
+
     const themePanel = document.createElement('div');
     themePanel.className = 'shimeji-chat-theme-panel';
 
@@ -1054,6 +1108,7 @@ class Shimeji {
     this.elements.themeToggleBtn = themeToggleBtn;
     this.elements.themeLabel = themeLabel;
     this.elements.fontSizeLabel = fontLabel;
+    this.elements.uiTextScaleLabel = uiTextScaleLabel;
     this.elements.themeHeaderLabel = themeHeaderLabel;
     this.elements.themePresetLabel = presetLabel;
     this.elements.themeCustomLabel = customLabel;
@@ -1064,6 +1119,7 @@ class Shimeji {
     this.elements.themeColorInput = themeColorInput;
     this.elements.bgColorInput = bgColorInput;
     this.elements.fontSizeSelect = fontSizeSelect;
+    this.elements.uiTextScaleSelect = uiTextScaleSelect;
     this.elements.themeButtons = themeButtons;
     this.elements.themeButtonMeta = themeButtonMeta;
     this.elements.themeCustomSection = customSection;
@@ -1201,6 +1257,10 @@ class Shimeji {
       this.persistConfig();
     });
 
+    uiTextScaleSelect.addEventListener('change', () => {
+      this.setGlobalUiTextScale(uiTextScaleSelect.value || 1, true);
+    });
+
     themeColorInput.addEventListener('input', () => {
       this.setCustomThemeColors(themeColorInput.value, bgColorInput.value);
     });
@@ -1244,6 +1304,7 @@ class Shimeji {
 
     chat.addEventListener('mousemove', (event) => this.onChatResizeHover(event));
     chat.addEventListener('mouseleave', () => this.onChatResizeLeave());
+    chat.addEventListener('keydown', (event) => this.handleUiTextScaleShortcut(event), true);
 
     messagesArea.addEventListener('mousedown', (event) => {
       event.stopPropagation();
@@ -1344,6 +1405,9 @@ class Shimeji {
     if (fontSizeSelect) {
       fontSizeSelect.value = this.config.chatFontSize || 'medium';
     }
+    if (this.elements.uiTextScaleSelect) {
+      this.elements.uiTextScaleSelect.value = String(getGlobalUiTextScale());
+    }
     if (voiceProfileSelect) {
       voiceProfileSelect.value = this.config.ttsVoiceProfile || 'random';
     }
@@ -1388,6 +1452,9 @@ class Shimeji {
     }
     if (this.elements.fontSizeLabel) {
       this.elements.fontSizeLabel.textContent = t('Text size', 'Tamaño de texto');
+    }
+    if (this.elements.uiTextScaleLabel) {
+      this.elements.uiTextScaleLabel.textContent = t('UI text', 'Texto UI');
     }
     if (this.elements.themeHeaderLabel) {
       this.elements.themeHeaderLabel.textContent = t('Chat theme', 'Tema de chat');
@@ -4785,11 +4852,39 @@ class Shimeji {
     if (rgb) {
       this.elements.chat.style.setProperty('--chat-theme-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
     }
+    this.applyUiTextScale();
     this.syncNotificationBadge();
     this.updateChatHeader();
     if (this.supportsInteractiveTerminalMode()) {
       this.scheduleTerminalFit(0);
     }
+  }
+
+  applyUiTextScale() {
+    if (!this.elements.chat) return;
+    const scale = getGlobalUiTextScale();
+    this.elements.chat.style.zoom = String(scale);
+    this.elements.chat.style.transformOrigin = 'top left';
+    if (this.elements.uiTextScaleSelect) {
+      this.elements.uiTextScaleSelect.value = String(scale);
+    }
+  }
+
+  setGlobalUiTextScale(nextScale, persist = true) {
+    const scale = normalizeUiTextScale(nextScale);
+    globalConfig = { ...globalConfig, uiTextScale: scale };
+    shimejis.forEach((shimeji) => shimeji.applyUiTextScale());
+    if (persist && window.shimejiApi?.updateConfig) {
+      window.shimejiApi.updateConfig({ uiTextScale: scale });
+    }
+  }
+
+  handleUiTextScaleShortcut(event) {
+    const action = getUiTextScaleShortcutAction(event);
+    if (!action) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.setGlobalUiTextScale(stepUiTextScale(getGlobalUiTextScale(), action), true);
   }
 
   remove() {
@@ -5167,6 +5262,10 @@ async function init() {
               s.closeChat();
             }
           });
+        }
+
+        if (next.uiTextScale !== undefined) {
+          shimejis.forEach((shimeji) => shimeji.applyUiTextScale());
         }
 
         shimejis.forEach((shimeji, index) => {

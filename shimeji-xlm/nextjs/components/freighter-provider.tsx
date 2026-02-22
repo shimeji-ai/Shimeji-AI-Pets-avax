@@ -28,6 +28,10 @@ type FreighterState = {
   disconnect: () => void;
   refresh: () => Promise<void>;
   signTransaction: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => Promise<string>;
+  signMessage: (
+    message: string,
+    opts?: { networkPassphrase?: string; address?: string }
+  ) => Promise<{ signedMessage: string; signerAddress?: string }>;
 };
 
 const FreighterContext = createContext<FreighterState | null>(null);
@@ -248,6 +252,30 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
     [kit, publicKey]
   );
 
+  const signMessage = useCallback(
+    async (
+      message: string,
+      opts?: { networkPassphrase?: string; address?: string }
+    ): Promise<{ signedMessage: string; signerAddress?: string }> => {
+      const walletId = getStoredWalletId();
+      if (!walletId || !kit) {
+        throw new Error(NO_WALLET_SELECTED_ERROR);
+      }
+
+      kit.setWallet(walletId);
+      const signerAddress = opts?.address ?? publicKey ?? getStoredWalletAddress() ?? undefined;
+      const signed = await kit.signMessage(message, {
+        networkPassphrase: opts?.networkPassphrase,
+        address: signerAddress,
+      });
+      if (!signed?.signedMessage) {
+        throw new Error(DEFAULT_CONNECTION_ERROR);
+      }
+      return signed;
+    },
+    [kit, publicKey]
+  );
+
   const disconnect = useCallback(() => {
     if (kit) {
       void kit.disconnect().catch(() => {
@@ -263,7 +291,8 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
 
   // Retry detection to handle wallet extensions/providers loading late.
   useEffect(() => {
-    if (!kit) {
+    const walletKit = kit;
+    if (!walletKit) {
       setIsDetecting(false);
       setIsAvailable(false);
       return;
@@ -271,6 +300,9 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function detect() {
+      if (!walletKit) {
+        return;
+      }
       // Try up to 4 times: 0ms, 500ms, 1500ms, 3500ms
       const delays = [0, 500, 1000, 2000];
       for (const delay of delays) {
@@ -279,7 +311,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         await refresh();
 
-        const wallets = await kit.getSupportedWallets();
+        const wallets = await walletKit.getSupportedWallets();
         if (wallets.some((wallet) => walletIsReachable(wallet))) {
           if (!cancelled) {
             setIsDetecting(false);
@@ -317,6 +349,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       refresh,
       signTransaction,
+      signMessage,
     }),
     [
       isAvailable,
@@ -330,6 +363,7 @@ export function FreighterProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       refresh,
       signTransaction,
+      signMessage,
     ]
   );
 

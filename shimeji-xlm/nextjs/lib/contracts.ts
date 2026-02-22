@@ -78,7 +78,8 @@ let _server: rpc.Server | null = null;
 
 export function getServer(): rpc.Server {
   if (!_server) {
-    _server = new rpc.Server(RPC_URL);
+    const isHttp = /^http:\/\//i.test(RPC_URL);
+    _server = new rpc.Server(RPC_URL, isHttp ? { allowHttp: true } : undefined);
   }
   return _server;
 }

@@ -1,8 +1,10 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, IntoVal, String};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, IntoVal, String, Symbol};
 
 const AUCTION_DURATION: u64 = 604_800; // 7 days in seconds
+const MIN_AUCTION_DURATION: u64 = 3_600; // 1 hour
+const MAX_AUCTION_DURATION: u64 = 2_592_000; // 30 days
 const MIN_INCREMENT_BPS: i128 = 500; // 5% minimum bid increment
 
 #[contracttype]
@@ -23,6 +25,9 @@ pub enum EscrowProvider {
 #[derive(Clone, Debug)]
 pub struct AuctionInfo {
     pub token_uri: String,
+    pub is_item_auction: bool,
+    pub seller: Address,
+    pub token_id: u64,
     pub start_time: u64,
     pub end_time: u64,
     pub starting_price_xlm: i128,
@@ -88,6 +93,46 @@ impl ShimejiAuction {
             .instance()
             .get(&key)
             .unwrap_or_else(|| panic!("trustless escrow destination not configured"))
+    }
+
+    fn nft_contract(env: &Env) -> Address {
+        env.storage().instance().get(&DataKey::NftContract).unwrap()
+    }
+
+    fn validate_auction_duration(duration_seconds: u64) {
+        if duration_seconds < MIN_AUCTION_DURATION {
+            panic!("auction duration too short");
+        }
+        if duration_seconds > MAX_AUCTION_DURATION {
+            panic!("auction duration too long");
+        }
+    }
+
+    fn nft_owner_of(env: &Env, token_id: u64) -> Address {
+        let nft_contract = Self::nft_contract(env);
+        env.invoke_contract::<Address>(
+            &nft_contract,
+            &Symbol::new(env, "owner_of"),
+            (token_id,).into_val(env),
+        )
+    }
+
+    fn nft_token_uri(env: &Env, token_id: u64) -> String {
+        let nft_contract = Self::nft_contract(env);
+        env.invoke_contract::<String>(
+            &nft_contract,
+            &Symbol::new(env, "token_uri"),
+            (token_id,).into_val(env),
+        )
+    }
+
+    fn nft_transfer(env: &Env, from: &Address, to: &Address, token_id: u64) {
+        let nft_contract = Self::nft_contract(env);
+        env.invoke_contract::<()>(
+            &nft_contract,
+            &Symbol::new(env, "transfer"),
+            (from.clone(), to.clone(), token_id).into_val(env),
+        );
     }
 }
 
@@ -156,6 +201,9 @@ impl ShimejiAuction {
 
         let auction = AuctionInfo {
             token_uri,
+            is_item_auction: false,
+            seller: admin.clone(),
+            token_id: 0,
             start_time: now,
             end_time: now + AUCTION_DURATION,
             starting_price_xlm,
@@ -169,6 +217,50 @@ impl ShimejiAuction {
         env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
         env.storage().instance().set(&DataKey::NextAuctionId, &(auction_id + 1));
 
+        auction_id
+    }
+
+    pub fn create_item_auction(
+        env: Env,
+        seller: Address,
+        token_id: u64,
+        starting_price_xlm: i128,
+        starting_price_usdc: i128,
+        xlm_usdc_rate: i128,
+        duration_seconds: u64,
+    ) -> u64 {
+        seller.require_auth();
+        Self::validate_auction_duration(duration_seconds);
+
+        let owner = Self::nft_owner_of(&env, token_id);
+        if owner != seller {
+            panic!("seller does not own token");
+        }
+
+        let token_uri = Self::nft_token_uri(&env, token_id);
+        let now = env.ledger().timestamp();
+        let auction_id: u64 = env.storage().instance().get(&DataKey::NextAuctionId).unwrap();
+
+        Self::nft_transfer(&env, &seller, &env.current_contract_address(), token_id);
+
+        let auction = AuctionInfo {
+            token_uri,
+            is_item_auction: true,
+            seller: seller.clone(),
+            token_id,
+            start_time: now,
+            end_time: now + duration_seconds,
+            starting_price_xlm,
+            starting_price_usdc,
+            xlm_usdc_rate,
+            finalized: false,
+            // Item auctions settle directly to seller at finalize.
+            escrow_provider: EscrowProvider::Internal,
+            escrow_settled: false,
+        };
+
+        env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
+        env.storage().instance().set(&DataKey::NextAuctionId, &(auction_id + 1));
         auction_id
     }
 
@@ -276,31 +368,57 @@ impl ShimejiAuction {
                 .get(&DataKey::HighestBid(auction_id))
                 .unwrap();
 
-            let nft_contract: Address = env.storage().instance().get(&DataKey::NftContract).unwrap();
+            if auction.is_item_auction {
+                Self::nft_transfer(
+                    &env,
+                    &env.current_contract_address(),
+                    &winning_bid.bidder,
+                    auction.token_id,
+                );
 
-            // Cross-contract call to mint NFT
-            let mint_args = (winning_bid.bidder.clone(), auction.token_uri.clone());
-            env.invoke_contract::<u64>(
-                &nft_contract,
-                &soroban_sdk::Symbol::new(&env, "mint"),
-                mint_args.into_val(&env),
-            );
-
-            if auction.escrow_provider == EscrowProvider::TrustlessWork {
-                let destination = Self::trustless_escrow_destination(&env, &winning_bid.currency);
                 let token_addr = match winning_bid.currency {
                     Currency::Xlm => env.storage().instance().get::<DataKey, Address>(&DataKey::XlmToken).unwrap(),
                     Currency::Usdc => env.storage().instance().get::<DataKey, Address>(&DataKey::UsdcToken).unwrap(),
                 };
                 let token_client = token::Client::new(&env, &token_addr);
-                token_client.transfer(
-                    &env.current_contract_address(),
-                    &destination,
-                    &winning_bid.amount,
-                );
+                token_client.transfer(&env.current_contract_address(), &auction.seller, &winning_bid.amount);
+
                 auction.escrow_settled = true;
                 env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
+            } else {
+                let nft_contract: Address = env.storage().instance().get(&DataKey::NftContract).unwrap();
+
+                // Cross-contract call to mint NFT
+                let mint_args = (winning_bid.bidder.clone(), auction.token_uri.clone());
+                env.invoke_contract::<u64>(
+                    &nft_contract,
+                    &Symbol::new(&env, "mint"),
+                    mint_args.into_val(&env),
+                );
+
+                if auction.escrow_provider == EscrowProvider::TrustlessWork {
+                    let destination = Self::trustless_escrow_destination(&env, &winning_bid.currency);
+                    let token_addr = match winning_bid.currency {
+                        Currency::Xlm => env.storage().instance().get::<DataKey, Address>(&DataKey::XlmToken).unwrap(),
+                        Currency::Usdc => env.storage().instance().get::<DataKey, Address>(&DataKey::UsdcToken).unwrap(),
+                    };
+                    let token_client = token::Client::new(&env, &token_addr);
+                    token_client.transfer(
+                        &env.current_contract_address(),
+                        &destination,
+                        &winning_bid.amount,
+                    );
+                    auction.escrow_settled = true;
+                    env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
+                }
             }
+        } else if auction.is_item_auction {
+            Self::nft_transfer(
+                &env,
+                &env.current_contract_address(),
+                &auction.seller,
+                auction.token_id,
+            );
         }
     }
 

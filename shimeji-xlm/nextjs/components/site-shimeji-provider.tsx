@@ -8,6 +8,14 @@ import {
   useMemo,
   useState,
 } from "react";
+import {
+  type SiteShimejiChatBubbleStyle,
+  type SiteShimejiChatFontSize,
+  type SiteShimejiChatThemePresetId,
+  type SiteShimejiChatWidthPreset,
+  SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+  SITE_SHIMEJI_CHAT_THEMES,
+} from "@/lib/site-shimeji-chat-ui";
 
 export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw";
 export type SiteShimejiSoundInputProviderKind = "off" | "browser";
@@ -49,9 +57,18 @@ export type SiteShimejiConfig = {
   soundOutputProvider: SiteShimejiSoundOutputProviderKind;
   soundOutputAutoSpeak: boolean;
   soundOutputVolumePercent: number;
+  soundOutputBrowserVoiceName: string;
   elevenlabsApiKey: string;
   elevenlabsVoiceId: string;
   elevenlabsModelId: string;
+  chatThemeColor: string;
+  chatBgColor: string;
+  chatFontSize: SiteShimejiChatFontSize;
+  chatWidth: SiteShimejiChatWidthPreset;
+  chatWidthPx: number | null;
+  chatHeightPx: number | null;
+  chatBubbleStyle: SiteShimejiChatBubbleStyle;
+  chatThemePreset: SiteShimejiChatThemePresetId;
 };
 
 type SiteShimejiContextValue = {
@@ -77,6 +94,7 @@ const SITE_SHIMEJI_CONFIG_STORAGE_KEY = "site-shimeji-config-v1";
 const SITE_SHIMEJI_CREDITS_STORAGE_KEY = "site-shimeji-free-messages-used-v1";
 
 const DEFAULT_FREE_SITE_MESSAGE_LIMIT = 4;
+const DEFAULT_CHAT_THEME = SITE_SHIMEJI_CHAT_THEMES[0];
 
 const DEFAULT_CONFIG: SiteShimejiConfig = {
   enabled: true,
@@ -96,9 +114,18 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   soundOutputProvider: "off",
   soundOutputAutoSpeak: false,
   soundOutputVolumePercent: 95,
+  soundOutputBrowserVoiceName: "",
   elevenlabsApiKey: "",
   elevenlabsVoiceId: "EXAVITQu4vr4xnSDxMaL",
   elevenlabsModelId: "eleven_flash_v2_5",
+  chatThemeColor: DEFAULT_CHAT_THEME.theme,
+  chatBgColor: DEFAULT_CHAT_THEME.bg,
+  chatFontSize: "medium",
+  chatWidth: "medium",
+  chatWidthPx: null,
+  chatHeightPx: SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+  chatBubbleStyle: DEFAULT_CHAT_THEME.bubble,
+  chatThemePreset: DEFAULT_CHAT_THEME.id,
 };
 
 const SiteShimejiContext = createContext<SiteShimejiContextValue | undefined>(
@@ -127,6 +154,13 @@ function clampPercent(value: unknown, fallback: number, min = 0, max = 100): num
   return Math.max(min, Math.min(max, Math.round(numeric)));
 }
 
+function clampOptionalPx(value: unknown, min: number, max: number): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  if (!Number.isFinite(numeric)) return null;
+  return Math.max(min, Math.min(max, Math.round(numeric)));
+}
+
 function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
@@ -134,6 +168,38 @@ function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
 function sanitizeString(value: unknown, fallback = "", maxLength = 256): string {
   if (typeof value !== "string") return fallback;
   return value.trim().slice(0, maxLength);
+}
+
+function sanitizeHexColor(value: unknown, fallback: string): string {
+  const raw = sanitizeString(value, fallback, 16);
+  return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : fallback;
+}
+
+function sanitizeChatFontSize(value: unknown): SiteShimejiChatFontSize {
+  return value === "small" || value === "medium" || value === "large"
+    ? value
+    : DEFAULT_CONFIG.chatFontSize;
+}
+
+function sanitizeChatWidth(value: unknown): SiteShimejiChatWidthPreset {
+  return value === "small" || value === "medium" || value === "large"
+    ? value
+    : DEFAULT_CONFIG.chatWidth;
+}
+
+function sanitizeChatBubbleStyle(value: unknown): SiteShimejiChatBubbleStyle {
+  return value === "glass" || value === "solid" || value === "dark"
+    ? value
+    : DEFAULT_CONFIG.chatBubbleStyle;
+}
+
+function sanitizeChatThemePreset(value: unknown): SiteShimejiChatThemePresetId {
+  const raw = sanitizeString(value, DEFAULT_CONFIG.chatThemePreset, 32);
+  if (raw === "custom" || raw === "random") return raw;
+  if (SITE_SHIMEJI_CHAT_THEMES.some((theme) => theme.id === raw)) {
+    return raw as SiteShimejiChatThemePresetId;
+  }
+  return DEFAULT_CONFIG.chatThemePreset;
 }
 
 function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): boolean {
@@ -203,6 +269,7 @@ function looksLikeAutoEnabledSoundDefaults(raw: Partial<SiteShimejiConfig>): boo
       soundOutputProvider === "browser" &&
       soundOutputAutoSpeak === true &&
       soundOutputVolumePercent === 95 &&
+      !sanitizeString(raw.soundOutputBrowserVoiceName, "", 160) &&
       !elevenlabsApiKey &&
       elevenlabsVoiceId === "EXAVITQu4vr4xnSDxMaL" &&
       elevenlabsModelId === "eleven_flash_v2_5",
@@ -266,6 +333,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
       0,
       100,
     ),
+    soundOutputBrowserVoiceName: sanitizeString(raw.soundOutputBrowserVoiceName, "", 160),
     elevenlabsApiKey: sanitizeString(raw.elevenlabsApiKey, "", 600),
     elevenlabsVoiceId:
       sanitizeString(raw.elevenlabsVoiceId, DEFAULT_CONFIG.elevenlabsVoiceId, 120) ||
@@ -273,6 +341,15 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     elevenlabsModelId:
       sanitizeString(raw.elevenlabsModelId, DEFAULT_CONFIG.elevenlabsModelId, 120) ||
       DEFAULT_CONFIG.elevenlabsModelId,
+    chatThemeColor: sanitizeHexColor(raw.chatThemeColor, DEFAULT_CONFIG.chatThemeColor),
+    chatBgColor: sanitizeHexColor(raw.chatBgColor, DEFAULT_CONFIG.chatBgColor),
+    chatFontSize: sanitizeChatFontSize(raw.chatFontSize),
+    chatWidth: sanitizeChatWidth(raw.chatWidth),
+    chatWidthPx: clampOptionalPx(raw.chatWidthPx, 220, 720),
+    chatHeightPx:
+      clampOptionalPx(raw.chatHeightPx, 160, 720) ?? SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
+    chatBubbleStyle: sanitizeChatBubbleStyle(raw.chatBubbleStyle),
+    chatThemePreset: sanitizeChatThemePreset(raw.chatThemePreset),
   };
 }
 
