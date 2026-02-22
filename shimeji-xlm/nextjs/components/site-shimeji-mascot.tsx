@@ -5,6 +5,7 @@ import styles from "./site-shimeji-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 import { buildSiteShimejiChatMessages } from "@/lib/site-shimeji-chat";
+import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-personality-labels";
 import {
   formatSiteShimejiProviderError,
   sendOllamaBrowserChat,
@@ -1192,7 +1193,8 @@ export function SiteShimejiMascot() {
           <div className={styles.bubbleHeader}>
             <div>
               <div className={styles.title}>
-                {selectedCharacter?.label || "Shimeji"} · {selectedPersonality?.label || "Cozy"}
+                {selectedCharacter?.label || "Shimeji"} ·{" "}
+                {getSiteShimejiPersonalityDisplayLabel(selectedPersonality, isSpanish) || "Cozy"}
               </div>
               <div className="text-[10px] uppercase tracking-wide text-white/45">{providerLabel}</div>
             </div>
@@ -1289,8 +1291,35 @@ export function SiteShimejiMascot() {
                   void send();
                 }}
                 disabled={inputLocked || !input.trim()}
+                aria-label={isSpanish ? "Enviar mensaje" : "Send message"}
+                title={isSpanish ? "Enviar mensaje" : "Send message"}
               >
-                {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
+                {sending ? (
+                  "..."
+                ) : (
+                  <svg
+                    className={styles.sendIcon}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M21.5 3.5L10 15"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M21.5 3.5L14.5 21L10 15L3 10.5L21.5 3.5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
               </button>
             </div>
             {voiceStatus && (

@@ -473,8 +473,40 @@ export function SiteShimejiMascot() {
                   }
                   disabled={sending}
                 />
-                <button className={styles.sendBtn} type="button" onClick={send} disabled={sending || !input.trim()}>
-                  {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
+                <button
+                  className={styles.sendBtn}
+                  type="button"
+                  onClick={send}
+                  disabled={sending || !input.trim()}
+                  aria-label={isSpanish ? "Enviar mensaje" : "Send message"}
+                  title={isSpanish ? "Enviar mensaje" : "Send message"}
+                >
+                  {sending ? (
+                    "..."
+                  ) : (
+                    <svg
+                      className={styles.sendIcon}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M21.5 3.5L10 15"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M21.5 3.5L14.5 21L10 15L3 10.5L21.5 3.5Z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>

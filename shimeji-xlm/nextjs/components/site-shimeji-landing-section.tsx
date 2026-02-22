@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bot, ExternalLink, Download, Gavel, RefreshCw, User } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
+import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-personality-labels";
 
 type ProviderKey = "openrouter" | "ollama" | "openclaw";
 const OPENCLAW_AGENT_MARKDOWN_URL = "https://www.shimeji.dev/agent/openclaw-web.md";
@@ -565,7 +566,7 @@ export function SiteShimejiLandingSection() {
                         >
                           {(catalog?.personalities ?? []).map((entry) => (
                             <option key={entry.key} value={entry.key}>
-                              {entry.label}
+                              {getSiteShimejiPersonalityDisplayLabel(entry, isSpanish)}
                             </option>
                           ))}
                         </select>

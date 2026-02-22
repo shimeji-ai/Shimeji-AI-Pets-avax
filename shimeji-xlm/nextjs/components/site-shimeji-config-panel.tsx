@@ -4,6 +4,7 @@ import { useState } from "react";
 import { RefreshCw, Settings2, X } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
+import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-personality-labels";
 
 type ConfigPanelTab = "mascot" | "chat" | "sound";
 
@@ -442,7 +443,7 @@ export function SiteShimejiConfigPanel() {
                   >
                     {(catalog?.personalities ?? []).map((personality) => (
                       <option key={personality.key} value={personality.key}>
-                        {personality.label}
+                        {getSiteShimejiPersonalityDisplayLabel(personality, isSpanish)}
                       </option>
                     ))}
                   </select>
