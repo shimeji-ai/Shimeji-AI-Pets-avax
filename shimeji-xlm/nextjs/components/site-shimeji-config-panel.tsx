@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { RefreshCw, Settings2, X } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
+
+type ConfigPanelTab = "mascot" | "chat" | "sound";
 
 function ProviderFields() {
   const { isSpanish } = useLanguage();
@@ -145,8 +148,173 @@ function ProviderFields() {
   );
 }
 
+function SoundFields() {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteShimeji();
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+        {isSpanish
+          ? "Modo gratis: usa voz del navegador (micrófono + síntesis de voz). Suele funcionar mejor en Chrome/Edge. ElevenLabs es opcional para una voz más natural."
+          : "Free mode uses browser voice features (microphone + speech synthesis). It usually works best in Chrome/Edge. ElevenLabs is optional for a more natural voice."}
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {isSpanish ? "Entrada de voz (hablarle)" : "Voice input (talk to it)"}
+        </p>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {isSpanish ? "Proveedor de micrófono" : "Microphone provider"}
+          </span>
+          <select
+            value={config.soundInputProvider}
+            onChange={(event) =>
+              updateConfig({
+                soundInputProvider: event.target.value as "off" | "browser",
+              })
+            }
+            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+          >
+            <option value="browser">{isSpanish ? "Navegador (gratis)" : "Browser (free)"}</option>
+            <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
+          </select>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+          <input
+            type="checkbox"
+            checked={config.soundInputAutoSend}
+            onChange={(event) => updateConfig({ soundInputAutoSend: event.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
+          />
+          <span className="text-xs text-foreground/85">
+            {isSpanish
+              ? "Enviar automáticamente cuando termine de transcribir"
+              : "Auto-send when transcription finishes"}
+          </span>
+        </label>
+      </div>
+
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {isSpanish ? "Salida de voz (que te hable)" : "Voice output (talks back)"}
+        </p>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {isSpanish ? "Proveedor de voz" : "Voice provider"}
+          </span>
+          <select
+            value={config.soundOutputProvider}
+            onChange={(event) =>
+              updateConfig({
+                soundOutputProvider: event.target.value as "off" | "browser" | "elevenlabs",
+              })
+            }
+            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+          >
+            <option value="browser">{isSpanish ? "Voz del navegador (gratis)" : "Browser voice (free)"}</option>
+            <option value="elevenlabs">ElevenLabs</option>
+            <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
+          </select>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+          <input
+            type="checkbox"
+            checked={config.soundOutputAutoSpeak}
+            onChange={(event) => updateConfig({ soundOutputAutoSpeak: event.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
+            disabled={config.soundOutputProvider === "off"}
+          />
+          <span className="text-xs text-foreground/85">
+            {isSpanish
+              ? "Leer en voz alta automáticamente las respuestas del shimeji"
+              : "Automatically speak shimeji replies aloud"}
+          </span>
+        </label>
+
+        <label className="block">
+          <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>{isSpanish ? "Volumen" : "Volume"}</span>
+            <span>{config.soundOutputVolumePercent}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={config.soundOutputVolumePercent}
+            onChange={(event) =>
+              updateConfig({ soundOutputVolumePercent: Number(event.target.value) })
+            }
+            className="w-full accent-[var(--brand-accent)]"
+            disabled={config.soundOutputProvider === "off"}
+          />
+        </label>
+
+        {config.soundOutputProvider === "elevenlabs" && (
+          <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                ElevenLabs API Key
+              </span>
+              <input
+                type="password"
+                value={config.elevenlabsApiKey}
+                onChange={(event) => updateConfig({ elevenlabsApiKey: event.target.value })}
+                placeholder="sk_..."
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                autoComplete="off"
+              />
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isSpanish ? "Voice ID" : "Voice ID"}
+                </span>
+                <input
+                  type="text"
+                  value={config.elevenlabsVoiceId}
+                  onChange={(event) => updateConfig({ elevenlabsVoiceId: event.target.value })}
+                  placeholder="EXAVITQu4vr4xnSDxMaL"
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isSpanish ? "Modelo" : "Model"}
+                </span>
+                <input
+                  type="text"
+                  value={config.elevenlabsModelId}
+                  onChange={(event) => updateConfig({ elevenlabsModelId: event.target.value })}
+                  placeholder="eleven_flash_v2_5"
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                />
+              </label>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {isSpanish
+                ? "La key se guarda localmente en tu navegador y solo se envía cuando pedís generar audio."
+                : "The key is stored locally in your browser and is only sent when you request audio generation."}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SiteShimejiConfigPanel() {
   const { isSpanish } = useLanguage();
+  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("mascot");
   const {
     isConfigOpen,
     closeConfig,
@@ -211,7 +379,32 @@ export function SiteShimejiConfigPanel() {
               </p>
             </div>
 
-            <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="mb-5 flex flex-wrap gap-2">
+              {([
+                { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
+                { key: "chat", labelEs: "Chat", labelEn: "Chat" },
+                { key: "sound", labelEs: "Sonido", labelEn: "Sound" },
+              ] as const).map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                      isActive
+                        ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                        : "border-white/15 bg-white/5 text-foreground/80 hover:bg-white/10"
+                    }`}
+                  >
+                    {isSpanish ? tab.labelEs : tab.labelEn}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTab === "mascot" && (
+              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
                   {isSpanish ? "Mascota" : "Mascot"}
@@ -295,9 +488,11 @@ export function SiteShimejiConfigPanel() {
                   </span>
                 )}
               </div>
-            </section>
+              </section>
+            )}
 
-            <section className="mt-5 space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+            {activeTab === "chat" && (
+              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
               <h3 className="text-sm font-semibold text-foreground">
                 {isSpanish ? "Chat y proveedor" : "Chat and provider"}
               </h3>
@@ -359,7 +554,17 @@ export function SiteShimejiConfigPanel() {
                   ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
                   : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
               </p>
-            </section>
+              </section>
+            )}
+
+            {activeTab === "sound" && (
+              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {isSpanish ? "Sonido y voz" : "Sound and voice"}
+                </h3>
+                <SoundFields />
+              </section>
+            )}
           </div>
         </div>
       </aside>

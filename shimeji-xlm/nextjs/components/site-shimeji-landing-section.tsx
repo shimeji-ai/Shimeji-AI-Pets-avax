@@ -7,6 +7,7 @@ import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 
 type ProviderKey = "openrouter" | "ollama" | "openclaw";
+const OPENCLAW_AGENT_MARKDOWN_URL = "https://www.shimeji.dev/agent/openclaw-web.md";
 
 const OPENROUTER_PRESET_MODELS = [
   { value: "openai/gpt-4o-mini", label: "GPT-4o Mini (fast & cheap)" },
@@ -147,8 +148,8 @@ function OpenClawFields() {
       {mode === "human" && (
         <p className="text-xs text-muted-foreground">
           {isSpanish
-            ? "Usá este modo para conectar el Shimeji web a tu gateway y chatear. Si querés ver instrucciones para integrar un agente, hacé clic en “Soy un agente”."
-            : "Use this mode to connect the website Shimeji to your gateway and chat. If you want agent integration instructions, click “I'm an agent”."}
+            ? "Usá este modo para conectar el Shimeji web a tu gateway y chatear. Si `ws://127.0.0.1` falla desde shimeji.dev, usá una URL `wss://` (por ejemplo con un túnel gratis). Si querés instrucciones de integración para agentes, hacé clic en “Soy un agente”."
+            : "Use this mode to connect the website Shimeji to your gateway and chat. If `ws://127.0.0.1` fails from shimeji.dev, use a `wss://` URL (for example via a free tunnel). If you want agent integration instructions, click “I'm an agent”."}
         </p>
       )}
 
@@ -164,11 +165,29 @@ function OpenClawFields() {
                 ? "Este Shimeji web se conecta por WebSocket a tu gateway OpenClaw usando los campos de arriba. No son instrucciones para el modelo: son los datos de conexión que usa la web para hablar con tu agente."
                 : "This website Shimeji connects to your OpenClaw gateway over WebSocket using the fields above. These are not model prompts: they are the connection values the website uses to talk to your agent."}
             </p>
+            <div className="mb-2 rounded-lg border border-border bg-background/40 p-2">
+              <p className="mb-1 font-semibold text-foreground">
+                {isSpanish ? "Comando para tu agente (leer instrucciones en Markdown)" : "Command for your agent (read Markdown instructions)"}
+              </p>
+              <p className="mb-1">
+                {isSpanish
+                  ? "Pedile a tu agente que ejecute este comando. El archivo explica como conectarse y mandar un mensaje de prueba por la mascota web para verificar la conexion."
+                  : "Ask your agent to run this command. The file explains how to connect and send a test message through the web mascot to verify the connection."}
+              </p>
+              <pre className="overflow-x-auto rounded border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
+                {`curl -fsSL ${OPENCLAW_AGENT_MARKDOWN_URL}`}
+              </pre>
+            </div>
+            <p className="mb-2 rounded-lg border border-border bg-background/40 px-2 py-1.5">
+              {isSpanish
+                ? "Importante: no necesitás clonar este repo ni ejecutar `npm run start` para hablar por shimeji.dev. El sitio ya está online. Solo necesitás un gateway OpenClaw corriendo (y opcionalmente un túnel)."
+                : "Important: you do not need to clone this repo or run `npm run start` to talk through shimeji.dev. The site is already online. You only need a running OpenClaw gateway (and optionally a tunnel)."}
+            </p>
             <ul className="mb-2 list-disc space-y-1 pl-4">
               <li>
                 {isSpanish
-                  ? "Gateway URL: URL ws:// o wss:// de tu gateway OpenClaw."
-                  : "Gateway URL: your OpenClaw gateway ws:// or wss:// URL."}
+                  ? "Gateway URL: URL `ws://` o `wss://` de tu gateway OpenClaw. Si pegás `https://...`, la web la convierte a `wss://` automáticamente."
+                  : "Gateway URL: your OpenClaw gateway `ws://` or `wss://` URL. If you paste `https://...`, the site converts it to `wss://` automatically."}
               </li>
               <li>
                 {isSpanish
@@ -180,12 +199,32 @@ function OpenClawFields() {
                   ? "Token del gateway: token de autenticación del gateway (se guarda localmente en tu navegador)."
                   : "Gateway auth token: gateway authentication token (stored locally in your browser)."}
               </li>
+              <li>
+                {isSpanish
+                  ? "Si shimeji.dev no puede abrir `ws://127.0.0.1` (HTTPS + mixed content / red distinta), exponé el gateway con una URL pública `wss://`."
+                  : "If shimeji.dev cannot open `ws://127.0.0.1` (HTTPS + mixed content / different network), expose the gateway with a public `wss://` URL."}
+              </li>
             </ul>
             <p className="mb-2">
               {isSpanish
                 ? "Cuando el usuario chatea con el Shimeji, los mensajes se enrutan a ese agente y la respuesta vuelve a la burbuja del Shimeji. No habilita acceso local a terminal ni WSL."
                 : "When the user chats with the Shimeji, messages are routed to that agent and the reply returns to the Shimeji bubble. This does not enable local terminal or WSL access."}
             </p>
+            <div className="mb-2 rounded-lg border border-border bg-background/40 p-2">
+              <p className="mb-1 font-semibold text-foreground">
+                {isSpanish ? "Túnel gratis recomendado (Cloudflare Tunnel)" : "Recommended free tunnel (Cloudflare Tunnel)"}
+              </p>
+              <p className="mb-1">
+                {isSpanish
+                  ? "Si tu gateway corre en tu máquina y shimeji.dev no conecta por `ws://127.0.0.1`, corré un túnel y pegá la URL pública en Gateway URL."
+                  : "If your gateway runs on your machine and shimeji.dev cannot connect via `ws://127.0.0.1`, run a tunnel and paste the public URL into Gateway URL."}
+              </p>
+              <pre className="overflow-x-auto rounded border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
+                {`cloudflared tunnel --url http://127.0.0.1:18789
+# use the https://...trycloudflare.com URL shown by cloudflared
+# (the site will use it as wss:// automatically)`}
+              </pre>
+            </div>
             <pre className="overflow-x-auto rounded-lg border border-border bg-background/60 p-2 font-mono text-[11px] leading-relaxed">
               {`# ${isSpanish ? "Valores actuales (referencia)" : "Current values (reference)"}
 gateway_url:  ${config.openclawGatewayUrl || "ws://127.0.0.1:18789"}

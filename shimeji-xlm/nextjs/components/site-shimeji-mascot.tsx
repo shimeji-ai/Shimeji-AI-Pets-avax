@@ -13,9 +13,35 @@ import {
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
+type VoiceStatusTone = "info" | "error";
+
+type BrowserSpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives?: number;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort?: () => void;
+};
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function getSpeechRecognitionConstructor():
+  | (new () => BrowserSpeechRecognitionLike)
+  | null {
+  if (typeof window === "undefined") return null;
+  const maybeCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  return typeof maybeCtor === "function" ? maybeCtor : null;
+}
+
+function getSpeechLocale(language: string) {
+  return language === "es" ? "es-ES" : "en-US";
 }
 
 const SPRITE_SIZE = 72;
@@ -128,6 +154,15 @@ export function SiteShimejiMascot() {
   const [sending, setSending] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
   const [hasMascotBeenClicked, setHasMascotBeenClicked] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("");
+  const [voiceStatusTone, setVoiceStatusTone] = useState<VoiceStatusTone>("info");
+  const [speechInputSupported, setSpeechInputSupported] = useState(false);
+  const recognitionRef = useRef<BrowserSpeechRecognitionLike | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
+  const ttsRequestSeqRef = useRef(0);
 
   const currentPosRef = useRef({ x: 0, y: 0 });
   const movementStateRef = useRef<MascotState>("falling");
@@ -146,6 +181,10 @@ export function SiteShimejiMascot() {
   useEffect(() => {
     spriteScaleRef.current = clamp(config.sizePercent / 100, 0.6, 1.8);
   }, [config.sizePercent]);
+
+  useEffect(() => {
+    setSpeechInputSupported(Boolean(getSpeechRecognitionConstructor()));
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -558,6 +597,219 @@ export function SiteShimejiMascot() {
           : "OpenClaw";
   const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
 
+  function setVoiceInfoStatus(message: string) {
+    setVoiceStatusTone("info");
+    setVoiceStatus(message);
+  }
+
+  function setVoiceErrorStatus(message: string) {
+    setVoiceStatusTone("error");
+    setVoiceStatus(message);
+  }
+
+  function revokeAudioObjectUrl() {
+    if (!audioObjectUrlRef.current) return;
+    URL.revokeObjectURL(audioObjectUrlRef.current);
+    audioObjectUrlRef.current = null;
+  }
+
+  function stopVoiceOutput() {
+    ttsRequestSeqRef.current += 1;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {
+        // no-op
+      }
+    }
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+      } catch {
+        // no-op
+      }
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    revokeAudioObjectUrl();
+    setIsSpeaking(false);
+  }
+
+  function stopVoiceInput() {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      try {
+        recognition.stop();
+      } catch {
+        try {
+          recognition.abort?.();
+        } catch {
+          // no-op
+        }
+      }
+    }
+    setIsListening(false);
+  }
+
+  async function speakReply(replyText: string) {
+    const text = replyText.trim().slice(0, 1200);
+    if (!text) return;
+    if (!config.soundOutputAutoSpeak || config.soundOutputProvider === "off") return;
+
+    stopVoiceOutput();
+    const requestSeq = ttsRequestSeqRef.current;
+    const volume = clamp(config.soundOutputVolumePercent / 100, 0, 1);
+
+    if (config.soundOutputProvider === "browser") {
+      if (
+        typeof window === "undefined" ||
+        !("speechSynthesis" in window) ||
+        typeof (window as any).SpeechSynthesisUtterance !== "function"
+      ) {
+        setVoiceErrorStatus(
+          isSpanish
+            ? "Tu navegador no soporta síntesis de voz."
+            : "Your browser does not support speech synthesis.",
+        );
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = getSpeechLocale(language);
+      utterance.volume = volume;
+
+      const voices = window.speechSynthesis.getVoices();
+      const langPrefix = language === "es" ? "es" : "en";
+      const preferredVoice = voices.find((voice) =>
+        String(voice.lang || "")
+          .toLowerCase()
+          .startsWith(langPrefix),
+      );
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      utterance.onstart = () => {
+        if (requestSeq !== ttsRequestSeqRef.current) return;
+        setIsSpeaking(true);
+        setVoiceInfoStatus(isSpanish ? "Reproduciendo respuesta..." : "Playing response...");
+      };
+      utterance.onend = () => {
+        if (requestSeq !== ttsRequestSeqRef.current) return;
+        setIsSpeaking(false);
+      };
+      utterance.onerror = () => {
+        if (requestSeq !== ttsRequestSeqRef.current) return;
+        setIsSpeaking(false);
+        setVoiceErrorStatus(
+          isSpanish ? "No se pudo reproducir la voz del navegador." : "Could not play browser voice.",
+        );
+      };
+
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        setIsSpeaking(false);
+        setVoiceErrorStatus(
+          isSpanish ? "No se pudo iniciar la voz del navegador." : "Could not start browser voice.",
+        );
+      }
+      return;
+    }
+
+    if (!config.elevenlabsApiKey.trim()) {
+      setVoiceErrorStatus(
+        isSpanish
+          ? "Falta la API key de ElevenLabs en la pestaña de Sonido."
+          : "Missing ElevenLabs API key in the Sound tab.",
+      );
+      return;
+    }
+
+    setIsSpeaking(true);
+    setVoiceInfoStatus(isSpanish ? "Generando audio con ElevenLabs..." : "Generating ElevenLabs audio...");
+
+    try {
+      const response = await fetch("/api/site-shimeji/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "elevenlabs",
+          text,
+          elevenlabsApiKey: config.elevenlabsApiKey,
+          voiceId: config.elevenlabsVoiceId,
+          modelId: config.elevenlabsModelId,
+        }),
+      });
+
+      if (requestSeq !== ttsRequestSeqRef.current) return;
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => null);
+        const detail =
+          typeof errorPayload?.error === "string"
+            ? errorPayload.error
+            : typeof errorPayload?.details === "string"
+              ? errorPayload.details
+              : `HTTP ${response.status}`;
+        throw new Error(detail);
+      }
+
+      const audioBlob = await response.blob();
+      if (requestSeq !== ttsRequestSeqRef.current) return;
+      if (!audioBlob.size) {
+        throw new Error("EMPTY_AUDIO");
+      }
+
+      revokeAudioObjectUrl();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      audioObjectUrlRef.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.volume = volume;
+      audio.onended = () => {
+        if (requestSeq !== ttsRequestSeqRef.current) return;
+        setIsSpeaking(false);
+        revokeAudioObjectUrl();
+      };
+      audio.onerror = () => {
+        if (requestSeq !== ttsRequestSeqRef.current) return;
+        setIsSpeaking(false);
+        setVoiceErrorStatus(
+          isSpanish ? "No se pudo reproducir el audio de ElevenLabs." : "Could not play ElevenLabs audio.",
+        );
+      };
+
+      await audio.play();
+      if (requestSeq !== ttsRequestSeqRef.current) return;
+      setVoiceInfoStatus(isSpanish ? "Reproduciendo respuesta..." : "Playing response...");
+    } catch {
+      if (requestSeq !== ttsRequestSeqRef.current) return;
+      setIsSpeaking(false);
+      setVoiceErrorStatus(
+        isSpanish
+          ? "Error al generar voz con ElevenLabs. Revisá la key, Voice ID o el modelo."
+          : "Failed to generate ElevenLabs voice. Check the key, Voice ID, or model.",
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (!open) {
+      stopVoiceInput();
+      stopVoiceOutput();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      stopVoiceInput();
+      stopVoiceOutput();
+    };
+  }, []);
+
   function ensureGreeting() {
     setMessages(prev => {
       if (prev.length) return prev;
@@ -568,8 +820,8 @@ export function SiteShimejiMascot() {
     });
   }
 
-  async function send() {
-    const text = input.trim();
+  async function send(inputOverride?: string) {
+    const text = (typeof inputOverride === "string" ? inputOverride : input).trim();
     if (!text || sending) return;
 
     if (!config.enabled) {
@@ -578,8 +830,8 @@ export function SiteShimejiMascot() {
 
     if (siteCreditsExhausted) {
       const lockMessage = isSpanish
-        ? "Se terminaron los créditos gratis del sitio. Configurá un proveedor (OpenRouter, Ollama u OpenClaw) en la sección de proveedor de la página principal para seguir chateando."
-        : "Website free credits are exhausted. Set up a provider (OpenRouter, Ollama, or OpenClaw) in the provider section on the homepage to keep chatting.";
+        ? "Se terminaron los 4 mensajes gratis del sitio. Abrí la configuración del shimeji (engranaje) y configurá tus claves en Chat > Proveedor para seguir chateando."
+        : "The 4 free website messages are used up. Open the shimeji settings (gear) and configure your own keys in Chat > Provider to keep chatting.";
       setMessages(prev => [
         ...prev,
         {
@@ -589,14 +841,16 @@ export function SiteShimejiMascot() {
           ctaLabel: isSpanish ? "Ver ayuda" : "Open help",
         },
       ]);
+      void speakReply(lockMessage);
       return;
     }
 
     if (!canUseCurrentProvider) {
       const configMessage = isSpanish
-        ? "Falta configuración para ese proveedor. Completá los datos en la sección de proveedor de la página principal."
-        : "That provider is not fully configured yet. Complete the setup in the provider section on the homepage.";
+        ? "Falta configuración para ese proveedor. Abrí la configuración del shimeji (engranaje) y completá los datos en Chat > Proveedor."
+        : "That provider is not fully configured yet. Open the shimeji settings (gear) and complete the setup in Chat > Provider.";
       setMessages(prev => [...prev, { role: "assistant", content: configMessage }]);
+      void speakReply(configMessage);
       return;
     }
 
@@ -664,7 +918,9 @@ export function SiteShimejiMascot() {
       if (!reply.trim()) {
         throw new Error("EMPTY_RESPONSE");
       }
-      setMessages(prev => [...prev, { role: "assistant", content: reply.trim() }]);
+      const finalReply = reply.trim();
+      setMessages(prev => [...prev, { role: "assistant", content: finalReply }]);
+      void speakReply(finalReply);
       if (config.provider === "site") {
         incrementFreeSiteMessagesUsed();
       }
@@ -675,8 +931,123 @@ export function SiteShimejiMascot() {
         config.provider,
       );
       setMessages(prev => [...prev, { role: "assistant", content: fallback }]);
+      void speakReply(fallback);
     } finally {
       setSending(false);
+    }
+  }
+
+  function toggleVoiceListening() {
+    if (config.soundInputProvider === "off") return;
+
+    if (isListening) {
+      stopVoiceInput();
+      setVoiceInfoStatus(isSpanish ? "Micrófono detenido." : "Microphone stopped.");
+      return;
+    }
+
+    const RecognitionCtor = getSpeechRecognitionConstructor();
+    if (!RecognitionCtor) {
+      setVoiceErrorStatus(
+        isSpanish
+          ? "Tu navegador no soporta reconocimiento de voz (probá Chrome o Edge)."
+          : "Your browser does not support speech recognition (try Chrome or Edge).",
+      );
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    recognitionRef.current = recognition;
+    recognition.lang = getSpeechLocale(language);
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    let finalTranscript = "";
+    let submitted = false;
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = "";
+      for (let i = event.resultIndex ?? 0; i < (event.results?.length ?? 0); i += 1) {
+        const result = event.results[i];
+        const transcript = String(result?.[0]?.transcript || "").trim();
+        if (!transcript) continue;
+        if (result?.isFinal) {
+          finalTranscript = `${finalTranscript} ${transcript}`.trim();
+        } else {
+          interimTranscript = `${interimTranscript} ${transcript}`.trim();
+        }
+      }
+
+      if (interimTranscript) {
+        setVoiceInfoStatus(
+          isSpanish
+            ? `Escuchando: ${interimTranscript}`
+            : `Listening: ${interimTranscript}`,
+        );
+      }
+
+      if (!finalTranscript) return;
+
+      setInput(finalTranscript);
+      setVoiceInfoStatus(
+        config.soundInputAutoSend
+          ? isSpanish
+            ? "Transcripción lista. Enviando..."
+            : "Transcript ready. Sending..."
+          : isSpanish
+            ? "Transcripción lista."
+            : "Transcript ready.",
+      );
+
+      if (config.soundInputAutoSend && !submitted) {
+        submitted = true;
+        void send(finalTranscript);
+        try {
+          recognition.stop();
+        } catch {
+          // no-op
+        }
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      const code = String(event?.error || "unknown");
+      const message =
+        code === "not-allowed" || code === "service-not-allowed"
+          ? isSpanish
+            ? "Permiso de micrófono denegado."
+            : "Microphone permission denied."
+          : code === "no-speech"
+            ? isSpanish
+              ? "No se detectó voz."
+              : "No speech detected."
+            : isSpanish
+              ? "Error de reconocimiento de voz."
+              : "Speech recognition error.";
+      setVoiceErrorStatus(message);
+    };
+
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
+      setIsListening(false);
+      if (!finalTranscript && !voiceStatus) {
+        setVoiceInfoStatus(isSpanish ? "Micrófono detenido." : "Microphone stopped.");
+      }
+    };
+
+    try {
+      recognition.start();
+      setIsListening(true);
+      setVoiceInfoStatus(isSpanish ? "Escuchando..." : "Listening...");
+    } catch {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setVoiceErrorStatus(
+        isSpanish ? "No se pudo iniciar el micrófono." : "Could not start the microphone.",
+      );
     }
   }
 
@@ -688,11 +1059,13 @@ export function SiteShimejiMascot() {
       : "Website shimeji is disabled in settings."
     : siteCreditsExhausted
       ? isSpanish
-        ? "Sin créditos del sitio. Usa el engranaje para configurar tu proveedor."
-        : "Site credits are exhausted. Use the gear to configure your provider."
+        ? "Sin créditos del sitio. Usá el engranaje y configurá tus claves en Chat > Proveedor."
+        : "Site credits are exhausted. Use the gear and configure your keys in Chat > Provider."
       : isSpanish
         ? "Preguntame sobre Shimeji AI Pets..."
         : "Ask about Shimeji AI Pets...";
+  const showMicButton = config.soundInputProvider !== "off";
+  const canUseMicButton = !inputLocked && config.soundInputProvider !== "off";
 
   if (!config.enabled) {
     return null;
@@ -787,26 +1160,80 @@ export function SiteShimejiMascot() {
               ))}
             </div>
             <div className={styles.inputRow}>
+              {showMicButton && (
+                <button
+                  className={`${styles.iconBtn} ${isListening ? styles.iconBtnActive : ""}`}
+                  type="button"
+                  onClick={toggleVoiceListening}
+                  disabled={!canUseMicButton}
+                  aria-label={
+                    isListening
+                      ? isSpanish
+                        ? "Detener micrófono"
+                        : "Stop microphone"
+                      : isSpanish
+                        ? "Hablar por micrófono"
+                        : "Speak with microphone"
+                  }
+                  title={
+                    !speechInputSupported
+                      ? isSpanish
+                        ? "Tu navegador no soporta reconocimiento de voz"
+                        : "Your browser does not support speech recognition"
+                      : isListening
+                        ? isSpanish
+                          ? "Detener"
+                          : "Stop"
+                        : isSpanish
+                          ? "Hablar"
+                          : "Talk"
+                  }
+                >
+                  {isListening ? "■" : "🎤"}
+                </button>
+              )}
               <input
                 ref={inputRef}
                 className={styles.input}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter") send();
+                  if (e.key === "Enter") void send();
                 }}
                 placeholder={placeholderText}
                 disabled={inputLocked}
               />
+              {isSpeaking && (
+                <button
+                  className={styles.iconBtn}
+                  type="button"
+                  onClick={stopVoiceOutput}
+                  aria-label={isSpanish ? "Detener audio" : "Stop audio"}
+                  title={isSpanish ? "Detener audio" : "Stop audio"}
+                >
+                  ⏹
+                </button>
+              )}
               <button
                 className={styles.sendBtn}
                 type="button"
-                onClick={send}
+                onClick={() => {
+                  void send();
+                }}
                 disabled={inputLocked || !input.trim()}
               >
                 {isSpanish ? (sending ? "..." : "Enviar") : sending ? "..." : "Send"}
               </button>
             </div>
+            {voiceStatus && (
+              <div
+                className={`${styles.voiceStatus} ${
+                  voiceStatusTone === "error" ? styles.voiceStatusError : ""
+                }`}
+              >
+                {voiceStatus}
+              </div>
+            )}
           </div>
         </div>
       )}

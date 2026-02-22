@@ -83,7 +83,7 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   character: "shimeji",
   personality: "cozy",
   sizePercent: 100,
-  provider: "openrouter",
+  provider: "site",
   openrouterApiKey: "",
   openrouterModel: "openai/gpt-4o-mini",
   ollamaUrl: "http://127.0.0.1:11434",
@@ -136,16 +136,48 @@ function sanitizeString(value: unknown, fallback = "", maxLength = 256): string 
   return value.trim().slice(0, maxLength);
 }
 
+function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): boolean {
+  const providerValue = raw.provider;
+  if (providerValue && providerValue !== "openrouter") return false;
+
+  const openrouterApiKey = sanitizeString(raw.openrouterApiKey, "", 600);
+  const openrouterModel =
+    sanitizeString(raw.openrouterModel, DEFAULT_CONFIG.openrouterModel, 120) ||
+    DEFAULT_CONFIG.openrouterModel;
+  const ollamaUrl =
+    sanitizeString(raw.ollamaUrl, DEFAULT_CONFIG.ollamaUrl, 300) || DEFAULT_CONFIG.ollamaUrl;
+  const ollamaModel =
+    sanitizeString(raw.ollamaModel, DEFAULT_CONFIG.ollamaModel, 120) || DEFAULT_CONFIG.ollamaModel;
+  const openclawGatewayUrl =
+    sanitizeString(raw.openclawGatewayUrl, DEFAULT_CONFIG.openclawGatewayUrl, 300) ||
+    DEFAULT_CONFIG.openclawGatewayUrl;
+  const openclawGatewayToken = sanitizeString(raw.openclawGatewayToken, "", 600);
+  const openclawAgentName =
+    sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32) ||
+    DEFAULT_CONFIG.openclawAgentName;
+
+  return Boolean(
+    !openrouterApiKey &&
+      openrouterModel === DEFAULT_CONFIG.openrouterModel &&
+      ollamaUrl === DEFAULT_CONFIG.ollamaUrl &&
+      ollamaModel === DEFAULT_CONFIG.ollamaModel &&
+      openclawGatewayUrl === DEFAULT_CONFIG.openclawGatewayUrl &&
+      !openclawGatewayToken &&
+      openclawAgentName === DEFAULT_CONFIG.openclawAgentName,
+  );
+}
+
 function sanitizeConfig(input: unknown): SiteShimejiConfig {
   if (!input || typeof input !== "object") return DEFAULT_CONFIG;
   const raw = input as Partial<SiteShimejiConfig>;
-  const provider: SiteShimejiProviderKind =
+  const parsedProvider: SiteShimejiProviderKind =
     raw.provider === "openrouter" ||
     raw.provider === "ollama" ||
     raw.provider === "openclaw" ||
     raw.provider === "site"
       ? raw.provider
       : DEFAULT_CONFIG.provider;
+  const provider: SiteShimejiProviderKind = parsedProvider;
   const soundInputProvider: SiteShimejiSoundInputProviderKind =
     raw.soundInputProvider === "browser" || raw.soundInputProvider === "off"
       ? raw.soundInputProvider
@@ -231,7 +263,18 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
     try {
       const rawConfig = localStorage.getItem(SITE_SHIMEJI_CONFIG_STORAGE_KEY);
       if (rawConfig) {
-        setConfig(sanitizeConfig(JSON.parse(rawConfig)));
+        const parsed = JSON.parse(rawConfig);
+        const sanitized = sanitizeConfig(parsed);
+        const shouldMigrateLegacyUntouchedProvider =
+          sanitized.provider === "openrouter" &&
+          parsed &&
+          typeof parsed === "object" &&
+          looksLikeUntouchedProviderConfig(parsed as Partial<SiteShimejiConfig>);
+        setConfig(
+          shouldMigrateLegacyUntouchedProvider
+            ? { ...sanitized, provider: "site" }
+            : sanitized,
+        );
       }
     } catch {
       setConfig(DEFAULT_CONFIG);

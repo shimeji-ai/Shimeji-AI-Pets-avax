@@ -150,7 +150,38 @@
 
 .inputRow {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 154, 216, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.iconBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.iconBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.iconBtnActive {
+  border-color: rgba(255, 90, 90, 0.5);
+  background: rgba(255, 90, 90, 0.18);
+  color: #ffd3d3;
 }
 
 .input {
@@ -182,4 +213,15 @@
 .sendBtn:disabled {
   opacity: 0.55;
   cursor: default;
+}
+
+.voiceStatus {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.voiceStatusError {
+  color: #ffb4b4;
 }
