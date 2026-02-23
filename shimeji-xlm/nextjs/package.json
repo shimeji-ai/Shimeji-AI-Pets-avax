@@ -6,6 +6,11 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
     "start": "next start"
   },
   "dependencies": {
@@ -42,6 +47,7 @@
     "@stellar/stellar-sdk": "^13.1.0",
     "@tanstack/react-query": "^5.90.16",
     "@types/react-scroll": "^1.8.10",
+    "@prisma/client": "^6.6.0",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
@@ -76,6 +82,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
+    "prisma": "^6.6.0",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
     "typescript": "^5.9.3"

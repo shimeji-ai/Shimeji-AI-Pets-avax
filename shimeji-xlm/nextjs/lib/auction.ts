@@ -16,6 +16,9 @@ import {
 } from "./contracts";
 
 const READONLY_SIMULATION_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+const BIGINT_ZERO = BigInt(0);
+const BIGINT_32 = BigInt(32);
+const BIGINT_64 = BigInt(64);
 
 function buildReadOnlyTx(operation: xdr.Operation) {
   const simulationAccount = new Account(READONLY_SIMULATION_SOURCE, "0");
@@ -63,9 +66,9 @@ function parseScVal(val: xdr.ScVal): unknown {
       const parts = val.i128();
       // lo().low / lo().high / hi().low / hi().high are signed Int32.
       // Use >>> 0 to treat them as unsigned 32-bit values before converting to BigInt.
-      const lo = BigInt(parts.lo().low >>> 0) + (BigInt(parts.lo().high >>> 0) << 32n);
-      const hi = BigInt(parts.hi().low >>> 0) + (BigInt(parts.hi().high >>> 0) << 32n);
-      return lo + (hi << 64n);
+      const lo = BigInt(parts.lo().low >>> 0) + (BigInt(parts.lo().high >>> 0) << BIGINT_32);
+      const hi = BigInt(parts.hi().low >>> 0) + (BigInt(parts.hi().high >>> 0) << BIGINT_32);
+      return lo + (hi << BIGINT_64);
     }
     case "scvString":
       return val.str().toString();
@@ -116,7 +119,7 @@ function decodeOperationParameter(raw: string | undefined): unknown {
 
 function parsePositiveBigInt(value: unknown): bigint | null {
   if (typeof value === "bigint") {
-    return value > 0n ? value : null;
+    return value > BIGINT_ZERO ? value : null;
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value) || value <= 0 || !Number.isInteger(value)) return null;
@@ -124,7 +127,7 @@ function parsePositiveBigInt(value: unknown): bigint | null {
   }
   if (typeof value === "string" && /^-?\d+$/.test(value)) {
     const parsed = BigInt(value);
-    return parsed > 0n ? parsed : null;
+    return parsed > BIGINT_ZERO ? parsed : null;
   }
   return null;
 }
@@ -171,7 +174,7 @@ function parseBidFromOperation(
       }
     }
   }
-  if (amount === null || amount <= 0n) return null;
+  if (amount === null || amount <= BIGINT_ZERO) return null;
 
   return { bidder, amount, currency };
 }
@@ -248,6 +251,18 @@ async function fetchRecentBidsFromHorizon(
   }
 
   return found;
+}
+
+export async function fetchRecentBidsForAuction(
+  auctionId: number,
+  auctionStartTime: number,
+  limit = 8,
+): Promise<BidInfo[]> {
+  try {
+    return await fetchRecentBidsFromHorizon(auctionId, auctionStartTime, limit);
+  } catch {
+    return [];
+  }
 }
 
 function auctionIsActive(auction: AuctionInfo): boolean {
@@ -370,16 +385,20 @@ export async function fetchActiveAuction(): Promise<{
   highestBid: BidInfo | null;
   recentBids: BidInfo[];
   auctionId: number;
-} | null> {
+  } | null> {
   try {
-    const candidates = await fetchAuctions({ includeEnded: false, limit: 40 });
+    const candidates = await fetchAuctions({
+      includeEnded: false,
+      includeSystem: false,
+      includeItemAuctions: true,
+      limit: 40,
+    });
     if (candidates.length === 0) return null;
-    const selected =
-      candidates.find((snapshot) => !snapshot.auction.isItemAuction) ?? candidates[0];
+    const selected = candidates[0];
 
     let recentBids: BidInfo[] = [];
     try {
-      recentBids = await fetchRecentBidsFromHorizon(
+      recentBids = await fetchRecentBidsForAuction(
         selected.auctionId,
         selected.auction.startTime,
         8

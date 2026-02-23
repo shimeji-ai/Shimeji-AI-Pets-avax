@@ -22,7 +22,7 @@ Instructions for working inside `shimeji-xlm/`.
   - embeds `source_repo` metadata in WASM builds when configured.
   - performs post-deploy hash/build-info verification.
   - may prompt for `STELLAR_RPC_HEADERS` API key if RPC provider requires it.
-- Deploy flow auto-creates an initial auction by default; minimum can be defined in USDC or XLM via env (`AUTO_CREATE_INITIAL_AUCTION`, `INITIAL_AUCTION_MIN_*`).
+- Deploy flow auto-creates an initial item auction by default (owner-style auction on a minted NFT); minimum can be defined in USDC or XLM via env (`AUTO_CREATE_INITIAL_AUCTION`, `INITIAL_AUCTION_MIN_*`).
 - Keep `README.md`, `nextjs/README.md`, and `soroban/README.md` consistent with script behavior whenever onboarding/deploy flows change.
 
 ## Token-Efficient Workflow

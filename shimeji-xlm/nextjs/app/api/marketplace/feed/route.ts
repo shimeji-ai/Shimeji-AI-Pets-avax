@@ -6,7 +6,7 @@ import {
   type MarketplaceFeedItem,
   type MarketplaceFeedResponse,
 } from "@/lib/marketplace-hub-types";
-import { fetchListings } from "@/lib/marketplace";
+import { fetchListings, fetchSwapListings } from "@/lib/marketplace";
 import { fetchNftTokensByIds } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   const warnings: string[] = [];
 
   try {
-    const [listings, auctions] = await Promise.all([
+    const [listings, auctions, swapListings] = await Promise.all([
       fetchListings().catch(() => {
         warnings.push("Failed to load marketplace listings.");
         return [];
@@ -73,15 +73,23 @@ export async function GET(request: NextRequest) {
         warnings.push("Failed to load auctions.");
         return [];
       }),
+      fetchSwapListings().catch(() => {
+        warnings.push("Failed to load swap listings.");
+        return [];
+      }),
     ]);
 
     const itemAuctionTokenIds = auctions
       .filter((snapshot) => snapshot.auction.isItemAuction && snapshot.auction.tokenId !== null)
       .map((snapshot) => snapshot.auction.tokenId as number);
+    const swapTokenIds = [
+      ...swapListings.map((listing) => listing.offeredTokenId),
+    ];
 
     const tokenRecords = await fetchNftTokensByIds([
       ...listings.map((listing) => listing.tokenId),
       ...itemAuctionTokenIds,
+      ...swapTokenIds,
     ]).catch(() => {
       warnings.push("Failed to enrich listings with NFT metadata.");
       return [];
@@ -94,6 +102,7 @@ export async function GET(request: NextRequest) {
         ...auctions
           .filter((snapshot) => snapshot.auction.isItemAuction && snapshot.auction.seller)
           .map((snapshot) => snapshot.auction.seller as string),
+        ...swapListings.map((listing) => listing.creator),
       ],
     ).catch(() => {
       warnings.push("Failed to load artist profiles.");
@@ -122,7 +131,7 @@ export async function GET(request: NextRequest) {
         commissionMeta: isCommissionEgg
           ? {
               artistWallet: listing.seller,
-              expectedTurnaroundDays: sellerProfile?.turnaroundDaysMax ?? null,
+              expectedTurnaroundDays: listing.commissionEtaDays || sellerProfile?.turnaroundDaysMax || null,
               slotsAvailable: sellerProfile?.slotsOpen ?? null,
               styleTags: sellerProfile?.styleTags ?? [],
             }
@@ -179,12 +188,45 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    let items = [...auctionItems, ...listingItems];
+    const swapListingItems: MarketplaceFeedItem[] = swapListings.map((listing) => {
+      const token = tokenById.get(listing.offeredTokenId) ?? null;
+      const sellerProfile = sellerProfiles[listing.creator] ?? null;
+      const isCommissionEgg = Boolean(token?.isCommissionEgg);
+
+      return {
+        id: `swap_listing:${listing.listingId}`,
+        source: "marketplace",
+        assetKind: isCommissionEgg ? "commission_egg" : "nft",
+        saleKind: "swap",
+        status: listing.active ? "active" : "cancelled",
+        tokenId: listing.offeredTokenId,
+        tokenUri: token?.tokenUri ?? null,
+        sellerWallet: listing.creator,
+        sellerProfile,
+        priceXlm: null,
+        priceUsdc: null,
+        xlmUsdcRate: null,
+        auction: null,
+        commissionMeta:
+          isCommissionEgg
+            ? {
+                artistWallet: listing.creator,
+                expectedTurnaroundDays: sellerProfile?.turnaroundDaysMax ?? null,
+                slotsAvailable: sellerProfile?.slotsOpen ?? null,
+                styleTags: sellerProfile?.styleTags ?? [],
+              }
+            : null,
+        createdAt: null,
+        updatedAt: null,
+      };
+    });
+
+    let items = [...auctionItems, ...listingItems, ...swapListingItems];
 
     if (assetKindFilter === "nft" || assetKindFilter === "commission_egg") {
       items = items.filter((item) => item.assetKind === assetKindFilter);
     }
-    if (saleKindFilter === "fixed_price" || saleKindFilter === "auction") {
+    if (saleKindFilter === "fixed_price" || saleKindFilter === "auction" || saleKindFilter === "swap") {
       items = items.filter((item) => item.saleKind === saleKindFilter);
     }
     items = items.filter((item) => matchesSearch(item, search));

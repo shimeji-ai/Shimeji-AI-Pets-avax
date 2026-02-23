@@ -34,16 +34,24 @@ export interface ListingInfo {
   priceXlm: bigint;
   priceUsdc: bigint;
   xlmUsdcRate: bigint;
+  commissionEtaDays: number;
   isCommissionEgg: boolean;
   active: boolean;
 }
 
-export interface SwapOffer {
-  swapId: number;
-  offerer: string;
+export interface SwapListing {
+  listingId: number;
+  creator: string;
   offeredTokenId: number;
-  desiredTokenId: number;
   intention: string;
+  active: boolean;
+}
+
+export interface SwapBid {
+  bidId: number;
+  listingId: number;
+  bidder: string;
+  bidderTokenId: number;
   active: boolean;
 }
 
@@ -55,8 +63,17 @@ export interface CommissionOrder {
   tokenId: number;
   currency: "Xlm" | "Usdc" | string;
   amountPaid: bigint;
+  upfrontPaidToSeller: bigint;
+  escrowRemaining: bigint;
+  commissionEtaDays: number;
   intention: string;
   referenceImageUrl: string;
+  latestRevisionIntention: string;
+  latestRevisionRefUrl: string;
+  revisionRequestCount: number;
+  maxRevisionRequests: number;
+  metadataUriAtPurchase: string;
+  lastDeliveredMetadataUri: string;
   status: "Accepted" | "Delivered" | "Completed" | "Refunded" | string;
   fulfilled: boolean;
   createdAt: number;
@@ -135,6 +152,7 @@ export async function fetchListings(): Promise<ListingInfo[]> {
           priceXlm: data.price_xlm as bigint,
           priceUsdc: data.price_usdc as bigint,
           xlmUsdcRate: data.xlm_usdc_rate as bigint,
+          commissionEtaDays: (data.commission_eta_days as number) ?? 0,
           isCommissionEgg: Boolean(data.is_commission_egg),
           active: data.active as boolean,
         });
@@ -148,14 +166,14 @@ export async function fetchListings(): Promise<ListingInfo[]> {
   }
 }
 
-export async function fetchSwapOffers(): Promise<SwapOffer[]> {
+export async function fetchSwapListings(): Promise<SwapListing[]> {
   if (!MARKETPLACE_CONTRACT_ID) return [];
   const server = getServer();
   const contract = new Contract(MARKETPLACE_CONTRACT_ID);
 
   try {
     const totalResult = await server.simulateTransaction(
-      buildReadOnlyTx(contract.call("total_swaps"))
+      buildReadOnlyTx(contract.call("total_swap_listings"))
     );
     if (rpc.Api.isSimulationError(totalResult)) return [];
     const total = Number(
@@ -163,11 +181,11 @@ export async function fetchSwapOffers(): Promise<SwapOffer[]> {
     );
     if (total === 0) return [];
 
-    const offers: SwapOffer[] = [];
+    const listings: SwapListing[] = [];
     for (let i = 0; i < total; i++) {
       try {
         const result = await server.simulateTransaction(
-          buildReadOnlyTx(contract.call("get_swap_offer", nativeToScVal(i, { type: "u64" })))
+          buildReadOnlyTx(contract.call("get_swap_listing", nativeToScVal(i, { type: "u64" })))
         );
         if (rpc.Api.isSimulationError(result)) continue;
         const data = parseScVal(
@@ -176,11 +194,10 @@ export async function fetchSwapOffers(): Promise<SwapOffer[]> {
 
         if (!data.active) continue;
 
-        offers.push({
-          swapId: i,
-          offerer: data.offerer as string,
+        listings.push({
+          listingId: i,
+          creator: data.creator as string,
           offeredTokenId: data.offered_token_id as number,
-          desiredTokenId: data.desired_token_id as number,
           intention: (data.intention as string) ?? "",
           active: data.active as boolean,
         });
@@ -188,7 +205,52 @@ export async function fetchSwapOffers(): Promise<SwapOffer[]> {
         // skip bad entries
       }
     }
-    return offers;
+    return listings;
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchSwapBids(): Promise<SwapBid[]> {
+  if (!MARKETPLACE_CONTRACT_ID) return [];
+  const server = getServer();
+  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+
+  try {
+    const totalResult = await server.simulateTransaction(
+      buildReadOnlyTx(contract.call("total_swap_bids"))
+    );
+    if (rpc.Api.isSimulationError(totalResult)) return [];
+    const total = Number(
+      (totalResult as rpc.Api.SimulateTransactionSuccessResponse).result?.retval.u64().low ?? 0
+    );
+    if (total === 0) return [];
+
+    const bids: SwapBid[] = [];
+    for (let i = 0; i < total; i++) {
+      try {
+        const result = await server.simulateTransaction(
+          buildReadOnlyTx(contract.call("get_swap_bid", nativeToScVal(i, { type: "u64" })))
+        );
+        if (rpc.Api.isSimulationError(result)) continue;
+        const data = parseScVal(
+          (result as rpc.Api.SimulateTransactionSuccessResponse).result!.retval
+        ) as Record<string, unknown>;
+
+        if (!data.active) continue;
+
+        bids.push({
+          bidId: i,
+          listingId: data.listing_id as number,
+          bidder: data.bidder as string,
+          bidderTokenId: data.bidder_token_id as number,
+          active: data.active as boolean,
+        });
+      } catch {
+        // skip bad entries
+      }
+    }
+    return bids;
   } catch {
     return [];
   }
@@ -228,8 +290,17 @@ export async function fetchCommissionOrders(): Promise<CommissionOrder[]> {
           tokenId: data.token_id as number,
           currency: (data.currency as string) ?? "Xlm",
           amountPaid: data.amount_paid as bigint,
+          upfrontPaidToSeller: (data.upfront_paid_to_seller as bigint) ?? BigInt(0),
+          escrowRemaining: (data.escrow_remaining as bigint) ?? BigInt(0),
+          commissionEtaDays: (data.commission_eta_days as number) ?? 0,
           intention: (data.intention as string) ?? "",
           referenceImageUrl: (data.reference_image_url as string) ?? "",
+          latestRevisionIntention: (data.latest_revision_intention as string) ?? "",
+          latestRevisionRefUrl: (data.latest_revision_ref_url as string) ?? "",
+          revisionRequestCount: (data.revision_request_count as number) ?? 0,
+          maxRevisionRequests: (data.max_revision_requests as number) ?? 3,
+          metadataUriAtPurchase: (data.metadata_uri_at_purchase as string) ?? "",
+          lastDeliveredMetadataUri: (data.last_delivered_metadata_uri as string) ?? "",
           status: (data.status as string) ?? "Accepted",
           fulfilled: String(data.status ?? "").toLowerCase() === "completed",
           createdAt: data.created_at as number,
@@ -292,7 +363,8 @@ export async function buildListCommissionEggTx(
   tokenId: number,
   priceXlm: bigint,
   priceUsdc: bigint,
-  xlmUsdcRate: bigint
+  xlmUsdcRate: bigint,
+  commissionEtaDays: number,
 ): Promise<string> {
   return buildMarketplaceTx(sellerPublicKey, "list_commission_egg", [
     new Address(sellerPublicKey).toScVal(),
@@ -300,6 +372,7 @@ export async function buildListCommissionEggTx(
     nativeToScVal(priceXlm, { type: "i128" }),
     nativeToScVal(priceUsdc, { type: "i128" }),
     nativeToScVal(xlmUsdcRate, { type: "i128" }),
+    nativeToScVal(commissionEtaDays, { type: "u64" }),
   ]);
 }
 
@@ -361,37 +434,59 @@ export async function buildCancelListingTx(
   ]);
 }
 
-export async function buildCreateSwapOfferTx(
-  offererPublicKey: string,
+export async function buildCreateSwapListingTx(
+  creatorPublicKey: string,
   offeredTokenId: number,
-  desiredTokenId: number,
   intention: string
 ): Promise<string> {
-  return buildMarketplaceTx(offererPublicKey, "create_swap_offer", [
-    new Address(offererPublicKey).toScVal(),
+  return buildMarketplaceTx(creatorPublicKey, "create_swap_listing", [
+    new Address(creatorPublicKey).toScVal(),
     nativeToScVal(offeredTokenId, { type: "u64" }),
-    nativeToScVal(desiredTokenId, { type: "u64" }),
     nativeToScVal(intention),
   ]);
 }
 
-export async function buildAcceptSwapTx(
-  acceptorPublicKey: string,
-  swapId: number
+export async function buildPlaceSwapBidTx(
+  bidderPublicKey: string,
+  listingId: number,
+  bidderTokenId: number
 ): Promise<string> {
-  return buildMarketplaceTx(acceptorPublicKey, "accept_swap", [
-    new Address(acceptorPublicKey).toScVal(),
-    nativeToScVal(swapId, { type: "u64" }),
+  return buildMarketplaceTx(bidderPublicKey, "place_swap_bid", [
+    new Address(bidderPublicKey).toScVal(),
+    nativeToScVal(listingId, { type: "u64" }),
+    nativeToScVal(bidderTokenId, { type: "u64" }),
   ]);
 }
 
-export async function buildCancelSwapTx(
-  offererPublicKey: string,
-  swapId: number
+export async function buildAcceptSwapBidTx(
+  creatorPublicKey: string,
+  listingId: number,
+  bidId: number
 ): Promise<string> {
-  return buildMarketplaceTx(offererPublicKey, "cancel_swap", [
-    new Address(offererPublicKey).toScVal(),
-    nativeToScVal(swapId, { type: "u64" }),
+  return buildMarketplaceTx(creatorPublicKey, "accept_swap_bid", [
+    new Address(creatorPublicKey).toScVal(),
+    nativeToScVal(listingId, { type: "u64" }),
+    nativeToScVal(bidId, { type: "u64" }),
+  ]);
+}
+
+export async function buildCancelSwapListingTx(
+  creatorPublicKey: string,
+  listingId: number
+): Promise<string> {
+  return buildMarketplaceTx(creatorPublicKey, "cancel_swap_listing", [
+    new Address(creatorPublicKey).toScVal(),
+    nativeToScVal(listingId, { type: "u64" }),
+  ]);
+}
+
+export async function buildCancelSwapBidTx(
+  bidderPublicKey: string,
+  bidId: number
+): Promise<string> {
+  return buildMarketplaceTx(bidderPublicKey, "cancel_swap_bid", [
+    new Address(bidderPublicKey).toScVal(),
+    nativeToScVal(bidId, { type: "u64" }),
   ]);
 }
 
@@ -411,6 +506,30 @@ export async function buildApproveCommissionDeliveryTx(
 ): Promise<string> {
   return buildMarketplaceTx(buyerPublicKey, "approve_commission_delivery", [
     new Address(buyerPublicKey).toScVal(),
+    nativeToScVal(orderId, { type: "u64" }),
+  ]);
+}
+
+export async function buildRequestCommissionRevisionTx(
+  buyerPublicKey: string,
+  orderId: number,
+  intention: string,
+  referenceImageUrl: string,
+): Promise<string> {
+  return buildMarketplaceTx(buyerPublicKey, "request_commission_revision", [
+    new Address(buyerPublicKey).toScVal(),
+    nativeToScVal(orderId, { type: "u64" }),
+    nativeToScVal(intention),
+    nativeToScVal(referenceImageUrl),
+  ]);
+}
+
+export async function buildClaimCommissionTimeoutTx(
+  sellerPublicKey: string,
+  orderId: number,
+): Promise<string> {
+  return buildMarketplaceTx(sellerPublicKey, "claim_commission_timeout", [
+    new Address(sellerPublicKey).toScVal(),
     nativeToScVal(orderId, { type: "u64" }),
   ]);
 }

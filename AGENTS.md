@@ -57,3 +57,4 @@ When pushing changes that include desktop/extension deliverables (`desktop/**`, 
 - Never use destructive git commands unless explicitly requested.
 - Preserve unrelated user changes in dirty worktrees.
 - Keep docs accurate to the current folder being edited.
+- If an AI-driven change modifies project structure, workflow boundaries, or the intended direction of a folder/app, update the relevant `AGENTS.md` (root and/or local) in the same task so it reflects the new structure and project orientation.

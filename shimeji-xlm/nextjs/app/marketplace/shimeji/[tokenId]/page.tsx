@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
-import { fetchAuctions } from "@/lib/auction";
+import { MarketplaceNftDetailActions } from "@/components/marketplace-nft-detail-actions";
+import { MarketplaceNftOwnerActions } from "@/components/marketplace-nft-owner-actions";
+import { fetchAuctions, fetchRecentBidsForAuction } from "@/lib/auction";
 import { getArtistProfilesByWallets } from "@/lib/artist-profiles-store";
 import type { ArtistProfile } from "@/lib/marketplace-hub-types";
-import { fetchListings, fetchSwapOffers } from "@/lib/marketplace";
-import { fetchNftTokenById } from "@/lib/nft-read";
+import { fetchListings, fetchSwapListings } from "@/lib/marketplace";
+import { fetchNftCreatorById, fetchNftTokenById } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,36 +17,156 @@ type Params = {
   params: Promise<{ tokenId: string }>;
 };
 
+type NftAttribute = {
+  trait: string;
+  value: string;
+};
+
+type NftMetadataPreview = {
+  name: string | null;
+  description: string | null;
+  imageUrl: string | null;
+  attributes: NftAttribute[];
+  metadataUrl: string | null;
+};
+
 function walletShort(value: string | null | undefined) {
   if (!value) return "-";
   if (value.length <= 12) return value;
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
-function formatTokenAmount(rawUnits: bigint | null | undefined) {
-  if (rawUnits === null || rawUnits === undefined) return "-";
-  const scale = BigInt(10_000_000);
-  const zero = BigInt(0);
-  const sign = rawUnits < zero ? "-" : "";
-  const abs = rawUnits < zero ? -rawUnits : rawUnits;
-  const whole = abs / scale;
-  const frac = (abs % scale).toString().padStart(7, "0").replace(/0+$/, "");
-  return `${sign}${whole.toString()}${frac ? `.${frac}` : ""}`;
+function resolveMediaUrl(raw: string | null | undefined): string | null {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (value.startsWith("ipfs://")) {
+    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
+    return path ? `https://ipfs.io/ipfs/${path}` : null;
+  }
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("data:image/") ||
+    value.startsWith("/")
+  ) {
+    return value;
+  }
+  return value;
 }
 
-function timeLeftLabel(endTimeSeconds: number | null | undefined) {
-  if (!endTimeSeconds) return "-";
-  const delta = endTimeSeconds - Math.floor(Date.now() / 1000);
-  if (delta <= 0) return "Ended";
-  const days = Math.floor(delta / 86400);
-  const hours = Math.floor((delta % 86400) / 3600);
-  const minutes = Math.floor((delta % 3600) / 60);
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${Math.max(1, minutes)}m`;
+function isLikelyImageUrl(value: string | null | undefined) {
+  if (!value) return false;
+  return (
+    value.startsWith("data:image/") ||
+    /\.(png|jpe?g|gif|webp|avif|svg)(?:[?#].*)?$/i.test(value)
+  );
+}
+
+function valueToText(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => valueToText(entry)).join(", ");
+  }
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "[object]";
+    }
+  }
+  return String(value);
+}
+
+function parseAttributes(raw: unknown): NftAttribute[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((entry, index) => {
+      if (!entry || typeof entry !== "object") return null;
+      const record = entry as Record<string, unknown>;
+      const trait =
+        typeof record.trait_type === "string"
+          ? record.trait_type
+          : typeof record.trait === "string"
+            ? record.trait
+            : typeof record.name === "string"
+              ? record.name
+              : typeof record.key === "string"
+                ? record.key
+                : `Attribute ${index + 1}`;
+      const rawValue =
+        record.value ??
+        record.trait_value ??
+        record.val ??
+        record.display_value ??
+        null;
+      const value = valueToText(rawValue);
+      if (!trait && !value) return null;
+      return { trait, value };
+    })
+    .filter((entry): entry is NftAttribute => Boolean(entry));
+}
+
+async function fetchTokenMetadataPreview(tokenUri: string): Promise<NftMetadataPreview> {
+  const resolvedTokenUri = resolveMediaUrl(tokenUri);
+  if (!resolvedTokenUri) {
+    return { name: null, description: null, imageUrl: null, attributes: [], metadataUrl: null };
+  }
+
+  if (isLikelyImageUrl(resolvedTokenUri)) {
+    return {
+      name: null,
+      description: null,
+      imageUrl: resolvedTokenUri,
+      attributes: [],
+      metadataUrl: resolvedTokenUri,
+    };
+  }
+
+  try {
+    const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
+    if (!response.ok) {
+      return { name: null, description: null, imageUrl: null, attributes: [], metadataUrl: resolvedTokenUri };
+    }
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const imageRaw =
+      typeof data.image === "string"
+        ? data.image
+        : typeof data.image_url === "string"
+          ? data.image_url
+          : null;
+
+    return {
+      name: typeof data.name === "string" ? data.name : null,
+      description: typeof data.description === "string" ? data.description : null,
+      imageUrl: resolveMediaUrl(imageRaw),
+      attributes: parseAttributes(data.attributes),
+      metadataUrl: resolvedTokenUri,
+    };
+  } catch {
+    return { name: null, description: null, imageUrl: null, attributes: [], metadataUrl: resolvedTokenUri };
+  }
+}
+
+function attributeChipKey(attr: NftAttribute, index: number) {
+  return `${attr.trait}:${attr.value}:${index}`;
+}
+
+function toStringUnits(value: bigint | null | undefined) {
+  if (value === null || value === undefined) return "0";
+  return value.toString();
 }
 
 export default async function MarketplaceShimejiPage({ params }: Params) {
+  const requestHeaders = await headers();
+  const isSpanish = requestHeaders.get("accept-language")?.toLowerCase().startsWith("es") ?? false;
+  const t = (en: string, es: string) => (isSpanish ? es : en);
+
   const { tokenId } = await params;
   const parsedTokenId = Number.parseInt(tokenId, 10);
   if (!Number.isInteger(parsedTokenId) || parsedTokenId < 0) {
@@ -55,315 +178,277 @@ export default async function MarketplaceShimejiPage({ params }: Params) {
     notFound();
   }
 
-  const [allListings, allSwaps, auctions] = await Promise.all([
+  const [allListings, allSwapListings, auctions, metadata, tokenCreator] = await Promise.all([
     fetchListings(),
-    fetchSwapOffers(),
+    fetchSwapListings(),
     fetchAuctions({ includeEnded: false, limit: 300 }).catch(() => []),
+    fetchTokenMetadataPreview(token.tokenUri),
+    fetchNftCreatorById(parsedTokenId),
   ]);
 
   const activeListing =
     allListings.find((listing) => listing.active && listing.tokenId === parsedTokenId) ?? null;
-  const swapsOfferingThis = allSwaps
-    .filter((swap) => swap.active && swap.offeredTokenId === parsedTokenId)
-    .sort((a, b) => b.swapId - a.swapId);
-  const swapsTargetingThis = allSwaps
-    .filter((swap) => swap.active && swap.desiredTokenId === parsedTokenId)
-    .sort((a, b) => b.swapId - a.swapId);
+  const openSwapListingsOfferingThis = allSwapListings
+    .filter((listing) => listing.active && listing.offeredTokenId === parsedTokenId)
+    .sort((a, b) => b.listingId - a.listingId);
 
   const itemAuction =
     auctions.find(
-      (snapshot) =>
-        snapshot.auction.isItemAuction && snapshot.auction.tokenId === parsedTokenId,
+      (snapshot) => snapshot.auction.isItemAuction && snapshot.auction.tokenId === parsedTokenId,
     ) ?? null;
-  const globalLiveAuction =
-    auctions.find((snapshot) => !snapshot.auction.isItemAuction) ?? null;
-  const liveAuctionMatchesByTokenUri = Boolean(
-    globalLiveAuction &&
-      globalLiveAuction.auction.tokenUri &&
-      globalLiveAuction.auction.tokenUri === token.tokenUri,
-  );
+  const displayAuction = itemAuction;
+
+  const recentAuctionBids = displayAuction
+    ? await fetchRecentBidsForAuction(displayAuction.auctionId, displayAuction.auction.startTime, 8)
+    : [];
 
   const profilesByWallet: Record<string, ArtistProfile> = await getArtistProfilesByWallets(
-    [token.owner, activeListing?.seller || "", ...swapsOfferingThis.map((swap) => swap.offerer)].filter(Boolean),
+    [
+      token.owner,
+      tokenCreator || "",
+      activeListing?.seller || "",
+      ...openSwapListingsOfferingThis.map((listing) => listing.creator),
+    ].filter(Boolean),
   ).catch(() => ({}));
 
+  const creatorProfile = tokenCreator ? (profilesByWallet[tokenCreator] ?? null) : null;
   const ownerProfile = profilesByWallet[token.owner] ?? null;
   const listingSellerProfile = activeListing ? (profilesByWallet[activeListing.seller] ?? null) : null;
 
-  const saleStatusLabel = activeListing ? "Listed for sale" : "Not listed for fixed price";
-  const auctionStatusLabel = itemAuction
-    ? `In item auction #${itemAuction.auctionId}`
-    : liveAuctionMatchesByTokenUri
-      ? "In global live auction (matched by token URI)"
-      : "No active auction";
-  const swapStatusLabel =
-    swapsOfferingThis.length || swapsTargetingThis.length
-      ? `${swapsOfferingThis.length} outgoing / ${swapsTargetingThis.length} incoming`
-      : "No active swap offers";
+  const displayName =
+    metadata.name ||
+    `${token.isCommissionEgg ? t("Commission Egg", "Huevo de comisión") : t("Shimeji NFT", "NFT Shimeji")} #${token.tokenId}`;
+
+  const activeListingActionData = activeListing
+    ? {
+        listingId: activeListing.listingId,
+        sellerWallet: activeListing.seller,
+        sellerDisplayName:
+          listingSellerProfile?.displayName || walletShort(activeListing.seller),
+        priceXlm: toStringUnits(activeListing.priceXlm),
+        priceUsdc: toStringUnits(activeListing.priceUsdc),
+        commissionEtaDays: activeListing.commissionEtaDays || 0,
+        isCommissionEgg: Boolean(activeListing.isCommissionEgg || token.isCommissionEgg),
+        artistTerms: listingSellerProfile
+          ? {
+              displayName: listingSellerProfile.displayName || walletShort(activeListing.seller),
+              acceptingNewClients: listingSellerProfile.acceptingNewClients,
+              turnaroundDaysMin: listingSellerProfile.turnaroundDaysMin ?? null,
+              turnaroundDaysMax: listingSellerProfile.turnaroundDaysMax ?? null,
+              slotsOpen: listingSellerProfile.slotsOpen ?? null,
+              slotsTotal: listingSellerProfile.slotsTotal ?? null,
+              basePriceXlm: listingSellerProfile.basePriceXlm || "",
+              basePriceUsdc: listingSellerProfile.basePriceUsdc || "",
+              bio: listingSellerProfile.bio || "",
+            }
+          : null,
+      }
+    : null;
+
+  const activeAuctionActionData = displayAuction
+    ? {
+        auctionId: displayAuction.auctionId,
+        startTime: displayAuction.auction.startTime,
+        endTime: displayAuction.auction.endTime,
+        startingPriceXlm: toStringUnits(displayAuction.auction.startingPriceXlm),
+        startingPriceUsdc: toStringUnits(displayAuction.auction.startingPriceUsdc),
+        xlmUsdcRate: toStringUnits(displayAuction.auction.xlmUsdcRate),
+        highestBid: displayAuction.highestBid
+          ? {
+              bidder: displayAuction.highestBid.bidder,
+              amount: toStringUnits(displayAuction.highestBid.amount),
+              currency: displayAuction.highestBid.currency,
+            }
+          : null,
+        recentBids: recentAuctionBids.map((bid) => ({
+          bidder: bid.bidder,
+          amount: toStringUnits(bid.amount),
+          currency: bid.currency,
+        })),
+      }
+    : null;
+
+  const openSwapListingsActionData = openSwapListingsOfferingThis.map((listing) => ({
+    listingId: listing.listingId,
+    creatorWallet: listing.creator,
+    creatorDisplayName: profilesByWallet[listing.creator]?.displayName || walletShort(listing.creator),
+    offeredTokenId: listing.offeredTokenId,
+    intention: listing.intention,
+  }));
 
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-8 pt-28 md:px-6 lg:px-8">
         <section className="rounded-3xl border border-border bg-white/10 p-5 backdrop-blur-sm md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Shimeji / NFT
-              </p>
-              <h1 className="text-2xl font-semibold text-foreground md:text-3xl">
-                #{token.tokenId} · {token.isCommissionEgg ? "Commission Egg" : "Shimeji NFT"}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Owner:{" "}
-                <Link
-                  href={`/marketplace/artist/${token.owner}`}
-                  className="text-foreground underline underline-offset-2"
-                >
-                  {ownerProfile?.displayName || walletShort(token.owner)}
-                </Link>
-              </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground md:text-3xl">{displayName}</h1>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                href="/marketplace"
-                className="inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
-              >
-                Back to marketplace
-              </Link>
-              <Link
-                href={`/marketplace?search=${encodeURIComponent(String(token.tokenId))}`}
-                className="inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
-              >
-                Search in feed
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Availability status</h2>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs text-muted-foreground">Sale / Venta</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">{saleStatusLabel}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs text-muted-foreground">Auction / Subasta</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">{auctionStatusLabel}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs text-muted-foreground">Swaps / Intercambios</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">{swapStatusLabel}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Token metadata</h2>
-              <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-sm">
-                <p className="text-muted-foreground">Token URI</p>
-                <p className="mt-1 break-all text-foreground">{token.tokenUri || "-"}</p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Swap offers / Intercambios</h2>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs font-medium text-foreground">Offering this token</p>
-                  <div className="mt-2 space-y-2">
-                    {swapsOfferingThis.slice(0, 8).map((swap) => (
-                      <div key={`offer-${swap.swapId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                        <p>
-                          <span className="text-foreground">#{swap.swapId}</span> by{" "}
-                          <Link
-                            href={`/marketplace/artist/${swap.offerer}`}
-                            className="text-foreground underline underline-offset-2"
-                          >
-                            {profilesByWallet[swap.offerer]?.displayName || walletShort(swap.offerer)}
-                          </Link>
-                        </p>
-                        <p>
-                          Wants token <span className="text-foreground">#{swap.desiredTokenId}</span>
-                        </p>
-                        {swap.intention ? <p className="mt-1 line-clamp-2">{swap.intention}</p> : null}
-                      </div>
-                    ))}
-                    {swapsOfferingThis.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">No active offers using this token.</p>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs font-medium text-foreground">Targeting this token</p>
-                  <div className="mt-2 space-y-2">
-                    {swapsTargetingThis.slice(0, 8).map((swap) => (
-                      <div key={`target-${swap.swapId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                        <p>
-                          <span className="text-foreground">#{swap.swapId}</span> offers token{" "}
-                          <span className="text-foreground">#{swap.offeredTokenId}</span>
-                        </p>
-                        <p>
-                          by{" "}
-                          <Link
-                            href={`/marketplace/artist/${swap.offerer}`}
-                            className="text-foreground underline underline-offset-2"
-                          >
-                            {profilesByWallet[swap.offerer]?.displayName || walletShort(swap.offerer)}
-                          </Link>
-                        </p>
-                        {swap.intention ? <p className="mt-1 line-clamp-2">{swap.intention}</p> : null}
-                      </div>
-                    ))}
-                    {swapsTargetingThis.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        No active swap offers targeting this token.
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/marketplace"
+              className="inline-flex cursor-pointer items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
+            >
+              {t("Back to marketplace", "Volver al marketplace")}
+            </Link>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Fixed-price listing</h2>
-              {activeListing ? (
-                <div className="mt-3 space-y-2 text-sm">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-2xl border border-border bg-white/[0.04]">
+                <div className="relative aspect-square w-full">
+                  {metadata.imageUrl ? (
+                    <img
+                      src={metadata.imageUrl}
+                      alt={displayName}
+                      className="h-full w-full object-contain"
+                      loading="eager"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent text-muted-foreground">
+                      <div className="text-center text-sm">{t("No preview image", "Sin imagen de vista previa")}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-border bg-white/10 p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-border bg-white/5 p-3">
-                    <p className="text-xs text-muted-foreground">Listing ID</p>
-                    <p className="mt-1 font-medium text-foreground">#{activeListing.listingId}</p>
+                    <p className="text-xs text-muted-foreground">{t("Token ID", "ID del token")}</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">#{token.tokenId}</p>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl border border-border bg-white/5 p-3">
-                      <p className="text-xs text-muted-foreground">Price XLM</p>
-                      <p className="mt-1 font-medium text-foreground">
-                        {formatTokenAmount(activeListing.priceXlm)}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-border bg-white/5 p-3">
-                      <p className="text-xs text-muted-foreground">Price USDC</p>
-                      <p className="mt-1 font-medium text-foreground">
-                        {formatTokenAmount(activeListing.priceUsdc)}
-                      </p>
-                    </div>
+                  <div className="rounded-xl border border-border bg-white/5 p-3">
+                    <p className="text-xs text-muted-foreground">{t("Collection", "Colección")}</p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {token.isCommissionEgg ? t("Commission Egg", "Huevo de comisión") : t("Shimeji NFT", "NFT Shimeji")}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Seller:{" "}
-                    <Link
-                      href={`/marketplace/artist/${activeListing.seller}`}
-                      className="text-foreground underline underline-offset-2"
+                </div>
+
+                <div className="mt-3 rounded-xl border border-border bg-white/5 p-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("Description", "Descripción")}</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {metadata.description || t("No description available in metadata.", "No hay descripción disponible en la metadata.")}
+                    </p>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs text-muted-foreground">{t("Attributes", "Atributos")}</p>
+                    {metadata.attributes.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {metadata.attributes.map((attr, index) => (
+                          <div
+                            key={attributeChipKey(attr, index)}
+                            className="rounded-xl border border-border bg-white/5 px-3 py-2"
+                          >
+                            <p className="text-[11px] text-muted-foreground">{attr.trait}</p>
+                            <p className="text-sm text-foreground">{attr.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 rounded-xl border border-dashed border-border bg-white/5 p-3 text-sm text-muted-foreground">
+                        {t("No attributes available in metadata.", "No hay atributos disponibles en la metadata.")}
+                      </div>
+                    )}
+                  </div>
+
+                  {metadata.metadataUrl ? (
+                    <a
+                      href={metadata.metadataUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-block cursor-pointer text-xs text-muted-foreground hover:text-foreground hover:underline"
                     >
-                      {listingSellerProfile?.displayName || walletShort(activeListing.seller)}
-                    </Link>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Buy from the main marketplace card actions or your marketplace UI.
-                  </p>
+                      {t("Open metadata", "Abrir metadata")}
+                    </a>
+                  ) : null}
                 </div>
-              ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-border bg-white/5 p-4 text-sm text-muted-foreground">
-                  This token is not listed for fixed price right now.
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Live auction</h2>
-              {itemAuction ? (
-                <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-sm">
-                  <p className="text-foreground">
-                    Item auction #{itemAuction.auctionId} is active for this token.
-                  </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 text-xs text-muted-foreground">
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Time left: <span className="text-foreground">{timeLeftLabel(itemAuction.auction.endTime)}</span>
-                    </div>
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Current bid:{" "}
-                      <span className="text-foreground">
-                        {itemAuction.highestBid
-                          ? `${formatTokenAmount(itemAuction.highestBid.amount)} ${itemAuction.highestBid.currency === "Usdc" ? "USDC" : "XLM"}`
-                          : "No bids"}
-                      </span>
-                    </div>
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Start XLM:{" "}
-                      <span className="text-foreground">{formatTokenAmount(itemAuction.auction.startingPriceXlm)}</span>
-                    </div>
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Start USDC:{" "}
-                      <span className="text-foreground">{formatTokenAmount(itemAuction.auction.startingPriceUsdc)}</span>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    This NFT page includes the auction status and pricing details.
-                  </p>
-                  <Link
-                    href="/marketplace"
-                    className="mt-3 inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
-                  >
-                    Open marketplace
-                  </Link>
-                </div>
-              ) : globalLiveAuction ? (
-                <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-sm">
-                  <p className="text-foreground">
-                    A live auction is active
-                    {liveAuctionMatchesByTokenUri ? " and its token URI matches this NFT." : "."}
-                  </p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2 text-xs text-muted-foreground">
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Auction ID: <span className="text-foreground">#{globalLiveAuction.auctionId}</span>
-                    </div>
-                    <div className="rounded-lg border border-border bg-white/5 p-2">
-                      Time left: <span className="text-foreground">{timeLeftLabel(globalLiveAuction.auction.endTime)}</span>
-                    </div>
-                  </div>
-                  <Link
-                    href="/marketplace"
-                    className="mt-3 inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
-                  >
-                    Open marketplace
-                  </Link>
-                </div>
-              ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-border bg-white/5 p-4 text-sm text-muted-foreground">
-                  No live auction is active right now.
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-2xl border border-border bg-white/10 p-4">
-              <h2 className="text-sm font-semibold text-foreground">Artist / Owner</h2>
-              <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-sm">
-                <p className="font-medium text-foreground">
-                  {ownerProfile?.displayName || walletShort(token.owner)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{token.owner}</p>
-                {ownerProfile?.artistEnabled ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Public artist profile enabled
-                    {ownerProfile.commissionEnabled
-                      ? ownerProfile.acceptingNewClients
-                        ? " · commissions open"
-                        : " · commissions closed"
-                      : " · commissions disabled"}
-                  </p>
-                ) : null}
-                <Link
-                  href={`/marketplace/artist/${token.owner}`}
-                  className="mt-3 inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
-                >
-                  View artist page
-                </Link>
               </div>
+
+              <div className="rounded-2xl border border-border bg-white/10 p-4">
+                <h2 className="text-sm font-semibold text-foreground">{t("Creator / Owner", "Creador / Propietario")}</h2>
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-xl border border-border bg-white/5 p-3">
+                    <p className="mb-2 text-xs text-muted-foreground">{t("Creator (artist)", "Creador (artista)")}</p>
+                    {tokenCreator ? (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-foreground">
+                          {creatorProfile?.avatarUrl ? (
+                            <img
+                              src={creatorProfile.avatarUrl}
+                              alt={creatorProfile.displayName || walletShort(tokenCreator)}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span>{(creatorProfile?.displayName || walletShort(tokenCreator)).slice(0, 1).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/marketplace/artist/${tokenCreator}`}
+                            className="block cursor-pointer truncate text-sm font-medium text-foreground hover:underline"
+                          >
+                            {creatorProfile?.displayName || walletShort(tokenCreator)}
+                          </Link>
+                          <p className="truncate text-xs text-muted-foreground">{tokenCreator}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{t("Creator unavailable.", "Creador no disponible.")}</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-white/5 p-3">
+                    <p className="mb-2 text-xs text-muted-foreground">{t("Current owner", "Propietario actual")}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5 text-sm text-foreground">
+                        {ownerProfile?.avatarUrl ? (
+                          <img
+                            src={ownerProfile.avatarUrl}
+                            alt={ownerProfile.displayName || walletShort(token.owner)}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span>{(ownerProfile?.displayName || walletShort(token.owner)).slice(0, 1).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/marketplace/artist/${token.owner}`}
+                          className="block cursor-pointer truncate text-sm font-medium text-foreground hover:underline"
+                        >
+                          {ownerProfile?.displayName || walletShort(token.owner)}
+                        </Link>
+                        <p className="truncate text-xs text-muted-foreground">{token.owner}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <MarketplaceNftOwnerActions
+                tokenId={token.tokenId}
+                tokenOwner={token.owner}
+                isCommissionEgg={token.isCommissionEgg}
+                hasActiveListing={Boolean(activeListing)}
+                hasActiveAuction={Boolean(itemAuction)}
+              />
             </div>
           </div>
         </section>
+
+        <MarketplaceNftDetailActions
+          tokenId={token.tokenId}
+          activeListing={activeListingActionData}
+          activeAuction={activeAuctionActionData}
+          openSwapListingsOfferingThis={openSwapListingsActionData}
+        />
       </div>
 
       <Footer />

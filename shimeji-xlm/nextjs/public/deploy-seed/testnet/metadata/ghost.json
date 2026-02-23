@@ -1,0 +1,12 @@
+{
+  "name": "Shimeji Placeholder - ghost",
+  "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the ghost idle sprite.",
+  "image": "http://localhost:3000/deploy-seed/testnet/sprites/ghost-idle.png",
+  "external_url": "http://localhost:3000/marketplace",
+  "attributes": [
+    { "trait_type": "placeholder", "value": "true" },
+    { "trait_type": "network", "value": "testnet" },
+    { "trait_type": "character", "value": "ghost" },
+    { "trait_type": "sprite_state", "value": "idle" }
+  ]
+}

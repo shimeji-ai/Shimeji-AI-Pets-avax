@@ -1,17 +1,13 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import type {
   ArtistProfile,
   ArtistProfileUpdateInput,
   MarketplaceReportRecord,
 } from "@/lib/marketplace-hub-types";
-
-const STORE_PATH =
-  process.env.SHIMEJI_ARTIST_PROFILE_STORE_PATH ||
-  path.join(process.env.TMPDIR || "/tmp", "shimeji-xlm-artist-profiles-store.json");
 
 const WALLET_RE = /^G[A-Z2-7]{55}$/;
 const AUTH_CHALLENGE_TTL_MS = 10 * 60 * 1000;
@@ -19,36 +15,13 @@ const AUTH_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_REPORT_REASON = 120;
 const MAX_REPORT_DETAILS = 1000;
 
-type AuthChallengeRecord = {
-  id: string;
-  wallet: string;
-  message: string;
-  createdAt: number;
-  expiresAt: number;
-  usedAt: number | null;
-};
-
-type AuthSessionRecord = {
-  token: string;
-  wallet: string;
-  createdAt: number;
-  expiresAt: number;
-  verificationMode: "mvp_unverified_signature";
-};
-
-type StoreFile = {
-  profiles: Record<string, ArtistProfile>;
-  authChallenges: Record<string, AuthChallengeRecord>;
-  authSessions: Record<string, AuthSessionRecord>;
-  reports: MarketplaceReportRecord[];
-};
-
-const EMPTY_STORE: StoreFile = {
-  profiles: {},
-  authChallenges: {},
-  authSessions: {},
-  reports: [],
-};
+function assertArtistProfilesDatabaseConfigured() {
+  if (!process.env.DATABASE_URL?.trim()) {
+    throw new Error(
+      "Artist profiles database is not configured. Set DATABASE_URL (Neon Postgres) and run Prisma migrations.",
+    );
+  }
+}
 
 function normalizeWalletAddress(wallet: string): string {
   return String(wallet || "").trim().toUpperCase();
@@ -166,48 +139,135 @@ function sanitizeProfilePatch(input: ArtistProfileUpdateInput): ArtistProfileUpd
   return patch;
 }
 
-async function ensureStoreDir() {
-  await mkdir(path.dirname(STORE_PATH), { recursive: true });
+async function pruneTransientRecords() {
+  assertArtistProfilesDatabaseConfigured();
+  const now = new Date();
+  await Promise.all([
+    prisma.artistAuthChallenge.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lte: now } }, { usedAt: { not: null } }],
+      },
+    }),
+    prisma.artistAuthSession.deleteMany({
+      where: {
+        expiresAt: { lte: now },
+      },
+    }),
+  ]);
 }
 
-function pruneStore(store: StoreFile, now: number) {
-  for (const [id, challenge] of Object.entries(store.authChallenges)) {
-    if (challenge.expiresAt <= now || challenge.usedAt) {
-      delete store.authChallenges[id];
-    }
-  }
-  for (const [token, session] of Object.entries(store.authSessions)) {
-    if (session.expiresAt <= now) {
-      delete store.authSessions[token];
-    }
-  }
+function coerceJsonStringArray(value: Prisma.JsonValue, maxItems: number, maxLengthPerItem: number): string[] {
+  return sanitizeStringArray(value, maxItems, maxLengthPerItem);
 }
 
-async function loadStore(): Promise<StoreFile> {
-  try {
-    const raw = await readFile(STORE_PATH, "utf8");
-    const parsed = JSON.parse(raw) as Partial<StoreFile>;
-    const store: StoreFile = {
-      profiles: parsed.profiles && typeof parsed.profiles === "object" ? parsed.profiles : {},
-      authChallenges:
-        parsed.authChallenges && typeof parsed.authChallenges === "object"
-          ? parsed.authChallenges
-          : {},
-      authSessions:
-        parsed.authSessions && typeof parsed.authSessions === "object" ? parsed.authSessions : {},
-      reports: Array.isArray(parsed.reports) ? parsed.reports : [],
-    };
-    pruneStore(store, Date.now());
-    return store;
-  } catch {
-    return structuredClone(EMPTY_STORE);
-  }
+function coerceJsonSocialLinks(value: Prisma.JsonValue): Record<string, string> {
+  return sanitizeSocialLinks(value);
 }
 
-async function saveStore(store: StoreFile) {
-  await ensureStoreDir();
-  pruneStore(store, Date.now());
-  await writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf8");
+function coerceVisibilityStatus(value: string): ArtistProfile["visibilityStatus"] {
+  if (value === "hidden" || value === "under_review") return value;
+  return "active";
+}
+
+type ArtistProfileRow = {
+  walletAddress: string;
+  displayName: string;
+  avatarUrl: string;
+  bannerUrl: string;
+  bio: string;
+  languages: Prisma.JsonValue;
+  styleTags: Prisma.JsonValue;
+  socialLinks: Prisma.JsonValue;
+  artistEnabled: boolean;
+  commissionEnabled: boolean;
+  acceptingNewClients: boolean;
+  basePriceXlm: string;
+  basePriceUsdc: string;
+  turnaroundDaysMin: number | null;
+  turnaroundDaysMax: number | null;
+  slotsTotal: number | null;
+  slotsOpen: number | null;
+  preferredAuctionDurationHours: number | null;
+  reportCount: number;
+  visibilityStatus: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function profileRowToDomain(row: ArtistProfileRow): ArtistProfile {
+  return {
+    walletAddress: row.walletAddress,
+    displayName: row.displayName || "",
+    avatarUrl: row.avatarUrl || "",
+    bannerUrl: row.bannerUrl || "",
+    bio: row.bio || "",
+    languages: coerceJsonStringArray(row.languages, 12, 32),
+    styleTags: coerceJsonStringArray(row.styleTags, 16, 40),
+    socialLinks: coerceJsonSocialLinks(row.socialLinks),
+    artistEnabled: Boolean(row.artistEnabled),
+    commissionEnabled: Boolean(row.commissionEnabled),
+    acceptingNewClients: Boolean(row.acceptingNewClients),
+    basePriceXlm: row.basePriceXlm || "",
+    basePriceUsdc: row.basePriceUsdc || "",
+    turnaroundDaysMin: row.turnaroundDaysMin ?? null,
+    turnaroundDaysMax: row.turnaroundDaysMax ?? null,
+    slotsTotal: row.slotsTotal ?? null,
+    slotsOpen: row.slotsOpen ?? null,
+    preferredAuctionDurationHours: row.preferredAuctionDurationHours ?? null,
+    reportCount: row.reportCount ?? 0,
+    visibilityStatus: coerceVisibilityStatus(row.visibilityStatus),
+    createdAt: row.createdAt.getTime(),
+    updatedAt: row.updatedAt.getTime(),
+  };
+}
+
+function profileToCreateData(profile: ArtistProfile) {
+  return {
+    walletAddress: profile.walletAddress,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    bannerUrl: profile.bannerUrl,
+    bio: profile.bio,
+    languages: profile.languages as Prisma.InputJsonValue,
+    styleTags: profile.styleTags as Prisma.InputJsonValue,
+    socialLinks: profile.socialLinks as Prisma.InputJsonValue,
+    artistEnabled: profile.artistEnabled,
+    commissionEnabled: profile.commissionEnabled,
+    acceptingNewClients: profile.acceptingNewClients,
+    basePriceXlm: profile.basePriceXlm,
+    basePriceUsdc: profile.basePriceUsdc,
+    turnaroundDaysMin: profile.turnaroundDaysMin,
+    turnaroundDaysMax: profile.turnaroundDaysMax,
+    slotsTotal: profile.slotsTotal,
+    slotsOpen: profile.slotsOpen,
+    preferredAuctionDurationHours: profile.preferredAuctionDurationHours,
+    reportCount: profile.reportCount,
+    visibilityStatus: profile.visibilityStatus,
+  };
+}
+
+function profileToUpdateData(profile: ArtistProfile) {
+  return {
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    bannerUrl: profile.bannerUrl,
+    bio: profile.bio,
+    languages: profile.languages as Prisma.InputJsonValue,
+    styleTags: profile.styleTags as Prisma.InputJsonValue,
+    socialLinks: profile.socialLinks as Prisma.InputJsonValue,
+    artistEnabled: profile.artistEnabled,
+    commissionEnabled: profile.commissionEnabled,
+    acceptingNewClients: profile.acceptingNewClients,
+    basePriceXlm: profile.basePriceXlm,
+    basePriceUsdc: profile.basePriceUsdc,
+    turnaroundDaysMin: profile.turnaroundDaysMin,
+    turnaroundDaysMax: profile.turnaroundDaysMax,
+    slotsTotal: profile.slotsTotal,
+    slotsOpen: profile.slotsOpen,
+    preferredAuctionDurationHours: profile.preferredAuctionDurationHours,
+    reportCount: profile.reportCount,
+    visibilityStatus: profile.visibilityStatus,
+  };
 }
 
 function sortProfiles(a: ArtistProfile, b: ArtistProfile) {
@@ -217,18 +277,50 @@ function sortProfiles(a: ArtistProfile, b: ArtistProfile) {
   return b.updatedAt - a.updatedAt;
 }
 
+function buildNextProfile(
+  previous: ArtistProfile,
+  input: ArtistProfileUpdateInput,
+  now: number,
+): ArtistProfile {
+  const patch = sanitizeProfilePatch(input);
+  const next: ArtistProfile = {
+    ...previous,
+    ...patch,
+    walletAddress: previous.walletAddress,
+    updatedAt: now,
+  };
+
+  if (next.turnaroundDaysMin && next.turnaroundDaysMax && next.turnaroundDaysMin > next.turnaroundDaysMax) {
+    const temp = next.turnaroundDaysMin;
+    next.turnaroundDaysMin = next.turnaroundDaysMax;
+    next.turnaroundDaysMax = temp;
+  }
+  if (next.slotsTotal !== null && next.slotsOpen !== null && next.slotsOpen > next.slotsTotal) {
+    next.slotsOpen = next.slotsTotal;
+  }
+  if (!next.artistEnabled) {
+    next.commissionEnabled = false;
+  }
+
+  return next;
+}
+
 export async function listArtistProfiles(filters?: {
   commissionEnabled?: boolean;
   search?: string;
   style?: string;
   language?: string;
 }): Promise<ArtistProfile[]> {
-  const store = await loadStore();
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+
   const search = sanitizeString(filters?.search, 120).toLowerCase();
   const style = sanitizeString(filters?.style, 40).toLowerCase();
   const language = sanitizeString(filters?.language, 40).toLowerCase();
 
-  return Object.values(store.profiles)
+  const rows = await prisma.artistProfile.findMany();
+  return rows
+    .map((row) => profileRowToDomain(row as unknown as ArtistProfileRow))
     .filter((profile) => profile.visibilityStatus === "active")
     .filter((profile) =>
       filters?.commissionEnabled === undefined
@@ -258,8 +350,10 @@ export async function listArtistProfiles(filters?: {
 export async function getArtistProfile(wallet: string): Promise<ArtistProfile | null> {
   const normalizedWallet = normalizeWalletAddress(wallet);
   if (!isValidWalletAddress(normalizedWallet)) return null;
-  const store = await loadStore();
-  return store.profiles[normalizedWallet] ?? null;
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+  const row = await prisma.artistProfile.findUnique({ where: { walletAddress: normalizedWallet } });
+  return row ? profileRowToDomain(row as unknown as ArtistProfileRow) : null;
 }
 
 export async function getArtistProfilesByWallets(wallets: string[]): Promise<Record<string, ArtistProfile>> {
@@ -267,11 +361,15 @@ export async function getArtistProfilesByWallets(wallets: string[]): Promise<Rec
     new Set(wallets.map(normalizeWalletAddress).filter((wallet) => isValidWalletAddress(wallet))),
   );
   if (normalized.length === 0) return {};
-  const store = await loadStore();
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+  const rows = await prisma.artistProfile.findMany({
+    where: { walletAddress: { in: normalized } },
+  });
   const result: Record<string, ArtistProfile> = {};
-  for (const wallet of normalized) {
-    const profile = store.profiles[wallet];
-    if (profile) result[wallet] = profile;
+  for (const row of rows) {
+    const profile = profileRowToDomain(row as unknown as ArtistProfileRow);
+    result[profile.walletAddress] = profile;
   }
   return result;
 }
@@ -285,32 +383,31 @@ export async function upsertArtistProfile(
     throw new Error("Invalid wallet address");
   }
 
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+
   const now = Date.now();
-  const store = await loadStore();
-  const previous = store.profiles[normalizedWallet] ?? createDefaultProfile(normalizedWallet, now);
-  const patch = sanitizeProfilePatch(input);
-  const next: ArtistProfile = {
-    ...previous,
-    ...patch,
-    walletAddress: normalizedWallet,
-    updatedAt: now,
-  };
+  const row = await prisma.$transaction(async (tx) => {
+    const existing = await tx.artistProfile.findUnique({
+      where: { walletAddress: normalizedWallet },
+    });
+    const previous = existing
+      ? profileRowToDomain(existing as unknown as ArtistProfileRow)
+      : createDefaultProfile(normalizedWallet, now);
+    const next = buildNextProfile(previous, input, now);
 
-  if (next.turnaroundDaysMin && next.turnaroundDaysMax && next.turnaroundDaysMin > next.turnaroundDaysMax) {
-    const temp = next.turnaroundDaysMin;
-    next.turnaroundDaysMin = next.turnaroundDaysMax;
-    next.turnaroundDaysMax = temp;
-  }
-  if (next.slotsTotal !== null && next.slotsOpen !== null && next.slotsOpen > next.slotsTotal) {
-    next.slotsOpen = next.slotsTotal;
-  }
-  if (!next.artistEnabled) {
-    next.commissionEnabled = false;
-  }
+    if (existing) {
+      return tx.artistProfile.update({
+        where: { walletAddress: normalizedWallet },
+        data: profileToUpdateData(next),
+      });
+    }
+    return tx.artistProfile.create({
+      data: profileToCreateData(next),
+    });
+  });
 
-  store.profiles[normalizedWallet] = next;
-  await saveStore(store);
-  return next;
+  return profileRowToDomain(row as unknown as ArtistProfileRow);
 }
 
 export async function createArtistAuthChallenge(wallet: string): Promise<{
@@ -323,6 +420,10 @@ export async function createArtistAuthChallenge(wallet: string): Promise<{
   if (!isValidWalletAddress(normalizedWallet)) {
     throw new Error("Invalid wallet address");
   }
+
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+
   const now = Date.now();
   const challengeId = randomUUID();
   const nonce = randomBytes(16).toString("hex");
@@ -335,16 +436,16 @@ export async function createArtistAuthChallenge(wallet: string): Promise<{
     `Expires At: ${new Date(expiresAt).toISOString()}`,
   ].join("\n");
 
-  const store = await loadStore();
-  store.authChallenges[challengeId] = {
-    id: challengeId,
-    wallet: normalizedWallet,
-    message,
-    createdAt: now,
-    expiresAt,
-    usedAt: null,
-  };
-  await saveStore(store);
+  await prisma.artistAuthChallenge.create({
+    data: {
+      id: challengeId,
+      wallet: normalizedWallet,
+      message,
+      createdAt: new Date(now),
+      expiresAt: new Date(expiresAt),
+      usedAt: null,
+    },
+  });
 
   return { wallet: normalizedWallet, challengeId, message, expiresAt };
 }
@@ -375,55 +476,76 @@ export async function verifyArtistAuthChallenge(input: {
     throw new Error("Signer wallet does not match requested wallet");
   }
 
-  const now = Date.now();
-  const store = await loadStore();
-  const challenge = store.authChallenges[challengeId];
-  if (!challenge || challenge.wallet !== wallet) {
-    throw new Error("Challenge not found");
-  }
-  if (challenge.usedAt) {
-    throw new Error("Challenge already used");
-  }
-  if (challenge.expiresAt <= now) {
-    throw new Error("Challenge expired");
-  }
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
 
-  // MVP note: we persist the signed payload but do not cryptographically verify SEP-43 signatures yet.
-  // The frontend signs through the active wallet, and server-side verification can be hardened later.
-  challenge.usedAt = now;
-
+  const nowMs = Date.now();
+  const now = new Date(nowMs);
+  const expiresAt = new Date(nowMs + AUTH_SESSION_TTL_MS);
   const sessionToken = randomBytes(32).toString("hex");
-  const expiresAt = now + AUTH_SESSION_TTL_MS;
-  store.authSessions[sessionToken] = {
-    token: sessionToken,
-    wallet,
-    createdAt: now,
-    expiresAt,
-    verificationMode: "mvp_unverified_signature",
-  };
 
-  if (!store.profiles[wallet]) {
-    store.profiles[wallet] = createDefaultProfile(wallet, now);
-  }
-  await saveStore(store);
+  const result = await prisma.$transaction(async (tx) => {
+    const challenge = await tx.artistAuthChallenge.findUnique({ where: { id: challengeId } });
+    if (!challenge || challenge.wallet !== wallet) {
+      throw new Error("Challenge not found");
+    }
+    if (challenge.usedAt) {
+      throw new Error("Challenge already used");
+    }
+    if (challenge.expiresAt.getTime() <= nowMs) {
+      throw new Error("Challenge expired");
+    }
 
-  return {
-    wallet,
-    sessionToken,
-    expiresAt,
-    verificationMode: "mvp_unverified_signature",
-  };
+    // MVP note: we persist the signed payload but do not cryptographically verify SEP-43 signatures yet.
+    // The frontend signs through the active wallet, and server-side verification can be hardened later.
+    await tx.artistAuthChallenge.update({
+      where: { id: challengeId },
+      data: { usedAt: now },
+    });
+
+    await tx.artistAuthSession.create({
+      data: {
+        token: sessionToken,
+        wallet,
+        createdAt: now,
+        expiresAt,
+        verificationMode: "mvp_unverified_signature",
+      },
+    });
+
+    const existingProfile = await tx.artistProfile.findUnique({
+      where: { walletAddress: wallet },
+      select: { walletAddress: true },
+    });
+    if (!existingProfile) {
+      await tx.artistProfile.create({
+        data: profileToCreateData(createDefaultProfile(wallet, nowMs)),
+      });
+    }
+
+    return {
+      wallet,
+      sessionToken,
+      expiresAt: expiresAt.getTime(),
+      verificationMode: "mvp_unverified_signature" as const,
+    };
+  });
+
+  return result;
 }
 
 export async function validateArtistSession(wallet: string, sessionToken: string): Promise<boolean> {
   const normalizedWallet = normalizeWalletAddress(wallet);
   const token = sanitizeString(sessionToken, 256);
   if (!isValidWalletAddress(normalizedWallet) || !token) return false;
-  const store = await loadStore();
-  const session = store.authSessions[token];
+
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
+
+  const session = await prisma.artistAuthSession.findUnique({ where: { token } });
   if (!session) return false;
   if (session.wallet !== normalizedWallet) return false;
-  if (session.expiresAt <= Date.now()) return false;
+  if (session.expiresAt.getTime() <= Date.now()) return false;
   return true;
 }
 
@@ -445,32 +567,41 @@ export async function createMarketplaceReport(input: {
     throw new Error("Invalid reporter wallet");
   }
 
-  const now = Date.now();
-  const record: MarketplaceReportRecord = {
-    id: randomUUID(),
-    targetType: input.targetType,
-    targetId,
-    reporterWallet,
-    reason,
-    details,
-    createdAt: now,
-  };
+  assertArtistProfilesDatabaseConfigured();
+  await pruneTransientRecords();
 
-  const store = await loadStore();
-  store.reports = [record, ...store.reports].slice(0, 5000);
+  const now = new Date();
+  const created = await prisma.$transaction(async (tx) => {
+    const record = await tx.marketplaceReport.create({
+      data: {
+        id: randomUUID(),
+        targetType: input.targetType,
+        targetId,
+        reporterWallet,
+        reason,
+        details,
+        createdAt: now,
+      },
+    });
 
-  if (input.targetType === "artist_profile" && isValidWalletAddress(targetId)) {
-    const wallet = normalizeWalletAddress(targetId);
-    const existing = store.profiles[wallet];
-    if (existing) {
-      store.profiles[wallet] = {
-        ...existing,
-        reportCount: existing.reportCount + 1,
-        updatedAt: now,
-      };
+    if (input.targetType === "artist_profile" && isValidWalletAddress(targetId)) {
+      const wallet = normalizeWalletAddress(targetId);
+      await tx.artistProfile.updateMany({
+        where: { walletAddress: wallet },
+        data: { reportCount: { increment: 1 } },
+      });
     }
-  }
 
-  await saveStore(store);
-  return record;
+    return record;
+  });
+
+  return {
+    id: created.id,
+    targetType: created.targetType as MarketplaceReportRecord["targetType"],
+    targetId: created.targetId,
+    reporterWallet: created.reporterWallet,
+    reason: created.reason,
+    details: created.details,
+    createdAt: created.createdAt.getTime(),
+  };
 }

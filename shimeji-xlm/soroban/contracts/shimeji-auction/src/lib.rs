@@ -2,6 +2,7 @@
 
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, IntoVal, String, Symbol};
 
+#[cfg(test)]
 const AUCTION_DURATION: u64 = 604_800; // 7 days in seconds
 const MIN_AUCTION_DURATION: u64 = 3_600; // 1 hour
 const MAX_AUCTION_DURATION: u64 = 2_592_000; // 30 days
@@ -186,40 +187,6 @@ impl ShimejiAuction {
         (xlm_destination, usdc_destination)
     }
 
-    pub fn create_auction(
-        env: Env,
-        token_uri: String,
-        starting_price_xlm: i128,
-        starting_price_usdc: i128,
-        xlm_usdc_rate: i128,
-    ) -> u64 {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).unwrap();
-        admin.require_auth();
-
-        let now = env.ledger().timestamp();
-        let auction_id: u64 = env.storage().instance().get(&DataKey::NextAuctionId).unwrap();
-
-        let auction = AuctionInfo {
-            token_uri,
-            is_item_auction: false,
-            seller: admin.clone(),
-            token_id: 0,
-            start_time: now,
-            end_time: now + AUCTION_DURATION,
-            starting_price_xlm,
-            starting_price_usdc,
-            xlm_usdc_rate,
-            finalized: false,
-            escrow_provider: Self::current_escrow_provider(&env),
-            escrow_settled: false,
-        };
-
-        env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
-        env.storage().instance().set(&DataKey::NextAuctionId, &(auction_id + 1));
-
-        auction_id
-    }
-
     pub fn create_item_auction(
         env: Env,
         seller: Address,
@@ -254,8 +221,9 @@ impl ShimejiAuction {
             starting_price_usdc,
             xlm_usdc_rate,
             finalized: false,
-            // Item auctions settle directly to seller at finalize.
-            escrow_provider: EscrowProvider::Internal,
+            // Item auctions use the currently configured escrow provider
+            // (TrustlessWork when available; Internal otherwise).
+            escrow_provider: Self::current_escrow_provider(&env),
             escrow_settled: false,
         };
 
@@ -381,7 +349,20 @@ impl ShimejiAuction {
                     Currency::Usdc => env.storage().instance().get::<DataKey, Address>(&DataKey::UsdcToken).unwrap(),
                 };
                 let token_client = token::Client::new(&env, &token_addr);
-                token_client.transfer(&env.current_contract_address(), &auction.seller, &winning_bid.amount);
+                if auction.escrow_provider == EscrowProvider::TrustlessWork {
+                    let destination = Self::trustless_escrow_destination(&env, &winning_bid.currency);
+                    token_client.transfer(
+                        &env.current_contract_address(),
+                        &destination,
+                        &winning_bid.amount,
+                    );
+                } else {
+                    token_client.transfer(
+                        &env.current_contract_address(),
+                        &auction.seller,
+                        &winning_bid.amount,
+                    );
+                }
 
                 auction.escrow_settled = true;
                 env.storage().persistent().set(&DataKey::Auction(auction_id), &auction);
@@ -464,6 +445,7 @@ mod test {
     use soroban_sdk::{
         contract,
         contractimpl,
+        contracttype,
         testutils::Address as _,
         testutils::Ledger,
         token::{StellarAssetClient, TokenClient},
@@ -473,10 +455,60 @@ mod test {
     #[contract]
     struct MockNft;
 
+    #[contracttype]
+    #[derive(Clone)]
+    enum MockNftDataKey {
+        NextTokenId,
+        Owner(u64),
+        TokenUri(u64),
+    }
+
     #[contractimpl]
     impl MockNft {
-        pub fn mint(_env: Env, _to: Address, _token_uri: String) -> u64 {
-            0
+        pub fn mint(env: Env, to: Address, token_uri: String) -> u64 {
+            let next_id: u64 = env
+                .storage()
+                .instance()
+                .get(&MockNftDataKey::NextTokenId)
+                .unwrap_or(0u64);
+            env.storage()
+                .instance()
+                .set(&MockNftDataKey::Owner(next_id), &to);
+            env.storage()
+                .instance()
+                .set(&MockNftDataKey::TokenUri(next_id), &token_uri);
+            env.storage()
+                .instance()
+                .set(&MockNftDataKey::NextTokenId, &(next_id + 1));
+            next_id
+        }
+
+        pub fn owner_of(env: Env, token_id: u64) -> Address {
+            env.storage()
+                .instance()
+                .get(&MockNftDataKey::Owner(token_id))
+                .unwrap_or_else(|| panic!("token does not exist"))
+        }
+
+        pub fn token_uri(env: Env, token_id: u64) -> String {
+            env.storage()
+                .instance()
+                .get(&MockNftDataKey::TokenUri(token_id))
+                .unwrap_or_else(|| panic!("token does not exist"))
+        }
+
+        pub fn transfer(env: Env, from: Address, to: Address, token_id: u64) {
+            let owner: Address = env
+                .storage()
+                .instance()
+                .get(&MockNftDataKey::Owner(token_id))
+                .unwrap_or_else(|| panic!("token does not exist"));
+            if owner != from {
+                panic!("not token owner");
+            }
+            env.storage()
+                .instance()
+                .set(&MockNftDataKey::Owner(token_id), &to);
         }
     }
 
@@ -485,6 +517,7 @@ mod test {
         admin: Address,
         contract_addr: Address,
         client: ShimejiAuctionClient<'static>,
+        nft: MockNftClient<'static>,
         xlm: TokenClient<'static>,
         usdc: TokenClient<'static>,
         xlm_sac: StellarAssetClient<'static>,
@@ -516,9 +549,10 @@ mod test {
         let nft_contract = env.register(MockNft, ());
         let contract_addr = env.register(ShimejiAuction, ());
         let client = ShimejiAuctionClient::new(&env, &contract_addr);
+        let nft = MockNftClient::new(&env, &nft_contract);
         client.initialize(&admin, &nft_contract, &usdc_addr, &xlm_addr);
 
-        TestEnv { env, admin, contract_addr, client, xlm, usdc, xlm_sac, usdc_sac }
+        TestEnv { env, admin, contract_addr, client, nft, xlm, usdc, xlm_sac, usdc_sac }
     }
 
     fn fund_xlm(t: &TestEnv, to: &Address, amount: i128) {
@@ -529,9 +563,21 @@ mod test {
         t.usdc_sac.mint(to, &amount);
     }
 
-    fn create_default_auction(t: &TestEnv) -> u64 {
+    fn mint_nft(t: &TestEnv, to: &Address) -> u64 {
         let uri = String::from_str(&t.env, "ipfs://shimeji-metadata");
-        t.client.create_auction(&uri, &START_XLM, &START_USDC, &XLM_USDC_RATE)
+        t.nft.mint(to, &uri)
+    }
+
+    fn create_default_auction(t: &TestEnv) -> u64 {
+        let token_id = mint_nft(t, &t.admin);
+        t.client.create_item_auction(
+            &t.admin,
+            &token_id,
+            &START_XLM,
+            &START_USDC,
+            &XLM_USDC_RATE,
+            &AUCTION_DURATION,
+        )
     }
 
     fn configure_trustless(t: &TestEnv, xlm_destination: &Address, usdc_destination: &Address) {
@@ -542,7 +588,7 @@ mod test {
     // ── Happy path ─────────────────────────────────────────────
 
     #[test]
-    fn test_create_auction() {
+    fn test_create_item_auction() {
         let t = setup();
         let id = create_default_auction(&t);
         assert_eq!(id, 0);
@@ -652,7 +698,7 @@ mod test {
     }
 
     #[test]
-    fn test_finalize_internal_keeps_winning_funds_in_contract() {
+    fn test_finalize_item_auction_transfers_nft_and_pays_seller() {
         let t = setup();
         create_default_auction(&t);
 
@@ -669,12 +715,14 @@ mod test {
         let info = t.client.get_auction(&0);
         assert_eq!(info.escrow_provider, EscrowProvider::Internal);
         assert!(info.finalized);
-        assert!(!info.escrow_settled);
-        assert_eq!(t.xlm.balance(&t.contract_addr), 600_0000000);
+        assert!(info.escrow_settled);
+        assert_eq!(t.xlm.balance(&t.contract_addr), 0);
+        assert_eq!(t.xlm.balance(&t.admin), 600_0000000);
+        assert_eq!(t.nft.owner_of(&0), bidder);
     }
 
     #[test]
-    fn test_finalize_trustless_moves_winning_funds_to_destination() {
+    fn test_item_auction_uses_trustless_config_when_available() {
         let t = setup();
         let xlm_destination = Address::generate(&t.env);
         let usdc_destination = Address::generate(&t.env);
@@ -697,6 +745,8 @@ mod test {
         assert!(info.escrow_settled);
         assert_eq!(t.xlm.balance(&t.contract_addr), 0);
         assert_eq!(t.xlm.balance(&xlm_destination), 600_0000000);
+        assert_eq!(t.xlm.balance(&t.admin), 0);
+        assert_eq!(t.nft.owner_of(&0), bidder);
     }
 
     #[test]

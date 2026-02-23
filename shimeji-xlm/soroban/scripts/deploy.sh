@@ -45,6 +45,7 @@ set -euo pipefail
 #   MARKETPLACE_SHOWCASE_LIST_PRICE_USDC=20 (human amount)
 #   MARKETPLACE_SHOWCASE_EGG_PRICE_XLM=90 (human amount)
 #   MARKETPLACE_SHOWCASE_EGG_PRICE_USDC=15 (human amount)
+#   MARKETPLACE_SHOWCASE_EGG_ETA_DAYS=14 (integer days for seeded commission egg)
 #   DEPLOY_STEP_DELAY_SECONDS=5 (extra wait after non-local deploy/init steps; default tuned for testnet)
 #   DEPLOY_RETRY_ATTEMPTS=8 (non-local retries for upload/deploy/invoke; default tuned for testnet)
 #   DEPLOY_RETRY_DELAY_SECONDS=8 (seconds between non-local retries; default tuned for testnet)
@@ -91,6 +92,7 @@ MARKETPLACE_SHOWCASE_LIST_PRICE_XLM="${MARKETPLACE_SHOWCASE_LIST_PRICE_XLM:-120}
 MARKETPLACE_SHOWCASE_LIST_PRICE_USDC="${MARKETPLACE_SHOWCASE_LIST_PRICE_USDC:-20}"
 MARKETPLACE_SHOWCASE_EGG_PRICE_XLM="${MARKETPLACE_SHOWCASE_EGG_PRICE_XLM:-90}"
 MARKETPLACE_SHOWCASE_EGG_PRICE_USDC="${MARKETPLACE_SHOWCASE_EGG_PRICE_USDC:-15}"
+MARKETPLACE_SHOWCASE_EGG_ETA_DAYS="${MARKETPLACE_SHOWCASE_EGG_ETA_DAYS:-14}"
 DEPLOY_STEP_DELAY_SECONDS="${DEPLOY_STEP_DELAY_SECONDS:-5}"
 DEPLOY_RETRY_ATTEMPTS="${DEPLOY_RETRY_ATTEMPTS:-8}"
 DEPLOY_RETRY_DELAY_SECONDS="${DEPLOY_RETRY_DELAY_SECONDS:-8}"
@@ -142,6 +144,7 @@ MARKETPLACE_WASM_HASH_ONCHAIN=""
 COMMISSION_WASM_HASH_ONCHAIN=""
 INITIAL_AUCTION_STATUS="not-run"
 INITIAL_AUCTION_ID=""
+INITIAL_AUCTION_TOKEN_ID=""
 INITIAL_AUCTION_STARTING_XLM=""
 INITIAL_AUCTION_STARTING_USDC=""
 MARKETPLACE_SHOWCASE_STATUS="not-run"
@@ -556,6 +559,41 @@ invoke_contract_capture_with_retries() {
   done
 }
 
+mint_initial_item_auction_token_pre_minter_if_enabled() {
+  local output
+
+  if [ "$AUTO_CREATE_INITIAL_AUCTION" != "1" ]; then
+    return
+  fi
+  if [ -n "$INITIAL_AUCTION_TOKEN_ID" ]; then
+    return
+  fi
+  if [ -z "$INITIAL_AUCTION_TOKEN_URI" ]; then
+    INITIAL_AUCTION_STATUS="missing-token-uri"
+    return
+  fi
+
+  echo "==> Minting NFT for initial item auction (before auction minter lock)..."
+  if ! output="$(invoke_contract_capture_with_retries "Mint initial item auction NFT" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint --to "$ADMIN" --token_uri "$INITIAL_AUCTION_TOKEN_URI")"; then
+    INITIAL_AUCTION_STATUS="failed-mint-item-token"
+    return
+  fi
+
+  INITIAL_AUCTION_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+  if [ -z "$INITIAL_AUCTION_TOKEN_ID" ]; then
+    INITIAL_AUCTION_STATUS="failed-parse-item-token-id"
+    return
+  fi
+
+  echo "  Initial item auction NFT minted: token #${INITIAL_AUCTION_TOKEN_ID}"
+}
+
 resolve_marketplace_showcase_seed_mode() {
   case "$AUTO_SEED_MARKETPLACE_SHOWCASE" in
     1|true|TRUE|yes|YES) AUTO_SEED_MARKETPLACE_SHOWCASE="1" ;;
@@ -643,24 +681,32 @@ prepare_marketplace_showcase_assets() {
     echo "  \"network\": \"${NETWORK}\","
     echo "  \"characters\": ["
     local idx=0
-    local image_rel image_url metadata_url escaped_name
+    local image_rel image_url metadata_url escaped_name sprite_src sprite_file sprite_state
     for char in "${all_characters[@]}"; do
-      cp "$runtime_characters_dir/$char/stand-neutral.png" "$sprites_dir/${char}-idle.png"
-      image_rel="/${seed_public_rel}/sprites/${char}-idle.png"
+      sprite_src="$runtime_characters_dir/$char/stand-neutral.png"
+      sprite_file="${char}-idle.png"
+      sprite_state="idle"
+      if [ "$char" = "egg" ] && [ -f "$runtime_characters_dir/$char/sit.png" ]; then
+        sprite_src="$runtime_characters_dir/$char/sit.png"
+        sprite_file="${char}-sit.png"
+        sprite_state="sit"
+      fi
+      cp "$sprite_src" "$sprites_dir/$sprite_file"
+      image_rel="/${seed_public_rel}/sprites/${sprite_file}"
       image_url="${base_url}${image_rel}"
       metadata_url="${base_url}/${seed_public_rel}/metadata/${char}.json"
       escaped_name="$(printf "%s" "$char" | sed 's/"/\\"/g')"
       cat > "$metadata_dir/${char}.json" <<EOF
 {
   "name": "Shimeji Placeholder - ${char}",
-  "description": "Auto-generated placeholder NFT metadata for ${NETWORK} deploy showcase using the ${char} idle sprite.",
+  "description": "Auto-generated placeholder NFT metadata for ${NETWORK} deploy showcase using the ${char} ${sprite_state} sprite.",
   "image": "${image_url}",
   "external_url": "${base_url}/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },
     { "trait_type": "network", "value": "${NETWORK}" },
     { "trait_type": "character", "value": "${char}" },
-    { "trait_type": "sprite_state", "value": "idle" }
+    { "trait_type": "sprite_state", "value": "${sprite_state}" }
   ]
 }
 EOF
@@ -1940,17 +1986,16 @@ seed_marketplace_showcase_examples_if_enabled() {
   fi
   SHOWCASE_SALE_LISTING_ID="$(extract_last_u64_from_output "$output")"
 
-  intention="Auto-seeded swap offer from deployer artist profile (seeking token #${SHOWCASE_SWAP_TARGET_TOKEN_ID})"
-  if ! output="$(invoke_contract_capture_with_retries "Create showcase swap offer" \
+  intention="Auto-seeded open swap listing from deployer artist profile (accepting NFT offers)"
+  if ! output="$(invoke_contract_capture_with_retries "Create showcase swap listing" \
     stellar contract invoke \
       --id "$MARKETPLACE_ID" \
       --source "$IDENTITY" \
       --rpc-url "$RPC_URL" \
       --network-passphrase "$PASSPHRASE" \
-      -- create_swap_offer \
-      --offerer "$ADMIN" \
+      -- create_swap_listing \
+      --creator "$ADMIN" \
       --offered_token_id "$SHOWCASE_SWAP_TOKEN_ID" \
-      --desired_token_id "$SHOWCASE_SWAP_TARGET_TOKEN_ID" \
       --intention "$intention")"; then
     MARKETPLACE_SHOWCASE_STATUS="failed-create-swap"
     return
@@ -1968,7 +2013,8 @@ seed_marketplace_showcase_examples_if_enabled() {
       --token_id "$SHOWCASE_EGG_TOKEN_ID" \
       --price_xlm "$egg_price_xlm_stroops" \
       --price_usdc "$egg_price_usdc_stroops" \
-      --xlm_usdc_rate "$xlm_usdc_rate")"; then
+      --xlm_usdc_rate "$xlm_usdc_rate" \
+      --commission_eta_days "$MARKETPLACE_SHOWCASE_EGG_ETA_DAYS")"; then
     MARKETPLACE_SHOWCASE_STATUS="failed-list-egg"
     return
   fi
@@ -2082,6 +2128,7 @@ deploy_contracts() {
     TRUSTLESS_ESCROW_STATUS="internal"
   fi
 
+  mint_initial_item_auction_token_pre_minter_if_enabled
   mint_marketplace_showcase_tokens_pre_minter_if_enabled
 
   echo "==> Setting auction contract as NFT minter..."
@@ -2109,6 +2156,52 @@ deploy_contracts() {
     --usdc_token "$USDC_TOKEN" \
     --xlm_token "$XLM_TOKEN"
   wait_for_network_propagation_step "ShimejiMarketplace initialize"
+
+  if [ "$ENABLE_TRUSTLESS_ESCROW" = "1" ]; then
+    if [ -n "${ESCROW_VAULT_ID:-}" ]; then
+      echo "==> Granting marketplace contract escrow-vault operator access (commission escrow payouts/refunds)..."
+      run_with_deploy_retries "Set escrow vault operator" \
+        stellar contract invoke \
+        --id "$ESCROW_VAULT_ID" \
+        --source "$IDENTITY" \
+        --rpc-url "$RPC_URL" \
+        --network-passphrase "$PASSPHRASE" \
+        -- set_operator --operator "$MARKETPLACE_ID"
+      wait_for_network_propagation_step "Escrow vault operator configuration"
+
+      echo "==> Configuring marketplace commission escrow to use Trustless escrow destinations..."
+      run_with_deploy_retries "Configure marketplace trustless escrow" \
+        stellar contract invoke \
+        --id "$MARKETPLACE_ID" \
+        --source "$IDENTITY" \
+        --rpc-url "$RPC_URL" \
+        --network-passphrase "$PASSPHRASE" \
+        -- configure_trustless_escrow \
+        --xlm_destination "$TRUSTLESS_ESCROW_XLM_ADDRESS" \
+        --usdc_destination "$TRUSTLESS_ESCROW_USDC_ADDRESS"
+      wait_for_network_propagation_step "ShimejiMarketplace escrow configuration"
+    else
+      echo "==> External Trustless destinations detected without a compatible payout vault interface; keeping marketplace commission escrow internal."
+      run_with_deploy_retries "Configure marketplace internal escrow" \
+        stellar contract invoke \
+        --id "$MARKETPLACE_ID" \
+        --source "$IDENTITY" \
+        --rpc-url "$RPC_URL" \
+        --network-passphrase "$PASSPHRASE" \
+        -- configure_internal_escrow
+      wait_for_network_propagation_step "ShimejiMarketplace internal escrow configuration"
+    fi
+  else
+    echo "==> Using internal marketplace commission escrow mode (Trustless escrow disabled)."
+    run_with_deploy_retries "Configure marketplace internal escrow" \
+      stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- configure_internal_escrow
+    wait_for_network_propagation_step "ShimejiMarketplace internal escrow configuration"
+  fi
 
   # Allow a short pause before deploying the commission contract on non-local
   # networks to ensure the previous transaction is fully settled.
@@ -2147,6 +2240,7 @@ read_total_auctions() {
 create_initial_auction_if_enabled() {
   local total_before
   local create_output
+  local duration_seconds=86400
 
   if [ "$AUTO_CREATE_INITIAL_AUCTION" != "1" ]; then
     [ "$INITIAL_AUCTION_STATUS" = "not-run" ] && INITIAL_AUCTION_STATUS="disabled"
@@ -2164,19 +2258,27 @@ create_initial_auction_if_enabled() {
     return
   fi
 
-  echo "==> Creating initial auction automatically..."
+  if [ -z "$INITIAL_AUCTION_TOKEN_ID" ]; then
+    INITIAL_AUCTION_STATUS="missing-item-token"
+    echo "==> Initial item auction skipped: no NFT was minted for the auction seed."
+    return
+  fi
+
+  echo "==> Creating initial item auction automatically..."
   create_output="$(stellar contract invoke \
     --id "$AUCTION_ID" \
     --source "$IDENTITY" \
     --rpc-url "$RPC_URL" \
     --network-passphrase "$PASSPHRASE" \
-    -- create_auction \
-    --token_uri "$INITIAL_AUCTION_TOKEN_URI" \
+    -- create_item_auction \
+    --seller "$ADMIN" \
+    --token_id "$INITIAL_AUCTION_TOKEN_ID" \
     --starting_price_xlm "$INITIAL_AUCTION_STARTING_XLM" \
     --starting_price_usdc "$INITIAL_AUCTION_STARTING_USDC" \
-    --xlm_usdc_rate "$INITIAL_AUCTION_XLM_USDC_RATE" 2>&1)" || {
+    --xlm_usdc_rate "$INITIAL_AUCTION_XLM_USDC_RATE" \
+    --duration_seconds "$duration_seconds" 2>&1)" || {
       INITIAL_AUCTION_STATUS="failed-create"
-      echo "==> Failed to create initial auction:"
+      echo "==> Failed to create initial item auction:"
       echo "$create_output"
       return
     }
@@ -2187,7 +2289,7 @@ create_initial_auction_if_enabled() {
   fi
 
   INITIAL_AUCTION_STATUS="created"
-  echo "  Initial auction created with id: $INITIAL_AUCTION_ID"
+  echo "  Initial item auction created with id: $INITIAL_AUCTION_ID (token #$INITIAL_AUCTION_TOKEN_ID)"
   echo "  Start price: ${INITIAL_AUCTION_STARTING_USDC} stroops USDC / ${INITIAL_AUCTION_STARTING_XLM} stroops XLM"
 }
 
@@ -2382,9 +2484,10 @@ print_success_summary() {
   else
     echo "  Escrow Provider:  internal"
   fi
-  echo "  Initial Auction:  $INITIAL_AUCTION_STATUS"
+  echo "  Initial Item Auction:  $INITIAL_AUCTION_STATUS"
   if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
     echo "  - Auction ID:     $INITIAL_AUCTION_ID"
+    echo "  - Token ID:       $INITIAL_AUCTION_TOKEN_ID"
     echo "  - Min USDC:       $INITIAL_AUCTION_STARTING_USDC (7 decimals)"
     echo "  - Min XLM:        $INITIAL_AUCTION_STARTING_XLM (7 decimals)"
   fi
@@ -2534,25 +2637,28 @@ print_success_summary() {
   echo ""
   echo "Marketplace quickstart:"
   if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
-    echo "1) Initial auction (shown in the marketplace auction tab) was created automatically."
+    echo "1) Initial item auction (owner-created auction type) was created automatically."
     echo "   - auction_id: $INITIAL_AUCTION_ID"
+    echo "   - token_id: $INITIAL_AUCTION_TOKEN_ID"
     echo "   - token_uri: $INITIAL_AUCTION_TOKEN_URI"
     echo "   - starting_price_xlm: $INITIAL_AUCTION_STARTING_XLM"
     echo "   - starting_price_usdc: $INITIAL_AUCTION_STARTING_USDC"
     echo "   - xlm_usdc_rate: $INITIAL_AUCTION_XLM_USDC_RATE"
     echo ""
   else
-    echo "1) No initial auction was auto-created. Create one manually (admin only):"
+    echo "1) No initial item auction was auto-created. Create one manually (must own the NFT):"
     echo "   stellar contract invoke \\"
     echo "     --id \"$AUCTION_ID\" \\"
     echo "     --source \"$IDENTITY\" \\"
     echo "     --rpc-url \"$RPC_URL\" \\"
     echo "     --network-passphrase \"$PASSPHRASE\" \\"
-    echo "     -- create_auction \\"
-    echo "     --token_uri \"ipfs://<metadata-cid>/metadata.json\" \\"
+    echo "     -- create_item_auction \\"
+    echo "     --seller \"$ADMIN\" \\"
+    echo "     --token_id <token_id_you_own> \\"
     echo "     --starting_price_xlm 5000000000 \\"
     echo "     --starting_price_usdc 500000000 \\"
-    echo "     --xlm_usdc_rate 1000000"
+    echo "     --xlm_usdc_rate 1000000 \\"
+    echo "     --duration_seconds 86400"
     echo ""
   fi
   echo "2) Confirm the auction contract has at least one auction:"
@@ -2576,7 +2682,7 @@ print_success_summary() {
     echo "   - minted token ids: sale=${SHOWCASE_SALE_TOKEN_ID:-n/a}, swap=${SHOWCASE_SWAP_TOKEN_ID:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_TOKEN_ID:-n/a}, egg=${SHOWCASE_EGG_TOKEN_ID:-n/a}"
   fi
   if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
-    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_offer=${SHOWCASE_SWAP_ID:-n/a}"
+    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_listing=${SHOWCASE_SWAP_ID:-n/a}"
   fi
   if [ "$INITIAL_AUCTION_STATUS" != "created" ] && [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" = "1" ]; then
     echo "   - note: no auction sample was created because AUTO_CREATE_INITIAL_AUCTION is disabled or failed."

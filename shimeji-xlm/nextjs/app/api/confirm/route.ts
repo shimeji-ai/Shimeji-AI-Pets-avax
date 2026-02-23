@@ -99,7 +99,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       // Check if contact already exists
-      if (error.name === 'contact_already_exists' || (error.statusCode === 409 && error.message.includes('already exists'))) {
+      const resendErrorName = typeof error.name === "string" ? error.name : String(error.name ?? "");
+      const resendErrorMessage =
+        typeof error.message === "string" ? error.message : String(error.message ?? "");
+      if (
+        resendErrorName === "contact_already_exists" ||
+        (error.statusCode === 409 && resendErrorMessage.includes("already exists"))
+      ) {
         console.log('Contact already exists, redirecting to success.');
         return NextResponse.redirect(
           new URL(`/subscription/success?type=${tokenData.type}&already=true`, request.url)

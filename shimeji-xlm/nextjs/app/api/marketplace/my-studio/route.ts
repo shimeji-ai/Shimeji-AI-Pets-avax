@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
 import type {
+  MyStudioIncomingSwapBidItem,
   MarketplaceMyStudioResponse,
   MyStudioCommissionOrderItem,
   MyStudioListingItem,
-  MyStudioSwapOfferItem,
+  MyStudioOutgoingSwapBidItem,
+  MyStudioSwapListingItem,
 } from "@/lib/marketplace-hub-types";
-import { fetchCommissionOrders, fetchListings, fetchSwapOffers } from "@/lib/marketplace";
+import {
+  fetchCommissionOrders,
+  fetchListings,
+  fetchSwapBids,
+  fetchSwapListings,
+} from "@/lib/marketplace";
 import { fetchNftTokensByIds, fetchOwnedNftsByWallet } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
@@ -20,8 +27,17 @@ function serializeOrder(order: Awaited<ReturnType<typeof fetchCommissionOrders>>
     tokenId: order.tokenId,
     currency: String(order.currency),
     amountPaid: order.amountPaid.toString(),
+    upfrontPaidToSeller: order.upfrontPaidToSeller.toString(),
+    escrowRemaining: order.escrowRemaining.toString(),
+    commissionEtaDays: order.commissionEtaDays,
     intention: order.intention,
     referenceImageUrl: order.referenceImageUrl,
+    latestRevisionIntention: order.latestRevisionIntention,
+    latestRevisionRefUrl: order.latestRevisionRefUrl,
+    revisionRequestCount: order.revisionRequestCount,
+    maxRevisionRequests: order.maxRevisionRequests,
+    metadataUriAtPurchase: order.metadataUriAtPurchase,
+    lastDeliveredMetadataUri: order.lastDeliveredMetadataUri,
     status: order.status,
     fulfilled: order.fulfilled,
     createdAt: order.createdAt,
@@ -43,12 +59,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [profile, ownedNfts, listings, commissionOrders, swapOffers] = await Promise.all([
+    const [profile, ownedNfts, listings, commissionOrders, swapListings, swapBids] = await Promise.all([
       getArtistProfile(wallet),
       fetchOwnedNftsByWallet(wallet, { totalCap }),
       fetchListings(),
       fetchCommissionOrders(),
-      fetchSwapOffers(),
+      fetchSwapListings(),
+      fetchSwapBids(),
     ]);
 
     const myListingsRaw = listings.filter((listing) => listing.seller === wallet && listing.active);
@@ -68,6 +85,7 @@ export async function GET(request: NextRequest) {
         tokenId: listing.tokenId,
         tokenUri: token?.tokenUri ?? null,
         isCommissionEgg: listing.isCommissionEgg || Boolean(token?.isCommissionEgg),
+        commissionEtaDays: listing.commissionEtaDays || 0,
         priceXlm: listing.priceXlm.toString(),
         priceUsdc: listing.priceUsdc.toString(),
         xlmUsdcRate: listing.xlmUsdcRate.toString(),
@@ -85,32 +103,63 @@ export async function GET(request: NextRequest) {
       .map(serializeOrder)
       .sort((a, b) => b.createdAt - a.createdAt);
 
-    const ownedTokenIds = new Set(ownedNfts.map((token) => token.tokenId));
-    const myOutgoingSwapOffers: MyStudioSwapOfferItem[] = swapOffers
-      .filter((offer) => offer.offerer === wallet)
-      .map((offer) => ({
-        swapId: offer.swapId,
-        offerer: offer.offerer,
-        offeredTokenId: offer.offeredTokenId,
-        desiredTokenId: offer.desiredTokenId,
-        intention: offer.intention,
-        active: offer.active,
-        direction: "outgoing" as const,
-      }))
-      .sort((a, b) => b.swapId - a.swapId);
+    const swapListingById = new Map(swapListings.map((listing) => [listing.listingId, listing]));
+    const mySwapListingIds = new Set(
+      swapListings.filter((listing) => listing.creator === wallet && listing.active).map((listing) => listing.listingId),
+    );
+    const activeBidCountByListingId = new Map<number, number>();
+    for (const bid of swapBids) {
+      if (!bid.active) continue;
+      activeBidCountByListingId.set(
+        bid.listingId,
+        (activeBidCountByListingId.get(bid.listingId) || 0) + 1,
+      );
+    }
 
-    const incomingSwapOffersForMyNfts: MyStudioSwapOfferItem[] = swapOffers
-      .filter((offer) => offer.offerer !== wallet && ownedTokenIds.has(offer.desiredTokenId))
-      .map((offer) => ({
-        swapId: offer.swapId,
-        offerer: offer.offerer,
-        offeredTokenId: offer.offeredTokenId,
-        desiredTokenId: offer.desiredTokenId,
-        intention: offer.intention,
-        active: offer.active,
-        direction: "incoming" as const,
+    const mySwapListings: MyStudioSwapListingItem[] = swapListings
+      .filter((listing) => listing.creator === wallet && listing.active)
+      .map((listing) => ({
+        swapListingId: listing.listingId,
+        creator: listing.creator,
+        offeredTokenId: listing.offeredTokenId,
+        intention: listing.intention,
+        active: listing.active,
+        bidCount: activeBidCountByListingId.get(listing.listingId) || 0,
       }))
-      .sort((a, b) => b.swapId - a.swapId);
+      .sort((a, b) => b.swapListingId - a.swapListingId);
+
+    const incomingSwapBidsForMyListings: MyStudioIncomingSwapBidItem[] = swapBids
+      .filter((bid) => bid.active && mySwapListingIds.has(bid.listingId))
+      .map((bid) => {
+        const listing = swapListingById.get(bid.listingId);
+        return {
+          bidId: bid.bidId,
+          listingId: bid.listingId,
+          bidder: bid.bidder,
+          bidderTokenId: bid.bidderTokenId,
+          listingOfferedTokenId: listing?.offeredTokenId ?? 0,
+          listingIntention: listing?.intention ?? "",
+          active: bid.active,
+        };
+      })
+      .sort((a, b) => b.bidId - a.bidId);
+
+    const myOutgoingSwapBids: MyStudioOutgoingSwapBidItem[] = swapBids
+      .filter((bid) => bid.active && bid.bidder === wallet)
+      .map((bid) => {
+        const listing = swapListingById.get(bid.listingId);
+        return {
+          bidId: bid.bidId,
+          listingId: bid.listingId,
+          bidder: bid.bidder,
+          bidderTokenId: bid.bidderTokenId,
+          listingCreator: listing?.creator ?? "",
+          listingOfferedTokenId: listing?.offeredTokenId ?? 0,
+          listingIntention: listing?.intention ?? "",
+          active: bid.active,
+        };
+      })
+      .sort((a, b) => b.bidId - a.bidId);
 
     const activeCommissionEggListing = myListings.find((listing) => listing.isCommissionEgg && listing.active) ?? null;
     const blockingCommissionOrderAsArtist =
@@ -150,8 +199,9 @@ export async function GET(request: NextRequest) {
       myListings,
       myCommissionOrdersAsArtist,
       myCommissionOrdersAsBuyer,
-      myOutgoingSwapOffers,
-      incomingSwapOffersForMyNfts,
+      mySwapListings,
+      incomingSwapBidsForMyListings,
+      myOutgoingSwapBids,
       commissionEggLock,
       auctionCapability: {
         itemAuctionsAvailable: true,

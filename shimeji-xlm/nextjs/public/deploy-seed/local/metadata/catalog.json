@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-02-22T23:08:32Z",
+  "generated_at": "2026-02-23T19:03:37Z",
   "network": "local",
   "characters": [
     { "character": "blob", "image": "http://localhost:3000/deploy-seed/local/sprites/blob-idle.png", "metadata": "http://localhost:3000/deploy-seed/local/metadata/blob.json" }

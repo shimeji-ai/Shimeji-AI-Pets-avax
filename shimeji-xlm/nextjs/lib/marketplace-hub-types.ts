@@ -50,7 +50,7 @@ export type MarketplaceFeedItem = {
   id: string;
   source: "marketplace" | "auction";
   assetKind: "nft" | "commission_egg";
-  saleKind: "fixed_price" | "auction";
+  saleKind: "fixed_price" | "auction" | "swap";
   status: "active" | "ended" | "sold" | "cancelled";
   tokenId: number | null;
   tokenUri: string | null;
@@ -96,6 +96,7 @@ export type MyStudioListingItem = {
   tokenId: number;
   tokenUri: string | null;
   isCommissionEgg: boolean;
+  commissionEtaDays: number;
   priceXlm: string;
   priceUsdc: string;
   xlmUsdcRate: string;
@@ -110,8 +111,17 @@ export type MyStudioCommissionOrderItem = {
   tokenId: number;
   currency: string;
   amountPaid: string;
+  upfrontPaidToSeller: string;
+  escrowRemaining: string;
+  commissionEtaDays: number;
   intention: string;
   referenceImageUrl: string;
+  latestRevisionIntention: string;
+  latestRevisionRefUrl: string;
+  revisionRequestCount: number;
+  maxRevisionRequests: number;
+  metadataUriAtPurchase: string;
+  lastDeliveredMetadataUri: string;
   status: "Accepted" | "Delivered" | "Completed" | "Refunded" | string;
   fulfilled: boolean;
   createdAt: number;
@@ -119,14 +129,34 @@ export type MyStudioCommissionOrderItem = {
   resolvedAt: number;
 };
 
-export type MyStudioSwapOfferItem = {
-  swapId: number;
-  offerer: string;
+export type MyStudioSwapListingItem = {
+  swapListingId: number;
+  creator: string;
   offeredTokenId: number;
-  desiredTokenId: number;
   intention: string;
   active: boolean;
-  direction: "outgoing" | "incoming";
+  bidCount: number;
+};
+
+export type MyStudioIncomingSwapBidItem = {
+  bidId: number;
+  listingId: number;
+  bidder: string;
+  bidderTokenId: number;
+  listingOfferedTokenId: number;
+  listingIntention: string;
+  active: boolean;
+};
+
+export type MyStudioOutgoingSwapBidItem = {
+  bidId: number;
+  listingId: number;
+  bidder: string;
+  bidderTokenId: number;
+  listingCreator: string;
+  listingOfferedTokenId: number;
+  listingIntention: string;
+  active: boolean;
 };
 
 export type MarketplaceMyStudioResponse = {
@@ -136,8 +166,9 @@ export type MarketplaceMyStudioResponse = {
   myListings: MyStudioListingItem[];
   myCommissionOrdersAsArtist: MyStudioCommissionOrderItem[];
   myCommissionOrdersAsBuyer: MyStudioCommissionOrderItem[];
-  myOutgoingSwapOffers: MyStudioSwapOfferItem[];
-  incomingSwapOffersForMyNfts: MyStudioSwapOfferItem[];
+  mySwapListings: MyStudioSwapListingItem[];
+  incomingSwapBidsForMyListings: MyStudioIncomingSwapBidItem[];
+  myOutgoingSwapBids: MyStudioOutgoingSwapBidItem[];
   commissionEggLock: {
     canListNewCommissionEgg: boolean;
     reason: string | null;

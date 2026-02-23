@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { fetchAuctions } from "@/lib/auction";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
-import { fetchListings, fetchSwapOffers } from "@/lib/marketplace";
+import { fetchListings, fetchSwapBids, fetchSwapListings } from "@/lib/marketplace";
 import { fetchNftTokensByIds } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
@@ -38,10 +38,11 @@ export default async function MarketplaceArtistPage({ params }: Params) {
     notFound();
   }
 
-  const [profile, allListings, allSwaps, auctions] = await Promise.all([
+  const [profile, allListings, allSwapListings, allSwapBids, auctions] = await Promise.all([
     getArtistProfile(normalizedWallet),
     fetchListings(),
-    fetchSwapOffers(),
+    fetchSwapListings(),
+    fetchSwapBids(),
     fetchAuctions({ includeEnded: false, limit: 200 }).catch(() => []),
   ]);
 
@@ -51,13 +52,13 @@ export default async function MarketplaceArtistPage({ params }: Params) {
   const tokenRecords = await fetchNftTokensByIds(listings.map((listing) => listing.tokenId));
   const tokenById = new Map(tokenRecords.map((token) => [token.tokenId, token]));
 
-  const outgoingSwaps = allSwaps
-    .filter((swap) => swap.active && swap.offerer === normalizedWallet)
-    .sort((a, b) => b.swapId - a.swapId);
-  const listedTokenIds = new Set(listings.map((listing) => listing.tokenId));
-  const incomingSwapsForListedItems = allSwaps
-    .filter((swap) => swap.active && listedTokenIds.has(swap.desiredTokenId))
-    .sort((a, b) => b.swapId - a.swapId);
+  const outgoingSwaps = allSwapListings
+    .filter((swap) => swap.active && swap.creator === normalizedWallet)
+    .sort((a, b) => b.listingId - a.listingId);
+  const outgoingSwapListingById = new Map(outgoingSwaps.map((swap) => [swap.listingId, swap]));
+  const incomingSwapBidsForListings = allSwapBids
+    .filter((bid) => bid.active && outgoingSwapListingById.has(bid.listingId))
+    .sort((a, b) => b.bidId - a.bidId);
   const itemAuctions = auctions
     .filter(
       (snapshot) =>
@@ -143,7 +144,7 @@ export default async function MarketplaceArtistPage({ params }: Params) {
                   </p>
                 </div>
                 <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs">Base price</p>
+                  <p className="text-xs">Price</p>
                   <p className="mt-1 font-medium text-foreground">
                     {profile?.basePriceXlm ? `${profile.basePriceXlm} XLM` : "-"} /{" "}
                     {profile?.basePriceUsdc ? `${profile.basePriceUsdc} USDC` : "-"}
@@ -322,26 +323,26 @@ export default async function MarketplaceArtistPage({ params }: Params) {
               <h2 className="text-sm font-semibold text-foreground">Swap activity</h2>
               <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                 <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p>Outgoing offers</p>
+                  <p>Open swap listings</p>
                   <p className="mt-1 text-base font-semibold text-foreground">{outgoingSwaps.length}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p>Offers targeting listed NFTs</p>
+                  <p>Incoming swap bids</p>
                   <p className="mt-1 text-base font-semibold text-foreground">
-                    {incomingSwapsForListedItems.length}
+                    {incomingSwapBidsForListings.length}
                   </p>
                 </div>
               </div>
-              {(outgoingSwaps.length || incomingSwapsForListedItems.length) ? (
+              {(outgoingSwaps.length || incomingSwapBidsForListings.length) ? (
                 <div className="mt-3 space-y-2">
                   {outgoingSwaps.slice(0, 4).map((swap) => (
-                    <div key={`artist-out-${swap.swapId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                      <span className="text-foreground">#{swap.swapId}</span> offers #{swap.offeredTokenId} for #{swap.desiredTokenId}
+                    <div key={`artist-out-${swap.listingId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
+                      <span className="text-foreground">Listing #{swap.listingId}</span> offers NFT #{swap.offeredTokenId}
                     </div>
                   ))}
-                  {incomingSwapsForListedItems.slice(0, 4).map((swap) => (
-                    <div key={`artist-in-${swap.swapId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                      <span className="text-foreground">#{swap.swapId}</span> wants listed token #{swap.desiredTokenId}
+                  {incomingSwapBidsForListings.slice(0, 4).map((bid) => (
+                    <div key={`artist-in-${bid.bidId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
+                      <span className="text-foreground">Bid #{bid.bidId}</span> offers NFT #{bid.bidderTokenId} on swap listing #{bid.listingId}
                     </div>
                   ))}
                 </div>

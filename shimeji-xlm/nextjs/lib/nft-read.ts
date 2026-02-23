@@ -105,6 +105,12 @@ export async function fetchNftTokenById(tokenId: number): Promise<NftTokenRecord
   };
 }
 
+export async function fetchNftCreatorById(tokenId: number): Promise<string | null> {
+  if (!Number.isInteger(tokenId) || tokenId < 0) return null;
+  const creator = await simulateRead("creator_of", nativeToScVal(tokenId, { type: "u64" }));
+  return typeof creator === "string" ? creator : null;
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,

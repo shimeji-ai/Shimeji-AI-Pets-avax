@@ -215,8 +215,8 @@ Mainnet uses:
 
 ## Create The First Auction (Manual Override)
 
-By default, deploy now auto-creates the first auction.
-Use these commands only if you disable auto-creation or want additional auctions.
+By default, deploy now auto-creates the first item auction (using a minted NFT).
+Use these commands only if you disable auto-creation or want additional item auctions.
 
 ### Testnet
 
@@ -226,11 +226,13 @@ stellar contract invoke \
   --source "shimeji-deployer" \
   --rpc-url "https://soroban-testnet.stellar.org" \
   --network-passphrase "Test SDF Network ; September 2015" \
-  -- create_auction \
-  --token_uri "ipfs://<metadata-cid>/metadata.json" \
+  -- create_item_auction \
+  --seller "<SELLER_WALLET>" \
+  --token_id <TOKEN_ID_OWNED_BY_SELLER> \
   --starting_price_xlm 5000000000 \
   --starting_price_usdc 500000000 \
-  --xlm_usdc_rate 1200000
+  --xlm_usdc_rate 1200000 \
+  --duration_seconds 86400
 ```
 
 ### Mainnet
@@ -241,17 +243,19 @@ stellar contract invoke \
   --source "shimeji-deployer" \
   --rpc-url "https://mainnet.sorobanrpc.com" \
   --network-passphrase "Public Global Stellar Network ; September 2015" \
-  -- create_auction \
-  --token_uri "ipfs://<metadata-cid>/metadata.json" \
+  -- create_item_auction \
+  --seller "<SELLER_WALLET>" \
+  --token_id <TOKEN_ID_OWNED_BY_SELLER> \
   --starting_price_xlm 5000000000 \
   --starting_price_usdc 500000000 \
-  --xlm_usdc_rate 1200000
+  --xlm_usdc_rate 1200000 \
+  --duration_seconds 86400
 ```
 
 Notes:
 
 - Amounts use 7 decimals (for example `5000000000` = `500 XLM`).
-- `token_uri` can be placeholder metadata and updated later after mint.
+- The seller must own the `token_id` before creating the item auction.
 
 ## Update NFT Metadata Later
 

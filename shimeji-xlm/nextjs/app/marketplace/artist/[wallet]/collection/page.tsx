@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { fetchAuctions } from "@/lib/auction";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
-import { fetchListings, fetchSwapOffers } from "@/lib/marketplace";
+import { fetchListings, fetchSwapBids, fetchSwapListings } from "@/lib/marketplace";
 import { fetchOwnedNftsByWallet } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
@@ -26,12 +26,13 @@ export default async function ArtistCollectionPage({ params }: Params) {
     notFound();
   }
 
-  const [profile, ownedNfts, listings, auctions, swaps] = await Promise.all([
+  const [profile, ownedNfts, listings, auctions, swapListings, swapBids] = await Promise.all([
     getArtistProfile(normalizedWallet),
     fetchOwnedNftsByWallet(normalizedWallet, { totalCap: 1000 }).catch(() => []),
     fetchListings().catch(() => []),
     fetchAuctions({ includeEnded: false, limit: 500 }).catch(() => []),
-    fetchSwapOffers().catch(() => []),
+    fetchSwapListings().catch(() => []),
+    fetchSwapBids().catch(() => []),
   ]);
 
   const activeListingsByToken = new Map(
@@ -52,15 +53,23 @@ export default async function ArtistCollectionPage({ params }: Params) {
   );
 
   const outgoingSwapsByOfferedToken = new Map<number, number>();
-  const incomingSwapsByDesiredToken = new Map<number, number>();
-  for (const swap of swaps.filter((swap) => swap.active)) {
+  const myActiveSwapListings = swapListings.filter(
+    (listing) => listing.active && listing.creator === normalizedWallet,
+  );
+  for (const listing of myActiveSwapListings) {
     outgoingSwapsByOfferedToken.set(
-      swap.offeredTokenId,
-      (outgoingSwapsByOfferedToken.get(swap.offeredTokenId) || 0) + 1,
+      listing.offeredTokenId,
+      (outgoingSwapsByOfferedToken.get(listing.offeredTokenId) || 0) + 1,
     );
-    incomingSwapsByDesiredToken.set(
-      swap.desiredTokenId,
-      (incomingSwapsByDesiredToken.get(swap.desiredTokenId) || 0) + 1,
+  }
+  const myListingById = new Map(myActiveSwapListings.map((listing) => [listing.listingId, listing]));
+  const incomingSwapBidsByOfferedToken = new Map<number, number>();
+  for (const bid of swapBids.filter((bid) => bid.active)) {
+    const listing = myListingById.get(bid.listingId);
+    if (!listing) continue;
+    incomingSwapBidsByOfferedToken.set(
+      listing.offeredTokenId,
+      (incomingSwapBidsByOfferedToken.get(listing.offeredTokenId) || 0) + 1,
     );
   }
 
@@ -122,7 +131,7 @@ export default async function ArtistCollectionPage({ params }: Params) {
               const listing = activeListingsByToken.get(token.tokenId) ?? null;
               const auction = activeItemAuctionsByToken.get(token.tokenId) ?? null;
               const outgoingSwapCount = outgoingSwapsByOfferedToken.get(token.tokenId) || 0;
-              const incomingSwapCount = incomingSwapsByDesiredToken.get(token.tokenId) || 0;
+              const incomingSwapCount = incomingSwapBidsByOfferedToken.get(token.tokenId) || 0;
 
               return (
                 <article
@@ -148,12 +157,12 @@ export default async function ArtistCollectionPage({ params }: Params) {
                       ) : null}
                       {outgoingSwapCount > 0 ? (
                         <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-2 py-0.5 text-foreground">
-                          swap out {outgoingSwapCount}
+                          swap listings {outgoingSwapCount}
                         </span>
                       ) : null}
                       {incomingSwapCount > 0 ? (
                         <span className="rounded-full border border-slate-300/20 bg-slate-300/10 px-2 py-0.5 text-foreground">
-                          swap in {incomingSwapCount}
+                          swap bids {incomingSwapCount}
                         </span>
                       ) : null}
                     </div>
