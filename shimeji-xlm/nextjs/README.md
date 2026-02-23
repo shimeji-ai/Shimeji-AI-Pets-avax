@@ -73,6 +73,33 @@ pnpm start
 3. Deploy.
 4. Verify `https://<domain>/auction` loads the active auction.
 
+### Sync env vars from deploy outputs (recommended)
+
+From `shimeji-xlm/`, run:
+
+```bash
+pnpm vercel:env:testnet
+```
+
+Or let the script ask you `testnet` vs `mainnet`:
+
+```bash
+pnpm vercel:env
+```
+
+If you want it to sync envs and immediately trigger a Vercel deploy from the CLI:
+
+```bash
+pnpm vercel:env:deploy
+# or explicit:
+pnpm vercel:env:testnet:deploy
+pnpm vercel:env:mainnet:deploy
+```
+
+When you deploy contracts via `shimeji-xlm/scripts/deploy.sh` (`pnpm run deploy:testnet` / `pnpm run deploy:mainnet`), the script now offers this Vercel sync + optional redeploy step interactively at the end.
+
+The sync script now forces Vercel CLI to use `shimeji-xlm/nextjs` as the working directory. For non-interactive use (CI or first-time setup), set `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` so it can create `nextjs/.vercel/project.json` automatically.
+
 ## Notes
 
 - Auction data comes from `NEXT_PUBLIC_AUCTION_CONTRACT_ID`.

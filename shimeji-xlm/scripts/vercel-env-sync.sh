@@ -5,26 +5,32 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 NEXTJS_DIR="$ROOT_DIR/nextjs"
 DEPLOY_ENV_DIR="${DEPLOY_ENV_EXPORT_DIR:-$ROOT_DIR/.deploy-env}"
+VERCEL_LINK_FILE="$NEXTJS_DIR/.vercel/project.json"
 
-RAW_ARGS=()
+POSITIONAL_ARGS=()
+DEPLOY_AFTER_SYNC=0
 for arg in "$@"; do
-  if [ "$arg" = "--" ]; then
-    continue
-  fi
-  RAW_ARGS+=("$arg")
+  case "$arg" in
+    --)
+      ;;
+    --deploy|--redeploy)
+      DEPLOY_AFTER_SYNC=1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$arg")
+      ;;
+  esac
 done
 
-NETWORK="${RAW_ARGS[0]:-${NETWORK:-}}"
-TARGET_ENV="${RAW_ARGS[1]:-${VERCEL_ENVIRONMENT:-production}}"
-THIRD_ARG="${RAW_ARGS[2]:-}"
-DEPLOY_AFTER_SYNC=0
-
-if [ "$THIRD_ARG" = "--deploy" ] || [ "$THIRD_ARG" = "--redeploy" ]; then
-  DEPLOY_AFTER_SYNC=1
-fi
+NETWORK="${POSITIONAL_ARGS[0]:-${NETWORK:-}}"
+TARGET_ENV="${POSITIONAL_ARGS[1]:-${VERCEL_ENVIRONMENT:-production}}"
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+vercel_cli() {
+  vercel --cwd "$NEXTJS_DIR" "$@"
 }
 
 die() {
@@ -66,14 +72,39 @@ if ! need_cmd vercel; then
   die "Vercel CLI not found. Install with: npm i -g vercel"
 fi
 
-if ! vercel whoami >/dev/null 2>&1; then
+if ! vercel_cli whoami >/dev/null 2>&1; then
   if [ -t 0 ]; then
     echo "==> Vercel login required."
-    vercel login
+    vercel_cli login
   else
     die "Not logged in to Vercel. Run: vercel login"
   fi
 fi
+
+ensure_vercel_link() {
+  if [ -f "$VERCEL_LINK_FILE" ]; then
+    return
+  fi
+
+  if [ -n "${VERCEL_PROJECT_ID:-}" ] && [ -n "${VERCEL_ORG_ID:-}" ]; then
+    mkdir -p "$(dirname "$VERCEL_LINK_FILE")"
+    cat > "$VERCEL_LINK_FILE" <<EOF
+{"orgId":"$VERCEL_ORG_ID","projectId":"$VERCEL_PROJECT_ID"}
+EOF
+    echo "==> Created $VERCEL_LINK_FILE from VERCEL_ORG_ID/VERCEL_PROJECT_ID"
+    return
+  fi
+
+  if [ -t 0 ]; then
+    echo "==> No Vercel link found for $NEXTJS_DIR"
+    echo "==> Linking this subfolder to the Vercel project (root dir should be shimeji-xlm/nextjs)..."
+    vercel_cli link
+    [ -f "$VERCEL_LINK_FILE" ] || die "Vercel link did not create $VERCEL_LINK_FILE"
+    return
+  fi
+
+  die "Missing $VERCEL_LINK_FILE. Run 'vercel link' in $NEXTJS_DIR once, or set VERCEL_ORG_ID and VERCEL_PROJECT_ID."
+}
 
 set -a
 # shellcheck disable=SC1090
@@ -87,24 +118,25 @@ if [ -z "${NEXT_PUBLIC_BASE_URL:-}" ] && [ -t 0 ]; then
   fi
 fi
 
+ensure_vercel_link
+
 upsert_vercel_env() {
   local key="$1"
   local value="$2"
   if [ -z "$value" ]; then
     return
   fi
-  vercel env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
-  printf "%s\n" "$value" | vercel env add "$key" "$TARGET_ENV" >/dev/null
+  vercel_cli env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
+  printf "%s\n" "$value" | vercel_cli env add "$key" "$TARGET_ENV" >/dev/null
   echo "  synced $key -> $TARGET_ENV"
 }
 
 remove_vercel_env() {
   local key="$1"
-  vercel env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
+  vercel_cli env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
   echo "  removed $key from $TARGET_ENV"
 }
 
-cd "$NEXTJS_DIR"
 echo "==> Syncing env vars from $ENV_FILE to Vercel ($TARGET_ENV)..."
 upsert_vercel_env "NEXT_PUBLIC_NFT_CONTRACT_ID" "${NEXT_PUBLIC_NFT_CONTRACT_ID:-}"
 upsert_vercel_env "NEXT_PUBLIC_AUCTION_CONTRACT_ID" "${NEXT_PUBLIC_AUCTION_CONTRACT_ID:-}"
@@ -124,17 +156,30 @@ fi
 upsert_vercel_env "NEXT_PUBLIC_BASE_URL" "${NEXT_PUBLIC_BASE_URL:-}"
 
 echo "==> Vercel env sync complete."
+if [ "$DEPLOY_AFTER_SYNC" -eq 0 ] && [ -t 0 ]; then
+  if [ "$TARGET_ENV" = "production" ]; then
+    read -r -p "Deploy to Vercel production now so env changes take effect? [y/N]: " deploy_choice
+  else
+    read -r -p "Deploy to Vercel ($TARGET_ENV) now so env changes take effect? [y/N]: " deploy_choice
+  fi
+  case "${deploy_choice:-N}" in
+    y|Y|yes|YES)
+      DEPLOY_AFTER_SYNC=1
+      ;;
+  esac
+fi
+
 if [ "$DEPLOY_AFTER_SYNC" -eq 1 ]; then
   echo "==> Deploying frontend after env sync..."
   if [ "$TARGET_ENV" = "production" ]; then
-    vercel --prod
+    vercel_cli --prod
   else
-    vercel
+    vercel_cli
   fi
 else
   if [ "$TARGET_ENV" = "production" ]; then
-    echo "Next step: cd \"$NEXTJS_DIR\" && vercel --prod"
+    echo "Next step: vercel --cwd \"$NEXTJS_DIR\" --prod"
   else
-    echo "Next step: cd \"$NEXTJS_DIR\" && vercel"
+    echo "Next step: vercel --cwd \"$NEXTJS_DIR\""
   fi
 fi

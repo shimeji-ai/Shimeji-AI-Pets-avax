@@ -9,3 +9,5 @@ shimeji-ee/
 legacy/
 .codex-home/
 .opencode/plans/
+.vercel
+.env*.local

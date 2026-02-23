@@ -128,16 +128,23 @@ fi
 cd "$ROOT_DIR"
 if [ "$NETWORK" = "testnet" ] || [ "$NETWORK" = "mainnet" ]; then
   echo ""
-  echo "==> Optional Vercel env sync for $NETWORK:"
-  echo "    pnpm run vercel:env:$NETWORK -- production"
+  echo "==> Optional Vercel frontend update for $NETWORK:"
+  echo "    pnpm run vercel:env:$NETWORK           # sync envs, asks to deploy"
+  echo "    pnpm run vercel:env:$NETWORK:deploy    # sync envs + deploy immediately"
   if [ "$INTERACTIVE" -eq 1 ] && need_cmd vercel; then
-    sync_choice="$(arrow_menu "Sync contract vars to Vercel now?" "Yes (production)" "Yes (preview)" "Skip")"
+    sync_choice="$(arrow_menu "Update Vercel frontend now?" "Sync envs (production), then ask to deploy" "Sync envs + deploy production now" "Sync envs (preview), then ask to deploy" "Sync envs + deploy preview now" "Skip")"
     case "${sync_choice:-2}" in
       0)
         pnpm run "vercel:env:$NETWORK" -- production || true
         ;;
       1)
+        pnpm run "vercel:env:$NETWORK" -- production --deploy || true
+        ;;
+      2)
         pnpm run "vercel:env:$NETWORK" -- preview || true
+        ;;
+      3)
+        pnpm run "vercel:env:$NETWORK" -- preview --deploy || true
         ;;
       *)
         ;;

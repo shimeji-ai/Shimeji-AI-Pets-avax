@@ -16,15 +16,25 @@ The launcher handles chain + frontend + deploy for local, testnet, or mainnet. I
 
 ## Deploy to Vercel
 
-1. Run `./shimeji-xlm/launch.sh`, choose `testnet` or `mainnet`.
-2. Sync env vars:
+Recommended (integrated):
+
+1. Run `./shimeji-xlm/launch.sh` (or `cd shimeji-xlm && pnpm run deploy`), choose `testnet` or `mainnet`.
+2. After contract deploy completes, use the built-in prompt to:
+   - sync Vercel env vars (`production` or `preview`)
+   - optionally trigger a Vercel deploy immediately from the CLI
+
+Manual commands (from `shimeji-xlm/`):
 
 ```bash
-cd shimeji-xlm
-pnpm run vercel:env:testnet -- production   # or mainnet
+pnpm run vercel:env              # asks testnet/mainnet, then asks whether to deploy
+pnpm run vercel:env:deploy       # asks testnet/mainnet, syncs envs, then deploys
+pnpm run vercel:env:testnet      # explicit network
+pnpm run vercel:env:testnet:deploy
+pnpm run vercel:env:mainnet
+pnpm run vercel:env:mainnet:deploy
 ```
 
-3. Redeploy on Vercel.
+If you choose sync-only, the script will prompt to deploy right after env sync. Production env changes only take effect on a new deployment.
 
 ## Manual Mode (3 terminals)
 

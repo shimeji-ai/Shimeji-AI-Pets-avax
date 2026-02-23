@@ -25,6 +25,8 @@ pnpm chain            # local blockchain
 pnpm run deploy:local  # local deploy (+ local frontend env sync)
 pnpm run deploy:testnet
 pnpm run deploy:mainnet
+pnpm run vercel:env            # choose testnet/mainnet, sync Vercel envs
+pnpm run vercel:env:deploy     # choose testnet/mainnet, sync + deploy on Vercel
 pnpm run test:networks # local + testnet checks (mainnet prepared but skipped)
 ```
 
@@ -87,6 +89,7 @@ What this does:
 - If Trustless escrow addresses are missing on testnet, auto-deploys a fallback escrow vault and wires it automatically.
 - Auto-creates the first auction by default right after deploy (minimum configurable in USDC or XLM).
 - Prints Vercel env values for all networks.
+- After `testnet`/`mainnet` deploy (interactive mode), offers to sync Vercel env vars and optionally trigger a Vercel deploy immediately.
 
 Security note:
 
@@ -164,13 +167,20 @@ The script prints:
 - Contract verification results (automatic) plus manual re-run commands
 - A generated env file at `shimeji-xlm/.deploy-env/<network>.env` for Vercel CLI sync
 
-After `testnet` or `mainnet` deploy, you can sync to Vercel from `shimeji-xlm/`:
+After `testnet` or `mainnet` deploy, the wrapper script `shimeji-xlm/scripts/deploy.sh` now offers an integrated Vercel sync/redeploy prompt.
+
+You can also run the Vercel step manually from `shimeji-xlm/`:
 
 ```bash
+pnpm run vercel:env              # asks testnet/mainnet
+pnpm run vercel:env:deploy       # asks testnet/mainnet, then deploys
 pnpm run vercel:env:testnet -- production
-# or
+pnpm run vercel:env:testnet:deploy
 pnpm run vercel:env:mainnet -- production
+pnpm run vercel:env:mainnet:deploy
 ```
+
+Production env changes require a new deployment to take effect; the script can now trigger that redeploy from the CLI.
 
 Testnet USDC issuer is already configured in the deploy script as:
 

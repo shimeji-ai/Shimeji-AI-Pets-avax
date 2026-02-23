@@ -16,8 +16,11 @@
     "test:testnet": "./scripts/test-networks.sh --testnet-only",
     "test:mainnet": "./scripts/test-networks.sh --mainnet-only",
     "vercel:env": "./scripts/vercel-env-sync.sh",
+    "vercel:env:deploy": "./scripts/vercel-env-sync.sh --deploy",
     "vercel:env:testnet": "./scripts/vercel-env-sync.sh testnet",
-    "vercel:env:mainnet": "./scripts/vercel-env-sync.sh mainnet"
+    "vercel:env:testnet:deploy": "./scripts/vercel-env-sync.sh testnet production --deploy",
+    "vercel:env:mainnet": "./scripts/vercel-env-sync.sh mainnet",
+    "vercel:env:mainnet:deploy": "./scripts/vercel-env-sync.sh mainnet production --deploy"
   },
   "packageManager": "pnpm@10.24.0"
 }
