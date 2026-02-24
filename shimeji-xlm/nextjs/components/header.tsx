@@ -158,7 +158,7 @@ export function Header() {
   const walletLabel = publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : null;
   const profileTitle = walletProfileDisplayName || (isSpanish ? "Mi perfil" : "My profile");
   const profileInitial = (walletProfileDisplayName || publicKey || "W").trim().charAt(0).toUpperCase();
-  const profileConfigHref = "/settings?studioTab=profile&openTools=1";
+  const profileConfigHref = "/marketplace?tab=studio";
   const myProfileHref = publicKey ? `/profile/${encodeURIComponent(publicKey)}` : "/settings";
   const menuActionClass =
     "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5";

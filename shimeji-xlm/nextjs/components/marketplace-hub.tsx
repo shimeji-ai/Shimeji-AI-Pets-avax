@@ -73,6 +73,7 @@ import {
 } from "lucide-react";
 
 type MarketplaceHubMode = "all" | "marketplace" | "settings";
+type ProfileSettingsTab = "profile" | "artist";
 
 type MarketplaceHubProps = {
   mode?: MarketplaceHubMode;
@@ -85,6 +86,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const t = (en: string, es: string) => (isSpanish ? es : en);
   const [activeTopTab, setActiveTopTab] = useState<HubTopTab>(mode === "settings" ? "studio" : "marketplace");
   const [activeStudioTab, setActiveStudioTab] = useState<StudioWorkspaceTab>("profile");
+  const [activeProfileSettingsTab, setActiveProfileSettingsTab] = useState<ProfileSettingsTab>("profile");
 
   const [feedAssetFilter, setFeedAssetFilter] = useState<FeedAssetFilter>("all");
   const [feedSaleFilter, setFeedSaleFilter] = useState<FeedSaleFilter>("all");
@@ -299,8 +301,16 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const isSettingsOnlyMode = mode === "settings";
   const showTopTabs = mode === "all";
   const showStudioProfilePreview = !isSettingsOnlyMode;
-  const shouldForceStudioToolsOpen = Boolean(studioError);
-  const isStudioToolsExpanded = shouldForceStudioToolsOpen || studioToolsOpen;
+  const studioSectionTitle = t("Settings", "Configuración");
+  const studioSectionSubtitle = isSettingsOnlyMode
+    ? t(
+        "Configure your wallet profile and optional artist settings. Marketplace actions happen on each NFT page.",
+        "Configura tu perfil de wallet y ajustes opcionales de artista. Las acciones del marketplace se hacen en la página de cada NFT.",
+      )
+    : t(
+        "Your profile, links and NFTs. Marketplace actions are available from each NFT detail page.",
+        "Tu perfil, redes y NFTs. Las acciones del marketplace están en la página de detalle de cada NFT.",
+      );
 
   useEffect(() => {
     const tokenUris = Array.from(
@@ -936,7 +946,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
               }`}
             >
               <UserRound className="h-3.5 w-3.5" />
-              {t("My Space", "Mi espacio")}
+              {t("Settings", "Configuración")}
             </button>
           </div>
         </div>
@@ -975,13 +985,10 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           <div>
             <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
               <UserRound className="h-5 w-5 text-blue-300" />
-              {t("My Space", "Mi espacio")}
+              {studioSectionTitle}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {t(
-                "Your profile, links and NFTs. Open advanced tools only when you need marketplace operations.",
-                "Tu perfil, redes y NFTs. Abre herramientas avanzadas solo cuando necesites operar en el marketplace.",
-              )}
+              {studioSectionSubtitle}
             </p>
           </div>
           {publicKey ? (
@@ -1217,8 +1224,12 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
             <div className="flex flex-col items-center gap-3">
               <p>
                 {t(
-                  "Connect a Stellar wallet to view your Space.",
-                  "Conecta una wallet Stellar para ver tu espacio.",
+                  isSettingsOnlyMode
+                    ? "Connect a Stellar wallet to open settings."
+                    : "Connect a Stellar wallet to view your profile and NFTs.",
+                  isSettingsOnlyMode
+                    ? "Conecta una wallet Stellar para abrir configuración."
+                    : "Conecta una wallet Stellar para ver tu perfil y NFTs.",
                 )}
               </p>
               <Button
@@ -1235,79 +1246,17 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           </div>
         ) : null}
 
-        <details
-          className={`mb-4 rounded-2xl border border-border bg-white/5 p-3 ${!isConnected || !publicKey ? "hidden" : ""}`}
-          open={isStudioToolsExpanded}
-          onToggle={(event) => setStudioToolsOpen((event.currentTarget as HTMLDetailsElement).open)}
-        >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-border bg-white/5 px-3 py-2">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {t("Advanced tools", "Herramientas avanzadas")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  "Profile editing, listings, swaps and commission operations.",
-                  "Edición de perfil, publicaciones, swaps y operaciones de comisión.",
-                )}
-              </p>
-            </div>
-            <span className="rounded-full border border-border bg-white/5 px-3 py-1 text-[11px] text-muted-foreground">
-              {isStudioToolsExpanded
-                ? t("Hide advanced tools", "Ocultar herramientas avanzadas")
-                : t("Open advanced tools", "Abrir herramientas avanzadas")}
-            </span>
-          </summary>
-          <div className="mt-3">
-
-        <div className="mb-4 rounded-2xl border border-border bg-white/5 p-2">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab("profile")}
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs transition ${
-                activeStudioTab === "profile"
-                  ? "border-blue-300/30 bg-blue-400/15 text-foreground"
-                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-              }`}
-            >
-              {t("Profile", "Perfil")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab("sell")}
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs transition ${
-                activeStudioTab === "sell"
-                  ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
-                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-              }`}
-            >
-              {t("Sell", "Vender")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab("swaps")}
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs transition ${
-                activeStudioTab === "swaps"
-                  ? "border-sky-300/30 bg-sky-400/15 text-foreground"
-                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-              }`}
-            >
-              {t("Swaps", "Swaps")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveStudioTab("commissions")}
-              className={`inline-flex w-full cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs transition ${
-                activeStudioTab === "commissions"
-                  ? "border-amber-300/30 bg-amber-400/15 text-foreground"
-                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-              }`}
-            >
-              {t("Commissions", "Comisiones")}
-            </button>
+        <div className={`mb-4 rounded-2xl border border-border bg-white/5 p-3 ${!isConnected || !publicKey ? "hidden" : ""}`}>
+          <div className="rounded-xl border border-border bg-white/5 px-3 py-2">
+            <p className="text-sm font-semibold text-foreground">{t("Profile settings", "Configuración de perfil")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "This page is for profile and artist settings. Marketplace operations were moved to NFT detail pages.",
+                "Esta página es para configuración de perfil y artista. Las operaciones del marketplace se movieron a las páginas de detalle de NFT.",
+              )}
+            </p>
           </div>
-        </div>
+          <div className="mt-3">
 
         {studioError ? (
           <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-foreground">
@@ -1315,10 +1264,8 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           </div>
         ) : null}
 
-        {publicKey &&
-        (activeStudioTab === "profile" || activeStudioTab === "sell" || activeStudioTab === "swaps") ? (
+        {publicKey ? (
           <div className="mt-4 grid gap-4">
-            {activeStudioTab === "profile" ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-border bg-white/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1372,6 +1319,31 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     "Los artistas pueden activar comisiones y listar huevos de comision. Las subastas por item siguen en desarrollo.",
                   )}
                 </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-white/5 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveProfileSettingsTab("profile")}
+                    className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs transition ${
+                      activeProfileSettingsTab === "profile"
+                        ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                        : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                    }`}
+                  >
+                    {t("Profile", "Perfil")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveProfileSettingsTab("artist")}
+                    className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs transition ${
+                      activeProfileSettingsTab === "artist"
+                        ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
+                        : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                    }`}
+                  >
+                    {t("Artist", "Artista")}
+                  </button>
+                </div>
+                {activeProfileSettingsTab === "artist" ? (
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">{t("Quick setup", "Configuracion rapida")}</p>
                   <p className="mt-1">
@@ -1381,7 +1353,19 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     )}
                   </p>
                 </div>
+                ) : (
+                <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">{t("Profile customization", "Personalización del perfil")}</p>
+                  <p className="mt-1">
+                    {t(
+                      "Edit your public display info, banner, bio, style tags and links here. Artist-specific options are in the Artist tab.",
+                      "Edita aquí tu información pública, portada, bio, estilo y enlaces. Las opciones de artista están en la pestaña Artista.",
+                    )}
+                  </p>
+                </div>
+                )}
 
+                {activeProfileSettingsTab === "artist" ? (
                 <div className="mt-4 space-y-3">
                   <ToggleField
                     label={t("Artist profile enabled", "Perfil de artista habilitado")}
@@ -1424,8 +1408,11 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     disabled={!canEditProfile}
                   />
                 </div>
+                ) : null}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {activeProfileSettingsTab === "profile" ? (
+                  <>
                   <InputField
                     label={t("Display name", "Nombre visible")}
                     value={profileDraft.displayName}
@@ -1455,6 +1442,10 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     placeholder={t("cute, pixel, anime", "cute, pixel, anime")}
                     disabled={!canEditProfile}
                   />
+                  </>
+                  ) : null}
+                  {activeProfileSettingsTab === "artist" ? (
+                  <>
                   <InputField
                     label={t("Price XLM", "Precio XLM")}
                     value={profileDraft.basePriceXlm}
@@ -1469,8 +1460,11 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     placeholder="15"
                     disabled={!canEditProfile}
                   />
+                  </>
+                  ) : null}
                 </div>
 
+                {activeProfileSettingsTab === "profile" ? (
                 <div className="mt-3">
                   <InputField
                     label={t("Bio", "Bio")}
@@ -1485,7 +1479,9 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     disabled={!canEditProfile}
                   />
                 </div>
+                ) : null}
 
+                {activeProfileSettingsTab === "profile" ? (
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
@@ -1587,16 +1583,22 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     ))}
                   </div>
                 </div>
+                ) : null}
 
-                <details className="mt-3 rounded-xl border border-border bg-white/5 p-3">
-                  <summary className="cursor-pointer text-sm font-medium text-foreground">
-                    {t("Advanced profile settings", "Configuracion avanzada del perfil")}
-                  </summary>
+                <div className="mt-3 rounded-xl border border-border bg-white/5 p-3">
+                  <p className="text-sm font-medium text-foreground">
+                    {activeProfileSettingsTab === "profile"
+                      ? t("Profile extras", "Extras del perfil")
+                      : t("Artist settings", "Configuración de artista")}
+                  </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {t("Optional fields for banner, delivery times, slots and preferences.", "Campos opcionales para banner, tiempos de entrega, cupos y preferencias.")}
+                    {activeProfileSettingsTab === "profile"
+                      ? t("Banner and extra public profile details.", "Portada y detalles extra del perfil público.")
+                      : t("Commission timing, capacity and preferences.", "Tiempos de comisión, capacidad y preferencias.")}
                   </p>
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {activeProfileSettingsTab === "profile" ? (
                     <InputField
                       label={t("Banner URL", "URL banner")}
                       type="url"
@@ -1604,6 +1606,9 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                       onChange={(value) => setProfileDraft((prev) => ({ ...prev, bannerUrl: value }))}
                       disabled={!canEditProfile}
                     />
+                    ) : null}
+                    {activeProfileSettingsTab === "artist" ? (
+                    <>
                     <InputField
                       label={t("Preferred auction duration (hours)", "Duracion de subasta preferida (horas)")}
                       type="number"
@@ -1639,8 +1644,10 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                       onChange={(value) => setProfileDraft((prev) => ({ ...prev, slotsOpen: value }))}
                       disabled={!canEditProfile}
                     />
+                    </>
+                    ) : null}
                   </div>
-                </details>
+                </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button
@@ -1664,627 +1671,11 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                 </div>
               </div>
             </div>
-            ) : null}
-
-            {(activeStudioTab === "sell" || activeStudioTab === "swaps") ? (
-            <div className="space-y-4">
-              {activeStudioTab === "sell" ? (
-              <div className="rounded-2xl border border-border bg-white/5 p-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {t("Create listing", "Crear publicacion")}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t(
-                    "List your NFT or commission egg for fixed price. Per-item auctions are still in development.",
-                    "Lista tu NFT o huevo de comision a precio fijo. Las subastas por item siguen en desarrollo.",
-                  )}
-                </p>
-
-                <div className="mt-4 space-y-3">
-                  <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    <span>{t("Select owned token", "Seleccionar token propio")}</span>
-                    <select
-                      className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                      value={selectedTokenId}
-                      onChange={(event) => setSelectedTokenId(event.target.value)}
-                    >
-                      <option value="">{t("Choose a token...", "Elegi un token...")}</option>
-                      {(studio?.ownedNfts || []).map((token) => (
-                        <option key={token.tokenId} value={String(token.tokenId)}>
-                          #{token.tokenId} - {token.isCommissionEgg ? t("Commission Egg", "Huevo de Comision") : "NFT"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <InputField
-                      label={t("Price XLM", "Precio XLM")}
-                      value={listingPriceXlm}
-                      onChange={setListingPriceXlm}
-                      placeholder="0"
-                    />
-                    <InputField
-                      label={t("Price USDC", "Precio USDC")}
-                      value={listingPriceUsdc}
-                      onChange={setListingPriceUsdc}
-                      placeholder="0"
-                    />
-                  </div>
-
-                  <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    <span>{t("Listing mode", "Modo de publicacion")}</span>
-                    <select
-                      className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                      value={listingMode}
-                      onChange={(event) => setListingMode(event.target.value as typeof listingMode)}
-                    >
-                      <option value="auto">{t("Auto (based on token kind)", "Auto (segun tipo de token)")}</option>
-                      <option value="nft">NFT</option>
-                      <option value="commission_egg">{t("Commission Egg", "Huevo de Comision")}</option>
-                    </select>
-                  </label>
-
-                  {((listingMode === "commission_egg") ||
-                    (listingMode === "auto" && Boolean(selectedToken?.isCommissionEgg))) ? (
-                    <InputField
-                      label={t("Commission delivery time (days)", "Tiempo de entrega de comisión (días)")}
-                      type="number"
-                      value={listingCommissionEtaDays}
-                      onChange={setListingCommissionEtaDays}
-                      placeholder={profileDraft.turnaroundDaysMax || profileDraft.turnaroundDaysMin || "7"}
-                    />
-                  ) : null}
-
-                  {studio?.commissionEggLock && !studio.commissionEggLock.canListNewCommissionEgg ? (
-                    <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-foreground">
-                      <p className="font-medium">
-                        {t(
-                          "Commission egg listing locked (1 active job at a time)",
-                          "Publicacion de huevo de comision bloqueada (1 trabajo activo a la vez)",
-                        )}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">{studio.commissionEggLock.reason}</p>
-                      <p className="mt-2 text-muted-foreground">
-                        {t(
-                          "Unlock by delivering and getting buyer approval, or refunding from escrow.",
-                          "Se desbloquea al entregar y recibir aprobacion del comprador, o al reembolsar desde escrow.",
-                        )}
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-xl border border-border bg-white/5 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{t("Per-item auction", "Subasta por item")}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t(
-                            "Create an on-chain auction for a selected NFT you own. Commission eggs should keep using fixed-price + escrow.",
-                            "Crea una subasta on-chain para un NFT propio seleccionado. Los huevos de comision siguen con precio fijo + escrow.",
-                          )}
-                        </p>
-                      </div>
-                      <Gavel className="h-5 w-5 text-amber-300" />
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {[6, 12, 24, 72, 168, 336].map((hours) => (
-                        <button
-                          key={hours}
-                          type="button"
-                          className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${auctionDurationHours === String(hours) ? "border-amber-300/40 bg-amber-400/10 text-foreground" : "border-border bg-white/5 text-muted-foreground"}`}
-                          onClick={() => {
-                            setAuctionDurationHours(String(hours));
-                            setProfileDraft((prev) => ({ ...prev, preferredAuctionDurationHours: String(hours) }));
-                          }}
-                        >
-                          {hours >= 24 ? `${hours / 24}d` : `${hours}h`}
-                        </button>
-                      ))}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mt-3 w-full border-border bg-white/5 text-foreground hover:bg-white/10"
-                      onClick={() => void handleCreateItemAuction()}
-                      disabled={
-                        txBusy ||
-                        !selectedToken ||
-                        Boolean(selectedToken?.isCommissionEgg) ||
-                        !studio?.auctionCapability.itemAuctionsAvailable
-                      }
-                      title={
-                        selectedToken?.isCommissionEgg
-                          ? t(
-                              "Commission eggs should use fixed-price + escrow for now.",
-                              "Por ahora los huevos de comision usan precio fijo + escrow.",
-                            )
-                          : studio?.auctionCapability.reason || ""
-                      }
-                    >
-                      {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gavel className="h-4 w-4" />}
-                      {t("Create item auction", "Crear subasta por item")}
-                    </Button>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={() => void handleCreateListing()}
-                    disabled={
-                      txBusy ||
-                      !selectedToken ||
-                      (((listingMode === "commission_egg") ||
-                        (listingMode === "auto" && Boolean(selectedToken?.isCommissionEgg))) &&
-                        Boolean(studio?.commissionEggLock && !studio.commissionEggLock.canListNewCommissionEgg))
-                    }
-                    className="w-full bg-emerald-500 text-black hover:bg-emerald-400"
-                  >
-                    {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {t("Create fixed-price listing", "Crear publicacion a precio fijo")}
-                  </Button>
-                </div>
-              </div>
-              ) : null}
-
-              {activeStudioTab === "swaps" ? (
-              <div className="rounded-2xl border border-border bg-white/5 p-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {t("Swap Studio", "Swap Studio")}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t(
-                    "Publish an open swap listing (NFT + intention). Other people can offer their NFTs, and you choose which one to accept.",
-                    "Publica un intercambio abierto (NFT + intencion). Otras personas pueden ofertar sus NFTs y tu eliges cual aceptar.",
-                  )}
-                </p>
-
-                <div className="mt-4 space-y-3">
-                  <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    <span>{t("Offer this NFT", "Ofrecer este NFT")}</span>
-                    <select
-                      className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                      value={swapOfferedTokenId}
-                      onChange={(event) => setSwapOfferedTokenId(event.target.value)}
-                    >
-                      <option value="">{t("Choose...", "Elegi...")}</option>
-                      {(studio?.ownedNfts || []).map((token) => (
-                        <option key={`offered-${token.tokenId}`} value={String(token.tokenId)}>
-                          #{token.tokenId} · {token.isCommissionEgg ? t("Commission Egg", "Huevo de Comision") : "NFT"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <InputField
-                    label={t("Swap intention", "Intencion del intercambio")}
-                    value={swapIntention}
-                    onChange={setSwapIntention}
-                    placeholder={t("Example: Looking for a cute dragon / neon style", "Ejemplo: Busco un dragon tierno / estilo neon")}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => void handleCreateSwapOffer()}
-                    disabled={txBusy || !swapOfferedTokenId || !swapIntention.trim()}
-                    className="w-full bg-blue-500 text-foreground hover:bg-blue-400"
-                  >
-                    {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {t("Publish swap listing", "Publicar intercambio")}
-                  </Button>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-xl border border-border bg-white/5 p-3">
-                    <p className="text-xs font-medium text-foreground">{t("Bids on my swap listings", "Propuestas en mis intercambios")}</p>
-                    <div className="mt-2 space-y-2">
-                      {(studio?.incomingSwapBidsForMyListings || []).map((bid) => (
-                        <div key={`incoming-swap-bid-${bid.bidId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-foreground">#{bid.bidId}</span>
-                            <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-2 py-0.5 text-foreground">
-                              {t("Bid", "Propuesta")}
-                            </span>
-                          </div>
-                          <p>{t("Listing", "Intercambio")}: #{bid.listingId}</p>
-                          <p>{t("They offer", "Ofrecen")}: #{bid.bidderTokenId}</p>
-                          <p>{t("Your NFT in listing", "Tu NFT publicado")}: #{bid.listingOfferedTokenId}</p>
-                          <p className="break-all">{t("Bidder", "Postor")}: {walletShort(bid.bidder)}</p>
-                          {bid.listingIntention ? <p className="line-clamp-2">{bid.listingIntention}</p> : null}
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-emerald-500 text-black hover:bg-emerald-400"
-                              onClick={() => void handleAcceptSwapBid(bid.listingId, bid.bidId)}
-                              disabled={swapActionBusyId === `accept-bid:${bid.bidId}`}
-                            >
-                              {swapActionBusyId === `accept-bid:${bid.bidId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Accept", "Aceptar")}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {(studio?.incomingSwapBidsForMyListings.length || 0) === 0 ? (
-                        <p className="text-xs text-muted-foreground/80">{t("No bids for your swap listings yet.", "Aun no hay propuestas para tus intercambios.")}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-white/5 p-3">
-                    <p className="text-xs font-medium text-foreground">{t("My swap listings", "Mis intercambios publicados")}</p>
-                    <div className="mt-2 space-y-2">
-                      {(studio?.mySwapListings || []).map((swapListing) => (
-                        <div key={`swap-listing-${swapListing.swapListingId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-foreground">#{swapListing.swapListingId}</span>
-                            <span className="rounded-full border border-blue-300/20 bg-blue-300/10 px-2 py-0.5 text-foreground">
-                              {t("Open", "Abierto")}
-                            </span>
-                          </div>
-                          <p>{t("Offering", "Ofreciendo")}: #{swapListing.offeredTokenId}</p>
-                          <p>{t("Bids", "Propuestas")}: {swapListing.bidCount}</p>
-                          {swapListing.intention ? <p className="line-clamp-2">{swapListing.intention}</p> : null}
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300/20 bg-red-500/10 text-foreground hover:bg-red-500/20"
-                              onClick={() => void handleCancelSwapListing(swapListing.swapListingId)}
-                              disabled={swapActionBusyId === `cancel-listing:${swapListing.swapListingId}`}
-                            >
-                              {swapActionBusyId === `cancel-listing:${swapListing.swapListingId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Cancel listing", "Cancelar intercambio")}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {(studio?.mySwapListings.length || 0) === 0 ? (
-                        <p className="text-xs text-muted-foreground/80">{t("You have no active swap listings.", "No tienes intercambios abiertos activos.")}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border bg-white/5 p-3">
-                    <p className="text-xs font-medium text-foreground">{t("My outgoing swap bids", "Mis propuestas enviadas")}</p>
-                    <div className="mt-2 space-y-2">
-                      {(studio?.myOutgoingSwapBids || []).map((bid) => (
-                        <div key={`outgoing-swap-bid-${bid.bidId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-foreground">#{bid.bidId}</span>
-                            <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-2 py-0.5 text-foreground">
-                              {t("Outgoing bid", "Propuesta enviada")}
-                            </span>
-                          </div>
-                          <p>{t("To listing", "Al intercambio")}: #{bid.listingId}</p>
-                          <p>{t("I offer", "Ofrezco")}: #{bid.bidderTokenId}</p>
-                          <p>{t("They offer", "Ofrecen")}: #{bid.listingOfferedTokenId}</p>
-                          {bid.listingCreator ? (
-                            <p className="break-all">{t("Creator", "Creador")}: {walletShort(bid.listingCreator)}</p>
-                          ) : null}
-                          {bid.listingIntention ? <p className="line-clamp-2">{bid.listingIntention}</p> : null}
-                          <div className="mt-2 flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300/20 bg-red-500/10 text-foreground hover:bg-red-500/20"
-                              onClick={() => void handleCancelSwapBid(bid.bidId)}
-                              disabled={swapActionBusyId === `cancel-bid:${bid.bidId}`}
-                            >
-                              {swapActionBusyId === `cancel-bid:${bid.bidId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Cancel bid", "Cancelar propuesta")}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {(studio?.myOutgoingSwapBids.length || 0) === 0 ? (
-                        <p className="text-xs text-muted-foreground/80">{t("You have no active swap bids.", "No tienes propuestas de intercambio activas.")}</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-              ) : null}
-            </div>
-            ) : null}
           </div>
         ) : null}
 
-        {publicKey && studio && (activeStudioTab === "sell" || activeStudioTab === "commissions") ? (
-          <div className="mt-6 grid gap-4">
-            {activeStudioTab === "sell" ? (
-            <div className="rounded-2xl border border-border bg-white/5 p-4">
-              <h3 className="text-sm font-semibold text-foreground">{t("My active listings", "Mis publicaciones activas")}</h3>
-              <div className="mt-3 space-y-2">
-                {studio.myListings.map((listing) => (
-                  <div key={listing.listingId} className="rounded-xl border border-border bg-white/5 p-3 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="font-medium text-foreground">#{listing.tokenId} · {listing.isCommissionEgg ? t("Commission Egg", "Huevo de Comision") : "NFT"}</p>
-                        <p className="text-muted-foreground">
-                          {formatTokenAmount(listing.priceXlm)} XLM / {formatTokenAmount(listing.priceUsdc)} USDC
-                        </p>
-                        {listing.isCommissionEgg && listing.commissionEtaDays > 0 ? (
-                          <p className="text-muted-foreground">
-                            {t("ETA", "ETA")}: {listing.commissionEtaDays} {t("days", "días")}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="border-red-300/20 bg-red-500/10 text-foreground hover:bg-red-500/20"
-                        onClick={() => void handleCancelListing(listing.listingId)}
-                        disabled={txBusy}
-                      >
-                        {t("Cancel", "Cancelar")}
-                      </Button>
-                    </div>
-                    {listing.tokenUri ? <p className="mt-2 break-all text-muted-foreground/80 line-clamp-2">{listing.tokenUri}</p> : null}
-                  </div>
-                ))}
-                {studio.myListings.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-white/5 p-4 text-center text-xs text-muted-foreground">
-                    {t("No active listings yet.", "Todavia no tienes publicaciones activas.")}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-            ) : null}
-
-            {activeStudioTab === "commissions" ? (
-            <div className="rounded-2xl border border-border bg-white/5 p-4">
-              <h3 className="text-sm font-semibold text-foreground">{t("Commission workflow", "Flujo de comisiones")}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t(
-                  "50% upfront, 50% on approval (or seller claim after 7 days), up to 3 change requests.",
-                  "50% al inicio, 50% con aprobación (o reclamo del artista a los 7 días), hasta 3 solicitudes de cambio.",
-                )}{" "}
-                <Link href="/marketplace/commissions" className="cursor-pointer underline hover:text-foreground">
-                  {t("Manual", "Manual")}
-                </Link>
-              </p>
-              <div className="mt-3 space-y-3">
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs font-medium text-foreground">{t("As artist (commission eggs sold)", "Como artista (huevos vendidos)")}</p>
-                  <div className="mt-2 space-y-2">
-                    {studio.myCommissionOrdersAsArtist.map((order) => {
-                      const autoReleaseAt = commissionAutoReleaseAt(order.deliveredAt);
-                      const canClaimTimeout =
-                        order.status === "Delivered" &&
-                        autoReleaseAt > 0 &&
-                        Math.floor(Date.now() / 1000) >= autoReleaseAt;
-                      return (
-                      <div key={`artist-${order.orderId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-foreground">#{order.orderId} · token #{order.tokenId}</span>
-                          <span className={`rounded-full border px-2 py-0.5 ${orderStatusChipClass(order.status)}`}>
-                            {orderStatusLabel(order.status, t)}
-                          </span>
-                        </div>
-                        <p>{t("Buyer", "Comprador")}: {walletShort(order.buyer)}</p>
-                        <p>{t("Total", "Total")}: {formatTokenAmount(order.amountPaid)} {order.currency.toUpperCase()}</p>
-                        <p>{t("Paid now (50%)", "Cobrado ahora (50%)")}: {formatTokenAmount(order.upfrontPaidToSeller)} {order.currency.toUpperCase()}</p>
-                        <p>{t("Remaining in escrow", "Restante en escrow")}: {formatTokenAmount(order.escrowRemaining)} {order.currency.toUpperCase()}</p>
-                        {order.commissionEtaDays > 0 ? (
-                          <p>{t("ETA", "ETA")}: {order.commissionEtaDays} {t("days", "días")}</p>
-                        ) : null}
-                        {order.intention ? <p className="line-clamp-2">{t("Brief", "Brief")}: {order.intention}</p> : null}
-                        {order.latestRevisionIntention ? (
-                          <div className="mt-1 rounded-md border border-border bg-white/5 p-2">
-                            <p className="text-foreground">
-                              {t("Latest change request", "Último pedido de cambio")} ({order.revisionRequestCount}/{order.maxRevisionRequests})
-                            </p>
-                            <p className="mt-1 line-clamp-3">{order.latestRevisionIntention}</p>
-                            {order.latestRevisionRefUrl ? (
-                              <p className="mt-1 line-clamp-1">Ref: {order.latestRevisionRefUrl}</p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <p>{t("Change requests used", "Cambios usados")}: {order.revisionRequestCount}/{order.maxRevisionRequests}</p>
-                        )}
-                        {order.status === "Accepted" ? (
-                          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
-                            <input
-                              type="url"
-                              className="rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-foreground"
-                              placeholder={t("Final metadata URI (ipfs://...)", "URI final de metadata (ipfs://...)")}
-                              value={commissionDeliveryMetadataUriByOrderId[String(order.orderId)] || ""}
-                              onChange={(event) =>
-                                setCommissionDeliveryMetadataUriByOrderId((prev) => ({
-                                  ...prev,
-                                  [String(order.orderId)]: event.target.value,
-                                }))
-                              }
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-blue-500 text-foreground hover:bg-blue-400"
-                              onClick={() => void handleCommissionOrderAction(order, "deliver")}
-                              disabled={orderActionBusyId === `deliver:${order.orderId}`}
-                            >
-                              {orderActionBusyId === `deliver:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Deliver", "Entregar")}
-                            </Button>
-                          </div>
-                        ) : null}
-                        {order.status === "Delivered" ? (
-                          <p className="mt-2">
-                            {t("Buyer auto-approval deadline", "Límite para auto-liberación")}:{" "}
-                            <span className="text-foreground">{formatTimestamp(autoReleaseAt)}</span>
-                          </p>
-                        ) : null}
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {canClaimTimeout ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-emerald-500 text-black hover:bg-emerald-400"
-                              onClick={() => void handleCommissionOrderAction(order, "claim_timeout")}
-                              disabled={orderActionBusyId === `claim_timeout:${order.orderId}`}
-                            >
-                              {orderActionBusyId === `claim_timeout:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Claim remaining 50%", "Reclamar 50% restante")}
-                            </Button>
-                          ) : null}
-                          {commissionOrderIsOpen(order.status) ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300/20 bg-red-500/10 text-foreground hover:bg-red-500/20"
-                              onClick={() => void handleCommissionOrderAction(order, "refund")}
-                              disabled={orderActionBusyId === `refund:${order.orderId}`}
-                            >
-                              {orderActionBusyId === `refund:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Cancel + refund escrow", "Cancelar + devolver escrow")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    )})}
-                    {studio.myCommissionOrdersAsArtist.length === 0 ? (
-                      <p className="text-xs text-muted-foreground/80">{t("No commission egg orders as artist yet.", "Todavia no hay ordenes de huevo de comision como artista.")}</p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs font-medium text-foreground">{t("As buyer", "Como comprador")}</p>
-                  <div className="mt-2 space-y-2">
-                    {studio.myCommissionOrdersAsBuyer.map((order) => {
-                      const autoReleaseAt = commissionAutoReleaseAt(order.deliveredAt);
-                      const canRequestRevision =
-                        order.status === "Delivered" &&
-                        order.revisionRequestCount < order.maxRevisionRequests;
-                      return (
-                      <div key={`buyer-${order.orderId}`} className="rounded-lg border border-border bg-white/5 p-2 text-xs text-muted-foreground">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-foreground">#{order.orderId} · token #{order.tokenId}</span>
-                          <span className={`rounded-full border px-2 py-0.5 ${orderStatusChipClass(order.status)}`}>
-                            {orderStatusLabel(order.status, t)}
-                          </span>
-                        </div>
-                        <p>{t("Artist", "Artista")}: {walletShort(order.seller)}</p>
-                        <p>{t("Total", "Total")}: {formatTokenAmount(order.amountPaid)} {order.currency.toUpperCase()}</p>
-                        <p>{t("Artist received (50%)", "Artista recibió (50%)")}: {formatTokenAmount(order.upfrontPaidToSeller)} {order.currency.toUpperCase()}</p>
-                        <p>{t("Your protected escrow", "Tu escrow protegido")}: {formatTokenAmount(order.escrowRemaining)} {order.currency.toUpperCase()}</p>
-                        {order.commissionEtaDays > 0 ? (
-                          <p>{t("ETA", "ETA")}: {order.commissionEtaDays} {t("days", "días")}</p>
-                        ) : null}
-                        <p>{t("Changes used", "Cambios usados")}: {order.revisionRequestCount}/{order.maxRevisionRequests}</p>
-                        {order.referenceImageUrl ? <p className="line-clamp-1">Ref: {order.referenceImageUrl}</p> : null}
-                        {order.status === "Delivered" && autoReleaseAt > 0 ? (
-                          <p>
-                            {t("Auto release deadline", "Límite de auto-liberación")}:{" "}
-                            <span className="text-foreground">{formatTimestamp(autoReleaseAt)}</span>
-                          </p>
-                        ) : null}
-                        {canRequestRevision ? (
-                          <div className="mt-2 rounded-md border border-border bg-white/5 p-2">
-                            <p className="text-foreground">{t("Request a change", "Pedir un cambio")}</p>
-                            <textarea
-                              className="mt-2 min-h-16 w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-foreground"
-                              placeholder={t("What should be changed?", "¿Qué debería cambiarse?")}
-                              value={commissionRevisionIntentionByOrderId[String(order.orderId)] || ""}
-                              onChange={(event) =>
-                                setCommissionRevisionIntentionByOrderId((prev) => ({
-                                  ...prev,
-                                  [String(order.orderId)]: event.target.value,
-                                }))
-                              }
-                            />
-                            <input
-                              type="url"
-                              className="mt-2 w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-foreground"
-                              placeholder={t("Reference image URL (optional)", "URL de imagen de referencia (opcional)")}
-                              value={commissionRevisionReferenceByOrderId[String(order.orderId)] || ""}
-                              onChange={(event) =>
-                                setCommissionRevisionReferenceByOrderId((prev) => ({
-                                  ...prev,
-                                  [String(order.orderId)]: event.target.value,
-                                }))
-                              }
-                            />
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                                onClick={() => void handleCommissionRevisionRequest(order)}
-                                disabled={orderActionBusyId === `revision:${order.orderId}`}
-                              >
-                                {orderActionBusyId === `revision:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                                {t("Send change request", "Enviar pedido de cambio")}
-                              </Button>
-                            </div>
-                          </div>
-                        ) : null}
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {order.status === "Delivered" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-emerald-500 text-black hover:bg-emerald-400"
-                              onClick={() => void handleCommissionOrderAction(order, "approve")}
-                              disabled={orderActionBusyId === `approve:${order.orderId}`}
-                            >
-                              {orderActionBusyId === `approve:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Approve delivery", "Aprobar entrega")}
-                            </Button>
-                          ) : null}
-                          {commissionOrderIsOpen(order.status) ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="border-red-300/20 bg-red-500/10 text-foreground hover:bg-red-500/20"
-                              onClick={() => void handleCommissionOrderAction(order, "refund")}
-                              disabled={orderActionBusyId === `refund:${order.orderId}`}
-                            >
-                              {orderActionBusyId === `refund:${order.orderId}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              {t("Refund remaining escrow", "Reembolsar escrow restante")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    )})}
-                    {studio.myCommissionOrdersAsBuyer.length === 0 ? (
-                      <p className="text-xs text-muted-foreground/80">{t("No commission egg purchases yet.", "Todavia no compraste huevos de comision.")}</p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-            ) : null}
           </div>
-        ) : null}
-
-        {publicKey &&
-        studio?.auctionCapability &&
-        activeStudioTab === "sell" &&
-        !studio.auctionCapability.itemAuctionsAvailable ? (
-          <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-foreground">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">{t("Per-item auctions in development", "Subastas por item en desarrollo")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{studio.auctionCapability.reason}</p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t(
-                    "The current page already covers buying, swapping, bidding, selling, and commission escrow management in one place.",
-                    "La pagina actual ya cubre comprar, intercambiar, ofertar, vender y gestionar comisiones con escrow en un solo lugar.",
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-          </div>
-        </details>
+        </div>
         </section>
       ) : null}
 
