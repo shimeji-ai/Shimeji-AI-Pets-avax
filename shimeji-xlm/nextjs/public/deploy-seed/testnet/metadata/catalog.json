@@ -1,23 +1,5 @@
 {
-  "generated_at": "2026-02-23T20:23:43Z",
+  "generated_at": "2026-02-24T03:50:01Z",
   "network": "testnet",
   "characters": [
-    { "character": "blob", "image": "http://localhost:3000/deploy-seed/testnet/sprites/blob-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/blob.json" }
-    ,
-    { "character": "bunny", "image": "http://localhost:3000/deploy-seed/testnet/sprites/bunny-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/bunny.json" }
-    ,
-    { "character": "egg", "image": "http://localhost:3000/deploy-seed/testnet/sprites/egg-sit.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/egg.json" }
-    ,
-    { "character": "ghost", "image": "http://localhost:3000/deploy-seed/testnet/sprites/ghost-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/ghost.json" }
-    ,
-    { "character": "kitten", "image": "http://localhost:3000/deploy-seed/testnet/sprites/kitten-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/kitten.json" }
-    ,
-    { "character": "lobster", "image": "http://localhost:3000/deploy-seed/testnet/sprites/lobster-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/lobster.json" }
-    ,
-    { "character": "mushroom", "image": "http://localhost:3000/deploy-seed/testnet/sprites/mushroom-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/mushroom.json" }
-    ,
-    { "character": "penguin", "image": "http://localhost:3000/deploy-seed/testnet/sprites/penguin-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/penguin.json" }
-    ,
-    { "character": "shimeji", "image": "http://localhost:3000/deploy-seed/testnet/sprites/shimeji-idle.png", "metadata": "http://localhost:3000/deploy-seed/testnet/metadata/shimeji.json" }
-  ]
-}
+==> Failed to upload showcase sprite to Pinata: blob-idle.png

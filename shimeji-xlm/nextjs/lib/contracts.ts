@@ -1,21 +1,23 @@
 import { rpc } from "@stellar/stellar-sdk";
 
+function envTrim(key: string): string {
+  return String(process.env[key] ?? "").trim();
+}
+
 export const AUCTION_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_AUCTION_CONTRACT_ID ?? "";
+  envTrim("NEXT_PUBLIC_AUCTION_CONTRACT_ID");
 export const NFT_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_NFT_CONTRACT_ID ?? "";
+  envTrim("NEXT_PUBLIC_NFT_CONTRACT_ID");
 export const MARKETPLACE_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID ?? "";
+  envTrim("NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID");
 export const COMMISSION_CONTRACT_ID =
-  process.env.NEXT_PUBLIC_COMMISSION_CONTRACT_ID ?? "";
+  envTrim("NEXT_PUBLIC_COMMISSION_CONTRACT_ID");
 
 export const RPC_URL =
-  process.env.NEXT_PUBLIC_STELLAR_RPC_URL ??
-  "https://soroban-testnet.stellar.org";
+  envTrim("NEXT_PUBLIC_STELLAR_RPC_URL") || "https://soroban-testnet.stellar.org";
 
 export const NETWORK_PASSPHRASE =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE ??
-  "Test SDF Network ; September 2015";
+  envTrim("NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE") || "Test SDF Network ; September 2015";
 
 const TESTNET_USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
 const MAINNET_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
@@ -42,7 +44,7 @@ function normalizeNetwork(value: string): "local" | "testnet" | "mainnet" | "cus
 }
 
 export const STELLAR_NETWORK = normalizeNetwork(
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK ?? inferNetwork(NETWORK_PASSPHRASE)
+  envTrim("NEXT_PUBLIC_STELLAR_NETWORK") || inferNetwork(NETWORK_PASSPHRASE)
 );
 
 export const STELLAR_NETWORK_LABEL =
@@ -55,7 +57,7 @@ export const STELLAR_NETWORK_LABEL =
         : "Stellar";
 
 export const HORIZON_URL =
-  process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL ??
+  envTrim("NEXT_PUBLIC_STELLAR_HORIZON_URL") ||
   (STELLAR_NETWORK === "local"
     ? "http://localhost:8000"
     : STELLAR_NETWORK === "mainnet"
@@ -63,13 +65,13 @@ export const HORIZON_URL =
       : "https://horizon-testnet.stellar.org");
 
 export const LOCAL_FRIENDBOT_URL =
-  process.env.NEXT_PUBLIC_LOCAL_FRIENDBOT_URL ??
+  envTrim("NEXT_PUBLIC_LOCAL_FRIENDBOT_URL") ||
   `${HORIZON_URL.replace(/\/$/, "")}/friendbot`;
 
 export const USDC_ISSUER =
-  process.env.NEXT_PUBLIC_USDC_ISSUER ??
+  envTrim("NEXT_PUBLIC_USDC_ISSUER") ||
   (STELLAR_NETWORK === "local"
-    ? process.env.NEXT_PUBLIC_LOCAL_USDC_ISSUER ?? TESTNET_USDC_ISSUER
+    ? envTrim("NEXT_PUBLIC_LOCAL_USDC_ISSUER") || TESTNET_USDC_ISSUER
     : STELLAR_NETWORK === "mainnet"
       ? MAINNET_USDC_ISSUER
       : TESTNET_USDC_ISSUER);

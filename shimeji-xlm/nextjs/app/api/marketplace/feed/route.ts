@@ -65,16 +65,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const [listings, auctions, swapListings] = await Promise.all([
-      fetchListings().catch(() => {
-        warnings.push("Failed to load marketplace listings.");
+      fetchListings().catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        warnings.push(`Failed to load marketplace listings. ${message}`);
         return [];
       }),
-      fetchAuctions({ includeEnded: false, limit: 100 }).catch(() => {
-        warnings.push("Failed to load auctions.");
+      fetchAuctions({ includeEnded: false, limit: 100 }).catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        warnings.push(`Failed to load auctions. ${message}`);
         return [];
       }),
-      fetchSwapListings().catch(() => {
-        warnings.push("Failed to load swap listings.");
+      fetchSwapListings().catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        warnings.push(`Failed to load swap listings. ${message}`);
         return [];
       }),
     ]);

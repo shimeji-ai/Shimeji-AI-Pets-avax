@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { InputField, ToggleField } from "@/components/marketplace-hub-fields";
 import { MarketplaceHubMarketplaceTab } from "@/components/marketplace-hub-marketplace-tab";
@@ -71,11 +72,18 @@ import {
   UserRound,
 } from "lucide-react";
 
-export function MarketplaceHub() {
+type MarketplaceHubMode = "all" | "marketplace" | "settings";
+
+type MarketplaceHubProps = {
+  mode?: MarketplaceHubMode;
+};
+
+export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
+  const searchParams = useSearchParams();
   const { isSpanish } = useLanguage();
   const { publicKey, isConnected, isConnecting, connect, signTransaction, signMessage } = useFreighter();
   const t = (en: string, es: string) => (isSpanish ? es : en);
-  const [activeTopTab, setActiveTopTab] = useState<HubTopTab>("marketplace");
+  const [activeTopTab, setActiveTopTab] = useState<HubTopTab>(mode === "settings" ? "studio" : "marketplace");
   const [activeStudioTab, setActiveStudioTab] = useState<StudioWorkspaceTab>("profile");
 
   const [feedAssetFilter, setFeedAssetFilter] = useState<FeedAssetFilter>("all");
@@ -118,6 +126,31 @@ export function MarketplaceHub() {
     useState<Record<string, string>>({});
   const [commissionRevisionIntentionByOrderId, setCommissionRevisionIntentionByOrderId] =
     useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const requestedTopTab = searchParams.get("tab");
+    const requestedStudioTab = searchParams.get("studioTab");
+    const requestedOpenTools = searchParams.get("openTools");
+
+    if (requestedTopTab === "marketplace" || requestedTopTab === "studio") {
+      if (mode === "marketplace" && requestedTopTab !== "marketplace") return;
+      if (mode === "settings" && requestedTopTab !== "studio") return;
+      setActiveTopTab(requestedTopTab);
+    }
+
+    if (
+      requestedStudioTab === "profile" ||
+      requestedStudioTab === "sell" ||
+      requestedStudioTab === "swaps" ||
+      requestedStudioTab === "commissions"
+    ) {
+      setActiveStudioTab(requestedStudioTab);
+    }
+
+    if (requestedOpenTools === "1" || requestedOpenTools === "true") {
+      setStudioToolsOpen(true);
+    }
+  }, [mode, searchParams]);
   const [commissionRevisionReferenceByOrderId, setCommissionRevisionReferenceByOrderId] =
     useState<Record<string, string>>({});
   const [socialLinksDraftRows, setSocialLinksDraftRows] = useState<SocialLinkRow[]>([]);
@@ -262,15 +295,12 @@ export function MarketplaceHub() {
   const studioPortfolioItems = Array.from(studioPortfolioByTokenId.values()).sort(
     (a, b) => b.tokenId - a.tokenId,
   );
-  const activeStudioTabLabel =
-    activeStudioTab === "profile"
-      ? t("Profile", "Perfil")
-      : activeStudioTab === "sell"
-        ? t("Sell", "Vender")
-        : activeStudioTab === "swaps"
-          ? t("Swaps", "Swaps")
-          : t("Commissions", "Comisiones");
-  const shouldForceStudioToolsOpen = !isConnected || !publicKey || Boolean(studioError);
+  const isMarketplaceOnlyMode = mode === "marketplace";
+  const isSettingsOnlyMode = mode === "settings";
+  const showTopTabs = mode === "all";
+  const showStudioProfilePreview = !isSettingsOnlyMode;
+  const shouldForceStudioToolsOpen = Boolean(studioError);
+  const isStudioToolsExpanded = shouldForceStudioToolsOpen || studioToolsOpen;
 
   useEffect(() => {
     const tokenUris = Array.from(
@@ -881,36 +911,38 @@ export function MarketplaceHub() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-28 md:px-6 lg:px-8">
-      <div className="rounded-2xl border border-border bg-white/10 p-2">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTopTab("marketplace")}
-            className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-              activeTopTab === "marketplace"
-                ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
-                : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-            }`}
-          >
-            <ShoppingCart className="h-3.5 w-3.5" />
-            {t("Marketplace", "Marketplace")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTopTab("studio")}
-            className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-              activeTopTab === "studio"
-                ? "border-blue-300/30 bg-blue-400/15 text-foreground"
-                : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-            }`}
-          >
-            <UserRound className="h-3.5 w-3.5" />
-            {t("My Space", "Mi espacio")}
-          </button>
+      {showTopTabs ? (
+        <div className="rounded-2xl border border-border bg-white/10 p-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTopTab("marketplace")}
+              className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
+                activeTopTab === "marketplace"
+                  ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
+                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+              }`}
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              {t("Marketplace", "Marketplace")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTopTab("studio")}
+              className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
+                activeTopTab === "studio"
+                  ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                  : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+              }`}
+            >
+              <UserRound className="h-3.5 w-3.5" />
+              {t("My Space", "Mi espacio")}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      {activeTopTab === "marketplace" ? (
+      {!isSettingsOnlyMode && activeTopTab === "marketplace" ? (
         <MarketplaceHubMarketplaceTab
           t={t}
           feedSearch={feedSearch}
@@ -937,7 +969,7 @@ export function MarketplaceHub() {
         />
       ) : null}
 
-      {activeTopTab === "studio" ? (
+      {!isMarketplaceOnlyMode && activeTopTab === "studio" ? (
         <section className="rounded-3xl border border-border bg-white/10 p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -952,21 +984,24 @@ export function MarketplaceHub() {
               )}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-border bg-white/5 text-foreground hover:bg-white/10"
-            onClick={() => (publicKey ? void loadStudio(publicKey) : undefined)}
-            disabled={!publicKey || studioLoading}
-          >
-            {studioLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {t("Refresh", "Actualizar")}
-          </Button>
+          {publicKey ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-border bg-white/5 text-foreground hover:bg-white/10"
+              onClick={() => void loadStudio(publicKey)}
+              disabled={studioLoading}
+            >
+              {studioLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {t("Refresh", "Actualizar")}
+            </Button>
+          ) : null}
         </div>
 
         {publicKey && studio ? (
           <div className="mb-4 space-y-4">
+            {showStudioProfilePreview ? (
             <div className="overflow-hidden rounded-3xl border border-border bg-white/5">
               <div className="relative h-36 sm:h-44">
                 {studioBannerUrl ? (
@@ -1019,7 +1054,7 @@ export function MarketplaceHub() {
 
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/marketplace/artist/${publicKey}`}
+                      href={`/profile/${publicKey}`}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-border bg-white/5 px-3 py-2 text-xs text-foreground hover:bg-white/10"
                     >
                       {t("Public profile", "Perfil público")}
@@ -1103,6 +1138,7 @@ export function MarketplaceHub() {
                 ) : null}
               </div>
             </div>
+            ) : null}
 
             <div className="rounded-3xl border border-border bg-white/5 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -1176,9 +1212,32 @@ export function MarketplaceHub() {
           </div>
         ) : null}
 
+        {!isConnected || !publicKey ? (
+          <div className="mb-4 rounded-2xl border border-dashed border-border bg-white/5 p-6 text-center text-sm text-muted-foreground">
+            <div className="flex flex-col items-center gap-3">
+              <p>
+                {t(
+                  "Connect a Stellar wallet to view your Space.",
+                  "Conecta una wallet Stellar para ver tu espacio.",
+                )}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-emerald-500 text-black hover:bg-emerald-400"
+                onClick={() => void connect()}
+                disabled={isConnecting}
+              >
+                {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {t("Connect wallet", "Conectar wallet")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <details
-          className="mb-4 rounded-2xl border border-border bg-white/5 p-3"
-          open={shouldForceStudioToolsOpen || studioToolsOpen}
+          className={`mb-4 rounded-2xl border border-border bg-white/5 p-3 ${!isConnected || !publicKey ? "hidden" : ""}`}
+          open={isStudioToolsExpanded}
           onToggle={(event) => setStudioToolsOpen((event.currentTarget as HTMLDetailsElement).open)}
         >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-border bg-white/5 px-3 py-2">
@@ -1194,7 +1253,9 @@ export function MarketplaceHub() {
               </p>
             </div>
             <span className="rounded-full border border-border bg-white/5 px-3 py-1 text-[11px] text-muted-foreground">
-              {activeStudioTabLabel}
+              {isStudioToolsExpanded
+                ? t("Hide advanced tools", "Ocultar herramientas avanzadas")
+                : t("Open advanced tools", "Abrir herramientas avanzadas")}
             </span>
           </summary>
           <div className="mt-3">
@@ -1247,29 +1308,6 @@ export function MarketplaceHub() {
             </button>
           </div>
         </div>
-
-        {!isConnected || !publicKey ? (
-          <div className="rounded-2xl border border-dashed border-border bg-white/5 p-6 text-center text-sm text-muted-foreground">
-            <div className="flex flex-col items-center gap-3">
-              <p>
-                {t(
-                  "Connect a Stellar wallet to use My Space.",
-                  "Conecta una wallet Stellar para usar Mi espacio.",
-                )}
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                className="bg-emerald-500 text-black hover:bg-emerald-400"
-                onClick={() => void connect()}
-                disabled={isConnecting}
-              >
-                {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {t("Connect wallet", "Conectar wallet")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
 
         {studioError ? (
           <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-foreground">

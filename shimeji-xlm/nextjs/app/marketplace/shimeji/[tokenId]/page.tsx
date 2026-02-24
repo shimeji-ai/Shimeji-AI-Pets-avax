@@ -390,7 +390,7 @@ export default async function MarketplaceShimejiPage({ params }: Params) {
                         </div>
                         <div className="min-w-0 flex-1">
                           <Link
-                            href={`/marketplace/artist/${tokenCreator}`}
+                            href={`/profile/${tokenCreator}`}
                             className="block cursor-pointer truncate text-sm font-medium text-foreground hover:underline"
                           >
                             {creatorProfile?.displayName || walletShort(tokenCreator)}
@@ -420,7 +420,7 @@ export default async function MarketplaceShimejiPage({ params }: Params) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <Link
-                          href={`/marketplace/artist/${token.owner}`}
+                          href={`/profile/${token.owner}`}
                           className="block cursor-pointer truncate text-sm font-medium text-foreground hover:underline"
                         >
                           {ownerProfile?.displayName || walletShort(token.owner)}

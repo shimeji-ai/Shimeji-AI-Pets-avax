@@ -3,7 +3,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_ROOT_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 NEXTJS_DIR="$ROOT_DIR/nextjs"
 DEPLOY_ENV_DIR="${DEPLOY_ENV_EXPORT_DIR:-$ROOT_DIR/.deploy-env}"
 VERCEL_LINK_FILE="$NEXTJS_DIR/.vercel/project.json"
@@ -30,28 +29,25 @@ need_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+read_env_key_from_file() {
+  local file="$1"
+  local key="$2"
+  [ -f "$file" ] || return 0
+  awk -F= -v key="$key" '
+    $1 == key {
+      sub(/^[^=]*=/, "", $0)
+      print $0
+      exit
+    }
+  ' "$file"
+}
+
 vercel_cli() {
   vercel --cwd "$NEXTJS_DIR" "$@"
 }
 
-json_value() {
-  local key="$1"
-  local file="$2"
-  [ -f "$file" ] || return 0
-  sed -n "s/.*\"$key\":\"\\([^\"]*\\)\".*/\\1/p" "$file" | head -n 1
-}
-
 vercel_deploy_cli() {
-  local root_link_file="$REPO_ROOT_DIR/.vercel/project.json"
-  local nextjs_project_id root_project_id
-  nextjs_project_id="$(json_value "projectId" "$VERCEL_LINK_FILE")"
-  root_project_id="$(json_value "projectId" "$root_link_file")"
-
-  if [ -n "$nextjs_project_id" ] && [ "$nextjs_project_id" = "$root_project_id" ]; then
-    vercel --cwd "$REPO_ROOT_DIR" "$@"
-    return
-  fi
-
+  # Always deploy from shimeji-xlm/nextjs to avoid uploading the entire monorepo.
   vercel_cli "$@"
 }
 
@@ -133,6 +129,20 @@ set -a
 . "$ENV_FILE"
 set +a
 
+# Deployment exports contain network/contract envs, but Prisma DB envs live in nextjs/.env(.local).
+if [ -z "${DATABASE_URL:-}" ]; then
+  DATABASE_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env.local" "DATABASE_URL")"
+fi
+if [ -z "${DATABASE_URL:-}" ]; then
+  DATABASE_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env" "DATABASE_URL")"
+fi
+if [ -z "${DIRECT_URL:-}" ]; then
+  DIRECT_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env.local" "DIRECT_URL")"
+fi
+if [ -z "${DIRECT_URL:-}" ]; then
+  DIRECT_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env" "DIRECT_URL")"
+fi
+
 if [ -z "${NEXT_PUBLIC_BASE_URL:-}" ] && [ -t 0 ]; then
   read -r -p "NEXT_PUBLIC_BASE_URL (e.g. https://your-domain.com) [skip]: " entered_base_url
   if [ -n "${entered_base_url:-}" ]; then
@@ -149,7 +159,7 @@ upsert_vercel_env() {
     return
   fi
   vercel_cli env rm "$key" "$TARGET_ENV" --yes >/dev/null 2>&1 || true
-  printf "%s\n" "$value" | vercel_cli env add "$key" "$TARGET_ENV" >/dev/null
+  printf "%s" "$value" | vercel_cli env add "$key" "$TARGET_ENV" >/dev/null
   echo "  synced $key -> $TARGET_ENV"
 }
 
@@ -162,6 +172,8 @@ remove_vercel_env() {
 echo "==> Syncing env vars from $ENV_FILE to Vercel ($TARGET_ENV)..."
 upsert_vercel_env "NEXT_PUBLIC_NFT_CONTRACT_ID" "${NEXT_PUBLIC_NFT_CONTRACT_ID:-}"
 upsert_vercel_env "NEXT_PUBLIC_AUCTION_CONTRACT_ID" "${NEXT_PUBLIC_AUCTION_CONTRACT_ID:-}"
+upsert_vercel_env "NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID" "${NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID:-}"
+upsert_vercel_env "NEXT_PUBLIC_COMMISSION_CONTRACT_ID" "${NEXT_PUBLIC_COMMISSION_CONTRACT_ID:-}"
 upsert_vercel_env "NEXT_PUBLIC_STELLAR_RPC_URL" "${NEXT_PUBLIC_STELLAR_RPC_URL:-}"
 upsert_vercel_env "NEXT_PUBLIC_STELLAR_HORIZON_URL" "${NEXT_PUBLIC_STELLAR_HORIZON_URL:-}"
 upsert_vercel_env "NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE" "${NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE:-}"
@@ -176,6 +188,8 @@ else
   remove_vercel_env "NEXT_PUBLIC_TRUSTLESS_ESCROW_USDC_ADDRESS"
 fi
 upsert_vercel_env "NEXT_PUBLIC_BASE_URL" "${NEXT_PUBLIC_BASE_URL:-}"
+upsert_vercel_env "DATABASE_URL" "${DATABASE_URL:-}"
+upsert_vercel_env "DIRECT_URL" "${DIRECT_URL:-}"
 
 echo "==> Vercel env sync complete."
 if [ "$DEPLOY_AFTER_SYNC" -eq 0 ] && [ -t 0 ]; then

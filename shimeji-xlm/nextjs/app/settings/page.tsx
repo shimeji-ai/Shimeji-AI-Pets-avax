@@ -5,17 +5,17 @@ import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Marketplace | Shimeji AI Pets on Stellar",
+  title: "Settings | Shimeji AI Pets on Stellar",
   description:
-    "Explore listings and manage your Shimeji NFTs and artist profile on Stellar.",
-  path: "/marketplace",
+    "Configure your wallet-based artist profile, listings, swaps, and commission operations.",
+  path: "/settings",
 });
 
-export default function MarketplacePage() {
+export default function SettingsPage() {
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <Suspense fallback={null}>
-        <MarketplaceHub mode="marketplace" />
+        <MarketplaceHub mode="settings" />
       </Suspense>
       <Footer />
     </main>

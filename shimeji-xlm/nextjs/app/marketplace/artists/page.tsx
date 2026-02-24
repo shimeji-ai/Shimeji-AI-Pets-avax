@@ -110,7 +110,7 @@ export default async function MarketplaceArtistsIndexPage({
 
                 <div className="mt-auto grid gap-2">
                   <Link
-                    href={`/marketplace/artist/${profile.walletAddress}`}
+                    href={`/profile/${profile.walletAddress}`}
                     className="inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-2 text-sm text-foreground hover:bg-white/10"
                   >
                     View artist page

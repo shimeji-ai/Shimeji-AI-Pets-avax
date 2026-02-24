@@ -40,7 +40,8 @@ set -euo pipefail
 #   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
 #   AUTO_SEED_MARKETPLACE_SHOWCASE=auto|1|0 (default auto; enabled for local/testnet)
-#   MARKETPLACE_SHOWCASE_BASE_URL=https://<domain> (default NEXT_PUBLIC_BASE_URL/NEXT_PUBLIC_SITE_URL or http://localhost:3000)
+#   MARKETPLACE_SHOWCASE_BASE_URL=https://<domain> (used for external links/profile seed; default NEXT_PUBLIC_BASE_URL/NEXT_PUBLIC_SITE_URL or https://www.shimeji.dev)
+#   PINATA_JWT=<jwt> (required when AUTO_SEED_MARKETPLACE_SHOWCASE=1; can also be read from nextjs/.env or nextjs/.env.local)
 #   MARKETPLACE_SHOWCASE_LIST_PRICE_XLM=120 (human amount)
 #   MARKETPLACE_SHOWCASE_LIST_PRICE_USDC=20 (human amount)
 #   MARKETPLACE_SHOWCASE_EGG_PRICE_XLM=90 (human amount)
@@ -177,6 +178,68 @@ need_cmd() {
 die() {
   echo "Error: $*" >&2
   exit 1
+}
+
+read_env_key_from_file() {
+  local file="$1"
+  local key="$2"
+  [ -f "$file" ] || return 0
+  awk -F= -v key="$key" '
+    $1 == key {
+      sub(/^[^=]*=/, "", $0)
+      gsub(/^"/, "", $0)
+      gsub(/"$/, "", $0)
+      print $0
+      exit
+    }
+  ' "$file"
+}
+
+load_pinata_jwt_for_showcase() {
+  if [ -n "${PINATA_JWT:-}" ]; then
+    printf "%s" "$PINATA_JWT"
+    return 0
+  fi
+
+  local nextjs_dir jwt
+  nextjs_dir="$PROJECT_ROOT/nextjs"
+  jwt="$(read_env_key_from_file "$nextjs_dir/.env.local" "PINATA_JWT")"
+  if [ -z "$jwt" ]; then
+    jwt="$(read_env_key_from_file "$nextjs_dir/.env" "PINATA_JWT")"
+  fi
+  printf "%s" "$jwt"
+}
+
+pinata_upload_file() {
+  local jwt="$1"
+  local file_path="$2"
+  local file_name="$3"
+  local metadata_name="$4"
+  local response ipfs_hash
+
+  response="$(curl -sS -X POST "https://api.pinata.cloud/pinning/pinFileToIPFS" \
+    -H "Authorization: Bearer ${jwt}" \
+    -F "file=@${file_path};filename=${file_name}" \
+    -F "pinataMetadata={\"name\":\"${metadata_name}\"}")" || return 1
+
+  ipfs_hash="$(python3 - "$response" <<'PY'
+import json, sys
+raw = sys.argv[1]
+try:
+    data = json.loads(raw)
+except Exception:
+    print("")
+    sys.exit(0)
+print(str(data.get("IpfsHash","")).strip())
+PY
+)"
+
+  if [ -z "$ipfs_hash" ]; then
+    echo "Pinata upload failed response: $response" >&2
+    return 1
+  fi
+
+  printf "%s" "$ipfs_hash"
 }
 
 normalize_secret() {
@@ -520,7 +583,7 @@ normalize_base_url() {
   local normalized
   normalized="$(printf "%s" "$raw" | tr -d '\r\n' | sed -E 's/[[:space:]]+$//; s/^[[:space:]]+//')"
   if [ -z "$normalized" ]; then
-    printf "%s" "http://localhost:3000"
+    printf "%s" "https://www.shimeji.dev"
     return
   fi
   case "$normalized" in
@@ -618,6 +681,7 @@ prepare_marketplace_showcase_assets() {
   local -a non_egg_characters=()
   local char
   local base_url
+  local pinata_jwt
   local catalog_file
 
   resolve_marketplace_showcase_seed_mode
@@ -665,6 +729,14 @@ prepare_marketplace_showcase_assets() {
   base_url="$(normalize_base_url "$MARKETPLACE_SHOWCASE_BASE_URL")"
   MARKETPLACE_SHOWCASE_BASE_URL_RESOLVED="$base_url"
 
+  pinata_jwt="$(load_pinata_jwt_for_showcase)"
+  if [ -z "$pinata_jwt" ]; then
+    MARKETPLACE_SHOWCASE_ASSETS_STATUS="missing-pinata-jwt"
+    MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+    echo "==> Skipping marketplace showcase seed: PINATA_JWT is required for IPFS-backed testnet showcase assets."
+    return
+  fi
+
   seed_public_rel="deploy-seed/${NETWORK}"
   public_seed_dir="$PROJECT_ROOT/nextjs/public/${seed_public_rel}"
   sprites_dir="$public_seed_dir/sprites"
@@ -682,6 +754,7 @@ prepare_marketplace_showcase_assets() {
     echo "  \"characters\": ["
     local idx=0
     local image_rel image_url metadata_url escaped_name sprite_src sprite_file sprite_state
+    local image_cid metadata_cid image_ipfs_uri metadata_ipfs_uri
     for char in "${all_characters[@]}"; do
       sprite_src="$runtime_characters_dir/$char/stand-neutral.png"
       sprite_file="${char}-idle.png"
@@ -693,8 +766,14 @@ prepare_marketplace_showcase_assets() {
       fi
       cp "$sprite_src" "$sprites_dir/$sprite_file"
       image_rel="/${seed_public_rel}/sprites/${sprite_file}"
-      image_url="${base_url}${image_rel}"
-      metadata_url="${base_url}/${seed_public_rel}/metadata/${char}.json"
+      image_cid="$(pinata_upload_file "$pinata_jwt" "$sprites_dir/$sprite_file" "$sprite_file" "shimeji-${NETWORK}-sprite-${char}")" || {
+        MARKETPLACE_SHOWCASE_ASSETS_STATUS="pinata-upload-failed"
+        MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+        echo "==> Failed to upload showcase sprite to Pinata: $sprite_file"
+        return
+      }
+      image_ipfs_uri="ipfs://${image_cid}"
+      image_url="$image_ipfs_uri"
       escaped_name="$(printf "%s" "$char" | sed 's/"/\\"/g')"
       cat > "$metadata_dir/${char}.json" <<EOF
 {
@@ -710,6 +789,29 @@ prepare_marketplace_showcase_assets() {
   ]
 }
 EOF
+      metadata_cid="$(pinata_upload_file "$pinata_jwt" "$metadata_dir/${char}.json" "${char}.json" "shimeji-${NETWORK}-metadata-${char}")" || {
+        MARKETPLACE_SHOWCASE_ASSETS_STATUS="pinata-upload-failed"
+        MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+        echo "==> Failed to upload showcase metadata to Pinata: ${char}.json"
+        return
+      }
+      metadata_ipfs_uri="ipfs://${metadata_cid}"
+      metadata_url="$metadata_ipfs_uri"
+      case "$char" in
+        "$SHOWCASE_AUCTION_CHARACTER") SHOWCASE_AUCTION_TOKEN_URI="$metadata_ipfs_uri" ;;
+      esac
+      case "$char" in
+        "$SHOWCASE_SALE_CHARACTER") SHOWCASE_SALE_TOKEN_URI="$metadata_ipfs_uri" ;;
+      esac
+      case "$char" in
+        "$SHOWCASE_SWAP_CHARACTER") SHOWCASE_SWAP_TOKEN_URI="$metadata_ipfs_uri" ;;
+      esac
+      case "$char" in
+        "$SHOWCASE_SWAP_TARGET_CHARACTER") SHOWCASE_SWAP_TARGET_TOKEN_URI="$metadata_ipfs_uri" ;;
+      esac
+      case "$char" in
+        "$SHOWCASE_EGG_CHARACTER") SHOWCASE_EGG_TOKEN_URI="$metadata_ipfs_uri" ;;
+      esac
       if [ "$idx" -gt 0 ]; then
         echo "    ,"
       fi
@@ -720,11 +822,12 @@ EOF
     echo "}"
   } > "$catalog_file"
 
-  SHOWCASE_AUCTION_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_AUCTION_CHARACTER}.json"
-  SHOWCASE_SALE_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SALE_CHARACTER}.json"
-  SHOWCASE_SWAP_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SWAP_CHARACTER}.json"
-  SHOWCASE_SWAP_TARGET_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_SWAP_TARGET_CHARACTER}.json"
-  SHOWCASE_EGG_TOKEN_URI="${base_url}/${seed_public_rel}/metadata/${SHOWCASE_EGG_CHARACTER}.json"
+  if [ -z "$SHOWCASE_AUCTION_TOKEN_URI" ] || [ -z "$SHOWCASE_SALE_TOKEN_URI" ] || [ -z "$SHOWCASE_SWAP_TOKEN_URI" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_URI" ] || [ -z "$SHOWCASE_EGG_TOKEN_URI" ]; then
+    MARKETPLACE_SHOWCASE_ASSETS_STATUS="pinata-upload-failed"
+    MARKETPLACE_SHOWCASE_STATUS="asset-prep-failed"
+    echo "==> Failed to resolve one or more IPFS metadata URIs for showcase seed."
+    return
+  fi
 
   # If the initial auction token URI is still the default placeholder, swap in the generated sprite metadata.
   if [ "$INITIAL_AUCTION_TOKEN_URI" = "ipfs://shimeji/default-auction.json" ]; then
@@ -2713,6 +2816,9 @@ main() {
   setup_identity
   write_secret_backup_file
   prepare_marketplace_showcase_assets
+  if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" = "1" ] && [ "$MARKETPLACE_SHOWCASE_ASSETS_STATUS" != "prepared" ]; then
+    die "Marketplace showcase seed requires IPFS-backed assets, but preparation failed (status: $MARKETPLACE_SHOWCASE_ASSETS_STATUS). Check PINATA_JWT scopes for pinning."
+  fi
   seed_deployer_artist_profile_showcase
 
   if [ "$NETWORK" = "local" ]; then
