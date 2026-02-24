@@ -3,10 +3,11 @@ dist/
 **/node_modules/
 
 # Only shimeji-xlm/nextjs is the Vercel app — exclude everything else
+# runtime-core/ must NOT be excluded: the site shimeji catalog API reads
+# character sprites and personality files from ../../runtime-core at runtime
 desktop/
 chrome-extension/
 firefox-extension/
-runtime-core/
 animation-reference/
 scripts/
 legacy/
