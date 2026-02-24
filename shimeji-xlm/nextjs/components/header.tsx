@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Droplets, Menu, Settings, UserRound, X } from "lucide-react";
+import { Droplets, Menu, Settings, UserRound, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SparkleAnimation } from "./sparkle-animation";
-import { LanguageSwitcher } from "./language-switcher";
 import { useLanguage } from "./language-provider";
 import { FreighterConnectButton } from "./freighter-connect-button";
 import { useFreighter } from "./freighter-provider";
@@ -14,6 +13,7 @@ import { HORIZON_URL, STELLAR_NETWORK, USDC_ISSUER } from "@/lib/contracts";
 import { resolveMediaUrl } from "@/components/marketplace-hub-shared";
 
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
+const DEFAULT_PROFILE_AVATAR_SRC = "/placeholder-user.jpg";
 
 const NAV_LINKS = [
   { href: "/marketplace", pathMatch: "/marketplace", labelEn: "Marketplace", labelEs: "Mercado" },
@@ -157,8 +157,7 @@ export function Header() {
 
   const walletLabel = publicKey ? `${publicKey.slice(0, 6)}...${publicKey.slice(-4)}` : null;
   const profileTitle = walletProfileDisplayName || (isSpanish ? "Mi perfil" : "My profile");
-  const profileInitial = (walletProfileDisplayName || publicKey || "W").trim().charAt(0).toUpperCase();
-  const profileConfigHref = "/marketplace?tab=studio";
+  const profileConfigHref = "/settings";
   const myProfileHref = publicKey ? `/profile/${encodeURIComponent(publicKey)}` : "/settings";
   const menuActionClass =
     "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5";
@@ -217,7 +216,14 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
-            <LanguageSwitcher />
+            <Link
+              href="/settings"
+              aria-label={isSpanish ? "Configuración del shimeji" : "Shimeji settings"}
+              title={isSpanish ? "Configuración del shimeji" : "Shimeji settings"}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-foreground/8 text-foreground hover:bg-foreground/15 transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
             {!isConnected || !publicKey ? (
               <>
                 <FreighterConnectButton />
@@ -246,26 +252,17 @@ export function Header() {
                   onClick={() => setIsProfileMenuOpen((prev) => !prev)}
                   aria-haspopup="menu"
                   aria-expanded={isProfileMenuOpen}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground/8 px-2 py-1 hover:bg-foreground/15"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-foreground/8 px-2 py-1 hover:bg-foreground/15"
                   title={isSpanish ? "Abrir menú de perfil" : "Open profile menu"}
                 >
-                  <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                    {walletProfileAvatarUrl ? (
-                      <img
-                        src={walletProfileAvatarUrl}
-                        alt={profileTitle}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <span className="text-sm font-semibold text-foreground">{profileInitial}</span>
-                    )}
+                  <span className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
+                    <img
+                      src={walletProfileAvatarUrl || DEFAULT_PROFILE_AVATAR_SRC}
+                      alt={profileTitle}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
                   </span>
-                  <ChevronDown
-                    className={`h-4 w-4 text-muted-foreground transition-transform ${
-                      isProfileMenuOpen ? "rotate-180" : ""
-                    }`}
-                  />
                 </button>
 
                 {isProfileMenuOpen ? (
@@ -273,27 +270,28 @@ export function Header() {
                     role="menu"
                     className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur"
                   >
-                    <div className="border-b border-border px-4 py-3">
-                      <div className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                        {walletProfileAvatarUrl ? (
+                    <div className="border-b border-border p-2">
+                      <Link
+                        href={myProfileHref}
+                        role="menuitem"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/5"
+                      >
+                        <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
                           <img
-                            src={walletProfileAvatarUrl}
+                            src={walletProfileAvatarUrl || DEFAULT_PROFILE_AVATAR_SRC}
                             alt={profileTitle}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />
-                        ) : (
-                          <UserRound className="h-5 w-5 text-foreground" />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold text-foreground">{profileTitle}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {walletLabel || (isSpanish ? "Wallet conectada" : "Connected wallet")}
                         </span>
-                      </span>
-                    </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-foreground">{profileTitle}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {walletLabel || (isSpanish ? "Wallet conectada" : "Connected wallet")}
+                          </span>
+                        </span>
+                      </Link>
                     </div>
 
                     <div className="border-b border-border px-4 py-3">
@@ -310,24 +308,6 @@ export function Header() {
                     </div>
 
                     <div className="p-2">
-                      <Link
-                        href={myProfileHref}
-                        role="menuitem"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className={menuActionClass}
-                      >
-                        <UserRound className="h-4 w-4" />
-                        {isSpanish ? "Ver mi perfil" : "View my profile"}
-                      </Link>
-                      <Link
-                        href={profileConfigHref}
-                        role="menuitem"
-                        onClick={() => setIsProfileMenuOpen(false)}
-                        className={menuActionClass}
-                      >
-                        <Settings className="h-4 w-4" />
-                        {isSpanish ? "Configurar perfil" : "Configure profile"}
-                      </Link>
                       <button
                         type="button"
                         onClick={() => void handleFaucet()}
@@ -343,6 +323,15 @@ export function Header() {
                             ? "Cargar fondos"
                             : "Load funds"}
                       </button>
+                      <Link
+                        href={profileConfigHref}
+                        role="menuitem"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className={menuActionClass}
+                      >
+                        <Settings className="h-4 w-4" />
+                        {isSpanish ? "Configuración" : "Settings"}
+                      </Link>
                       <button
                         type="button"
                         onClick={() => {
@@ -372,7 +361,15 @@ export function Header() {
             )}
           </div>
 
-          <div className="flex items-center md:hidden">
+          <div className="flex items-center gap-2 md:hidden">
+            <Link
+              href="/settings"
+              aria-label={isSpanish ? "Configuración del shimeji" : "Shimeji settings"}
+              title={isSpanish ? "Configuración del shimeji" : "Shimeji settings"}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-foreground/8 text-foreground hover:bg-foreground/15 transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
             <button
               className="p-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -404,9 +401,6 @@ export function Header() {
                   {isSpanish ? link.labelEs : link.labelEn}
                 </Link>
               ))}
-              <div className="pt-2">
-                <LanguageSwitcher />
-              </div>
               <div className="flex flex-col gap-2 pt-4">
                 <FreighterConnectButton />
                 <button

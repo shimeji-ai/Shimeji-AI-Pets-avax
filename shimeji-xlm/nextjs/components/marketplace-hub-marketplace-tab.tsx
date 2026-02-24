@@ -300,7 +300,7 @@ export function MarketplaceHubMarketplaceTab({
             {Array.from({ length: 8 }).map((_, index) => (
               <div
                 key={`marketplace-loading-card-${index}`}
-                className="min-w-0 flex-[1_1_260px] overflow-hidden rounded-2xl border border-border bg-white/[0.04]"
+                className="min-w-0 w-full flex-[1_1_260px] overflow-hidden rounded-2xl border border-border bg-white/[0.04] sm:max-w-[360px]"
               >
                 <div className="aspect-square w-full animate-pulse bg-white/[0.06]" />
                 <div className="space-y-2 border-t border-border/60 p-3">
@@ -416,13 +416,13 @@ export function MarketplaceHubMarketplaceTab({
               <Link
                 key={item.id}
                 href={itemDetailHref}
-                className="block h-full min-w-0 cursor-pointer flex-[1_1_260px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="block h-full min-w-0 w-full cursor-pointer flex-[1_1_260px] sm:max-w-[360px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 aria-label={`${title} - ${saleTypeLabel}`}
               >
                 {card}
               </Link>
             ) : (
-              <div key={item.id} className="h-full min-w-0 flex-[1_1_260px]">
+              <div key={item.id} className="h-full min-w-0 w-full flex-[1_1_260px] sm:max-w-[360px]">
                 {card}
               </div>
             );

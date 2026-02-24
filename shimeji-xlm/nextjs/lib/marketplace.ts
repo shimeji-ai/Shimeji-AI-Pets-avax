@@ -1,5 +1,4 @@
 import {
-  Contract,
   TransactionBuilder,
   Account,
   BASE_FEE,
@@ -10,6 +9,7 @@ import {
 } from "@stellar/stellar-sdk";
 import {
   MARKETPLACE_CONTRACT_ID,
+  getMarketplaceContract,
   getServer,
   NETWORK_PASSPHRASE,
 } from "./contracts";
@@ -120,7 +120,7 @@ function parseScVal(val: xdr.ScVal): unknown {
 export async function fetchListings(): Promise<ListingInfo[]> {
   if (!MARKETPLACE_CONTRACT_ID) return [];
   const server = getServer();
-  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+  const contract = getMarketplaceContract();
 
   try {
     const totalResult = await server.simulateTransaction(
@@ -169,7 +169,7 @@ export async function fetchListings(): Promise<ListingInfo[]> {
 export async function fetchSwapListings(): Promise<SwapListing[]> {
   if (!MARKETPLACE_CONTRACT_ID) return [];
   const server = getServer();
-  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+  const contract = getMarketplaceContract();
 
   try {
     const totalResult = await server.simulateTransaction(
@@ -214,7 +214,7 @@ export async function fetchSwapListings(): Promise<SwapListing[]> {
 export async function fetchSwapBids(): Promise<SwapBid[]> {
   if (!MARKETPLACE_CONTRACT_ID) return [];
   const server = getServer();
-  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+  const contract = getMarketplaceContract();
 
   try {
     const totalResult = await server.simulateTransaction(
@@ -259,7 +259,7 @@ export async function fetchSwapBids(): Promise<SwapBid[]> {
 export async function fetchCommissionOrders(): Promise<CommissionOrder[]> {
   if (!MARKETPLACE_CONTRACT_ID) return [];
   const server = getServer();
-  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+  const contract = getMarketplaceContract();
 
   try {
     const totalResult = await server.simulateTransaction(
@@ -323,7 +323,7 @@ async function buildMarketplaceTx(
   args: xdr.ScVal[]
 ): Promise<string> {
   const server = getServer();
-  const contract = new Contract(MARKETPLACE_CONTRACT_ID);
+  const contract = getMarketplaceContract();
   const account = await server.getAccount(sourcePublicKey);
 
   const tx = new TransactionBuilder(account, {

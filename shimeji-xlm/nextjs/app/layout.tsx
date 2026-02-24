@@ -12,6 +12,7 @@ import { LanguageProvider } from "@/components/language-provider";
 import { FreighterProvider } from "@/components/freighter-provider";
 import { SiteShimejiMascot } from "@/components/site-shimeji-mascot";
 import { SiteShimejiProvider } from "@/components/site-shimeji-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
 import { createPageMetadata } from "@/lib/metadata";
 
@@ -66,7 +67,9 @@ export default function RootLayout({
   const themeScript = `
     (function() {
       var themes = ['neural', 'pink', 'kawaii', 'pastel'];
-      var theme = themes[Math.floor(Math.random() * themes.length)];
+      var saved = null;
+      try { saved = localStorage.getItem('shimeji-theme'); } catch(e) {}
+      var theme = (saved && themes.indexOf(saved) !== -1) ? saved : themes[Math.floor(Math.random() * themes.length)];
       document.documentElement.setAttribute('data-theme', theme);
       if (document.body) {
         document.body.setAttribute('data-theme', theme);
@@ -86,11 +89,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <FreighterProvider>
           <LanguageProvider>
-            <SiteShimejiProvider>
-              <Header />
-              {children}
-              <SiteShimejiMascot />
-            </SiteShimejiProvider>
+            <ThemeProvider>
+              <SiteShimejiProvider>
+                <Header />
+                {children}
+                <SiteShimejiMascot />
+              </SiteShimejiProvider>
+            </ThemeProvider>
           </LanguageProvider>
         </FreighterProvider>
         <Analytics />

@@ -86,7 +86,9 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const t = (en: string, es: string) => (isSpanish ? es : en);
   const [activeTopTab, setActiveTopTab] = useState<HubTopTab>(mode === "settings" ? "studio" : "marketplace");
   const [activeStudioTab, setActiveStudioTab] = useState<StudioWorkspaceTab>("profile");
-  const [activeProfileSettingsTab, setActiveProfileSettingsTab] = useState<ProfileSettingsTab>("profile");
+  const [activeProfileSettingsTab, setActiveProfileSettingsTab] = useState<ProfileSettingsTab>(
+    mode === "settings" ? "artist" : "profile",
+  );
 
   const [feedAssetFilter, setFeedAssetFilter] = useState<FeedAssetFilter>("all");
   const [feedSaleFilter, setFeedSaleFilter] = useState<FeedSaleFilter>("all");
@@ -303,10 +305,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const showStudioProfilePreview = !isSettingsOnlyMode;
   const studioSectionTitle = t("Settings", "Configuración");
   const studioSectionSubtitle = isSettingsOnlyMode
-    ? t(
-        "Configure your wallet profile and optional artist settings. Marketplace actions happen on each NFT page.",
-        "Configura tu perfil de wallet y ajustes opcionales de artista. Las acciones del marketplace se hacen en la página de cada NFT.",
-      )
+    ? ""
     : t(
         "Your profile, links and NFTs. Marketplace actions are available from each NFT detail page.",
         "Tu perfil, redes y NFTs. Las acciones del marketplace están en la página de detalle de cada NFT.",
@@ -920,7 +919,11 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-28 md:px-6 lg:px-8">
+    <div
+      className={`mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 ${
+        isSettingsOnlyMode ? "pt-4" : "pt-28"
+      } md:px-6 lg:px-8`}
+    >
       {showTopTabs ? (
         <div className="rounded-2xl border border-border bg-white/10 p-2">
           <div className="grid grid-cols-2 gap-2">
@@ -987,11 +990,11 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
               <UserRound className="h-5 w-5 text-blue-300" />
               {studioSectionTitle}
             </h2>
-            <p className="text-xs text-muted-foreground">
-              {studioSectionSubtitle}
-            </p>
+            {studioSectionSubtitle ? (
+              <p className="text-xs text-muted-foreground">{studioSectionSubtitle}</p>
+            ) : null}
           </div>
-          {publicKey ? (
+          {publicKey && !isSettingsOnlyMode ? (
             <Button
               type="button"
               variant="outline"
@@ -1147,6 +1150,34 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
             </div>
             ) : null}
 
+            {/* Workspace tab strip */}
+            {!isSettingsOnlyMode ? (
+            <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-white/5 p-1">
+              {(
+                [
+                  { id: "profile" as const, label: t("Profile", "Perfil"), icon: <UserRound className="h-3.5 w-3.5" /> },
+                  { id: "sell" as const, label: t("Sell", "Vender"), icon: <Tag className="h-3.5 w-3.5" /> },
+                  { id: "commissions" as const, label: t("Commissions", "Comisiones"), icon: <Palette className="h-3.5 w-3.5" /> },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveStudioTab(tab.id)}
+                  className={`inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition ${
+                    activeStudioTab === tab.id || (tab.id === "sell" && activeStudioTab === "swaps")
+                      ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                      : "border-transparent text-muted-foreground hover:bg-white/5"
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            ) : null}
+
+            {!isSettingsOnlyMode && activeStudioTab === "profile" ? (
             <div className="rounded-3xl border border-border bg-white/5 p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -1216,6 +1247,74 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                 </div>
               )}
             </div>
+            ) : null}
+
+            {/* Sell tab */}
+            {!isSettingsOnlyMode && (activeStudioTab === "sell" || activeStudioTab === "swaps") ? (
+              <MarketplaceHubStudioSellTab
+                t={t}
+                studio={studio}
+                tokenPreviews={tokenPreviews}
+                selectedTokenId={selectedTokenId}
+                onSelectedTokenIdChange={setSelectedTokenId}
+                swapOfferedTokenId={swapOfferedTokenId}
+                onSwapOfferedTokenIdChange={setSwapOfferedTokenId}
+                swapIntention={swapIntention}
+                onSwapIntentionChange={setSwapIntention}
+                listingPriceXlm={listingPriceXlm}
+                onListingPriceXlmChange={setListingPriceXlm}
+                listingPriceUsdc={listingPriceUsdc}
+                onListingPriceUsdcChange={setListingPriceUsdc}
+                auctionDurationHours={auctionDurationHours}
+                onAuctionDurationHoursChange={setAuctionDurationHours}
+                swapActionBusyId={swapActionBusyId}
+                txBusy={txBusy}
+                onCreateListing={() => void handleCreateListing()}
+                onCreateAuction={() => void handleCreateItemAuction()}
+                onCancelListing={(listingId) => void handleCancelListing(listingId)}
+                onCreateSwapOffer={() => void handleCreateSwapOffer()}
+                onAcceptSwapBid={(listingId, bidId) => void handleAcceptSwapBid(listingId, bidId)}
+                onCancelSwapListing={(listingId) => void handleCancelSwapListing(listingId)}
+                onCancelSwapBid={(bidId) => void handleCancelSwapBid(bidId)}
+                publicKey={publicKey}
+              />
+            ) : null}
+
+            {/* Commissions tab */}
+            {!isSettingsOnlyMode && activeStudioTab === "commissions" ? (
+              <MarketplaceHubStudioCommissionsTab
+                t={t}
+                studio={studio}
+                tokenPreviews={tokenPreviews}
+                selectedTokenId={selectedTokenId}
+                onSelectedTokenIdChange={setSelectedTokenId}
+                listingPriceXlm={listingPriceXlm}
+                onListingPriceXlmChange={setListingPriceXlm}
+                listingPriceUsdc={listingPriceUsdc}
+                onListingPriceUsdcChange={setListingPriceUsdc}
+                listingCommissionEtaDays={listingCommissionEtaDays}
+                onListingCommissionEtaDaysChange={setListingCommissionEtaDays}
+                txBusy={txBusy}
+                onCreateCommissionEggListing={() => void handleCreateListing()}
+                onCancelListing={(listingId) => void handleCancelListing(listingId)}
+                commissionDeliveryMetadataUriByOrderId={commissionDeliveryMetadataUriByOrderId}
+                onCommissionDeliveryMetadataUriChange={(orderId, uri) =>
+                  setCommissionDeliveryMetadataUriByOrderId((prev) => ({ ...prev, [orderId]: uri }))
+                }
+                commissionRevisionIntentionByOrderId={commissionRevisionIntentionByOrderId}
+                onCommissionRevisionIntentionChange={(orderId, intention) =>
+                  setCommissionRevisionIntentionByOrderId((prev) => ({ ...prev, [orderId]: intention }))
+                }
+                commissionRevisionReferenceByOrderId={commissionRevisionReferenceByOrderId}
+                onCommissionRevisionReferenceChange={(orderId, ref) =>
+                  setCommissionRevisionReferenceByOrderId((prev) => ({ ...prev, [orderId]: ref }))
+                }
+                orderActionBusyId={orderActionBusyId}
+                onCommissionOrderAction={(order, action) => void handleCommissionOrderAction(order, action)}
+                onCommissionRevisionRequest={(order) => void handleCommissionRevisionRequest(order)}
+                publicKey={publicKey}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -1246,17 +1345,19 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           </div>
         ) : null}
 
-        <div className={`mb-4 rounded-2xl border border-border bg-white/5 p-3 ${!isConnected || !publicKey ? "hidden" : ""}`}>
-          <div className="rounded-xl border border-border bg-white/5 px-3 py-2">
-            <p className="text-sm font-semibold text-foreground">{t("Profile settings", "Configuración de perfil")}</p>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "This page is for profile and artist settings. Marketplace operations were moved to NFT detail pages.",
-                "Esta página es para configuración de perfil y artista. Las operaciones del marketplace se movieron a las páginas de detalle de NFT.",
-              )}
-            </p>
-          </div>
-          <div className="mt-3">
+        <div className={`mb-4 rounded-2xl border border-border bg-white/5 p-3 ${(!isConnected || !publicKey) || (!isSettingsOnlyMode && activeStudioTab !== "profile") ? "hidden" : ""}`}>
+          {!isSettingsOnlyMode ? (
+            <div className="rounded-xl border border-border bg-white/5 px-3 py-2">
+              <p className="text-sm font-semibold text-foreground">{t("Profile settings", "Configuración de perfil")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "This page is for profile and artist settings. Marketplace operations were moved to NFT detail pages.",
+                  "Esta página es para configuración de perfil y artista. Las operaciones del marketplace se movieron a las páginas de detalle de NFT.",
+                )}
+              </p>
+            </div>
+          ) : null}
+          <div className={isSettingsOnlyMode ? "" : "mt-3"}>
 
         {studioError ? (
           <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-foreground">
@@ -1269,12 +1370,16 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
             <div className="space-y-4">
               <div className="rounded-2xl border border-border bg-white/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {t("Wallet profile", "Perfil de wallet")}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">{publicKey}</p>
-                  </div>
+                  {!isSettingsOnlyMode ? (
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {t("Wallet profile", "Perfil de wallet")}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">{publicKey}</p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">{publicKey}</div>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -1284,16 +1389,22 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   >
                     {profileAuthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {canEditProfile
-                      ? t("Re-auth artist profile", "Re-autenticar perfil")
-                      : t("Authenticate artist profile", "Autenticar perfil de artista")}
+                      ? (isSettingsOnlyMode
+                          ? t("Re-auth", "Reautenticar")
+                          : t("Re-auth artist profile", "Re-autenticar perfil"))
+                      : (isSettingsOnlyMode
+                          ? t("Authenticate", "Autenticar")
+                          : t("Authenticate artist profile", "Autenticar perfil de artista"))}
                   </Button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {t(
-                    "Required to edit wallet-based artist profile and commission settings.",
-                    "Requerido para editar el perfil de artista por wallet y la configuracion de comisiones.",
-                  )}
-                </p>
+                {!isSettingsOnlyMode ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {t(
+                      "Required to edit wallet-based artist profile and commission settings.",
+                      "Requerido para editar el perfil de artista por wallet y la configuracion de comisiones.",
+                    )}
+                  </p>
+                ) : null}
                 {STELLAR_NETWORK === "local" ? (
                   <div className="mt-2 rounded-lg border border-amber-300/20 bg-amber-400/10 p-2 text-xs text-foreground">
                     {t(
@@ -1310,27 +1421,33 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
               </div>
 
               <div className="rounded-2xl border border-border bg-white/5 p-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {t("Artist profile", "Perfil de artista")}
-                </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t(
-                    "Artists can enable commissions and list commission eggs. Per-item auctions are still in development.",
-                    "Los artistas pueden activar comisiones y listar huevos de comision. Las subastas por item siguen en desarrollo.",
-                  )}
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border bg-white/5 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveProfileSettingsTab("profile")}
-                    className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs transition ${
-                      activeProfileSettingsTab === "profile"
-                        ? "border-blue-300/30 bg-blue-400/15 text-foreground"
-                        : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-                    }`}
-                  >
-                    {t("Profile", "Perfil")}
-                  </button>
+                {!isSettingsOnlyMode ? (
+                  <>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {t("Artist profile", "Perfil de artista")}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t(
+                        "Artists can enable commissions and list commission eggs. Per-item auctions are still in development.",
+                        "Los artistas pueden activar comisiones y listar huevos de comision. Las subastas por item siguen en desarrollo.",
+                      )}
+                    </p>
+                  </>
+                ) : null}
+                <div className={`${isSettingsOnlyMode ? "" : "mt-3 "}grid ${isSettingsOnlyMode ? "grid-cols-1" : "grid-cols-2"} gap-2 rounded-xl border border-border bg-white/5 p-2`}>
+                  {!isSettingsOnlyMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveProfileSettingsTab("profile")}
+                      className={`inline-flex w-full cursor-pointer items-center justify-center rounded-lg border px-3 py-2 text-xs transition ${
+                        activeProfileSettingsTab === "profile"
+                          ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                          : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                      }`}
+                    >
+                      {t("Profile", "Perfil")}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setActiveProfileSettingsTab("artist")}
@@ -1343,7 +1460,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     {t("Artist", "Artista")}
                   </button>
                 </div>
-                {activeProfileSettingsTab === "artist" ? (
+                {!isSettingsOnlyMode && activeProfileSettingsTab === "artist" ? (
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">{t("Quick setup", "Configuracion rapida")}</p>
                   <p className="mt-1">
@@ -1353,7 +1470,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     )}
                   </p>
                 </div>
-                ) : (
+                ) : !isSettingsOnlyMode ? (
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground">{t("Profile customization", "Personalización del perfil")}</p>
                   <p className="mt-1">
@@ -1363,7 +1480,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     )}
                   </p>
                 </div>
-                )}
+                ) : null}
 
                 {activeProfileSettingsTab === "artist" ? (
                 <div className="mt-4 space-y-3">
@@ -1411,7 +1528,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                 ) : null}
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {activeProfileSettingsTab === "profile" ? (
+                  {!isSettingsOnlyMode && activeProfileSettingsTab === "profile" ? (
                   <>
                   <InputField
                     label={t("Display name", "Nombre visible")}
@@ -1464,7 +1581,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   ) : null}
                 </div>
 
-                {activeProfileSettingsTab === "profile" ? (
+                {!isSettingsOnlyMode && activeProfileSettingsTab === "profile" ? (
                 <div className="mt-3">
                   <InputField
                     label={t("Bio", "Bio")}
@@ -1481,58 +1598,24 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                 </div>
                 ) : null}
 
-                {activeProfileSettingsTab === "profile" ? (
+                {!isSettingsOnlyMode && activeProfileSettingsTab === "profile" ? (
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium text-foreground">{t("Social links", "Redes sociales")}</p>
                       <p className="text-xs text-muted-foreground">
-                        {t("Add one or more profiles (X, Instagram, TikTok, website, etc.).", "Agrega uno o mas perfiles (X, Instagram, TikTok, web, etc.).")}
+                        {t("Edit from your public profile page.", "Edita desde tu perfil público.")}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                      onClick={() =>
-                        setSocialLinkRows((rows) => [...rows, { key: "", url: "" }].slice(0, 10))
-                      }
-                      disabled={!canEditProfile || socialLinkRows.length >= 10}
+                    <Link
+                      href={publicKey ? `/profile/${encodeURIComponent(publicKey)}` : "/settings"}
+                      className="inline-flex items-center justify-center rounded-md border border-border bg-white/5 px-3 py-1.5 text-sm text-foreground hover:bg-white/10"
                     >
-                      {t("Add link", "Agregar red")}
-                    </Button>
+                      {t("Open profile", "Abrir perfil")}
+                    </Link>
                   </div>
 
                   <div className="mt-3 space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                      {["x", "instagram", "tiktok", "youtube", "discord", "website"].map((network) => (
-                        <button
-                          key={`social-preset-${network}`}
-                          type="button"
-                          className="cursor-pointer rounded-full border border-border bg-white/5 px-2 py-1 text-[11px] text-muted-foreground hover:bg-white/10 disabled:opacity-50"
-                          onClick={() =>
-                            setSocialLinkRows((rows) =>
-                              rows.length >= 10 ? rows : [...rows, { key: network, url: "" }],
-                            )
-                          }
-                          disabled={!canEditProfile || socialLinkRows.length >= 10}
-                        >
-                          + {network}
-                        </button>
-                      ))}
-                    </div>
-                    <datalist id="marketplace-social-network-options">
-                      <option value="x" />
-                      <option value="instagram" />
-                      <option value="tiktok" />
-                      <option value="youtube" />
-                      <option value="twitch" />
-                      <option value="discord" />
-                      <option value="telegram" />
-                      <option value="website" />
-                      <option value="portfolio" />
-                    </datalist>
                     {socialLinkRows.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         {t("No social links yet.", "Todavia no hay redes cargadas.")}
@@ -1543,42 +1626,22 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                         <input
                           type="text"
                           value={row.key}
-                          placeholder={t("Network (x, instagram...)", "Red (x, instagram...)")}
-                          list="marketplace-social-network-options"
+                          placeholder={t("Network", "Red")}
                           className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-                          onChange={(event) =>
-                            setSocialLinkRows((rows) =>
-                              rows.map((item, i) =>
-                                i === index ? { ...item, key: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          disabled={!canEditProfile}
+                          readOnly
+                          disabled
                         />
                         <input
                           type="url"
                           value={row.url}
                           placeholder="https://..."
                           className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-                          onChange={(event) =>
-                            setSocialLinkRows((rows) =>
-                              rows.map((item, i) =>
-                                i === index ? { ...item, url: event.target.value } : item,
-                              ),
-                            )
-                          }
-                          disabled={!canEditProfile}
+                          readOnly
+                          disabled
                         />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                          onClick={() => setSocialLinkRows((rows) => rows.filter((_, i) => i !== index))}
-                          disabled={!canEditProfile}
-                        >
-                          {t("Remove", "Quitar")}
-                        </Button>
+                        <div className="flex items-center justify-center rounded-lg border border-border bg-white/5 px-2 text-xs text-muted-foreground">
+                          {t("Only on profile", "Solo en perfil")}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1587,18 +1650,18 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
 
                 <div className="mt-3 rounded-xl border border-border bg-white/5 p-3">
                   <p className="text-sm font-medium text-foreground">
-                    {activeProfileSettingsTab === "profile"
+                    {!isSettingsOnlyMode && activeProfileSettingsTab === "profile"
                       ? t("Profile extras", "Extras del perfil")
                       : t("Artist settings", "Configuración de artista")}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {activeProfileSettingsTab === "profile"
+                    {!isSettingsOnlyMode && activeProfileSettingsTab === "profile"
                       ? t("Banner and extra public profile details.", "Portada y detalles extra del perfil público.")
                       : t("Commission timing, capacity and preferences.", "Tiempos de comisión, capacidad y preferencias.")}
                   </p>
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    {activeProfileSettingsTab === "profile" ? (
+                    {!isSettingsOnlyMode && activeProfileSettingsTab === "profile" ? (
                     <InputField
                       label={t("Banner URL", "URL banner")}
                       type="url"

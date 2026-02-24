@@ -1,23 +1,23 @@
-import { rpc } from "@stellar/stellar-sdk";
+import { Contract, rpc } from "@stellar/stellar-sdk";
 
-function envTrim(key: string): string {
-  return String(process.env[key] ?? "").trim();
+function envTrim(value: unknown): string {
+  return String(value ?? "").trim();
 }
 
 export const AUCTION_CONTRACT_ID =
-  envTrim("NEXT_PUBLIC_AUCTION_CONTRACT_ID");
+  envTrim(process.env.NEXT_PUBLIC_AUCTION_CONTRACT_ID);
 export const NFT_CONTRACT_ID =
-  envTrim("NEXT_PUBLIC_NFT_CONTRACT_ID");
+  envTrim(process.env.NEXT_PUBLIC_NFT_CONTRACT_ID);
 export const MARKETPLACE_CONTRACT_ID =
-  envTrim("NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID");
+  envTrim(process.env.NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID);
 export const COMMISSION_CONTRACT_ID =
-  envTrim("NEXT_PUBLIC_COMMISSION_CONTRACT_ID");
+  envTrim(process.env.NEXT_PUBLIC_COMMISSION_CONTRACT_ID);
 
 export const RPC_URL =
-  envTrim("NEXT_PUBLIC_STELLAR_RPC_URL") || "https://soroban-testnet.stellar.org";
+  envTrim(process.env.NEXT_PUBLIC_STELLAR_RPC_URL) || "https://soroban-testnet.stellar.org";
 
 export const NETWORK_PASSPHRASE =
-  envTrim("NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE") || "Test SDF Network ; September 2015";
+  envTrim(process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE) || "Test SDF Network ; September 2015";
 
 const TESTNET_USDC_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
 const MAINNET_USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
@@ -44,7 +44,7 @@ function normalizeNetwork(value: string): "local" | "testnet" | "mainnet" | "cus
 }
 
 export const STELLAR_NETWORK = normalizeNetwork(
-  envTrim("NEXT_PUBLIC_STELLAR_NETWORK") || inferNetwork(NETWORK_PASSPHRASE)
+  envTrim(process.env.NEXT_PUBLIC_STELLAR_NETWORK) || inferNetwork(NETWORK_PASSPHRASE)
 );
 
 export const STELLAR_NETWORK_LABEL =
@@ -57,7 +57,7 @@ export const STELLAR_NETWORK_LABEL =
         : "Stellar";
 
 export const HORIZON_URL =
-  envTrim("NEXT_PUBLIC_STELLAR_HORIZON_URL") ||
+  envTrim(process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL) ||
   (STELLAR_NETWORK === "local"
     ? "http://localhost:8000"
     : STELLAR_NETWORK === "mainnet"
@@ -65,13 +65,13 @@ export const HORIZON_URL =
       : "https://horizon-testnet.stellar.org");
 
 export const LOCAL_FRIENDBOT_URL =
-  envTrim("NEXT_PUBLIC_LOCAL_FRIENDBOT_URL") ||
+  envTrim(process.env.NEXT_PUBLIC_LOCAL_FRIENDBOT_URL) ||
   `${HORIZON_URL.replace(/\/$/, "")}/friendbot`;
 
 export const USDC_ISSUER =
-  envTrim("NEXT_PUBLIC_USDC_ISSUER") ||
+  envTrim(process.env.NEXT_PUBLIC_USDC_ISSUER) ||
   (STELLAR_NETWORK === "local"
-    ? envTrim("NEXT_PUBLIC_LOCAL_USDC_ISSUER") || TESTNET_USDC_ISSUER
+    ? envTrim(process.env.NEXT_PUBLIC_LOCAL_USDC_ISSUER) || TESTNET_USDC_ISSUER
     : STELLAR_NETWORK === "mainnet"
       ? MAINNET_USDC_ISSUER
       : TESTNET_USDC_ISSUER);
@@ -84,4 +84,43 @@ export function getServer(): rpc.Server {
     _server = new rpc.Server(RPC_URL, isHttp ? { allowHttp: true } : undefined);
   }
   return _server;
+}
+
+function contractConfigError(featureLabel: string, envKey: string, reason: "missing" | "invalid") {
+  if (reason === "missing") {
+    return new Error(
+      `${featureLabel} contract is not configured (${envKey}). If you just updated .env.local, restart Next.js so NEXT_PUBLIC env vars reload.`,
+    );
+  }
+  return new Error(
+    `${featureLabel} contract ID is invalid (${envKey}). If you just updated .env.local, restart Next.js so NEXT_PUBLIC env vars reload.`,
+  );
+}
+
+function getConfiguredContract(contractId: string, envKey: string, featureLabel: string): Contract {
+  const value = String(contractId || "").trim();
+  if (!value) {
+    throw contractConfigError(featureLabel, envKey, "missing");
+  }
+  try {
+    return new Contract(value);
+  } catch {
+    throw contractConfigError(featureLabel, envKey, "invalid");
+  }
+}
+
+export function getAuctionContract(): Contract {
+  return getConfiguredContract(AUCTION_CONTRACT_ID, "NEXT_PUBLIC_AUCTION_CONTRACT_ID", "Auction");
+}
+
+export function getMarketplaceContract(): Contract {
+  return getConfiguredContract(MARKETPLACE_CONTRACT_ID, "NEXT_PUBLIC_MARKETPLACE_CONTRACT_ID", "Marketplace");
+}
+
+export function getCommissionContract(): Contract {
+  return getConfiguredContract(COMMISSION_CONTRACT_ID, "NEXT_PUBLIC_COMMISSION_CONTRACT_ID", "Commission");
+}
+
+export function getNftContract(): Contract {
+  return getConfiguredContract(NFT_CONTRACT_ID, "NEXT_PUBLIC_NFT_CONTRACT_ID", "NFT");
 }

@@ -9,7 +9,6 @@ import {
 import { ScrollAnimation } from "./scroll-animation";
 import { useLanguage } from "./language-provider";
 import { useCurrentTheme, type SiteTheme } from "@/hooks/use-current-theme";
-import AuctionButton from "./auction-button";
 
 const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
   neural:  [MessageSquare, Bot, Sparkles],
@@ -36,12 +35,12 @@ const features = [
       "Delegá tareas reales: navegar páginas, interactuar con herramientas web y ejecutar acciones onchain via OpenClaw.",
   },
   {
-    titleEn: "Terminal & desktop control",
-    titleEs: "Control de terminal y escritorio",
+    titleEn: "Built for vibecoding",
+    titleEs: "Ideal para vibecodear",
     descriptionEn:
-      "Run commands, automate workflows, and control your desktop through your Shimeji (desktop app).",
+      "Perfect for vibecoding sessions. The desktop app includes a built-in terminal so your Shimeji can help you run commands and automate workflows.",
     descriptionEs:
-      "Ejecutá comandos, automatizá flujos de trabajo y controlá tu escritorio desde tu Shimeji (app de escritorio).",
+      "Ideal para sesiones de vibecodeo. La app de escritorio incluye un terminal integrado para que tu Shimeji te ayude a ejecutar comandos y automatizar flujos de trabajo.",
   },
 ];
 
@@ -58,34 +57,6 @@ export function FeaturesSection() {
     <section id="features" className="py-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="w-full mx-auto">
-          {/* Auction highlight banner */}
-          <div className="auction-highlight-banner mb-12 rounded-3xl border border-[rgba(92,255,146,0.4)] bg-[rgba(92,255,146,0.08)] p-8 md:p-10">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
-                  {isSpanish ? "Hermosas, Útiles e Interactivas" : "Beautiful, Useful, Interactive"}
-                </h3>
-                <p className="text-foreground/80 leading-relaxed mb-1">
-                  {isSpanish
-                    ? "Cada mascota personalizada se crea a mano y se subasta como NFT en "
-                    : "Each custom mascot is hand-crafted and auctioned as an NFT on "}
-                  <a
-                    href="https://stellar.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold underline decoration-2 underline-offset-2"
-                  >
-                    Stellar
-                  </a>
-                  .
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <AuctionButton />
-              </div>
-            </div>
-          </div>
-
           <div className="text-center mb-16">
             
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-foreground tracking-tight">

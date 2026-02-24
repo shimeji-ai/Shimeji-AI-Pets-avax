@@ -15,7 +15,7 @@ export default function MarketplacePage() {
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
       <Suspense fallback={null}>
-        <MarketplaceHub mode="marketplace" />
+        <MarketplaceHub mode="all" />
       </Suspense>
       <Footer />
     </main>

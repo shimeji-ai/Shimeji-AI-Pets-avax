@@ -10,6 +10,7 @@ import {
 } from "@stellar/stellar-sdk";
 import {
   AUCTION_CONTRACT_ID,
+  getAuctionContract,
   getServer,
   HORIZON_URL,
   NETWORK_PASSPHRASE,
@@ -345,7 +346,7 @@ export async function fetchAuctions(opts?: {
   limit?: number;
 }): Promise<AuctionSnapshot[]> {
   const server = getServer();
-  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const contract = getAuctionContract();
   const includeEnded = Boolean(opts?.includeEnded);
   const includeSystem = opts?.includeSystem ?? true;
   const includeItemAuctions = opts?.includeItemAuctions ?? true;
@@ -424,7 +425,7 @@ export async function buildBidXlmTx(
   amount: bigint
 ): Promise<string> {
   const server = getServer();
-  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const contract = getAuctionContract();
   const account = await server.getAccount(sourcePublicKey);
 
   const tx = new TransactionBuilder(account, {
@@ -459,7 +460,7 @@ export async function buildCreateItemAuctionTx(
   durationSeconds: number,
 ): Promise<string> {
   const server = getServer();
-  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const contract = getAuctionContract();
   const account = await server.getAccount(sourcePublicKey);
 
   const tx = new TransactionBuilder(account, {
@@ -494,7 +495,7 @@ export async function buildBidUsdcTx(
   amount: bigint
 ): Promise<string> {
   const server = getServer();
-  const contract = new Contract(AUCTION_CONTRACT_ID);
+  const contract = getAuctionContract();
   const account = await server.getAccount(sourcePublicKey);
 
   const tx = new TransactionBuilder(account, {

@@ -21,10 +21,10 @@ const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
 const steps = [
   {
     step: "01",
-    titleEn: "Download in seconds",
-    titleEs: "Descarga en segundos",
-    descriptionEn: "Browser or desktop extension.",
-    descriptionEs: "Extensión para tu navegador o app de escritorio.",
+    titleEn: "Start in seconds",
+    titleEs: "Empezá en segundos",
+    descriptionEn: "Use it on the web, or install the browser extension or desktop app.",
+    descriptionEs: "Usalo desde la web, o instalá la extensión para tu navegador o la app de escritorio.",
   },
   {
     step: "02",
@@ -39,8 +39,8 @@ const steps = [
     step: "03",
     titleEn: "Make it truly yours",
     titleEs: "Hazlo verdaderamente tuyo",
-    descriptionEn: "Participate in our auctions to get a Shimeji designed and handcrafted as an NFT on Stellar.",
-    descriptionEs: "Participá en nuestras subastas para conseguir un Shimeji diseñado artesanalmente y minteado como NFT en Stellar.",
+    descriptionEn: "Explore the marketplace to discover and acquire different Shimeji characters.",
+    descriptionEs: "Explorá el marketplace para descubrir y adquirir diferentes personajes Shimeji.",
   },
 ];
 
@@ -88,14 +88,14 @@ export function HowItWorksSection() {
                   {step.step === "01" ? (
                     isSpanish ? (
                       <>
+                        Usalo desde la web, o{" "}
                         <Link
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Descargá
+                          descargá
                         </Link>{" "}
-                         
-    la extensión para tu navegador o app de escritorio.
+                        la extensión para tu navegador o la app de escritorio.
                       </>
                     ) : (
                       <>
@@ -105,7 +105,7 @@ export function HowItWorksSection() {
                         >
                           Download 
                         </Link>{" "}
-                        the browser or desktop extension.
+                        it on the web, or install the browser or desktop extension.
                       </>
                     )
                   ) : step.step === "03" ? (
@@ -115,9 +115,9 @@ export function HowItWorksSection() {
                           href="/marketplace"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                    Participá en nuestras subastas
+                    Explorá el marketplace
                         </Link>
-                         {" "}para conseguir un Shimeji diseñado artesanalmente y minteado como NFT en Stellar.
+                         {" "}para descubrir y adquirir diferentes personajes Shimeji.
         
                       </>
                     ) : (
@@ -126,10 +126,10 @@ export function HowItWorksSection() {
                           href="/marketplace"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Bid in our auctions
+                          Explore the marketplace
                         </Link>
     
-    {" "}to win a handcrafted Shimeji pet minted as an NFT on Stellar.
+    {" "}to discover and acquire different Shimeji characters.
                       </>
                     )
                   ) : step.step === "02" ? (

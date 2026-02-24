@@ -1350,3 +1350,33 @@ body[data-theme="pastel"] #giveaway-panel .neural-button:hover {
     display: none !important;
   }
 }
+
+/* Shimeji settings panel: readable controls and native select dropdowns across themes */
+.shimeji-settings-panel {
+  color: var(--foreground);
+  border-color: var(--border) !important;
+  background: color-mix(in oklab, var(--background) 92%, black 8%) !important;
+}
+
+.shimeji-settings-panel :is(input:not([type="range"]), select, textarea) {
+  color: var(--foreground) !important;
+  border-color: color-mix(in oklab, var(--border) 90%, transparent) !important;
+  background: color-mix(in oklab, var(--background) 86%, black 14%) !important;
+}
+
+.shimeji-settings-panel :is(input:not([type="range"]), select, textarea)::placeholder {
+  color: color-mix(in oklab, var(--muted-foreground) 85%, transparent) !important;
+}
+
+.shimeji-settings-panel select option {
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+}
+
+.shimeji-settings-panel select option:disabled {
+  color: var(--muted-foreground) !important;
+}
+
+.shimeji-settings-panel :is(.rounded-3xl.border, .rounded-2xl.border, .rounded-xl.border) {
+  border-color: color-mix(in oklab, var(--border) 90%, transparent) !important;
+}

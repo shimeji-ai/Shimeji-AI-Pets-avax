@@ -15,6 +15,28 @@ import {
 
 type ConfigPanelTab = "mascot" | "chat" | "sound";
 
+type OpenRouterModelOption = {
+  value: string;
+  labelEn: string;
+  labelEs: string;
+  disabled?: boolean;
+};
+
+const OPENROUTER_MODEL_OPTIONS: readonly OpenRouterModelOption[] = [
+  { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
+  { value: "google/gemini-2.0-flash-001", labelEn: "Gemini 2.0 Flash", labelEs: "Gemini 2.0 Flash" },
+  {
+    value: "moonshotai/kimi-k2.5",
+    labelEn: "Kimi K2.5 (disabled)",
+    labelEs: "Kimi K2.5 (deshabilitado)",
+    disabled: true,
+  },
+  { value: "anthropic/claude-sonnet-4", labelEn: "Claude Sonnet 4", labelEs: "Claude Sonnet 4" },
+  { value: "meta-llama/llama-4-maverick", labelEn: "Llama 4 Maverick", labelEs: "Llama 4 Maverick" },
+  { value: "deepseek/deepseek-chat-v3-0324", labelEn: "DeepSeek Chat v3", labelEs: "DeepSeek Chat v3" },
+  { value: "mistralai/mistral-large-2411", labelEn: "Mistral Large", labelEs: "Mistral Large" },
+];
+
 function ChatAppearanceFields() {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteShimeji();
@@ -262,6 +284,45 @@ function ChatAppearanceFields() {
 function ProviderFields() {
   const { isSpanish } = useLanguage();
   const { config, updateConfig, freeSiteMessagesRemaining, freeSiteMessagesUsed } = useSiteShimeji();
+  const openRouterModelKnown = OPENROUTER_MODEL_OPTIONS.some((item) => item.value === config.openrouterModel);
+  const openRouterModelSelectValue = openRouterModelKnown ? config.openrouterModel : "__custom__";
+
+  function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
+    if (kind === "openrouter") {
+      return (
+        <a
+          href="https://openrouter.ai/settings/keys"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+        >
+          {isSpanish ? "Conseguir API key de OpenRouter" : "Get OpenRouter API key"}
+        </a>
+      );
+    }
+    if (kind === "ollama") {
+      return (
+        <a
+          href="https://ollama.com"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+        >
+          {isSpanish ? "Descargar / configurar Ollama" : "Download / setup Ollama"}
+        </a>
+      );
+    }
+    return (
+      <a
+        href="https://github.com/openclaw/openclaw"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+      >
+        {isSpanish ? "Configurar OpenClaw" : "Setup OpenClaw"}
+      </a>
+    );
+  }
 
   if (config.provider === "site") {
     return (
@@ -286,6 +347,9 @@ function ProviderFields() {
   if (config.provider === "openrouter") {
     return (
       <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {providerHelpLinks("openrouter")}
+        </div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             OpenRouter API Key
@@ -303,14 +367,38 @@ function ProviderFields() {
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {isSpanish ? "Modelo" : "Model"}
           </span>
-          <input
-            type="text"
-            value={config.openrouterModel}
-            onChange={(event) => updateConfig({ openrouterModel: event.target.value })}
-            placeholder="openai/gpt-4o-mini"
+          <select
+            value={openRouterModelSelectValue}
+            onChange={(event) =>
+              updateConfig({
+                openrouterModel:
+                  event.target.value === "__custom__" ? (openRouterModelKnown ? "" : config.openrouterModel) : event.target.value,
+              })
+            }
             className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-          />
+          >
+            {OPENROUTER_MODEL_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value} disabled={Boolean(item.disabled)}>
+                {isSpanish ? item.labelEs : item.labelEn}
+              </option>
+            ))}
+            <option value="__custom__">{isSpanish ? "Personalizado" : "Custom"}</option>
+          </select>
         </label>
+        {openRouterModelSelectValue === "__custom__" ? (
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Modelo personalizado" : "Custom model"}
+            </span>
+            <input
+              type="text"
+              value={config.openrouterModel}
+              onChange={(event) => updateConfig({ openrouterModel: event.target.value })}
+              placeholder="openai/gpt-4o-mini"
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            />
+          </label>
+        ) : null}
       </div>
     );
   }
@@ -318,6 +406,9 @@ function ProviderFields() {
   if (config.provider === "ollama") {
     return (
       <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {providerHelpLinks("ollama")}
+        </div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Ollama URL
@@ -353,6 +444,9 @@ function ProviderFields() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {providerHelpLinks("openclaw")}
+      </div>
       <label className="block">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {isSpanish ? "Gateway URL" : "Gateway URL"}
@@ -608,7 +702,7 @@ export function SoundFields() {
   );
 }
 
-export function SiteShimejiConfigPanel() {
+export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const [activeTab, setActiveTab] = useState<ConfigPanelTab>("mascot");
   const {
@@ -625,19 +719,27 @@ export function SiteShimejiConfigPanel() {
     freeSiteMessagesRemaining,
   } = useSiteShimeji();
 
-  if (!isConfigOpen) return null;
+  if (!inline && !isConfigOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[90]">
-      <button
-        type="button"
-        aria-label={isSpanish ? "Cerrar panel de configuración" : "Close configuration panel"}
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
-        onClick={closeConfig}
-      />
+    <div className={inline ? "w-full" : "fixed inset-0 z-[90]"}>
+      {!inline ? (
+        <button
+          type="button"
+          aria-label={isSpanish ? "Cerrar panel de configuración" : "Close configuration panel"}
+          className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+          onClick={closeConfig}
+        />
+      ) : null}
 
-      <aside className="absolute right-0 top-0 h-full w-full max-w-xl border-l border-white/10 bg-[#06080d]/95 shadow-2xl">
-        <div className="flex h-full flex-col">
+      <aside
+        className={
+          inline
+            ? "shimeji-settings-panel mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-[#06080d]/95 shadow-2xl"
+            : "shimeji-settings-panel absolute right-0 top-0 h-full w-full max-w-xl border-l border-white/10 bg-[#06080d]/95 shadow-2xl"
+        }
+      >
+        <div className={`flex ${inline ? "min-h-0" : "h-full"} flex-col`}>
           <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5">
@@ -654,13 +756,15 @@ export function SiteShimejiConfigPanel() {
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={closeConfig}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-foreground/80 hover:bg-white/10"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            {!inline ? (
+              <button
+                type="button"
+                onClick={closeConfig}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-foreground/80 hover:bg-white/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
@@ -776,13 +880,7 @@ export function SiteShimejiConfigPanel() {
                   </div>
                 ) : catalogLoading ? (
                   <span>{isSpanish ? "Cargando catálogo de sprites..." : "Loading sprite catalog..."}</span>
-                ) : (
-                  <span>
-                    {isSpanish
-                      ? "Sprites y personalidades cargados desde runtime-core."
-                      : "Sprites and personalities loaded from runtime-core."}
-                  </span>
-                )}
+                ) : null}
               </div>
               </section>
             )}
