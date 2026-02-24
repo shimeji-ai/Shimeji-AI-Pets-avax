@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT_DIR="$(cd "$ROOT_DIR/.." && pwd)"
 NEXTJS_DIR="$ROOT_DIR/nextjs"
 DEPLOY_ENV_DIR="${DEPLOY_ENV_EXPORT_DIR:-$ROOT_DIR/.deploy-env}"
 VERCEL_LINK_FILE="$NEXTJS_DIR/.vercel/project.json"
@@ -31,6 +32,27 @@ need_cmd() {
 
 vercel_cli() {
   vercel --cwd "$NEXTJS_DIR" "$@"
+}
+
+json_value() {
+  local key="$1"
+  local file="$2"
+  [ -f "$file" ] || return 0
+  sed -n "s/.*\"$key\":\"\\([^\"]*\\)\".*/\\1/p" "$file" | head -n 1
+}
+
+vercel_deploy_cli() {
+  local root_link_file="$REPO_ROOT_DIR/.vercel/project.json"
+  local nextjs_project_id root_project_id
+  nextjs_project_id="$(json_value "projectId" "$VERCEL_LINK_FILE")"
+  root_project_id="$(json_value "projectId" "$root_link_file")"
+
+  if [ -n "$nextjs_project_id" ] && [ "$nextjs_project_id" = "$root_project_id" ]; then
+    vercel --cwd "$REPO_ROOT_DIR" "$@"
+    return
+  fi
+
+  vercel_cli "$@"
 }
 
 die() {
@@ -172,13 +194,13 @@ fi
 if [ "$DEPLOY_AFTER_SYNC" -eq 1 ]; then
   echo "==> Deploying frontend after env sync..."
   if [ "$TARGET_ENV" = "production" ]; then
-    vercel_cli --prod
+    vercel_deploy_cli --prod
   else
-    vercel_cli
+    vercel_deploy_cli
   fi
 else
   if [ "$TARGET_ENV" = "production" ]; then
-    echo "Next step: vercel --cwd \"$NEXTJS_DIR\" --prod"
+    echo "Next step: vercel --cwd \"$NEXTJS_DIR\" --prod (or repo root if Vercel Root Directory is already shimeji-xlm/nextjs)"
   else
     echo "Next step: vercel --cwd \"$NEXTJS_DIR\""
   fi
