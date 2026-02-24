@@ -2668,7 +2668,11 @@ async function callOpenClawViaRenderer(webContents, normalizedUrl, authToken, me
             const payload = data.payload || {};
             const text = extractText(payload);
             if (text) pushText(text);
-            if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+            if (payload.state === 'error') {
+              fail(new Error(\`OPENCLAW_ERROR:\${payload.errorMessage || 'Chat failed'}\`));
+              return;
+            }
+            if (payload.state === 'final' || payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
               sawCompletion = true;
               finish(responseText || text || '(no response)');
             }
@@ -2938,7 +2942,11 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
-        if (payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
+        if (payload.state === 'error') {
+          fail(new Error(`OPENCLAW_ERROR:${payload.errorMessage || 'Chat failed'}`));
+          return;
+        }
+        if (payload.state === 'final' || payload.status === 'completed' || payload.status === 'done' || payload.type === 'done' || payload.done === true) {
           sawCompletion = true;
           finish(responseText || text || '(no response)');
           return;
