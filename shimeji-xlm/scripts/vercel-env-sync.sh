@@ -6,6 +6,9 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 NEXTJS_DIR="$ROOT_DIR/nextjs"
 DEPLOY_ENV_DIR="${DEPLOY_ENV_EXPORT_DIR:-$ROOT_DIR/.deploy-env}"
 VERCEL_LINK_FILE="$NEXTJS_DIR/.vercel/project.json"
+SHIMEJI_XLM_ENV_FILE="$ROOT_DIR/.env"
+NEXTJS_ENV_LOCAL_FILE="$NEXTJS_DIR/.env.local"
+NEXTJS_ENV_FILE="$NEXTJS_DIR/.env"
 
 POSITIONAL_ARGS=()
 DEPLOY_AFTER_SYNC=0
@@ -36,10 +39,28 @@ read_env_key_from_file() {
   awk -F= -v key="$key" '
     $1 == key {
       sub(/^[^=]*=/, "", $0)
+      gsub(/\r/, "", $0)
+      gsub(/^"/, "", $0)
+      gsub(/"$/, "", $0)
       print $0
       exit
     }
   ' "$file"
+}
+
+resolve_env_key() {
+  local key="$1"
+  shift
+  local file value
+  for file in "$@"; do
+    [ -n "$file" ] || continue
+    value="$(read_env_key_from_file "$file" "$key")"
+    if [ -n "${value:-}" ]; then
+      printf "%s" "$value"
+      return 0
+    fi
+  done
+  return 0
 }
 
 vercel_cli() {
@@ -129,19 +150,38 @@ set -a
 . "$ENV_FILE"
 set +a
 
-# Deployment exports contain network/contract envs, but Prisma DB envs live in nextjs/.env(.local).
+# Deploy exports contain network/contract envs in .deploy-env/<network>.env.
+# Additional app/server secrets are resolved from subapp-scoped env files:
+# - Next.js app runtime: shimeji-xlm/nextjs/.env.local, then nextjs/.env
+# - Shared shimeji-xlm deploy/runtime secrets: shimeji-xlm/.env
+NEXTJS_LOOKUP_FILES=("$NEXTJS_ENV_LOCAL_FILE" "$NEXTJS_ENV_FILE")
+PINATA_LOOKUP_FILES=("$SHIMEJI_XLM_ENV_FILE" "$NEXTJS_ENV_LOCAL_FILE" "$NEXTJS_ENV_FILE")
+
 if [ -z "${DATABASE_URL:-}" ]; then
-  DATABASE_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env.local" "DATABASE_URL")"
-fi
-if [ -z "${DATABASE_URL:-}" ]; then
-  DATABASE_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env" "DATABASE_URL")"
+  DATABASE_URL="$(resolve_env_key "DATABASE_URL" "${NEXTJS_LOOKUP_FILES[@]}")"
 fi
 if [ -z "${DIRECT_URL:-}" ]; then
-  DIRECT_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env.local" "DIRECT_URL")"
+  DIRECT_URL="$(resolve_env_key "DIRECT_URL" "${NEXTJS_LOOKUP_FILES[@]}")"
 fi
-if [ -z "${DIRECT_URL:-}" ]; then
-  DIRECT_URL="$(read_env_key_from_file "$NEXTJS_DIR/.env" "DIRECT_URL")"
+if [ -z "${NEXT_PUBLIC_BASE_URL:-}" ]; then
+  NEXT_PUBLIC_BASE_URL="$(resolve_env_key "NEXT_PUBLIC_BASE_URL" "${NEXTJS_LOOKUP_FILES[@]}")"
 fi
+
+# Optional Next.js server-side secrets/settings (sync if present).
+# PINATA_JWT is shared: deploy script can use shimeji-xlm/.env, and web app can use Vercel.
+PINATA_JWT="${PINATA_JWT:-$(resolve_env_key "PINATA_JWT" "${PINATA_LOOKUP_FILES[@]}")}"
+RESEND_API_KEY="${RESEND_API_KEY:-$(resolve_env_key "RESEND_API_KEY" "${NEXTJS_LOOKUP_FILES[@]}")}"
+RESEND_FROM_EMAIL="${RESEND_FROM_EMAIL:-$(resolve_env_key "RESEND_FROM_EMAIL" "${NEXTJS_LOOKUP_FILES[@]}")}"
+FEEDBACK_TO_EMAIL="${FEEDBACK_TO_EMAIL:-$(resolve_env_key "FEEDBACK_TO_EMAIL" "${NEXTJS_LOOKUP_FILES[@]}")}"
+EGG_REQUEST_TO_EMAIL="${EGG_REQUEST_TO_EMAIL:-$(resolve_env_key "EGG_REQUEST_TO_EMAIL" "${NEXTJS_LOOKUP_FILES[@]}")}"
+RESEND_AUDIENCE_UPDATES="${RESEND_AUDIENCE_UPDATES:-$(resolve_env_key "RESEND_AUDIENCE_UPDATES" "${NEXTJS_LOOKUP_FILES[@]}")}"
+RESEND_AUDIENCE_SHIMEJI="${RESEND_AUDIENCE_SHIMEJI:-$(resolve_env_key "RESEND_AUDIENCE_SHIMEJI" "${NEXTJS_LOOKUP_FILES[@]}")}"
+RESEND_AUDIENCE_COLLECTION="${RESEND_AUDIENCE_COLLECTION:-$(resolve_env_key "RESEND_AUDIENCE_COLLECTION" "${NEXTJS_LOOKUP_FILES[@]}")}"
+OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-$(resolve_env_key "OPENROUTER_API_KEY" "${NEXTJS_LOOKUP_FILES[@]}")}"
+OPENROUTER_MODEL="${OPENROUTER_MODEL:-$(resolve_env_key "OPENROUTER_MODEL" "${NEXTJS_LOOKUP_FILES[@]}")}"
+SUBSCRIBE_SIGNING_SECRET="${SUBSCRIBE_SIGNING_SECRET:-$(resolve_env_key "SUBSCRIBE_SIGNING_SECRET" "${NEXTJS_LOOKUP_FILES[@]}")}"
+ELEVENLABS_DEFAULT_TTS_MODEL="${ELEVENLABS_DEFAULT_TTS_MODEL:-$(resolve_env_key "ELEVENLABS_DEFAULT_TTS_MODEL" "${NEXTJS_LOOKUP_FILES[@]}")}"
+ELEVENLABS_DEFAULT_VOICE_ID="${ELEVENLABS_DEFAULT_VOICE_ID:-$(resolve_env_key "ELEVENLABS_DEFAULT_VOICE_ID" "${NEXTJS_LOOKUP_FILES[@]}")}"
 
 if [ -z "${NEXT_PUBLIC_BASE_URL:-}" ] && [ -t 0 ]; then
   read -r -p "NEXT_PUBLIC_BASE_URL (e.g. https://your-domain.com) [skip]: " entered_base_url
@@ -190,6 +230,19 @@ fi
 upsert_vercel_env "NEXT_PUBLIC_BASE_URL" "${NEXT_PUBLIC_BASE_URL:-}"
 upsert_vercel_env "DATABASE_URL" "${DATABASE_URL:-}"
 upsert_vercel_env "DIRECT_URL" "${DIRECT_URL:-}"
+upsert_vercel_env "PINATA_JWT" "${PINATA_JWT:-}"
+upsert_vercel_env "RESEND_API_KEY" "${RESEND_API_KEY:-}"
+upsert_vercel_env "RESEND_FROM_EMAIL" "${RESEND_FROM_EMAIL:-}"
+upsert_vercel_env "FEEDBACK_TO_EMAIL" "${FEEDBACK_TO_EMAIL:-}"
+upsert_vercel_env "EGG_REQUEST_TO_EMAIL" "${EGG_REQUEST_TO_EMAIL:-}"
+upsert_vercel_env "RESEND_AUDIENCE_UPDATES" "${RESEND_AUDIENCE_UPDATES:-}"
+upsert_vercel_env "RESEND_AUDIENCE_SHIMEJI" "${RESEND_AUDIENCE_SHIMEJI:-}"
+upsert_vercel_env "RESEND_AUDIENCE_COLLECTION" "${RESEND_AUDIENCE_COLLECTION:-}"
+upsert_vercel_env "OPENROUTER_API_KEY" "${OPENROUTER_API_KEY:-}"
+upsert_vercel_env "OPENROUTER_MODEL" "${OPENROUTER_MODEL:-}"
+upsert_vercel_env "SUBSCRIBE_SIGNING_SECRET" "${SUBSCRIBE_SIGNING_SECRET:-}"
+upsert_vercel_env "ELEVENLABS_DEFAULT_TTS_MODEL" "${ELEVENLABS_DEFAULT_TTS_MODEL:-}"
+upsert_vercel_env "ELEVENLABS_DEFAULT_VOICE_ID" "${ELEVENLABS_DEFAULT_VOICE_ID:-}"
 
 echo "==> Vercel env sync complete."
 if [ "$DEPLOY_AFTER_SYNC" -eq 0 ] && [ -t 0 ]; then

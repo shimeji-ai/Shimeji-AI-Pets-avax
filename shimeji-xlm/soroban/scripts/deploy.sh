@@ -41,7 +41,7 @@ set -euo pipefail
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
 #   AUTO_SEED_MARKETPLACE_SHOWCASE=auto|1|0 (default auto; enabled for local/testnet)
 #   MARKETPLACE_SHOWCASE_BASE_URL=https://<domain> (used for external links/profile seed; default NEXT_PUBLIC_BASE_URL/NEXT_PUBLIC_SITE_URL or https://www.shimeji.dev)
-#   PINATA_JWT=<jwt> (required when AUTO_SEED_MARKETPLACE_SHOWCASE=1; can also be read from nextjs/.env or nextjs/.env.local)
+#   PINATA_JWT=<jwt> (required when AUTO_SEED_MARKETPLACE_SHOWCASE=1; preferred in shimeji-xlm/.env via ENV_CREDENTIALS_FILE, fallback nextjs/.env[.local])
 #   MARKETPLACE_SHOWCASE_LIST_PRICE_XLM=120 (human amount)
 #   MARKETPLACE_SHOWCASE_LIST_PRICE_USDC=20 (human amount)
 #   MARKETPLACE_SHOWCASE_EGG_PRICE_XLM=90 (human amount)
@@ -187,6 +187,7 @@ read_env_key_from_file() {
   awk -F= -v key="$key" '
     $1 == key {
       sub(/^[^=]*=/, "", $0)
+      gsub(/\r/, "", $0)
       gsub(/^"/, "", $0)
       gsub(/"$/, "", $0)
       print $0
@@ -196,12 +197,20 @@ read_env_key_from_file() {
 }
 
 load_pinata_jwt_for_showcase() {
+  local jwt nextjs_dir credentials_file
+
   if [ -n "${PINATA_JWT:-}" ]; then
     printf "%s" "$PINATA_JWT"
     return 0
   fi
 
-  local nextjs_dir jwt
+  credentials_file="${ENV_CREDENTIALS_FILE:-$PROJECT_ROOT/.env}"
+  jwt="$(read_env_key_from_file "$credentials_file" "PINATA_JWT")"
+  if [ -n "$jwt" ]; then
+    printf "%s" "$jwt"
+    return 0
+  fi
+
   nextjs_dir="$PROJECT_ROOT/nextjs"
   jwt="$(read_env_key_from_file "$nextjs_dir/.env.local" "PINATA_JWT")"
   if [ -z "$jwt" ]; then
