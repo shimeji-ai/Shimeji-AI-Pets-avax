@@ -490,6 +490,20 @@ function ProviderFields() {
           ? "OpenClaw en la web usa el gateway para chat/agente, pero no habilita acceso local a terminal o WSL."
           : "Website OpenClaw uses the gateway for chat/agent tasks, but does not enable local terminal or WSL access."}
       </p>
+      <div className="flex flex-col gap-2 pt-1">
+        <button
+          type="button"
+          disabled
+          className="inline-flex w-fit items-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground cursor-not-allowed opacity-60"
+        >
+          {isSpanish ? "Hosting gestionado (próximamente)" : "Managed hosting (coming soon)"}
+        </button>
+        <p className="text-xs text-muted-foreground">
+          {isSpanish
+            ? "Pronto ofreceremos hosting gestionado de OpenClaw para que no tengas que correrlo vos mismo."
+            : "We will soon offer managed OpenClaw hosting so you don't have to run it yourself."}
+        </p>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { FreighterConnectButton } from "./freighter-connect-button";
 import { useFreighter } from "./freighter-provider";
 import { HORIZON_URL, STELLAR_NETWORK, USDC_ISSUER } from "@/lib/contracts";
 import { resolveMediaUrl } from "@/components/marketplace-hub-shared";
+import { LanguageSwitcher } from "./language-switcher";
 
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
 const DEFAULT_PROFILE_AVATAR_SRC = "/placeholder-user.jpg";
@@ -216,6 +217,7 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <Link
               href="/settings"
               aria-label={isSpanish ? "Configuración del shimeji" : "Shimeji settings"}
@@ -386,7 +388,10 @@ export function Header() {
                   {isSpanish ? link.labelEs : link.labelEn}
                 </Link>
               ))}
-              <div className="flex flex-col gap-2 pt-4">
+              <div className="pt-2">
+                <LanguageSwitcher />
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
                 <FreighterConnectButton />
               </div>
             </nav>
