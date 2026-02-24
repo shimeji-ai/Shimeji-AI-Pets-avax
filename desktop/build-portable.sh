@@ -26,6 +26,9 @@ fi
 echo "Cleaning old builds..."
 rm -rf dist/*.exe
 rm -rf dist/win-unpacked
+rm -rf dist/linux-unpacked
+rm -rf dist/mac dist/mac-arm64
+rm -f dist/*.AppImage dist/*.deb dist/*.snap dist/*.blockmap dist/*.zip
 
 # Build the portable executable
 echo "Building portable Windows executable..."

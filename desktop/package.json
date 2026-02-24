@@ -32,7 +32,14 @@
     "appId": "dev.shimeji.desktop",
     "productName": "Shimeji Desktop",
     "files": [
-      "**/*"
+      "**/*",
+      "!dist{,/**}",
+      "!scripts{,/**}",
+      "!*.md",
+      "!AGENTS.md",
+      "!build-portable.sh",
+      "!*.log",
+      "!node_modules/.cache{,/**}"
     ],
     "directories": {
       "buildResources": "build"
