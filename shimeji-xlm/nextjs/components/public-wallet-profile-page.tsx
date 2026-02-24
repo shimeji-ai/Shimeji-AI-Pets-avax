@@ -165,7 +165,7 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
                 const previewName = preview?.name || `Shimeji #${token.tokenId}`;
                 const hasSwap = swapOut > 0 || swapIn > 0;
                 const primaryPrice = listing
-                  ? `${formatTokenAmount(listing.priceXlm)} XLM${listing.priceUsdc ? ` · ${formatTokenAmount(listing.priceUsdc)} USDC` : ""}`
+                  ? `${formatTokenAmount(listing.price)} ${listing.currency === "Usdc" ? "USDC" : "XLM"}`
                   : auction
                     ? `#${auction.auctionId}`
                     : hasSwap

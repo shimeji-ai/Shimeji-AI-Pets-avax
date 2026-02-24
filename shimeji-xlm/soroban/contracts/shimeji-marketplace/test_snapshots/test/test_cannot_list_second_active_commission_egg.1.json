@@ -72,16 +72,11 @@
                   }
                 },
                 {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 1000000000
-                  }
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 1000000
-                  }
+                  "vec": [
+                    {
+                      "symbol": "Xlm"
+                    }
+                  ]
                 },
                 {
                   "u64": 7
@@ -532,6 +527,18 @@
                     },
                     {
                       "key": {
+                        "symbol": "currency"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Xlm"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "is_commission_egg"
                       },
                       "val": {
@@ -540,18 +547,7 @@
                     },
                     {
                       "key": {
-                        "symbol": "price_usdc"
-                      },
-                      "val": {
-                        "i128": {
-                          "hi": 0,
-                          "lo": 1000000000
-                        }
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "price_xlm"
+                        "symbol": "price"
                       },
                       "val": {
                         "i128": {
@@ -574,17 +570,6 @@
                       },
                       "val": {
                         "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "xlm_usdc_rate"
-                      },
-                      "val": {
-                        "i128": {
-                          "hi": 0,
-                          "lo": 1000000
-                        }
                       }
                     }
                   ]

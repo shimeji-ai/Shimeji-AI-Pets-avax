@@ -86,9 +86,8 @@ export async function GET(request: NextRequest) {
         tokenUri: token?.tokenUri ?? null,
         isCommissionEgg: listing.isCommissionEgg || Boolean(token?.isCommissionEgg),
         commissionEtaDays: listing.commissionEtaDays || 0,
-        priceXlm: listing.priceXlm.toString(),
-        priceUsdc: listing.priceUsdc.toString(),
-        xlmUsdcRate: listing.xlmUsdcRate.toString(),
+        price: listing.price.toString(),
+        currency: listing.currency,
         active: listing.active,
       };
     });

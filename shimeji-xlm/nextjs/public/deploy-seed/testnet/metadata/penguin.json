@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - penguin",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the penguin idle sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/penguin-idle.png",
+  "image": "ipfs://QmWAfgBhbduruL1kt8tuyCXquziopjkVWrG6r1kgaup4D4",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

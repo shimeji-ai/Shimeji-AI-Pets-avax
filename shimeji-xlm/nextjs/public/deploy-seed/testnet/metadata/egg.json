@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - egg",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the egg sit sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/egg-sit.png",
+  "image": "ipfs://QmTLYjDCP2oKk4xFvSsfU1HpjQNAvRyf6BJCCo2kLwsqmo",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ArrowLeftRight, Check, Gavel, ImageIcon, Loader2, Tag, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { HubTranslateFn, TokenPreview } from "@/components/marketplace-hub-shared";
-import { formatTokenAmount, walletShort } from "@/components/marketplace-hub-shared";
+import { formatTokenAmount, parseAmountToUnits, walletShort } from "@/components/marketplace-hub-shared";
 import type { MarketplaceMyStudioResponse } from "@/lib/marketplace-hub-types";
 
 type ListAction = "fixed_price" | "auction" | "swap";
@@ -13,48 +13,23 @@ type Props = {
   t: HubTranslateFn;
   studio: MarketplaceMyStudioResponse;
   tokenPreviews: Record<string, TokenPreview>;
-  selectedTokenId: string;
-  onSelectedTokenIdChange: (id: string) => void;
-  swapOfferedTokenId: string;
-  onSwapOfferedTokenIdChange: (id: string) => void;
-  swapIntention: string;
-  onSwapIntentionChange: (v: string) => void;
-  listingPriceXlm: string;
-  onListingPriceXlmChange: (v: string) => void;
-  listingPriceUsdc: string;
-  onListingPriceUsdcChange: (v: string) => void;
-  auctionDurationHours: string;
-  onAuctionDurationHoursChange: (v: string) => void;
-  swapActionBusyId: string | null;
   txBusy: boolean;
-  onCreateListing: () => void;
-  onCreateAuction: () => void;
-  onCancelListing: (listingId: number) => void;
-  onCreateSwapOffer: () => void;
-  onAcceptSwapBid: (listingId: number, bidId: number) => void;
-  onCancelSwapListing: (listingId: number) => void;
-  onCancelSwapBid: (bidId: number) => void;
   publicKey: string | null;
+  onCreateListing: (tokenId: number, price: string, currency: "Xlm" | "Usdc") => void | Promise<void>;
+  onCreateAuction: (tokenId: number, priceXlm: string, priceUsdc: string, durationHours: string) => void | Promise<void>;
+  onCancelListing: (listingId: number) => void | Promise<void>;
+  onCreateSwapOffer: (tokenId: number, intention: string) => void | Promise<void>;
+  onAcceptSwapBid: (listingId: number, bidId: number) => void | Promise<void>;
+  onCancelSwapListing: (listingId: number) => void | Promise<void>;
+  onCancelSwapBid: (bidId: number) => void | Promise<void>;
 };
 
 export function MarketplaceHubStudioSellTab({
   t,
   studio,
   tokenPreviews,
-  selectedTokenId,
-  onSelectedTokenIdChange,
-  swapOfferedTokenId,
-  onSwapOfferedTokenIdChange,
-  swapIntention,
-  onSwapIntentionChange,
-  listingPriceXlm,
-  onListingPriceXlmChange,
-  listingPriceUsdc,
-  onListingPriceUsdcChange,
-  auctionDurationHours,
-  onAuctionDurationHoursChange,
-  swapActionBusyId,
   txBusy,
+  publicKey,
   onCreateListing,
   onCreateAuction,
   onCancelListing,
@@ -64,6 +39,15 @@ export function MarketplaceHubStudioSellTab({
   onCancelSwapBid,
 }: Props) {
   const [listAction, setListAction] = useState<ListAction>("fixed_price");
+  const [selectedTokenId, setSelectedTokenId] = useState("");
+  const [swapOfferedTokenId, setSwapOfferedTokenId] = useState("");
+  const [swapIntention, setSwapIntention] = useState("");
+  const [listingPrice, setListingPrice] = useState("");
+  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [auctionPriceXlm, setAuctionPriceXlm] = useState("");
+  const [auctionPriceUsdc, setAuctionPriceUsdc] = useState("");
+  const [auctionDurationHours, setAuctionDurationHours] = useState("24");
+  const [swapActionBusyId, setSwapActionBusyId] = useState<string | null>(null);
 
   const regularNfts = studio.ownedNfts.filter((n) => !n.isCommissionEgg);
   const allNfts = studio.ownedNfts;
@@ -77,10 +61,41 @@ export function MarketplaceHubStudioSellTab({
 
   function handleNftClick(tokenId: string) {
     if (listAction === "swap") {
-      onSwapOfferedTokenIdChange(tokenId);
+      setSwapOfferedTokenId(tokenId);
     } else {
-      onSelectedTokenIdChange(tokenId);
+      setSelectedTokenId(tokenId);
     }
+  }
+
+  function handleSubmit() {
+    if (listAction === "fixed_price") {
+      const tokenId = Number.parseInt(selectedTokenId, 10);
+      if (!Number.isFinite(tokenId)) return;
+      void onCreateListing(tokenId, listingPrice, listingCurrency);
+    } else if (listAction === "auction") {
+      const tokenId = Number.parseInt(selectedTokenId, 10);
+      if (!Number.isFinite(tokenId)) return;
+      void onCreateAuction(tokenId, auctionPriceXlm, auctionPriceUsdc, auctionDurationHours);
+    } else {
+      const tokenId = Number.parseInt(swapOfferedTokenId, 10);
+      if (!Number.isFinite(tokenId)) return;
+      void onCreateSwapOffer(tokenId, swapIntention.trim());
+    }
+  }
+
+  async function handleAcceptSwapBid(listingId: number, bidId: number) {
+    setSwapActionBusyId(`accept-bid:${bidId}`);
+    try { await onAcceptSwapBid(listingId, bidId); } finally { setSwapActionBusyId(null); }
+  }
+
+  async function handleCancelSwapListingLocal(listingId: number) {
+    setSwapActionBusyId(`cancel-listing:${listingId}`);
+    try { await onCancelSwapListing(listingId); } finally { setSwapActionBusyId(null); }
+  }
+
+  async function handleCancelSwapBidLocal(bidId: number) {
+    setSwapActionBusyId(`cancel-bid:${bidId}`);
+    try { await onCancelSwapBid(bidId); } finally { setSwapActionBusyId(null); }
   }
 
   return (
@@ -200,17 +215,46 @@ export function MarketplaceHubStudioSellTab({
 
         {/* Form fields based on action */}
         <div className="mt-4 space-y-3">
-          {listAction !== "swap" ? (
+          {listAction === "fixed_price" ? (
+            <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Price", "Precio")}
+                </label>
+                <input
+                  type="number"
+                  value={listingPrice}
+                  onChange={(e) => setListingPrice(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Currency", "Moneda")}
+                </label>
+                <select
+                  value={listingCurrency}
+                  onChange={(e) => setListingCurrency(e.target.value as "Xlm" | "Usdc")}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="Xlm">XLM</option>
+                  <option value="Usdc">USDC</option>
+                </select>
+              </div>
+            </div>
+          ) : listAction === "auction" ? (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Price XLM", "Precio XLM")}
+                    {t("Start XLM", "Inicio XLM")}
                   </label>
                   <input
                     type="number"
-                    value={listingPriceXlm}
-                    onChange={(e) => onListingPriceXlmChange(e.target.value)}
+                    value={auctionPriceXlm}
+                    onChange={(e) => setAuctionPriceXlm(e.target.value)}
                     placeholder="0"
                     min="0"
                     className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
@@ -218,33 +262,31 @@ export function MarketplaceHubStudioSellTab({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Price USDC", "Precio USDC")}
+                    {t("Start USDC", "Inicio USDC")}
                   </label>
                   <input
                     type="number"
-                    value={listingPriceUsdc}
-                    onChange={(e) => onListingPriceUsdcChange(e.target.value)}
+                    value={auctionPriceUsdc}
+                    onChange={(e) => setAuctionPriceUsdc(e.target.value)}
                     placeholder="0"
                     min="0"
                     className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
-              {listAction === "auction" ? (
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Duration (hours)", "Duración (horas)")}
-                  </label>
-                  <input
-                    type="number"
-                    value={auctionDurationHours}
-                    onChange={(e) => onAuctionDurationHoursChange(e.target.value)}
-                    placeholder="24"
-                    min="1"
-                    className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-                  />
-                </div>
-              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Duration (hours)", "Duración (horas)")}
+                </label>
+                <input
+                  type="number"
+                  value={auctionDurationHours}
+                  onChange={(e) => setAuctionDurationHours(e.target.value)}
+                  placeholder="24"
+                  min="1"
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
             </>
           ) : (
             <div>
@@ -254,7 +296,7 @@ export function MarketplaceHubStudioSellTab({
               <input
                 type="text"
                 value={swapIntention}
-                onChange={(e) => onSwapIntentionChange(e.target.value)}
+                onChange={(e) => setSwapIntention(e.target.value)}
                 placeholder={t("e.g. Looking for pixel art NFTs", "ej. Busco NFTs de pixel art")}
                 maxLength={200}
                 className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
@@ -264,11 +306,7 @@ export function MarketplaceHubStudioSellTab({
 
           <Button
             type="button"
-            onClick={() => {
-              if (listAction === "fixed_price") onCreateListing();
-              else if (listAction === "auction") onCreateAuction();
-              else onCreateSwapOffer();
-            }}
+            onClick={handleSubmit}
             disabled={txBusy}
             className={`w-full ${
               listAction === "fixed_price"
@@ -319,10 +357,7 @@ export function MarketplaceHubStudioSellTab({
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-foreground">#{listing.tokenId}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {formatTokenAmount(listing.priceXlm)} XLM
-                      {listing.priceUsdc && Number(listing.priceUsdc) > 0
-                        ? ` / ${formatTokenAmount(listing.priceUsdc)} USDC`
-                        : ""}
+                      {formatTokenAmount(listing.price)} {listing.currency === "Usdc" ? "USDC" : "XLM"}
                     </p>
                   </div>
                   <Button
@@ -330,7 +365,7 @@ export function MarketplaceHubStudioSellTab({
                     size="sm"
                     variant="outline"
                     className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                    onClick={() => onCancelListing(listing.listingId)}
+                    onClick={() => void onCancelListing(listing.listingId)}
                     disabled={txBusy}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -376,7 +411,7 @@ export function MarketplaceHubStudioSellTab({
                       size="sm"
                       variant="outline"
                       className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                      onClick={() => onCancelSwapListing(listing.swapListingId)}
+                      onClick={() => void handleCancelSwapListingLocal(listing.swapListingId)}
                       disabled={swapActionBusyId === `cancel-listing:${listing.swapListingId}`}
                     >
                       {swapActionBusyId === `cancel-listing:${listing.swapListingId}` ? (
@@ -414,7 +449,7 @@ export function MarketplaceHubStudioSellTab({
                       type="button"
                       size="sm"
                       className="h-7 bg-emerald-500 text-black hover:bg-emerald-400"
-                      onClick={() => onAcceptSwapBid(bid.listingId, bid.bidId)}
+                      onClick={() => void handleAcceptSwapBid(bid.listingId, bid.bidId)}
                       disabled={swapActionBusyId === `accept-bid:${bid.bidId}`}
                     >
                       {swapActionBusyId === `accept-bid:${bid.bidId}` ? (
@@ -453,7 +488,7 @@ export function MarketplaceHubStudioSellTab({
                       size="sm"
                       variant="outline"
                       className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                      onClick={() => onCancelSwapBid(bid.bidId)}
+                      onClick={() => void handleCancelSwapBidLocal(bid.bidId)}
                       disabled={swapActionBusyId === `cancel-bid:${bid.bidId}`}
                     >
                       {swapActionBusyId === `cancel-bid:${bid.bidId}` ? (

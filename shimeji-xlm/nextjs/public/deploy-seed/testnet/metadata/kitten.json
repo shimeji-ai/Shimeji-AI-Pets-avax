@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - kitten",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the kitten idle sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/kitten-idle.png",
+  "image": "ipfs://QmamAsVSeM5NFpMm9U8FkGu3hf6qGyQBamonXrUMqDQLF2",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

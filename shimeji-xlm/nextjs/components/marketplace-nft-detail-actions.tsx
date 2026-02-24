@@ -28,8 +28,8 @@ type SaleListingData = {
   listingId: number;
   sellerWallet: string;
   sellerDisplayName: string;
-  priceXlm: string;
-  priceUsdc: string;
+  price: string;
+  currency: "Xlm" | "Usdc";
   commissionEtaDays: number;
   isCommissionEgg: boolean;
   artistTerms: {
@@ -421,22 +421,18 @@ export function MarketplaceNftDetailActions({
             </div>
 
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {parseBigIntSafe(activeListing.priceXlm) > BIGINT_ZERO ? (
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs text-muted-foreground">{t("Price XLM", "Precio XLM")}</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {formatTokenAmount(activeListing.priceXlm)} XLM
-                  </p>
-                </div>
-              ) : null}
-              {parseBigIntSafe(activeListing.priceUsdc) > BIGINT_ZERO ? (
-                <div className="rounded-xl border border-border bg-white/5 p-3">
-                  <p className="text-xs text-muted-foreground">{t("Price USDC", "Precio USDC")}</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {formatTokenAmount(activeListing.priceUsdc)} USDC
-                  </p>
-                </div>
-              ) : null}
+              <div className="rounded-xl border border-border bg-white/5 p-3">
+                <p className="text-xs text-muted-foreground">
+                  {activeListing.currency === "Usdc" ? t("Price USDC", "Precio USDC") : t("Price XLM", "Precio XLM")}
+                </p>
+                <p className="text-sm font-medium text-foreground">
+                  {formatTokenAmount(activeListing.price)} {activeListing.currency === "Usdc" ? "USDC" : "XLM"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-white/5 p-3">
+                <p className="text-xs text-muted-foreground">{t("Accepted payments", "Pagos aceptados")}</p>
+                <p className="text-sm font-medium text-foreground">{t("XLM or USDC", "XLM o USDC")}</p>
+              </div>
             </div>
 
             {!activeListing.isCommissionEgg ? (
@@ -454,31 +450,27 @@ export function MarketplaceNftDetailActions({
                   </Button>
                 ) : (
                   <>
-                    {parseBigIntSafe(activeListing.priceXlm) > BIGINT_ZERO ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="bg-emerald-500 text-black hover:bg-emerald-400"
-                        onClick={() => void submitRegularBuy("XLM")}
-                        disabled={busyAction === "buy:XLM"}
-                      >
-                        {busyAction === "buy:XLM" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {t("Buy with XLM", "Comprar con XLM")}
-                      </Button>
-                    ) : null}
-                    {parseBigIntSafe(activeListing.priceUsdc) > BIGINT_ZERO ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                        onClick={() => void submitRegularBuy("USDC")}
-                        disabled={busyAction === "buy:USDC"}
-                      >
-                        {busyAction === "buy:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {t("Buy with USDC", "Comprar con USDC")}
-                      </Button>
-                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-emerald-500 text-black hover:bg-emerald-400"
+                      onClick={() => void submitRegularBuy("XLM")}
+                      disabled={busyAction === "buy:XLM"}
+                    >
+                      {busyAction === "buy:XLM" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {t("Buy with XLM", "Comprar con XLM")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-border bg-white/5 text-foreground hover:bg-white/10"
+                      onClick={() => void submitRegularBuy("USDC")}
+                      disabled={busyAction === "buy:USDC"}
+                    >
+                      {busyAction === "buy:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {t("Buy with USDC", "Comprar con USDC")}
+                    </Button>
                   </>
                 )}
               </div>
@@ -600,31 +592,27 @@ export function MarketplaceNftDetailActions({
                     </Button>
                   ) : (
                     <>
-                      {parseBigIntSafe(activeListing.priceXlm) > BIGINT_ZERO ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-fuchsia-400 text-fuchsia-950 hover:bg-fuchsia-300"
-                          onClick={() => void submitCommissionBuy("XLM")}
-                          disabled={busyAction === "buy-commission:XLM"}
-                        >
-                          {busyAction === "buy-commission:XLM" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          {t("Buy commission (XLM)", "Comprar comisión (XLM)")}
-                        </Button>
-                      ) : null}
-                      {parseBigIntSafe(activeListing.priceUsdc) > BIGINT_ZERO ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="border-fuchsia-300/30 bg-fuchsia-500/10 text-foreground hover:bg-fuchsia-500/20"
-                          onClick={() => void submitCommissionBuy("USDC")}
-                          disabled={busyAction === "buy-commission:USDC"}
-                        >
-                          {busyAction === "buy-commission:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          {t("Buy commission (USDC)", "Comprar comisión (USDC)")}
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="bg-fuchsia-400 text-fuchsia-950 hover:bg-fuchsia-300"
+                        onClick={() => void submitCommissionBuy("XLM")}
+                        disabled={busyAction === "buy-commission:XLM"}
+                      >
+                        {busyAction === "buy-commission:XLM" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {t("Buy commission (XLM)", "Comprar comisión (XLM)")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-fuchsia-300/30 bg-fuchsia-500/10 text-foreground hover:bg-fuchsia-500/20"
+                        onClick={() => void submitCommissionBuy("USDC")}
+                        disabled={busyAction === "buy-commission:USDC"}
+                      >
+                        {busyAction === "buy-commission:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {t("Buy commission (USDC)", "Comprar comisión (USDC)")}
+                      </Button>
                     </>
                   )}
                 </div>

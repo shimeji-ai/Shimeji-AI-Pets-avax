@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - lobster",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the lobster idle sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/lobster-idle.png",
+  "image": "ipfs://QmPkhyhq2cncU6VeoKT8U4upoWdJu86bxnKUqz6upTmTQj",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

@@ -37,7 +37,8 @@ function parseAmountToUnits(value: string, invalidFormatMessage = "Invalid amoun
 }
 
 function computeRate(priceXlm: bigint, priceUsdc: bigint): bigint {
-  if (priceXlm > BigInt(0) && priceUsdc > BigInt(0)) {
+  const zero = BigInt(0);
+  if (priceXlm > zero && priceUsdc > zero) {
     return (priceUsdc * TOKEN_SCALE) / priceXlm;
   }
   return DEFAULT_XLM_USDC_RATE;
@@ -71,8 +72,8 @@ export function MarketplaceNftOwnerActions({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const [salePriceXlm, setSalePriceXlm] = useState("");
-  const [salePriceUsdc, setSalePriceUsdc] = useState("");
+  const [salePrice, setSalePrice] = useState("");
+  const [saleCurrency, setSaleCurrency] = useState<"Xlm" | "Usdc">("Xlm");
   const [commissionEtaDays, setCommissionEtaDays] = useState("7");
 
   const [auctionPriceXlm, setAuctionPriceXlm] = useState("");
@@ -89,16 +90,14 @@ export function MarketplaceNftOwnerActions({
     setMessage("");
     try {
       const invalidAmountMessage = t("Invalid amount format", "Formato de monto inválido");
-      const priceXlm = parseAmountToUnits(salePriceXlm, invalidAmountMessage);
-      const priceUsdc = parseAmountToUnits(salePriceUsdc, invalidAmountMessage);
-      if (priceXlm <= BigInt(0) && priceUsdc <= BigInt(0)) {
-        throw new Error(t("Set an XLM or USDC price.", "Definí un precio en XLM o USDC."));
+      const price = parseAmountToUnits(salePrice, invalidAmountMessage);
+      if (price <= BigInt(0)) {
+        throw new Error(t("Enter a valid price.", "Ingresá un precio válido."));
       }
-      const rate = computeRate(priceXlm, priceUsdc);
       const etaDays = Math.max(1, Number.parseInt(commissionEtaDays || "7", 10) || 7);
       const txXdr = isCommissionEgg
-        ? await buildListCommissionEggTx(publicKey, tokenId, priceXlm, priceUsdc, rate, etaDays)
-        : await buildListForSaleTx(publicKey, tokenId, priceXlm, priceUsdc, rate);
+        ? await buildListCommissionEggTx(publicKey, tokenId, price, saleCurrency, etaDays)
+        : await buildListForSaleTx(publicKey, tokenId, price, saleCurrency);
       await signAndSubmitXdr(txXdr, signTransaction, publicKey);
       setMessage(t("Sale listing created.", "Publicación de venta creada."));
       router.refresh();
@@ -215,29 +214,32 @@ export function MarketplaceNftOwnerActions({
             ) : null}
           </div>
           {hasActiveListing ? null : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>{t("Price XLM", "Precio XLM")}</span>
-                <input
-                  className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                  value={salePriceXlm}
-                  onChange={(event) => setSalePriceXlm(event.target.value)}
-                  placeholder="0"
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>{t("Price USDC", "Precio USDC")}</span>
-                <input
-                  className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                  value={salePriceUsdc}
-                  onChange={(event) => setSalePriceUsdc(event.target.value)}
-                  placeholder="0"
-                  inputMode="decimal"
-                />
-              </label>
+            <div className="grid gap-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  <span>{t("Price", "Precio")}</span>
+                  <input
+                    className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    value={salePrice}
+                    onChange={(event) => setSalePrice(event.target.value)}
+                    placeholder="0"
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  <span>{t("Currency", "Moneda")}</span>
+                  <select
+                    className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    value={saleCurrency}
+                    onChange={(event) => setSaleCurrency(event.target.value as "Xlm" | "Usdc")}
+                  >
+                    <option value="Xlm">XLM</option>
+                    <option value="Usdc">USDC</option>
+                  </select>
+                </label>
+              </div>
               {isCommissionEgg ? (
-                <label className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-2">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                   <span>{t("Estimated delivery (days)", "Entrega estimada (días)")}</span>
                   <input
                     className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
@@ -248,17 +250,15 @@ export function MarketplaceNftOwnerActions({
                   />
                 </label>
               ) : null}
-              <div className="sm:col-span-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full bg-emerald-500 text-black hover:bg-emerald-400"
-                  onClick={() => void submitListing()}
-                  disabled={Boolean(busy)}
-                >
-                  {busy === "sale" ? t("Creating...", "Creando...") : t("Create sale", "Crear venta")}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="w-full bg-emerald-500 text-black hover:bg-emerald-400"
+                onClick={() => void submitListing()}
+                disabled={Boolean(busy)}
+              >
+                {busy === "sale" ? t("Creating...", "Creando...") : t("Create sale", "Crear venta")}
+              </Button>
             </div>
           )}
         </div>

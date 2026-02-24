@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - shimeji",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the shimeji idle sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/shimeji-idle.png",
+  "image": "ipfs://QmRz6B5L2NCixX3MGNRAVSgcpstXDny5Hsaa4qNs8Fxxxc",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

@@ -40,15 +40,15 @@ function sortItems(items: MarketplaceFeedItem[], sort: string): MarketplaceFeedI
   }
   if (sort === "price_low") {
     return copy.sort((a, b) => {
-      const aPrice = Number.parseFloat(a.priceXlm || a.priceUsdc || "999999999");
-      const bPrice = Number.parseFloat(b.priceXlm || b.priceUsdc || "999999999");
+      const aPrice = Number.parseFloat(a.price || "999999999");
+      const bPrice = Number.parseFloat(b.price || "999999999");
       return aPrice - bPrice;
     });
   }
   if (sort === "price_high") {
     return copy.sort((a, b) => {
-      const aPrice = Number.parseFloat(a.priceXlm || a.priceUsdc || "0");
-      const bPrice = Number.parseFloat(b.priceXlm || b.priceUsdc || "0");
+      const aPrice = Number.parseFloat(a.price || "0");
+      const bPrice = Number.parseFloat(b.price || "0");
       return bPrice - aPrice;
     });
   }
@@ -127,9 +127,8 @@ export async function GET(request: NextRequest) {
         tokenUri: token?.tokenUri ?? null,
         sellerWallet: listing.seller,
         sellerProfile,
-        priceXlm: listing.priceXlm.toString(),
-        priceUsdc: listing.priceUsdc.toString(),
-        xlmUsdcRate: listing.xlmUsdcRate.toString(),
+        price: listing.price.toString(),
+        currency: listing.currency,
         auction: null,
         commissionMeta: isCommissionEgg
           ? {
@@ -165,9 +164,9 @@ export async function GET(request: NextRequest) {
         tokenUri: token?.tokenUri ?? auction.tokenUri ?? null,
         sellerWallet,
         sellerProfile,
-        priceXlm: auction.startingPriceXlm.toString(),
-        priceUsdc: auction.startingPriceUsdc.toString(),
-        xlmUsdcRate: auction.xlmUsdcRate.toString(),
+        // Auction contract still uses dual prices; expose the min XLM price as the primary display price
+        price: auction.startingPriceXlm.toString(),
+        currency: "Xlm" as const,
         auction: {
           auctionId: snapshot.auctionId,
           startTime: auction.startTime,
@@ -206,9 +205,8 @@ export async function GET(request: NextRequest) {
         tokenUri: token?.tokenUri ?? null,
         sellerWallet: listing.creator,
         sellerProfile,
-        priceXlm: null,
-        priceUsdc: null,
-        xlmUsdcRate: null,
+        price: null,
+        currency: null,
         auction: null,
         commissionMeta:
           isCommissionEgg

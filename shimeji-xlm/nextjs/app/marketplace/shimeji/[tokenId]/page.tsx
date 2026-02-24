@@ -225,8 +225,8 @@ export default async function MarketplaceShimejiPage({ params }: Params) {
         sellerWallet: activeListing.seller,
         sellerDisplayName:
           listingSellerProfile?.displayName || walletShort(activeListing.seller),
-        priceXlm: toStringUnits(activeListing.priceXlm),
-        priceUsdc: toStringUnits(activeListing.priceUsdc),
+        price: toStringUnits(activeListing.price),
+        currency: activeListing.currency,
         commissionEtaDays: activeListing.commissionEtaDays || 0,
         isCommissionEgg: Boolean(activeListing.isCommissionEgg || token.isCommissionEgg),
         artistTerms: listingSellerProfile

@@ -243,6 +243,11 @@ upsert_vercel_env "OPENROUTER_MODEL" "${OPENROUTER_MODEL:-}"
 upsert_vercel_env "SUBSCRIBE_SIGNING_SECRET" "${SUBSCRIBE_SIGNING_SECRET:-}"
 upsert_vercel_env "ELEVENLABS_DEFAULT_TTS_MODEL" "${ELEVENLABS_DEFAULT_TTS_MODEL:-}"
 upsert_vercel_env "ELEVENLABS_DEFAULT_VOICE_ID" "${ELEVENLABS_DEFAULT_VOICE_ID:-}"
+# Reflector oracle address (deploy-time config for marketplace contract; also stored in Vercel for reference)
+if [ -z "${REFLECTOR_ORACLE_ADDRESS:-}" ]; then
+  REFLECTOR_ORACLE_ADDRESS="$(resolve_env_key "REFLECTOR_ORACLE_ADDRESS" "${NEXTJS_LOOKUP_FILES[@]}")"
+fi
+upsert_vercel_env "REFLECTOR_ORACLE_ADDRESS" "${REFLECTOR_ORACLE_ADDRESS:-}"
 
 echo "==> Vercel env sync complete."
 if [ "$DEPLOY_AFTER_SYNC" -eq 0 ] && [ -t 0 ]; then

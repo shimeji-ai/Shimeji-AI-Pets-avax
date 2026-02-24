@@ -1,5 +1,23 @@
 {
-  "generated_at": "2026-02-24T03:50:01Z",
+  "generated_at": "2026-02-24T18:12:02Z",
   "network": "testnet",
   "characters": [
-==> Failed to upload showcase sprite to Pinata: blob-idle.png
+    { "character": "blob", "image": "ipfs://QmZni355pF2rUdJMH6bkTrkn2V14QR3SBSp6rsYCBcY8RK", "metadata": "ipfs://QmRQv546xYUUGt8iwYWKMJSH9UEZuJ5fWC7VUhCH5z1nez" }
+    ,
+    { "character": "bunny", "image": "ipfs://QmRgHFHnhDTPxLVwvvk7LubDiCP1HtzccvNgSLyhtLA9me", "metadata": "ipfs://QmVJ4N4jmpkUBnKFM2h1UD2FDHVQnQhSGaiuAzboeqJeCr" }
+    ,
+    { "character": "egg", "image": "ipfs://QmTLYjDCP2oKk4xFvSsfU1HpjQNAvRyf6BJCCo2kLwsqmo", "metadata": "ipfs://QmUXtxDL1CGvvH8cyB3oFFpDshamKBJ6ZbWb3DxhRtwt15" }
+    ,
+    { "character": "ghost", "image": "ipfs://QmPjCuXTzyPmDCWV4d8BvvXUFvcj67mLnSacNfzKRafDGc", "metadata": "ipfs://QmZwkrLRgrNktZBb6eeDwMSBkzPjkogMzAfptV2qYsqwfH" }
+    ,
+    { "character": "kitten", "image": "ipfs://QmamAsVSeM5NFpMm9U8FkGu3hf6qGyQBamonXrUMqDQLF2", "metadata": "ipfs://QmcSm827bFn3qkWuqUWQfFp7NFvcE39cWQ8tN7ohfb86i5" }
+    ,
+    { "character": "lobster", "image": "ipfs://QmPkhyhq2cncU6VeoKT8U4upoWdJu86bxnKUqz6upTmTQj", "metadata": "ipfs://QmZQptew1uMdA5P52pmrjwwnb5huoqhepQBmU4PvRvovpi" }
+    ,
+    { "character": "mushroom", "image": "ipfs://QmT5EHUDJ42hfa7wHPuDySF7pq5wiq4VFyzArxPd9NNFL9", "metadata": "ipfs://QmWYFLK8p7t5eNpZNWPaaio8byiMVVvWUkXGTTzXcjNkKx" }
+    ,
+    { "character": "penguin", "image": "ipfs://QmWAfgBhbduruL1kt8tuyCXquziopjkVWrG6r1kgaup4D4", "metadata": "ipfs://QmccLUieAxQTwvPXSLdfj8SXamZG9jmKMrLQAqyv7and9D" }
+    ,
+    { "character": "shimeji", "image": "ipfs://QmRz6B5L2NCixX3MGNRAVSgcpstXDny5Hsaa4qNs8Fxxxc", "metadata": "ipfs://QmdGFVYxsjKNavTKA6nyX93Hci6JPpg18XFPFoN7BppSEC" }
+  ]
+}

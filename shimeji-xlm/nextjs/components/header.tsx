@@ -227,49 +227,33 @@ export function Header() {
             {!isConnected || !publicKey ? (
               <>
                 <FreighterConnectButton />
-                <button
-                  type="button"
-                  onClick={handleFaucet}
-                  disabled={isFaucetLoading || (!isMainnetNetwork && !publicKey)}
-                  title={
-                    isMainnetNetwork
-                      ? isSpanish
-                        ? "Abrir MoneyGram ramps (onramp oficial del ecosistema Stellar)."
-                        : "Open MoneyGram ramps (official Stellar ecosystem onramp)."
-                      : isSpanish
-                        ? "Cargar fondos de prueba desde faucet."
-                        : "Load test funds from faucet."
-                  }
-                  className="auction-faucet-button inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-foreground/8 text-lg hover:bg-foreground/15 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className={isFaucetLoading ? "animate-pulse" : ""}>💸</span>
-                </button>
               </>
             ) : (
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
-                  aria-haspopup="menu"
-                  aria-expanded={isProfileMenuOpen}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-foreground/8 px-2 py-1 hover:bg-foreground/15"
-                  title={isSpanish ? "Abrir menú de perfil" : "Open profile menu"}
-                >
-                  <span className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
-                    <img
-                      src={walletProfileAvatarUrl || DEFAULT_PROFILE_AVATAR_SRC}
-                      alt={profileTitle}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </span>
-                </button>
-
-                {isProfileMenuOpen ? (
-                  <div
-                    role="menu"
-                    className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur"
+              <>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                    aria-haspopup="menu"
+                    aria-expanded={isProfileMenuOpen}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-foreground/8 px-2 py-1 hover:bg-foreground/15"
+                    title={isSpanish ? "Abrir menú de perfil" : "Open profile menu"}
                   >
+                    <span className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10">
+                      <img
+                        src={walletProfileAvatarUrl || DEFAULT_PROFILE_AVATAR_SRC}
+                        alt={profileTitle}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </span>
+                  </button>
+
+                  {isProfileMenuOpen ? (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur"
+                    >
                     <div className="border-b border-border p-2">
                       <Link
                         href={myProfileHref}
@@ -355,9 +339,10 @@ export function Header() {
                               : "Disconnect wallet"}
                       </button>
                     </div>
-                  </div>
-                ) : null}
-              </div>
+                    </div>
+                  ) : null}
+                </div>
+              </>
             )}
           </div>
 
@@ -403,22 +388,6 @@ export function Header() {
               ))}
               <div className="flex flex-col gap-2 pt-4">
                 <FreighterConnectButton />
-                <button
-                  type="button"
-                  onClick={handleFaucet}
-                  disabled={isFaucetLoading || (!isMainnetNetwork && !publicKey)}
-                  className="auction-faucet-button inline-flex h-10 items-center justify-center rounded-xl border border-border bg-foreground/8 px-4 text-sm font-semibold hover:bg-foreground/15 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <span className={isFaucetLoading ? "animate-pulse" : ""}>
-                    {isMainnetNetwork
-                      ? isSpanish
-                        ? "Rampa XLM"
-                        : "XLM Ramp"
-                      : isSpanish
-                        ? "Cargar fondos"
-                        : "Load funds"}
-                  </span>
-                </button>
               </div>
             </nav>
           </div>

@@ -225,11 +225,9 @@ export function MarketplaceHubMarketplaceTab({
                     </div>
                     <div className="rounded-full border border-border bg-white/5 px-3 py-1">
                       {t("Starting price", "Precio inicial")}:{" "}
-                      {liveAuctionItem.priceUsdc
-                        ? `${formatTokenAmount(liveAuctionItem.priceUsdc)} USDC`
-                        : liveAuctionItem.priceXlm
-                          ? `${formatTokenAmount(liveAuctionItem.priceXlm)} XLM`
-                          : "-"}
+                      {liveAuctionItem.price
+                        ? `${formatTokenAmount(liveAuctionItem.price)} ${liveAuctionItem.currency === "Usdc" ? "USDC" : "XLM"}`
+                        : "-"}
                     </div>
                   </div>
                   <div className="mt-3">
@@ -341,11 +339,9 @@ export function MarketplaceHubMarketplaceTab({
                 : t("Auction listing", "Lote en subasta");
             const primaryPrice = isSwap
               ? t("Swap offer", "Oferta de intercambio")
-              : item.priceUsdc
-                ? `${formatTokenAmount(item.priceUsdc)} USDC`
-                : item.priceXlm
-                  ? `${formatTokenAmount(item.priceXlm)} XLM`
-                  : "-";
+              : item.price
+                ? `${formatTokenAmount(item.price)} ${item.currency === "Usdc" ? "USDC" : "XLM"}`
+                : "-";
             const saleTypeLabel = isSwap
               ? t("Swap", "Intercambio")
               : isCommissionEgg

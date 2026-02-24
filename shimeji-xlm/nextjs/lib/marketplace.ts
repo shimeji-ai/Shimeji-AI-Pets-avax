@@ -31,9 +31,8 @@ export interface ListingInfo {
   listingId: number;
   seller: string;
   tokenId: number;
-  priceXlm: bigint;
-  priceUsdc: bigint;
-  xlmUsdcRate: bigint;
+  price: bigint;
+  currency: "Xlm" | "Usdc";
   commissionEtaDays: number;
   isCommissionEgg: boolean;
   active: boolean;
@@ -149,9 +148,8 @@ export async function fetchListings(): Promise<ListingInfo[]> {
           listingId: i,
           seller: data.seller as string,
           tokenId: data.token_id as number,
-          priceXlm: data.price_xlm as bigint,
-          priceUsdc: data.price_usdc as bigint,
-          xlmUsdcRate: data.xlm_usdc_rate as bigint,
+          price: (data.price as bigint) ?? BigInt(0),
+          currency: ((data.currency as string) === "Usdc" ? "Usdc" : "Xlm") as "Xlm" | "Usdc",
           commissionEtaDays: (data.commission_eta_days as number) ?? 0,
           isCommissionEgg: Boolean(data.is_commission_egg),
           active: data.active as boolean,
@@ -345,33 +343,30 @@ async function buildMarketplaceTx(
 export async function buildListForSaleTx(
   sellerPublicKey: string,
   tokenId: number,
-  priceXlm: bigint,
-  priceUsdc: bigint,
-  xlmUsdcRate: bigint
+  price: bigint,
+  currency: "Xlm" | "Usdc"
 ): Promise<string> {
   return buildMarketplaceTx(sellerPublicKey, "list_for_sale", [
     new Address(sellerPublicKey).toScVal(),
     nativeToScVal(tokenId, { type: "u64" }),
-    nativeToScVal(priceXlm, { type: "i128" }),
-    nativeToScVal(priceUsdc, { type: "i128" }),
-    nativeToScVal(xlmUsdcRate, { type: "i128" }),
+    nativeToScVal(price, { type: "i128" }),
+    // Currency enum variant: scvVec([scvSymbol("Xlm")]) or scvVec([scvSymbol("Usdc")])
+    xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(currency)]),
   ]);
 }
 
 export async function buildListCommissionEggTx(
   sellerPublicKey: string,
   tokenId: number,
-  priceXlm: bigint,
-  priceUsdc: bigint,
-  xlmUsdcRate: bigint,
+  price: bigint,
+  currency: "Xlm" | "Usdc",
   commissionEtaDays: number,
 ): Promise<string> {
   return buildMarketplaceTx(sellerPublicKey, "list_commission_egg", [
     new Address(sellerPublicKey).toScVal(),
     nativeToScVal(tokenId, { type: "u64" }),
-    nativeToScVal(priceXlm, { type: "i128" }),
-    nativeToScVal(priceUsdc, { type: "i128" }),
-    nativeToScVal(xlmUsdcRate, { type: "i128" }),
+    nativeToScVal(price, { type: "i128" }),
+    xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(currency)]),
     nativeToScVal(commissionEtaDays, { type: "u64" }),
   ]);
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, Check, ImageIcon, Loader2, X } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Check, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { HubTranslateFn, TokenPreview } from "@/components/marketplace-hub-shared";
 import {
@@ -18,63 +19,116 @@ type Props = {
   t: HubTranslateFn;
   studio: MarketplaceMyStudioResponse;
   tokenPreviews: Record<string, TokenPreview>;
-  selectedTokenId: string;
-  onSelectedTokenIdChange: (id: string) => void;
-  listingPriceXlm: string;
-  onListingPriceXlmChange: (v: string) => void;
-  listingPriceUsdc: string;
-  onListingPriceUsdcChange: (v: string) => void;
-  listingCommissionEtaDays: string;
-  onListingCommissionEtaDaysChange: (v: string) => void;
   txBusy: boolean;
-  onCreateCommissionEggListing: () => void;
-  onCancelListing: (listingId: number) => void;
-  commissionDeliveryMetadataUriByOrderId: Record<string, string>;
-  onCommissionDeliveryMetadataUriChange: (orderId: string, uri: string) => void;
-  commissionRevisionIntentionByOrderId: Record<string, string>;
-  onCommissionRevisionIntentionChange: (orderId: string, intention: string) => void;
-  commissionRevisionReferenceByOrderId: Record<string, string>;
-  onCommissionRevisionReferenceChange: (orderId: string, ref: string) => void;
-  orderActionBusyId: string | null;
+  publicKey: string | null;
+  onCreateCommissionEgg: (uri: string, price: string, currency: "Xlm" | "Usdc", etaDays: string) => void | Promise<void>;
+  onCancelListing: (listingId: number) => void | Promise<void>;
   onCommissionOrderAction: (
     order: MyStudioCommissionOrderItem,
     action: "deliver" | "approve" | "refund" | "claim_timeout",
-  ) => void;
-  onCommissionRevisionRequest: (order: MyStudioCommissionOrderItem) => void;
-  publicKey: string | null;
+    metadataUri?: string,
+  ) => void | Promise<void>;
+  onCommissionRevisionRequest: (
+    order: MyStudioCommissionOrderItem,
+    intention: string,
+    reference: string,
+  ) => void | Promise<void>;
 };
 
 export function MarketplaceHubStudioCommissionsTab({
   t,
   studio,
   tokenPreviews,
-  selectedTokenId,
-  onSelectedTokenIdChange,
-  listingPriceXlm,
-  onListingPriceXlmChange,
-  listingPriceUsdc,
-  onListingPriceUsdcChange,
-  listingCommissionEtaDays,
-  onListingCommissionEtaDaysChange,
   txBusy,
-  onCreateCommissionEggListing,
+  publicKey,
+  onCreateCommissionEgg,
   onCancelListing,
-  commissionDeliveryMetadataUriByOrderId,
-  onCommissionDeliveryMetadataUriChange,
-  commissionRevisionIntentionByOrderId,
-  onCommissionRevisionIntentionChange,
-  commissionRevisionReferenceByOrderId,
-  onCommissionRevisionReferenceChange,
-  orderActionBusyId,
   onCommissionOrderAction,
   onCommissionRevisionRequest,
 }: Props) {
+  // Egg creation form state
+  const [eggImageUrl, setEggImageUrl] = useState("");
+  const [eggImageUploading, setEggImageUploading] = useState(false);
+  const [eggPrice, setEggPrice] = useState("");
+  const [eggCurrency, setEggCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [eggEtaDays, setEggEtaDays] = useState("7");
+
+  // Existing egg listing form state
+  const [selectedTokenId, setSelectedTokenId] = useState("");
+  const [listingPrice, setListingPrice] = useState("");
+  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [listingCommissionEtaDays, setListingCommissionEtaDays] = useState("7");
+
+  // Commission order per-order state
+  const [commissionDeliveryUri, setCommissionDeliveryUri] = useState<Record<string, string>>({});
+  const [commissionRevisionIntention, setCommissionRevisionIntention] = useState<Record<string, string>>({});
+  const [commissionRevisionReference, setCommissionRevisionReference] = useState<Record<string, string>>({});
+  const [orderActionBusyId, setOrderActionBusyId] = useState<string | null>(null);
+
   const commissionEggs = studio.ownedNfts.filter((n) => n.isCommissionEgg);
   const commissionEggListings = studio.myListings.filter((l) => l.active && l.isCommissionEgg);
   const ordersAsArtist = studio.myCommissionOrdersAsArtist.filter((o) => commissionOrderIsOpen(o.status));
   const ordersAsBuyer = studio.myCommissionOrdersAsBuyer.filter((o) => commissionOrderIsOpen(o.status));
 
   const { canListNewCommissionEgg, reason: lockReason } = studio.commissionEggLock;
+
+  async function handleImageUpload(file: File) {
+    setEggImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/upload", { method: "POST", body: formData });
+      const payload = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !payload.url) throw new Error(payload.error || "Upload failed");
+      setEggImageUrl(payload.url);
+    } catch (error) {
+      console.error("Upload error:", error);
+    } finally {
+      setEggImageUploading(false);
+    }
+  }
+
+  function handleCreateEgg() {
+    if (!eggImageUrl.trim()) return;
+    void onCreateCommissionEgg(eggImageUrl.trim(), eggPrice, eggCurrency, eggEtaDays);
+  }
+
+  function handleListExistingEgg() {
+    const tokenId = Number.parseInt(selectedTokenId, 10);
+    if (!Number.isFinite(tokenId)) return;
+    void onCreateCommissionEgg("existing:" + tokenId, listingPrice, listingCurrency, listingCommissionEtaDays);
+  }
+
+  async function handleOrderAction(
+    order: MyStudioCommissionOrderItem,
+    action: "deliver" | "approve" | "refund" | "claim_timeout",
+  ) {
+    const metadataUri = action === "deliver"
+      ? (commissionDeliveryUri[String(order.orderId)] || "").trim()
+      : undefined;
+    setOrderActionBusyId(`${action}:${order.orderId}`);
+    try {
+      await onCommissionOrderAction(order, action, metadataUri);
+      if (action === "deliver") {
+        setCommissionDeliveryUri((prev) => ({ ...prev, [String(order.orderId)]: "" }));
+      }
+    } finally {
+      setOrderActionBusyId(null);
+    }
+  }
+
+  async function handleRevisionRequest(order: MyStudioCommissionOrderItem) {
+    const intention = (commissionRevisionIntention[String(order.orderId)] || "").trim();
+    const reference = (commissionRevisionReference[String(order.orderId)] || "").trim();
+    setOrderActionBusyId(`revision:${order.orderId}`);
+    try {
+      await onCommissionRevisionRequest(order, intention, reference);
+      setCommissionRevisionIntention((prev) => ({ ...prev, [String(order.orderId)]: "" }));
+      setCommissionRevisionReference((prev) => ({ ...prev, [String(order.orderId)]: "" }));
+    } finally {
+      setOrderActionBusyId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -86,142 +140,239 @@ export function MarketplaceHubStudioCommissionsTab({
         </div>
       ) : null}
 
-      {/* Commission egg listing form */}
-      <div className="rounded-2xl border border-border bg-white/5 p-4">
-        <h3 className="mb-1 text-sm font-semibold text-foreground">
-          {t("List a Commission Egg", "Publicar un Huevo de Comisión")}
-        </h3>
-        <p className="mb-4 text-xs text-muted-foreground">
-          {t(
-            "Commission eggs represent your commission slot. Buyers purchase them to open a commission order with you.",
-            "Los huevos de comisión representan tu slot de comisión. Los compradores los adquieren para abrir una orden de comisión contigo.",
-          )}
-        </p>
-
-        {/* Commission egg NFT selection */}
-        {commissionEggs.length === 0 ? (
-          <div className="mb-4 rounded-xl border border-dashed border-border bg-white/5 p-4 text-center text-xs text-muted-foreground">
+      {/* Create + List new commission egg */}
+      {canListNewCommissionEgg ? (
+        <div className="rounded-2xl border border-fuchsia-300/20 bg-fuchsia-400/5 p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            {t("Create Commission Egg", "Crear Huevo de Comisión")}
+          </h3>
+          <p className="mb-4 text-xs text-muted-foreground">
             {t(
-              "No commission eggs found. Mint a commission egg NFT first.",
-              "No se encontraron huevos de comisión. Primero mintea un NFT de huevo de comisión.",
+              "Upload your commission art, set a price, and list it — all in one step.",
+              "Subí tu arte de comisión, ponele un precio y publicalo — todo en un paso.",
             )}
+          </p>
+
+          <div className="space-y-3">
+            {/* Image upload */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Commission art image", "Imagen del arte de comisión")}
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
+                  {eggImageUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {t("Choose image", "Elegir imagen")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleImageUpload(file);
+                    }}
+                    disabled={eggImageUploading}
+                  />
+                </label>
+                {eggImageUrl ? (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={eggImageUrl}
+                      alt="Preview"
+                      className="h-10 w-10 rounded-lg border border-border object-cover"
+                    />
+                    <span className="max-w-[140px] truncate text-[10px] text-muted-foreground">{eggImageUrl}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Price + currency */}
+            <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Price", "Precio")}
+                </label>
+                <input
+                  type="number"
+                  value={eggPrice}
+                  onChange={(e) => setEggPrice(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Currency", "Moneda")}
+                </label>
+                <select
+                  value={eggCurrency}
+                  onChange={(e) => setEggCurrency(e.target.value as "Xlm" | "Usdc")}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="Xlm">XLM</option>
+                  <option value="Usdc">USDC</option>
+                </select>
+              </div>
+            </div>
+
+            {/* ETA */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Estimated turnaround (days)", "Tiempo estimado de entrega (días)")}
+              </label>
+              <input
+                type="number"
+                value={eggEtaDays}
+                onChange={(e) => setEggEtaDays(e.target.value)}
+                placeholder="7"
+                min="1"
+                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+              />
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleCreateEgg}
+              disabled={txBusy || !eggImageUrl.trim() || eggImageUploading}
+              className="w-full bg-fuchsia-500 text-white hover:bg-fuchsia-400 disabled:opacity-50"
+            >
+              {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {t("Create & List Commission Egg", "Crear y Publicar Huevo de Comisión")}
+            </Button>
           </div>
-        ) : (
-          <div className="mb-4">
-            <p className="mb-2 text-xs font-medium text-foreground">
-              {t("Select a commission egg", "Selecciona un huevo de comisión")}
-            </p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              {commissionEggs.map((token) => {
-                const preview = token.tokenUri ? tokenPreviews[token.tokenUri] : null;
-                const isSelected = selectedTokenId === String(token.tokenId);
-                const isListed = studio.myListings.some((l) => l.active && l.tokenId === token.tokenId);
-                return (
-                  <button
-                    key={`commission-egg-${token.tokenId}`}
-                    type="button"
-                    onClick={() => onSelectedTokenIdChange(String(token.tokenId))}
-                    className={`group relative overflow-hidden rounded-xl border transition ${
-                      isSelected
-                        ? "border-fuchsia-400/50 bg-fuchsia-400/10 ring-1 ring-fuchsia-400/30"
-                        : "border-border bg-white/5 hover:border-white/20 hover:bg-white/10"
-                    }`}
-                  >
-                    <div className="relative aspect-square w-full overflow-hidden bg-white/[0.04]">
-                      {preview?.imageUrl ? (
-                        <img
-                          src={preview.imageUrl}
-                          alt={`#${token.tokenId}`}
-                          className="h-full w-full object-contain"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <ImageIcon className="h-5 w-5" />
-                        </div>
-                      )}
-                      {isSelected ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-fuchsia-400/20">
-                          <Check className="h-5 w-5 text-fuchsia-400" />
-                        </div>
-                      ) : null}
-                      {isListed ? (
-                        <div className="absolute left-1 top-1">
-                          <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-1.5 py-0.5 text-[9px] text-foreground">
-                            {t("Listed", "Publicado")}
-                          </span>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="p-1.5 text-center">
-                      <p className="text-[10px] font-medium text-foreground">#{token.tokenId}</p>
-                    </div>
-                  </button>
-                );
-              })}
+        </div>
+      ) : null}
+
+      {/* List an existing commission egg */}
+      {commissionEggs.length > 0 && canListNewCommissionEgg ? (
+        <div className="rounded-2xl border border-border bg-white/5 p-4">
+          <h3 className="mb-1 text-sm font-semibold text-foreground">
+            {t("List Existing Commission Egg", "Publicar Huevo de Comisión Existente")}
+          </h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            {t(
+              "Select one of your commission egg NFTs and list it for sale.",
+              "Seleccioná uno de tus NFTs de huevo de comisión y publicalo.",
+            )}
+          </p>
+
+          <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            {commissionEggs.map((token) => {
+              const preview = token.tokenUri ? tokenPreviews[token.tokenUri] : null;
+              const isSelected = selectedTokenId === String(token.tokenId);
+              const isListed = studio.myListings.some((l) => l.active && l.tokenId === token.tokenId);
+              return (
+                <button
+                  key={`commission-egg-${token.tokenId}`}
+                  type="button"
+                  onClick={() => setSelectedTokenId(String(token.tokenId))}
+                  className={`group relative overflow-hidden rounded-xl border transition ${
+                    isSelected
+                      ? "border-fuchsia-400/50 bg-fuchsia-400/10 ring-1 ring-fuchsia-400/30"
+                      : "border-border bg-white/5 hover:border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  <div className="relative aspect-square w-full overflow-hidden bg-white/[0.04]">
+                    {preview?.imageUrl ? (
+                      <img
+                        src={preview.imageUrl}
+                        alt={`#${token.tokenId}`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                        <ImageIcon className="h-5 w-5" />
+                      </div>
+                    )}
+                    {isSelected ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-fuchsia-400/20">
+                        <Check className="h-5 w-5 text-fuchsia-400" />
+                      </div>
+                    ) : null}
+                    {isListed ? (
+                      <div className="absolute left-1 top-1">
+                        <span className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-1.5 py-0.5 text-[9px] text-foreground">
+                          {t("Listed", "Publicado")}
+                        </span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="p-1.5 text-center">
+                    <p className="text-[10px] font-medium text-foreground">#{token.tokenId}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Price", "Precio")}
+              </label>
+              <input
+                type="number"
+                value={listingPrice}
+                onChange={(e) => setListingPrice(e.target.value)}
+                placeholder="0"
+                min="0"
+                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Currency", "Moneda")}
+              </label>
+              <select
+                value={listingCurrency}
+                onChange={(e) => setListingCurrency(e.target.value as "Xlm" | "Usdc")}
+                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+              >
+                <option value="Xlm">XLM</option>
+                <option value="Usdc">USDC</option>
+              </select>
             </div>
           </div>
-        )}
-
-        {/* Price and ETA fields */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              {t("Price XLM", "Precio XLM")}
-            </label>
-            <input
-              type="number"
-              value={listingPriceXlm}
-              onChange={(e) => onListingPriceXlmChange(e.target.value)}
-              placeholder="0"
-              min="0"
-              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              {t("Price USDC", "Precio USDC")}
-            </label>
-            <input
-              type="number"
-              value={listingPriceUsdc}
-              onChange={(e) => onListingPriceUsdcChange(e.target.value)}
-              placeholder="0"
-              min="0"
-              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
-          <div className="sm:col-span-2">
+          <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               {t("Estimated turnaround (days)", "Tiempo estimado de entrega (días)")}
             </label>
             <input
               type="number"
               value={listingCommissionEtaDays}
-              onChange={(e) => onListingCommissionEtaDaysChange(e.target.value)}
+              onChange={(e) => setListingCommissionEtaDays(e.target.value)}
               placeholder="7"
               min="1"
               className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
             />
           </div>
+
+          <Button
+            type="button"
+            onClick={handleListExistingEgg}
+            disabled={txBusy || !selectedTokenId}
+            className="mt-4 w-full bg-fuchsia-500 text-white hover:bg-fuchsia-400 disabled:opacity-50"
+          >
+            {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {t("List Commission Egg", "Publicar Huevo de Comisión")}
+          </Button>
         </div>
+      ) : null}
 
-        <Button
-          type="button"
-          onClick={onCreateCommissionEggListing}
-          disabled={txBusy || !canListNewCommissionEgg}
-          className="mt-4 w-full bg-fuchsia-500 text-white hover:bg-fuchsia-400 disabled:opacity-50"
-        >
-          {txBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {t("List Commission Egg", "Publicar Huevo de Comisión")}
-        </Button>
-
-        {/* Active commission egg listings */}
-        {commissionEggListings.length > 0 ? (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-medium text-foreground">
-              {t("Active commission egg listings", "Publicaciones de huevos activas")}
-            </p>
+      {/* Active commission egg listings */}
+      {commissionEggListings.length > 0 ? (
+        <div className="rounded-2xl border border-border bg-white/5 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-foreground">
+            {t("Active commission egg listings", "Publicaciones de huevos activas")}
+          </h3>
+          <div className="space-y-2">
             {commissionEggListings.map((listing) => {
               const preview = listing.tokenUri ? tokenPreviews[listing.tokenUri] : null;
               return (
@@ -246,8 +397,7 @@ export function MarketplaceHubStudioCommissionsTab({
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-foreground">#{listing.tokenId}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {formatTokenAmount(listing.priceXlm)} XLM
-                      {Number(listing.priceUsdc) > 0 ? ` / ${formatTokenAmount(listing.priceUsdc)} USDC` : ""}
+                      {formatTokenAmount(listing.price)} {listing.currency === "Usdc" ? "USDC" : "XLM"}
                       {listing.commissionEtaDays ? ` · ${listing.commissionEtaDays}d` : ""}
                     </p>
                   </div>
@@ -256,7 +406,7 @@ export function MarketplaceHubStudioCommissionsTab({
                     size="sm"
                     variant="outline"
                     className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                    onClick={() => onCancelListing(listing.listingId)}
+                    onClick={() => void onCancelListing(listing.listingId)}
                     disabled={txBusy}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -266,8 +416,8 @@ export function MarketplaceHubStudioCommissionsTab({
               );
             })}
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {/* Commission orders as artist */}
       {ordersAsArtist.length > 0 ? (
@@ -310,9 +460,9 @@ export function MarketplaceHubStudioCommissionsTab({
                         </label>
                         <input
                           type="text"
-                          value={commissionDeliveryMetadataUriByOrderId[String(order.orderId)] || ""}
+                          value={commissionDeliveryUri[String(order.orderId)] || ""}
                           onChange={(e) =>
-                            onCommissionDeliveryMetadataUriChange(String(order.orderId), e.target.value)
+                            setCommissionDeliveryUri((prev) => ({ ...prev, [String(order.orderId)]: e.target.value }))
                           }
                           placeholder="ipfs://... or https://..."
                           className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50"
@@ -322,7 +472,7 @@ export function MarketplaceHubStudioCommissionsTab({
                         type="button"
                         size="sm"
                         className="bg-emerald-500 text-black hover:bg-emerald-400"
-                        onClick={() => onCommissionOrderAction(order, "deliver")}
+                        onClick={() => void handleOrderAction(order, "deliver")}
                         disabled={isBusyDeliver}
                       >
                         {isBusyDeliver ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -341,7 +491,7 @@ export function MarketplaceHubStudioCommissionsTab({
                         size="sm"
                         variant="outline"
                         className="h-7 border-border bg-white/5 text-foreground hover:bg-white/10"
-                        onClick={() => onCommissionOrderAction(order, "claim_timeout")}
+                        onClick={() => void handleOrderAction(order, "claim_timeout")}
                         disabled={isBusyTimeout}
                       >
                         {isBusyTimeout ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -409,7 +559,7 @@ export function MarketplaceHubStudioCommissionsTab({
                           type="button"
                           size="sm"
                           className="bg-emerald-500 text-black hover:bg-emerald-400"
-                          onClick={() => onCommissionOrderAction(order, "approve")}
+                          onClick={() => void handleOrderAction(order, "approve")}
                           disabled={isBusyApprove}
                         >
                           {isBusyApprove ? (
@@ -425,7 +575,7 @@ export function MarketplaceHubStudioCommissionsTab({
                             size="sm"
                             variant="outline"
                             className="border-amber-400/30 bg-amber-500/10 text-foreground hover:bg-amber-500/20"
-                            onClick={() => onCommissionRevisionRequest(order)}
+                            onClick={() => void handleRevisionRequest(order)}
                             disabled={isBusyRevision}
                           >
                             {isBusyRevision ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
@@ -438,9 +588,9 @@ export function MarketplaceHubStudioCommissionsTab({
                         <div className="space-y-2">
                           <input
                             type="text"
-                            value={commissionRevisionIntentionByOrderId[String(order.orderId)] || ""}
+                            value={commissionRevisionIntention[String(order.orderId)] || ""}
                             onChange={(e) =>
-                              onCommissionRevisionIntentionChange(String(order.orderId), e.target.value)
+                              setCommissionRevisionIntention((prev) => ({ ...prev, [String(order.orderId)]: e.target.value }))
                             }
                             placeholder={t(
                               "Change request description",
@@ -450,9 +600,9 @@ export function MarketplaceHubStudioCommissionsTab({
                           />
                           <input
                             type="text"
-                            value={commissionRevisionReferenceByOrderId[String(order.orderId)] || ""}
+                            value={commissionRevisionReference[String(order.orderId)] || ""}
                             onChange={(e) =>
-                              onCommissionRevisionReferenceChange(String(order.orderId), e.target.value)
+                              setCommissionRevisionReference((prev) => ({ ...prev, [String(order.orderId)]: e.target.value }))
                             }
                             placeholder={t(
                               "Reference image URL (optional)",
@@ -469,7 +619,7 @@ export function MarketplaceHubStudioCommissionsTab({
                       size="sm"
                       variant="outline"
                       className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                      onClick={() => onCommissionOrderAction(order, "refund")}
+                      onClick={() => void handleOrderAction(order, "refund")}
                       disabled={isBusyRefund}
                     >
                       {isBusyRefund ? (
@@ -487,7 +637,7 @@ export function MarketplaceHubStudioCommissionsTab({
         </div>
       ) : null}
 
-      {ordersAsArtist.length === 0 && ordersAsBuyer.length === 0 ? (
+      {ordersAsArtist.length === 0 && ordersAsBuyer.length === 0 && commissionEggListings.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-white/5 p-4 text-center text-xs text-muted-foreground">
           {t("No active commission orders.", "No hay órdenes de comisión activas.")}
         </div>

@@ -1,6 +1,14 @@
 # Shimeji AI Pets 🐱🐰
 
-Animated desktop pets with AI chat and NFT auctions on Stellar.
+Animated desktop pets with AI chat and NFT marketplace on Stellar.
+
+## Integrations
+
+The Stellar marketplace stack integrates with two external protocols:
+
+- **[Reflector Network](https://reflector.network)** — Decentralized price oracle for the Stellar network. Used in the marketplace contract to accept both XLM and USDC as payment for any listing, converting prices on-chain at the current market rate so sellers only need to set one price.
+
+- **[Trustless Work](https://www.trustlesswork.com)** — Escrow-as-a-service protocol. Used in the auction and marketplace contracts to hold buyer funds in a trustless escrow during commission orders and NFT auctions, releasing to the seller only on delivery confirmation.
 
 ## Structure
 

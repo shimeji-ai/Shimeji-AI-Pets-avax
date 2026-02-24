@@ -56,9 +56,10 @@ export type MarketplaceFeedItem = {
   tokenUri: string | null;
   sellerWallet: string | null;
   sellerProfile: ArtistProfile | null;
-  priceXlm: string | null;
-  priceUsdc: string | null;
-  xlmUsdcRate: string | null;
+  /** Primary display price (formatted units string). */
+  price: string | null;
+  /** Currency the price is denominated in. */
+  currency: "Xlm" | "Usdc" | null;
   auction: {
     auctionId: number | null;
     startTime: number | null;
@@ -97,9 +98,8 @@ export type MyStudioListingItem = {
   tokenUri: string | null;
   isCommissionEgg: boolean;
   commissionEtaDays: number;
-  priceXlm: string;
-  priceUsdc: string;
-  xlmUsdcRate: string;
+  price: string;
+  currency: "Xlm" | "Usdc";
   active: boolean;
 };
 

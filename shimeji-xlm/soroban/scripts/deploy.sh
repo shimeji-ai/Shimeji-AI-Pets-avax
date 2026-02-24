@@ -2046,8 +2046,8 @@ mint_marketplace_showcase_tokens_pre_minter_if_enabled() {
 }
 
 seed_marketplace_showcase_examples_if_enabled() {
-  local list_price_xlm_stroops list_price_usdc_stroops egg_price_xlm_stroops egg_price_usdc_stroops
-  local xlm_usdc_rate intention output
+  local list_price_xlm_stroops egg_price_xlm_stroops
+  local intention output
 
   if [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" != "1" ]; then
     return
@@ -2065,19 +2065,10 @@ seed_marketplace_showcase_examples_if_enabled() {
     MARKETPLACE_SHOWCASE_STATUS="invalid-sale-price-xlm"
     return
   }
-  list_price_usdc_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_LIST_PRICE_USDC")" || {
-    MARKETPLACE_SHOWCASE_STATUS="invalid-sale-price-usdc"
-    return
-  }
   egg_price_xlm_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_EGG_PRICE_XLM")" || {
     MARKETPLACE_SHOWCASE_STATUS="invalid-egg-price-xlm"
     return
   }
-  egg_price_usdc_stroops="$(human_amount_to_stroops "$MARKETPLACE_SHOWCASE_EGG_PRICE_USDC")" || {
-    MARKETPLACE_SHOWCASE_STATUS="invalid-egg-price-usdc"
-    return
-  }
-  xlm_usdc_rate="$INITIAL_AUCTION_XLM_USDC_RATE"
 
   echo "==> Seeding marketplace showcase items (sale, swap, commission egg)..."
 
@@ -2090,9 +2081,8 @@ seed_marketplace_showcase_examples_if_enabled() {
       -- list_for_sale \
       --seller "$ADMIN" \
       --token_id "$SHOWCASE_SALE_TOKEN_ID" \
-      --price_xlm "$list_price_xlm_stroops" \
-      --price_usdc "$list_price_usdc_stroops" \
-      --xlm_usdc_rate "$xlm_usdc_rate")"; then
+      --price "$list_price_xlm_stroops" \
+      --currency '"Xlm"')"; then
     MARKETPLACE_SHOWCASE_STATUS="failed-list-sale"
     return
   fi
@@ -2123,9 +2113,8 @@ seed_marketplace_showcase_examples_if_enabled() {
       -- list_commission_egg \
       --seller "$ADMIN" \
       --token_id "$SHOWCASE_EGG_TOKEN_ID" \
-      --price_xlm "$egg_price_xlm_stroops" \
-      --price_usdc "$egg_price_usdc_stroops" \
-      --xlm_usdc_rate "$xlm_usdc_rate" \
+      --price "$egg_price_xlm_stroops" \
+      --currency '"Xlm"' \
       --commission_eta_days "$MARKETPLACE_SHOWCASE_EGG_ETA_DAYS")"; then
     MARKETPLACE_SHOWCASE_STATUS="failed-list-egg"
     return
@@ -2313,6 +2302,21 @@ deploy_contracts() {
       --network-passphrase "$PASSPHRASE" \
       -- configure_internal_escrow
     wait_for_network_propagation_step "ShimejiMarketplace internal escrow configuration"
+  fi
+
+  if [ -n "${REFLECTOR_ORACLE_ADDRESS:-}" ]; then
+    echo "==> Configuring Reflector oracle on ShimejiMarketplace..."
+    run_with_deploy_retries "Configure marketplace oracle" \
+      stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- configure_oracle \
+      --oracle "$REFLECTOR_ORACLE_ADDRESS"
+    wait_for_network_propagation_step "ShimejiMarketplace oracle configuration"
+  else
+    echo "==> REFLECTOR_ORACLE_ADDRESS not set; skipping oracle configuration."
   fi
 
   # Allow a short pause before deploying the commission contract on non-local

@@ -11,6 +11,9 @@ const MAX_COMMISSION_TURNAROUND_DAYS: u64 = 365;
 const MAX_COMMISSION_REVISION_REQUESTS: u64 = 3;
 const COMMISSION_AUTO_RELEASE_AFTER_DELIVERY_SECS: u64 = 7 * 24 * 60 * 60;
 
+/// Shared scale factor used for token amounts and oracle rate (10^7).
+const TOKEN_SCALE: i128 = 10_000_000;
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Currency {
@@ -34,14 +37,31 @@ pub enum CommissionOrderStatus {
     Refunded,
 }
 
+/// Oracle asset descriptor (Reflector protocol).
+#[contracttype]
+#[derive(Clone)]
+pub enum OracleAsset {
+    Stellar(Address),
+    Other(Symbol),
+}
+
+/// Oracle price data returned by Reflector (price is at 10^14 scale).
+#[contracttype]
+#[derive(Clone)]
+pub struct OraclePriceData {
+    pub price: i128,
+    pub timestamp: u64,
+}
+
 #[contracttype]
 #[derive(Clone, Debug)]
 pub struct ListingInfo {
     pub seller: Address,
     pub token_id: u64,
-    pub price_xlm: i128,
-    pub price_usdc: i128,
-    pub xlm_usdc_rate: i128,
+    /// Price in the seller's chosen currency.
+    pub price: i128,
+    /// The currency the seller set the price in.
+    pub currency: Currency,
     pub commission_eta_days: u64,
     pub is_commission_egg: bool,
     pub active: bool,
@@ -102,6 +122,7 @@ pub enum DataKey {
     EscrowProvider,
     TrustlessEscrowXlm,
     TrustlessEscrowUsdc,
+    OracleContract,
     NextListingId,
     NextSwapListingId,
     NextSwapBidId,
@@ -395,6 +416,21 @@ impl ShimejiMarketplace {
             .unwrap_or(0u64)
     }
 
+    /// Fetch XLM/USDC rate from Reflector oracle.
+    /// Returns XLM price expressed in USDC at TOKEN_SCALE (10^7), or None if no oracle configured.
+    fn get_xlm_usdc_rate(env: &Env) -> Option<i128> {
+        let oracle: Option<Address> = env.storage().instance().get(&DataKey::OracleContract);
+        let oracle = oracle?;
+        let asset = OracleAsset::Other(Symbol::new(env, "XLM"));
+        let data: Option<OraclePriceData> = env.invoke_contract(
+            &oracle,
+            &Symbol::new(env, "lastprice"),
+            (asset,).into_val(env),
+        );
+        // Reflector returns price at 10^14 scale; convert to 10^7 by dividing by 10^7
+        data.map(|pd| pd.price / 10_000_000)
+    }
+
     fn refund_active_swap_bids_for_listing(env: &Env, listing_id: u64, except_bid_id: Option<u64>) {
         let total_bids = Self::next_swap_bid_id(env);
         for bid_id in 0..total_bids {
@@ -491,23 +527,24 @@ impl ShimejiMarketplace {
         (xlm_destination, usdc_destination)
     }
 
+    pub fn configure_oracle(env: Env, oracle: Address) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::OracleContract, &oracle);
+    }
+
     // ── Fixed-price listings ────────────────────────────────────────────────
 
     pub fn list_for_sale(
         env: Env,
         seller: Address,
         token_id: u64,
-        price_xlm: i128,
-        price_usdc: i128,
-        xlm_usdc_rate: i128,
+        price: i128,
+        currency: Currency,
     ) -> u64 {
         seller.require_auth();
 
-        if price_xlm <= 0 {
-            panic!("price_xlm must be positive");
-        }
-        if price_usdc <= 0 {
-            panic!("price_usdc must be positive");
+        if price <= 0 {
+            panic!("price must be positive");
         }
 
         // Take custody of NFT from seller
@@ -527,9 +564,8 @@ impl ShimejiMarketplace {
         let listing = ListingInfo {
             seller,
             token_id,
-            price_xlm,
-            price_usdc,
-            xlm_usdc_rate,
+            price,
+            currency,
             commission_eta_days: 0,
             is_commission_egg: false,
             active: true,
@@ -549,20 +585,16 @@ impl ShimejiMarketplace {
         env: Env,
         seller: Address,
         token_id: u64,
-        price_xlm: i128,
-        price_usdc: i128,
-        xlm_usdc_rate: i128,
+        price: i128,
+        currency: Currency,
         commission_eta_days: u64,
     ) -> u64 {
         seller.require_auth();
         Self::ensure_commission_egg_slot_available(&env, &seller);
         Self::validate_commission_eta_days(commission_eta_days);
 
-        if price_xlm <= 0 {
-            panic!("price_xlm must be positive");
-        }
-        if price_usdc <= 0 {
-            panic!("price_usdc must be positive");
+        if price <= 0 {
+            panic!("price must be positive");
         }
 
         Self::nft_transfer(
@@ -581,9 +613,8 @@ impl ShimejiMarketplace {
         let listing = ListingInfo {
             seller: seller.clone(),
             token_id,
-            price_xlm,
-            price_usdc,
-            xlm_usdc_rate,
+            price,
+            currency,
             commission_eta_days,
             is_commission_egg: true,
             active: true,
@@ -619,10 +650,19 @@ impl ShimejiMarketplace {
             panic!("use buy_commission_xlm for commission listings");
         }
 
-        // Transfer XLM payment from buyer to seller
+        // Compute XLM amount: direct if listed in XLM, or convert via oracle if listed in USDC
+        let amount_xlm = match listing.currency {
+            Currency::Xlm => listing.price,
+            Currency::Usdc => {
+                let rate = Self::get_xlm_usdc_rate(&env)
+                    .unwrap_or_else(|| panic!("oracle not configured for XLM/USDC conversion"));
+                if rate <= 0 { panic!("invalid oracle rate"); }
+                listing.price * TOKEN_SCALE / rate
+            }
+        };
+
         let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
-        let token_client = token::Client::new(&env, &xlm_token);
-        token_client.transfer(&buyer, &listing.seller, &listing.price_xlm);
+        token::Client::new(&env, &xlm_token).transfer(&buyer, &listing.seller, &amount_xlm);
 
         // Transfer NFT from marketplace to buyer
         Self::nft_transfer(
@@ -654,10 +694,19 @@ impl ShimejiMarketplace {
             panic!("use buy_commission_usdc for commission listings");
         }
 
-        // Transfer USDC payment from buyer to seller
+        // Compute USDC amount: direct if listed in USDC, or convert via oracle if listed in XLM
+        let amount_usdc = match listing.currency {
+            Currency::Usdc => listing.price,
+            Currency::Xlm => {
+                let rate = Self::get_xlm_usdc_rate(&env)
+                    .unwrap_or_else(|| panic!("oracle not configured for XLM/USDC conversion"));
+                if rate <= 0 { panic!("invalid oracle rate"); }
+                listing.price * rate / TOKEN_SCALE
+            }
+        };
+
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
-        let token_client = token::Client::new(&env, &usdc_token);
-        token_client.transfer(&buyer, &listing.seller, &listing.price_usdc);
+        token::Client::new(&env, &usdc_token).transfer(&buyer, &listing.seller, &amount_usdc);
 
         // Transfer NFT from marketplace to buyer
         Self::nft_transfer(
@@ -696,10 +745,21 @@ impl ShimejiMarketplace {
             panic!("listing is not a commission egg");
         }
 
+        // Compute XLM amount to pay based on listing currency
+        let amount_xlm = match listing.currency {
+            Currency::Xlm => listing.price,
+            Currency::Usdc => {
+                let rate = Self::get_xlm_usdc_rate(&env)
+                    .unwrap_or_else(|| panic!("oracle not configured for XLM/USDC conversion"));
+                if rate <= 0 { panic!("invalid oracle rate"); }
+                listing.price * TOKEN_SCALE / rate
+            }
+        };
+
         let xlm_token: Address = env.storage().instance().get(&DataKey::XlmToken).unwrap();
         let token_client = token::Client::new(&env, &xlm_token);
-        token_client.transfer(&buyer, &env.current_contract_address(), &listing.price_xlm);
-        let (upfront_paid_to_seller, escrow_remaining) = Self::split_commission_payment(listing.price_xlm);
+        token_client.transfer(&buyer, &env.current_contract_address(), &amount_xlm);
+        let (upfront_paid_to_seller, escrow_remaining) = Self::split_commission_payment(amount_xlm);
         if upfront_paid_to_seller > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
@@ -723,7 +783,7 @@ impl ShimejiMarketplace {
             &listing,
             buyer,
             Currency::Xlm,
-            listing.price_xlm,
+            amount_xlm,
             upfront_paid_to_seller,
             escrow_remaining,
             escrow_provider,
@@ -764,10 +824,21 @@ impl ShimejiMarketplace {
             panic!("listing is not a commission egg");
         }
 
+        // Compute USDC amount to pay based on listing currency
+        let amount_usdc = match listing.currency {
+            Currency::Usdc => listing.price,
+            Currency::Xlm => {
+                let rate = Self::get_xlm_usdc_rate(&env)
+                    .unwrap_or_else(|| panic!("oracle not configured for XLM/USDC conversion"));
+                if rate <= 0 { panic!("invalid oracle rate"); }
+                listing.price * rate / TOKEN_SCALE
+            }
+        };
+
         let usdc_token: Address = env.storage().instance().get(&DataKey::UsdcToken).unwrap();
         let token_client = token::Client::new(&env, &usdc_token);
-        token_client.transfer(&buyer, &env.current_contract_address(), &listing.price_usdc);
-        let (upfront_paid_to_seller, escrow_remaining) = Self::split_commission_payment(listing.price_usdc);
+        token_client.transfer(&buyer, &env.current_contract_address(), &amount_usdc);
+        let (upfront_paid_to_seller, escrow_remaining) = Self::split_commission_payment(amount_usdc);
         if upfront_paid_to_seller > 0 {
             token_client.transfer(
                 &env.current_contract_address(),
@@ -791,7 +862,7 @@ impl ShimejiMarketplace {
             &listing,
             buyer,
             Currency::Usdc,
-            listing.price_usdc,
+            amount_usdc,
             upfront_paid_to_seller,
             escrow_remaining,
             escrow_provider,
@@ -1466,13 +1537,12 @@ mod test {
 
         let token_id = mint_nft(&t, &seller);
 
-        // Seller lists NFT
+        // Seller lists NFT for 1000 XLM
         let listing_id = t.marketplace.list_for_sale(
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
         );
         assert_eq!(listing_id, 0);
         assert_eq!(t.marketplace.total_listings(), 1);
@@ -1504,12 +1574,12 @@ mod test {
         let buyer = Address::generate(&t.env);
 
         let token_id = mint_nft(&t, &seller);
+        // List for 100 USDC
         let listing_id = t.marketplace.list_for_sale(
             &seller,
             &token_id,
-            &1000_0000000i128,
             &100_0000000i128,
-            &1000000i128,
+            &Currency::Usdc,
         );
 
         t.usdc_sac.mint(&buyer, &100_0000000i128);
@@ -1530,8 +1600,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
         );
 
         // Cancel listing - NFT returns to seller
@@ -1555,8 +1624,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1613,8 +1681,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1659,8 +1726,7 @@ mod test {
             &seller,
             &token_a,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1668,8 +1734,7 @@ mod test {
             &seller,
             &token_b,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
     }
@@ -1688,8 +1753,7 @@ mod test {
             &seller,
             &token_a,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1703,8 +1767,7 @@ mod test {
             &seller,
             &token_b,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
     }
@@ -1722,8 +1785,7 @@ mod test {
             &seller,
             &token_a,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1748,8 +1810,7 @@ mod test {
             &seller,
             &token_b,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
         assert_eq!(relist_id, 1u64);
@@ -1766,8 +1827,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1811,8 +1871,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
             &7u64,
         );
 
@@ -1894,8 +1953,7 @@ mod test {
             &seller,
             &token_id,
             &1000_0000000i128,
-            &100_0000000i128,
-            &1000000i128,
+            &Currency::Xlm,
         );
         t.marketplace.cancel_listing(&seller, &listing_id);
 

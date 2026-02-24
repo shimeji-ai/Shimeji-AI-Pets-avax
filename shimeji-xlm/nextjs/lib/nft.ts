@@ -73,3 +73,14 @@ export async function buildFreezeCreatorMetadataUpdatesTx(
     nativeToScVal(tokenId, { type: "u64" }),
   ]);
 }
+
+/// Permissionless: any creator can mint their own commission egg (self-service).
+export async function buildCreateCommissionEggTx(
+  creatorPublicKey: string,
+  uri: string
+): Promise<string> {
+  return buildNftTx(creatorPublicKey, "create_commission_egg", [
+    new Address(creatorPublicKey).toScVal(),
+    nativeToScVal(uri, { type: "string" }),
+  ]);
+}

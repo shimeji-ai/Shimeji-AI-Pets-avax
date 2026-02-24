@@ -1,7 +1,7 @@
 {
   "name": "Shimeji Placeholder - blob",
   "description": "Auto-generated placeholder NFT metadata for testnet deploy showcase using the blob idle sprite.",
-  "image": "https://www.shimeji.dev/deploy-seed/testnet/sprites/blob-idle.png",
+  "image": "ipfs://QmZni355pF2rUdJMH6bkTrkn2V14QR3SBSp6rsYCBcY8RK",
   "external_url": "https://www.shimeji.dev/marketplace",
   "attributes": [
     { "trait_type": "placeholder", "value": "true" },

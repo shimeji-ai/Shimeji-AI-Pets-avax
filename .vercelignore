@@ -1,3 +1,16 @@
 dist/
 **/.next/
 **/node_modules/
+
+# Only shimeji-xlm/nextjs is the Vercel app — exclude everything else
+desktop/
+chrome-extension/
+firefox-extension/
+runtime-core/
+animation-reference/
+scripts/
+legacy/
+shimeji-eth/
+shimeji-xlm/soroban/
+shimeji-xlm/node_modules/
+shimeji-xlm/scripts/

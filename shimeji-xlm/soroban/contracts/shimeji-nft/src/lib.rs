@@ -126,6 +126,21 @@ impl ShimejiNft {
         )
     }
 
+    /// Permissionless: any creator can mint their own commission egg (1 at a time, self-service).
+    pub fn create_commission_egg(env: Env, creator: Address, token_uri: String) -> u64 {
+        validate_token_uri(&token_uri);
+        creator.require_auth();
+
+        Self::mint_internal(
+            &env,
+            creator.clone(),
+            token_uri,
+            creator,
+            TokenKind::CommissionEgg,
+            true,
+        )
+    }
+
     pub fn update_token_uri(env: Env, token_id: u64, new_uri: String) {
         validate_token_uri(&new_uri);
         require_existing_token(&env, token_id);
@@ -434,6 +449,22 @@ mod test {
         assert_eq!(client.total_supply(), 1);
         client.mint(&user, &uri);
         assert_eq!(client.total_supply(), 2);
+    }
+
+    #[test]
+    fn test_create_commission_egg_self_service() {
+        let (env, client, _admin) = setup();
+        let creator = Address::generate(&env);
+        let uri = String::from_str(&env, "ipfs://egg-self-service");
+
+        let token_id = client.create_commission_egg(&creator, &uri);
+        assert_eq!(token_id, 0);
+        assert_eq!(client.owner_of(&0), creator);
+        assert_eq!(client.creator_of(&0), creator);
+        assert_eq!(client.token_uri(&0), uri);
+        assert_eq!(client.is_commission_egg(&0), true);
+        assert_eq!(client.creator_can_update_metadata(&0), true);
+        assert_eq!(client.total_supply(), 1);
     }
 
     #[test]
