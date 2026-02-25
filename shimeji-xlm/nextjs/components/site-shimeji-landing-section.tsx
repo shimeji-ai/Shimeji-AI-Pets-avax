@@ -1,8 +1,6 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import Link from "next/link";
-import { Download, Gavel } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteShimeji } from "@/components/site-shimeji-provider";
 
@@ -22,8 +20,8 @@ export function SiteShimejiLandingSection() {
     : "An AI assistant always on screen.";
 
   const heroSubtitle = isSpanish
-    ? "Chateá, hacé preguntas y delegá tareas a un asistente siempre disponible en tu navegador. Conectá tu propio proveedor — OpenRouter, Ollama u OpenClaw. También camina por tu pantalla."
-    : "Chat, ask questions, and delegate tasks to an always-on assistant right in your browser. Connect your own provider — OpenRouter, Ollama, or OpenClaw. It also walks around your screen.";
+    ? "Chateá, hacé preguntas y delegá tareas a un asistente siempre disponible en tu navegador."
+    : "Chat, ask questions, and delegate tasks to an always-on assistant right in your browser.";
 
   return (
     <section className="relative overflow-hidden px-4 pb-12 pt-28 sm:px-6 lg:px-8">
@@ -47,37 +45,7 @@ export function SiteShimejiLandingSection() {
                 {heroSubtitle}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/download"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/70"
-                >
-                  <Download className="h-4 w-4" />
-                  {isSpanish ? "Descargas" : "Downloads"}
-                </Link>
-                <Link
-                  href="/marketplace"
-                  className="inline-flex items-center gap-2 rounded-2xl border border-border bg-muted/40 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted/70"
-                >
-                  <Gavel className="h-4 w-4" />
-                  {isSpanish ? "Mercado NFT" : "NFT Marketplace"}
-                </Link>
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-muted/30 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {isSpanish ? "Qué puede hacer" : "What it can do"}
-                  </div>
-                  <div className="mt-1 text-sm font-semibold text-foreground">
-                    {isSpanish ? "Habla, responde y actúa" : "Talks, answers, and acts"}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {isSpanish
-                      ? "Chatea con IA, responde preguntas, ejecuta tareas como agente y camina por tu pantalla."
-                      : "AI chat, Q&A, autonomous agent tasks — and walks across your screen."}
-                  </div>
-                </div>
+              <div className="mt-6 grid gap-3">
                 <div className="rounded-2xl border border-border bg-muted/30 p-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {isSpanish ? "Cómo empezar" : "How to start"}
@@ -87,8 +55,8 @@ export function SiteShimejiLandingSection() {
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {isSpanish
-                      ? "Elegí tu shimeji a la derecha y configurá el proveedor desde el ⚙ en la barra."
-                      : "Pick your shimeji on the right and set up your provider from the ⚙ in the header."}
+                      ? "Elegí tu shimeji y configurá tu proveedor en la pestaña Chat del ⚙."
+                      : "Pick your shimeji and set up your provider in the Chat tab of the ⚙."}
                   </div>
                 </div>
               </div>
@@ -159,13 +127,6 @@ export function SiteShimejiLandingSection() {
                   </div>
                 )}
 
-                {!catalogLoading && !catalogError && (
-                  <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                    {isSpanish
-                      ? "Configurá el proveedor de IA desde el ⚙ en la barra superior."
-                      : "Configure the AI provider from the ⚙ in the header."}
-                  </p>
-                )}
               </div>
             </div>
           </div>

@@ -718,7 +718,7 @@ export function SoundFields() {
 
 export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } = {}) {
   const { isSpanish } = useLanguage();
-  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("mascot");
+  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("chat");
   const {
     isConfigOpen,
     closeConfig,
@@ -795,8 +795,8 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
 
             <div className="mb-5 flex flex-wrap gap-2">
               {([
-                { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
                 { key: "chat", labelEs: "Chat", labelEn: "Chat" },
+                { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
                 { key: "sound", labelEs: "Sonido", labelEn: "Sound" },
               ] as const).map((tab) => {
                 const isActive = activeTab === tab.key;
