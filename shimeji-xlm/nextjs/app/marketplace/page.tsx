@@ -5,7 +5,7 @@ import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Marketplace | Shimeji AI Pets on Stellar",
+  title: "Marketplace | Shimeji AI Pets",
   description:
     "Explore listings and manage your Shimeji NFTs and artist profile on Stellar.",
   path: "/marketplace",

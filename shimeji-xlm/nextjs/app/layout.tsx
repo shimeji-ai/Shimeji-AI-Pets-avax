@@ -38,7 +38,7 @@ const roboto = Roboto({
 
 export const metadata: Metadata = {
   ...createPageMetadata({
-    title: "Shimeji AI Pets on Stellar | AI Desktop Pets & NFT Auctions",
+    title: "Shimeji AI Pets | AI Desktop Pets & NFT Auctions",
     description:
       "Animated desktop pets with AI chat, Stellar NFT auctions, and wallet-powered experiences for collectors.",
     path: "/",

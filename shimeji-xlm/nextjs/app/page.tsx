@@ -7,9 +7,9 @@ import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Shimeji AI Pets on Stellar | Home",
+  title: "Shimeji AI Pets | Home",
   description:
-    "Explore Shimeji AI Pets on Stellar: animated companions, AI chat setup guides, and on-chain experiences.",
+    "Explore Shimeji AI Pets: animated companions, AI chat setup guides, and on-chain experiences.",
   path: "/",
 });
 

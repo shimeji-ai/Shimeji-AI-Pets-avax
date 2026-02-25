@@ -3,8 +3,8 @@ import { PublicWalletProfilePage } from "@/components/public-wallet-profile-page
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Profile | Shimeji AI Pets on Stellar",
-  description: "Public wallet profile for Shimeji AI Pets on Stellar.",
+  title: "Profile | Shimeji AI Pets",
+  description: "Public wallet profile for Shimeji AI Pets.",
   path: "/profile",
 });
 

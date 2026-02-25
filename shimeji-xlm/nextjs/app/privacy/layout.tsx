@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Privacy Policy | Shimeji AI Pets on Stellar",
+  title: "Privacy Policy | Shimeji AI Pets",
   description:
     "Review how Shimeji AI Pets handles messages, local storage, and provider integrations.",
   path: "/privacy",

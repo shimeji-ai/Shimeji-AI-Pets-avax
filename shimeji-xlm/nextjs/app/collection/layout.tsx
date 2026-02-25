@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "NFT Collection | Shimeji AI Pets on Stellar",
+  title: "NFT Collection | Shimeji AI Pets",
   description:
     "Connect a Stellar wallet to view and manage your Shimeji NFT collection.",
   path: "/collection",

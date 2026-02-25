@@ -4,7 +4,7 @@ import { SiteShimejiConfigPanel } from "@/components/site-shimeji-config-panel";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Settings | Shimeji AI Pets on Stellar",
+  title: "Settings | Shimeji AI Pets",
   description: "Configure website shimeji settings.",
   path: "/settings",
 });
