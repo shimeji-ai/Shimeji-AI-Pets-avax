@@ -784,8 +784,8 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
           <div className="flex-1 overflow-y-auto px-5 py-5">
             <div className="mb-5 flex flex-wrap gap-2">
               {([
-                { key: "chat", labelEs: "Chat", labelEn: "Chat" },
-                { key: "appearance", labelEs: "Apariencia", labelEn: "Appearance" },
+                { key: "chat", labelEs: "Proveedor", labelEn: "Provider" },
+                { key: "appearance", labelEs: "Chat", labelEn: "Chat" },
                 { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
                 { key: "sound", labelEs: "Sonido", labelEn: "Sound" },
               ] as const).map((tab) => {
