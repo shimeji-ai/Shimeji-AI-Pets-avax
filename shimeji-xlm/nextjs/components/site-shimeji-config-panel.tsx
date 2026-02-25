@@ -13,7 +13,7 @@ import {
   pickRandomSiteShimejiChatTheme,
 } from "@/lib/site-shimeji-chat-ui";
 
-type ConfigPanelTab = "mascot" | "chat" | "sound";
+type ConfigPanelTab = "chat" | "appearance" | "mascot" | "sound";
 
 type OpenRouterModelOption = {
   value: string;
@@ -796,6 +796,7 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
             <div className="mb-5 flex flex-wrap gap-2">
               {([
                 { key: "chat", labelEs: "Chat", labelEn: "Chat" },
+                { key: "appearance", labelEs: "Apariencia", labelEn: "Appearance" },
                 { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
                 { key: "sound", labelEs: "Sonido", labelEn: "Sound" },
               ] as const).map((tab) => {
@@ -902,7 +903,7 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
             {activeTab === "chat" && (
               <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
               <h3 className="text-sm font-semibold text-foreground">
-                {isSpanish ? "Chat, proveedor y estilo" : "Chat, provider and style"}
+                {isSpanish ? "Proveedor de IA" : "AI Provider"}
               </h3>
 
               <label className="block">
@@ -963,7 +964,15 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                   : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
               </p>
 
-              <ChatAppearanceFields />
+              </section>
+            )}
+
+            {activeTab === "appearance" && (
+              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {isSpanish ? "Apariencia del chat" : "Chat appearance"}
+                </h3>
+                <ChatAppearanceFields />
               </section>
             )}
 
