@@ -782,17 +782,6 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="mb-5 rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4">
-              <p className="text-sm font-semibold text-foreground">
-                {isSpanish ? "Seguridad y alcance" : "Security and scope"}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                {isSpanish
-                  ? "Las keys y tokens se guardan solo en tu navegador (localStorage) y no se guardan en nuestro servidor. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
-                  : "Keys and tokens are stored only in your browser (localStorage) and are not saved on our server. This website shimeji has no WSL or local terminal access."}
-              </p>
-            </div>
-
             <div className="mb-5 flex flex-wrap gap-2">
               {([
                 { key: "chat", labelEs: "Chat", labelEn: "Chat" },
@@ -963,6 +952,17 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                   ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
                   : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
               </p>
+
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4">
+                <p className="text-sm font-semibold text-foreground">
+                  {isSpanish ? "Seguridad y alcance" : "Security and scope"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {isSpanish
+                    ? "Las keys y tokens se guardan solo en tu navegador (localStorage) y no se guardan en nuestro servidor. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
+                    : "Keys and tokens are stored only in your browser (localStorage) and are not saved on our server. This website shimeji has no WSL or local terminal access."}
+                </p>
+              </div>
 
               </section>
             )}
