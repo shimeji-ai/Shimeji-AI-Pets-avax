@@ -99,13 +99,13 @@ export function HowItWorksSection() {
                       </>
                     ) : (
                       <>
-                        <Link
+                        Use it on the web or <Link
                           href="/download"
                           className="font-semibold underline decoration-2 underline-offset-2"
                         >
-                          Download 
+                          download 
                         </Link>{" "}
-                        it on the web, or install the browser or desktop extension.
+                        the browser extension or desktop app.
                       </>
                     )
                   ) : step.step === "03" ? (
