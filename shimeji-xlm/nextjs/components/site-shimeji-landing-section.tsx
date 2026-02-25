@@ -16,8 +16,8 @@ export function SiteShimejiLandingSection() {
   } = useSiteShimeji();
 
   const heroTitle = isSpanish
-    ? "Un asistente de IA siempre a la vista."
-    : "An AI assistant always on screen.";
+    ? "Un asistente de IA siempre a la vista"
+    : "An AI assistant always on screen";
 
   const heroSubtitle = isSpanish
     ? "Chateá, hacé preguntas y delegá tareas a un asistente siempre disponible en tu navegador."
