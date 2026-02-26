@@ -14,7 +14,7 @@ The Stellar marketplace stack integrates with two external protocols:
 
 | Directory | Description |
 |---|---|
-| [shimeji-xlm](./shimeji-xlm/README.md) | Stellar/Soroban auction + NFT stack |
+| [shimeji-xlm](./shimeji-xlm/README.md) | Next.js marketplace dapp + Soroban smart contracts |
 | [chrome-extension](./chrome-extension/) | Browser runtime and chat UI |
 | [firefox-extension](./firefox-extension/) | Firefox browser runtime and chat UI |
 | [desktop](./desktop/) | Electron desktop app |
