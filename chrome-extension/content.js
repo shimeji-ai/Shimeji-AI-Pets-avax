@@ -2716,11 +2716,29 @@
             setTimeout(function() { document.addEventListener('mousedown', closeMenu, true); }, 0);
         }
 
+        function getViewportHeight() {
+            // Use visualViewport when available (handles keyboard on mobile)
+            if (window.visualViewport) {
+                return window.visualViewport.height;
+            }
+            return window.innerHeight;
+        }
+
+        function getViewportOffsetTop() {
+            // visualViewport.offsetTop accounts for keyboard pushing content up
+            if (window.visualViewport) {
+                return window.visualViewport.offsetTop;
+            }
+            return 0;
+        }
+
         function updateBubblePosition() {
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
             const mascotTopY = mascot.y - size;
             const mascotCenterX = mascot.x + size / 2;
+            const viewportHeight = getViewportHeight();
+            const viewportOffsetTop = getViewportOffsetTop();
 
             if (chatBubbleEl && isChatOpen) {
                 const bubbleWidth = config.chatWidthPx ? Number(config.chatWidthPx) : parseInt(widthMap[config.chatWidth] || '280px', 10);
@@ -2729,7 +2747,25 @@
                 let top = mascotTopY - bubbleHeight - 12;
 
                 left = Math.max(8, Math.min(left, window.innerWidth - bubbleWidth - 8));
-                if (top < 8) top = mascot.y + 12;
+                
+                // Ensure bubble stays within visible viewport (accounting for keyboard)
+                const visibleTop = viewportOffsetTop + 8;
+                const visibleBottom = viewportOffsetTop + viewportHeight - 8;
+                
+                if (top < visibleTop) {
+                    // Position below mascot if not enough space above
+                    top = mascot.y + size + 12;
+                }
+                
+                // Ensure bubble doesn't go below visible area
+                if (top + bubbleHeight > visibleBottom) {
+                    top = visibleBottom - bubbleHeight - 8;
+                }
+                
+                // Final fallback: ensure at least partially visible
+                if (top < visibleTop) {
+                    top = visibleTop;
+                }
 
                 chatBubbleEl.style.left = `${left}px`;
                 chatBubbleEl.style.top = `${top}px`;
@@ -4311,6 +4347,20 @@
         }
 
         window.addEventListener('resize', handleResize);
+
+        // Listen for visualViewport changes (keyboard open/close on mobile)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                if (isChatOpen) {
+                    updateBubblePosition();
+                }
+            });
+            window.visualViewport.addEventListener('scroll', () => {
+                if (isChatOpen) {
+                    updateBubblePosition();
+                }
+            });
+        }
 
         function init() {
             currentSize = config.size || 'medium';
