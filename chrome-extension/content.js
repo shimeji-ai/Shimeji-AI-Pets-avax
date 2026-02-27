@@ -1436,7 +1436,7 @@
         }
 
         const DRAG_THRESHOLD = 5;
-        const CHAT_CLICK_DELAY = 300;
+        const CHAT_CLICK_DELAY = 150;
         const DOUBLE_CLICK_WINDOW = 420;
 
         function setupDragListeners() {
@@ -1533,6 +1533,18 @@
             endDrag();
         }
 
+        function getMascotCenterX() {
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            return mascot.x + size / 2;
+        }
+
+        function getMascotTopY() {
+            const scale = sizes[currentSize].scale;
+            const size = SPRITE_SIZE * scale;
+            return mascot.y - size;
+        }
+
         function onTouchStart(e) {
             e.preventDefault();
             const touch = e.touches[0];
@@ -1544,6 +1556,15 @@
             const size = SPRITE_SIZE * scale;
             mascot.dragOffsetX = touch.clientX - mascot.x;
             mascot.dragOffsetY = touch.clientY - (mascot.y - size);
+
+            // Quick tap detection: if no movement after 100ms, open chat
+            mascot.quickTapTimer = setTimeout(() => {
+                if (mascot.dragPending && !mascot.isDragging) {
+                    mascot.dragPending = false;
+                    showClickSparkles(getMascotCenterX(), getMascotTopY());
+                    handleMascotClick();
+                }
+            }, 100);
         }
 
         function onTouchMove(e) {
@@ -1555,6 +1576,11 @@
                 const dx = touch.clientX - mascot.dragStartX;
                 const dy = touch.clientY - mascot.dragStartY;
                 if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+                    // Clear quick tap timer since this is a drag, not a tap
+                    if (mascot.quickTapTimer) {
+                        clearTimeout(mascot.quickTapTimer);
+                        mascot.quickTapTimer = null;
+                    }
                     promoteToDrag();
                 }
             }
@@ -1570,6 +1596,12 @@
         }
 
         function onTouchEnd() {
+            // Clear quick tap timer if it exists
+            if (mascot.quickTapTimer) {
+                clearTimeout(mascot.quickTapTimer);
+                mascot.quickTapTimer = null;
+            }
+
             if (mascot.dragPending) {
                 mascot.dragPending = false;
                 queueMascotClickAction();
