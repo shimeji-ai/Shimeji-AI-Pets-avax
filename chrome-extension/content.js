@@ -3427,7 +3427,7 @@
             showThinking();
 
             const provider = config.standardProvider || 'openrouter';
-            const shouldStream = mode === 'standard' && (provider === 'openrouter' || provider === 'ollama');
+            const shouldStream = mode === 'agent' || (mode === 'standard' && (provider === 'openrouter' || provider === 'ollama'));
             console.log('Chat config:', { mode, provider, shouldStream, ollamaUrl: config.ollamaUrl, ollamaModel: config.ollamaModel });
 
             if (shouldStream) {

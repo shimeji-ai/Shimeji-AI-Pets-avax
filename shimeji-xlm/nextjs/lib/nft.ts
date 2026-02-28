@@ -84,3 +84,14 @@ export async function buildCreateCommissionEggTx(
     nativeToScVal(uri, { type: "string" }),
   ]);
 }
+
+/// Permissionless: any creator can mint their own finished NFT.
+export async function buildCreateFinishedNftTx(
+  creatorPublicKey: string,
+  uri: string
+): Promise<string> {
+  return buildNftTx(creatorPublicKey, "create_finished_nft", [
+    new Address(creatorPublicKey).toScVal(),
+    nativeToScVal(uri, { type: "string" }),
+  ]);
+}

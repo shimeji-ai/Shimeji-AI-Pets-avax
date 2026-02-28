@@ -4,7 +4,7 @@ Soroban contracts for Shimeji auctions and NFT minting.
 
 ## Contracts
 
-- `shimeji-nft`: NFT contract with admin + minter model and `update_token_uri`.
+- `shimeji-nft`: NFT contract with admin + minter model, creator metadata updates, and self-service minting (`create_finished_nft`, `create_commission_egg`).
 - `shimeji-auction`: auction contract with XLM/USDC bids, outbid refunds, and mint-on-finalize.
 
 ## How They Work Together
@@ -69,10 +69,20 @@ Use standard NFT fields for wallet/market visibility plus a sprites folder point
   ],
   "properties": {
     "sprites_folder": "ipfs://<assets-cid>/sprites/",
-    "cover_sprite": "egg-sit.png"
+    "cover_sprite": "egg-sit.png",
+    "shimeji": {
+      "schema": "shimeji_nft_v1",
+      "editionMode": "edition",
+      "copies": 10
+    }
+  },
+  "edition": {
+    "mode": "edition",
+    "size": 10
   }
 }
 ```
 
 - `image` should point to a directly renderable file (png/jpg/webp).
 - `properties.sprites_folder` should point to the folder CID/path containing runtime sprites.
+- `edition`/`properties.shimeji` can represent either `unique` (size 1) or edition copies.

@@ -1,13 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeftRight, Check, Gavel, ImageIcon, Loader2, Tag, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeftRight, Check, Gavel, ImageIcon, Loader2, Tag, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { HubTranslateFn, TokenPreview } from "@/components/marketplace-hub-shared";
-import { formatTokenAmount, parseAmountToUnits, walletShort } from "@/components/marketplace-hub-shared";
+import { formatTokenAmount, walletShort } from "@/components/marketplace-hub-shared";
 import type { MarketplaceMyStudioResponse } from "@/lib/marketplace-hub-types";
 
 type ListAction = "fixed_price" | "auction" | "swap";
+type MintMode = "unique" | "edition";
+type MintListMode = "none" | "fixed_price" | "auction";
+
+type CreateMintPackageRequest = {
+  tokenUri: string;
+  mode: MintMode;
+  copies: number;
+  listMode: MintListMode;
+  listPrice?: string;
+  listCurrency?: "Xlm" | "Usdc";
+  auctionPriceXlm?: string;
+  auctionPriceUsdc?: string;
+  auctionDurationHours?: string;
+};
 
 type Props = {
   t: HubTranslateFn;
@@ -15,8 +29,11 @@ type Props = {
   tokenPreviews: Record<string, TokenPreview>;
   txBusy: boolean;
   publicKey: string | null;
+  showCreatePanel?: boolean;
+  showTradePanel?: boolean;
   onCreateListing: (tokenId: number, price: string, currency: "Xlm" | "Usdc") => void | Promise<void>;
   onCreateAuction: (tokenId: number, priceXlm: string, priceUsdc: string, durationHours: string) => void | Promise<void>;
+  onCreateNftPackage: (request: CreateMintPackageRequest) => void | Promise<void>;
   onCancelListing: (listingId: number) => void | Promise<void>;
   onCreateSwapOffer: (tokenId: number, intention: string) => void | Promise<void>;
   onAcceptSwapBid: (listingId: number, bidId: number) => void | Promise<void>;
@@ -24,14 +41,36 @@ type Props = {
   onCancelSwapBid: (bidId: number) => void | Promise<void>;
 };
 
+type RelativeFile = File & { webkitRelativePath?: string };
+
+function parseAttributesText(raw: string) {
+  return raw
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 64)
+    .map((line) => {
+      const separatorIndex = line.indexOf(":");
+      if (separatorIndex <= 0) return null;
+      const trait_type = line.slice(0, separatorIndex).trim();
+      const value = line.slice(separatorIndex + 1).trim();
+      if (!trait_type || !value) return null;
+      return { trait_type, value };
+    })
+    .filter((entry): entry is { trait_type: string; value: string } => Boolean(entry));
+}
+
 export function MarketplaceHubStudioSellTab({
   t,
   studio,
   tokenPreviews,
   txBusy,
   publicKey,
+  showCreatePanel = true,
+  showTradePanel = true,
   onCreateListing,
   onCreateAuction,
+  onCreateNftPackage,
   onCancelListing,
   onCreateSwapOffer,
   onAcceptSwapBid,
@@ -48,6 +87,41 @@ export function MarketplaceHubStudioSellTab({
   const [auctionPriceUsdc, setAuctionPriceUsdc] = useState("");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapActionBusyId, setSwapActionBusyId] = useState<string | null>(null);
+
+  const [mintTitle, setMintTitle] = useState("");
+  const [mintDescription, setMintDescription] = useState("");
+  const [mintAttributesText, setMintAttributesText] = useState("");
+  const [mintMode, setMintMode] = useState<MintMode>("unique");
+  const [mintCopies, setMintCopies] = useState("5");
+  const [mintListMode, setMintListMode] = useState<MintListMode>("fixed_price");
+  const [mintListPrice, setMintListPrice] = useState("");
+  const [mintListCurrency, setMintListCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [mintAuctionPriceXlm, setMintAuctionPriceXlm] = useState("");
+  const [mintAuctionPriceUsdc, setMintAuctionPriceUsdc] = useState("");
+  const [mintAuctionDurationHours, setMintAuctionDurationHours] = useState("24");
+  const [mintCoverImage, setMintCoverImage] = useState<File | null>(null);
+  const [mintCoverPreviewUrl, setMintCoverPreviewUrl] = useState<string | null>(null);
+  const [mintSpriteFiles, setMintSpriteFiles] = useState<File[]>([]);
+  const [mintUploadBusy, setMintUploadBusy] = useState(false);
+  const [mintFormError, setMintFormError] = useState("");
+  const spriteFolderInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const input = spriteFolderInputRef.current as (HTMLInputElement & { webkitdirectory?: boolean; directory?: boolean }) | null;
+    if (!input) return;
+    input.webkitdirectory = true;
+    input.directory = true;
+  }, []);
+
+  useEffect(() => {
+    if (!mintCoverImage) {
+      setMintCoverPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(mintCoverImage);
+    setMintCoverPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [mintCoverImage]);
 
   const regularNfts = studio.ownedNfts.filter((n) => !n.isCommissionEgg);
   const allNfts = studio.ownedNfts;
@@ -83,26 +157,390 @@ export function MarketplaceHubStudioSellTab({
     }
   }
 
+  async function handleCreateMintPackage() {
+    setMintFormError("");
+    if (!publicKey) {
+      setMintFormError(t("Connect your wallet first.", "Conectá tu wallet primero."));
+      return;
+    }
+    if (!mintCoverImage) {
+      setMintFormError(t("Select a cover image.", "Seleccioná una imagen de portada."));
+      return;
+    }
+    if (!mintTitle.trim()) {
+      setMintFormError(t("Title is required.", "El título es obligatorio."));
+      return;
+    }
+    if (!mintDescription.trim()) {
+      setMintFormError(t("Description is required.", "La descripción es obligatoria."));
+      return;
+    }
+    if (mintSpriteFiles.length === 0) {
+      setMintFormError(
+        t(
+          "Sprite folder is required for animated Shimeji NFTs.",
+          "La carpeta de sprites es obligatoria para NFTs Shimeji animados.",
+        ),
+      );
+      return;
+    }
+
+    const mode: MintMode = mintMode;
+    const parsedCopies = Math.max(1, Number.parseInt(mintCopies || "1", 10) || 1);
+    const copies = mode === "unique" ? 1 : Math.min(parsedCopies, 50);
+
+    if (mintListMode === "fixed_price" && !mintListPrice.trim()) {
+      setMintFormError(t("Set a fixed listing price.", "Definí un precio fijo para publicar."));
+      return;
+    }
+    if (mintListMode === "auction" && !mintAuctionPriceXlm.trim() && !mintAuctionPriceUsdc.trim()) {
+      setMintFormError(t("Set XLM or USDC auction start price.", "Definí precio inicial de subasta en XLM o USDC."));
+      return;
+    }
+    if (mintListMode === "auction" && !studio.auctionCapability.itemAuctionsAvailable) {
+      setMintFormError(studio.auctionCapability.reason);
+      return;
+    }
+
+    setMintUploadBusy(true);
+    try {
+      const attributes = parseAttributesText(mintAttributesText);
+      const formData = new FormData();
+      formData.append("title", mintTitle.trim());
+      formData.append("description", mintDescription.trim());
+      formData.append("mode", mode);
+      formData.append("copies", String(copies));
+      formData.append("attributes", JSON.stringify(attributes));
+      formData.append("coverImage", mintCoverImage);
+
+      for (const file of mintSpriteFiles) {
+        const relativePath = ((file as RelativeFile).webkitRelativePath || file.name || "sprite.png").trim();
+        formData.append("spriteFiles", file, relativePath);
+        formData.append("spritePaths", relativePath);
+      }
+
+      const response = await fetch("/api/marketplace/mint-package", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as { error?: string; tokenUri?: string };
+      if (!response.ok || !payload.tokenUri) {
+        throw new Error(payload.error || "Failed to upload NFT package.");
+      }
+
+      await onCreateNftPackage({
+        tokenUri: payload.tokenUri,
+        mode,
+        copies,
+        listMode: mintListMode,
+        listPrice: mintListPrice,
+        listCurrency: mintListCurrency,
+        auctionPriceXlm: mintAuctionPriceXlm,
+        auctionPriceUsdc: mintAuctionPriceUsdc,
+        auctionDurationHours: mintAuctionDurationHours,
+      });
+
+      setMintTitle("");
+      setMintDescription("");
+      setMintAttributesText("");
+      setMintMode("unique");
+      setMintCopies("5");
+      setMintListMode("fixed_price");
+      setMintListPrice("");
+      setMintListCurrency("Xlm");
+      setMintAuctionPriceXlm("");
+      setMintAuctionPriceUsdc("");
+      setMintAuctionDurationHours("24");
+      setMintCoverImage(null);
+      setMintSpriteFiles([]);
+    } catch (error) {
+      setMintFormError(error instanceof Error ? error.message : "Failed to create NFT package.");
+    } finally {
+      setMintUploadBusy(false);
+    }
+  }
+
   async function handleAcceptSwapBid(listingId: number, bidId: number) {
     setSwapActionBusyId(`accept-bid:${bidId}`);
-    try { await onAcceptSwapBid(listingId, bidId); } finally { setSwapActionBusyId(null); }
+    try {
+      await onAcceptSwapBid(listingId, bidId);
+    } finally {
+      setSwapActionBusyId(null);
+    }
   }
 
   async function handleCancelSwapListingLocal(listingId: number) {
     setSwapActionBusyId(`cancel-listing:${listingId}`);
-    try { await onCancelSwapListing(listingId); } finally { setSwapActionBusyId(null); }
+    try {
+      await onCancelSwapListing(listingId);
+    } finally {
+      setSwapActionBusyId(null);
+    }
   }
 
   async function handleCancelSwapBidLocal(bidId: number) {
     setSwapActionBusyId(`cancel-bid:${bidId}`);
-    try { await onCancelSwapBid(bidId); } finally { setSwapActionBusyId(null); }
+    try {
+      await onCancelSwapBid(bidId);
+    } finally {
+      setSwapActionBusyId(null);
+    }
   }
 
   return (
     <div className="space-y-4">
-      {/* Action tabs + NFT selection + form */}
-      <div className="rounded-2xl border border-border bg-white/5 p-4">
-        {/* Action selector */}
+      {showCreatePanel ? (
+        <div className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4">
+        <h3 className="text-sm font-semibold text-foreground">{t("Create and Publish NFT", "Crear y Publicar NFT")}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t(
+            "Upload cover art + sprite folder, define metadata, choose unique or edition copies, then mint and optionally list or auction immediately.",
+            "Subí portada + carpeta de sprites, definí metadata, elegí único o edición con copias, y minteá con publicación o subasta opcional al instante.",
+          )}
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Title", "Título")}</label>
+              <input
+                type="text"
+                value={mintTitle}
+                onChange={(e) => setMintTitle(e.target.value)}
+                placeholder={t("My New Shimeji", "Mi nuevo Shimeji")}
+                maxLength={120}
+                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Mode", "Modo")}</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMintMode("unique")}
+                  className={`rounded-lg border px-3 py-2 text-xs transition ${
+                    mintMode === "unique"
+                      ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
+                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+                >
+                  {t("Unique 1/1", "Único 1/1")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMintMode("edition")}
+                  className={`rounded-lg border px-3 py-2 text-xs transition ${
+                    mintMode === "edition"
+                      ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+                >
+                  {t("Edition", "Edición")}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Description", "Descripción")}</label>
+            <textarea
+              value={mintDescription}
+              onChange={(e) => setMintDescription(e.target.value)}
+              placeholder={t("Describe this Shimeji and style details.", "Describe este Shimeji y detalles del estilo.")}
+              maxLength={4000}
+              rows={3}
+              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t("Attributes (one per line: trait:value)", "Atributos (una línea por atributo: rasgo:valor)")}
+            </label>
+            <textarea
+              value={mintAttributesText}
+              onChange={(e) => setMintAttributesText(e.target.value)}
+              placeholder={t("Style:Pixel\nMood:Playful\nRig:Desktop", "Estilo:Pixel\nMood:Juguetón\nRig:Desktop")}
+              rows={4}
+              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Cover Image", "Imagen de portada")}</label>
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
+                <span className="inline-flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  {mintCoverImage ? mintCoverImage.name : t("Choose image", "Elegir imagen")}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setMintCoverImage(file);
+                  }}
+                />
+              </label>
+              {mintCoverPreviewUrl ? (
+                <div className="mt-2 h-16 w-16 overflow-hidden rounded-lg border border-border bg-white/5">
+                  <img src={mintCoverPreviewUrl} alt="cover preview" className="h-full w-full object-cover" />
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Sprite Folder (Required)", "Carpeta de sprites (Obligatoria)")}
+              </label>
+              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
+                <span className="inline-flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  {t("Choose folder", "Elegir carpeta")}
+                </span>
+                <input
+                  ref={spriteFolderInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    setMintSpriteFiles(Array.from(event.target.files || []));
+                  }}
+                />
+              </label>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {mintSpriteFiles.length > 0
+                  ? t(`${mintSpriteFiles.length} sprite files selected`, `${mintSpriteFiles.length} archivos de sprites seleccionados`)
+                  : t(
+                      "Required for Shimeji animation. Without sprites, this is just a static NFT.",
+                      "Obligatoria para la animación de Shimeji. Sin sprites, esto es solo un NFT estático.",
+                    )}
+              </p>
+            </div>
+          </div>
+
+          {mintMode === "edition" ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Copies", "Copias")}</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={mintCopies}
+                  onChange={(e) => setMintCopies(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="rounded-xl border border-border bg-white/5 p-3">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("After mint", "Después de mintear")}
+                </label>
+                <select
+                  value={mintListMode}
+                  onChange={(e) => setMintListMode(e.target.value as MintListMode)}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                >
+                  <option value="fixed_price">{t("Auto-list fixed price", "Publicar a precio fijo")}</option>
+                  <option value="auction">{t("Auto-start auction", "Iniciar subasta")}</option>
+                  <option value="none">{t("Mint only", "Solo mintear")}</option>
+                </select>
+              </div>
+              {mintListMode === "fixed_price" ? (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Price", "Precio")}</label>
+                    <input
+                      type="number"
+                      value={mintListPrice}
+                      onChange={(e) => setMintListPrice(e.target.value)}
+                      min="0"
+                      placeholder="0"
+                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                    <select
+                      value={mintListCurrency}
+                      onChange={(e) => setMintListCurrency(e.target.value as "Xlm" | "Usdc")}
+                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    >
+                      <option value="Xlm">XLM</option>
+                      <option value="Usdc">USDC</option>
+                    </select>
+                  </div>
+                </>
+              ) : null}
+              {mintListMode === "auction" ? (
+                <>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start XLM", "Inicio XLM")}</label>
+                    <input
+                      type="number"
+                      value={mintAuctionPriceXlm}
+                      onChange={(e) => setMintAuctionPriceXlm(e.target.value)}
+                      min="0"
+                      placeholder="0"
+                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start USDC", "Inicio USDC")}</label>
+                    <input
+                      type="number"
+                      value={mintAuctionPriceUsdc}
+                      onChange={(e) => setMintAuctionPriceUsdc(e.target.value)}
+                      min="0"
+                      placeholder="0"
+                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Duration (hours)", "Duración (horas)")}</label>
+                    <input
+                      type="number"
+                      value={mintAuctionDurationHours}
+                      onChange={(e) => setMintAuctionDurationHours(e.target.value)}
+                      min="1"
+                      placeholder="24"
+                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          {mintFormError ? (
+            <div className="rounded-lg border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-xs text-foreground">
+              {mintFormError}
+            </div>
+          ) : null}
+
+          <Button
+            type="button"
+            onClick={() => void handleCreateMintPackage()}
+            disabled={txBusy || mintUploadBusy}
+            className="w-full bg-blue-500 text-black hover:bg-blue-400"
+          >
+            {txBusy || mintUploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {t("Create NFT Package + Mint", "Crear paquete NFT + Mintear")}
+          </Button>
+        </div>
+        </div>
+      ) : null}
+
+      {showTradePanel ? (
+        <>
+          <div className="rounded-2xl border border-border bg-white/5 p-4">
         <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-white/5 p-1">
           <button
             type="button"
@@ -142,14 +580,12 @@ export function MarketplaceHubStudioSellTab({
           </button>
         </div>
 
-        {/* Auction unavailable warning */}
         {listAction === "auction" && !studio.auctionCapability.itemAuctionsAvailable ? (
           <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-foreground">
             {studio.auctionCapability.reason}
           </div>
         ) : null}
 
-        {/* NFT selection grid */}
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium text-foreground">
             {listAction === "swap"
@@ -213,14 +649,11 @@ export function MarketplaceHubStudioSellTab({
           )}
         </div>
 
-        {/* Form fields based on action */}
         <div className="mt-4 space-y-3">
           {listAction === "fixed_price" ? (
             <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("Price", "Precio")}
-                </label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Price", "Precio")}</label>
                 <input
                   type="number"
                   value={listingPrice}
@@ -231,9 +664,7 @@ export function MarketplaceHubStudioSellTab({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("Currency", "Moneda")}
-                </label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
                 <select
                   value={listingCurrency}
                   onChange={(e) => setListingCurrency(e.target.value as "Xlm" | "Usdc")}
@@ -248,9 +679,7 @@ export function MarketplaceHubStudioSellTab({
             <>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Start XLM", "Inicio XLM")}
-                  </label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start XLM", "Inicio XLM")}</label>
                   <input
                     type="number"
                     value={auctionPriceXlm}
@@ -261,9 +690,7 @@ export function MarketplaceHubStudioSellTab({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Start USDC", "Inicio USDC")}
-                  </label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start USDC", "Inicio USDC")}</label>
                   <input
                     type="number"
                     value={auctionPriceUsdc}
@@ -275,9 +702,7 @@ export function MarketplaceHubStudioSellTab({
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("Duration (hours)", "Duración (horas)")}
-                </label>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Duration (hours)", "Duración (horas)")}</label>
                 <input
                   type="number"
                   value={auctionDurationHours}
@@ -324,73 +749,64 @@ export function MarketplaceHubStudioSellTab({
                 : t("Offer for swap", "Ofrecer para swap")}
           </Button>
         </div>
-      </div>
-
-      {/* Active fixed-price listings */}
-      {activeListings.length > 0 ? (
-        <div className="rounded-2xl border border-border bg-white/5 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {t("Active listings", "Publicaciones activas")}
-          </h3>
-          <div className="space-y-2">
-            {activeListings.map((listing) => {
-              const preview = listing.tokenUri ? tokenPreviews[listing.tokenUri] : null;
-              return (
-                <div
-                  key={`active-listing-${listing.listingId}`}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-white/5 p-3"
-                >
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-white/10">
-                    {preview?.imageUrl ? (
-                      <img
-                        src={preview.imageUrl}
-                        alt={`#${listing.tokenId}`}
-                        className="h-full w-full object-contain"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-foreground">#{listing.tokenId}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {formatTokenAmount(listing.price)} {listing.currency === "Usdc" ? "USDC" : "XLM"}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
-                    onClick={() => void onCancelListing(listing.listingId)}
-                    disabled={txBusy}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                    {t("Cancel", "Cancelar")}
-                  </Button>
-                </div>
-              );
-            })}
           </div>
-        </div>
-      ) : null}
 
-      {/* Swap activity */}
-      {mySwapListings.length > 0 || incomingBids.length > 0 || outgoingBids.length > 0 ? (
-        <div className="rounded-2xl border border-border bg-white/5 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-foreground">
-            {t("Swap activity", "Actividad de swaps")}
-          </h3>
+          {activeListings.length > 0 ? (
+            <div className="rounded-2xl border border-border bg-white/5 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">{t("Active listings", "Publicaciones activas")}</h3>
+              <div className="space-y-2">
+                {activeListings.map((listing) => {
+                  const preview = listing.tokenUri ? tokenPreviews[listing.tokenUri] : null;
+                  return (
+                    <div
+                      key={`active-listing-${listing.listingId}`}
+                      className="flex items-center gap-3 rounded-xl border border-border bg-white/5 p-3"
+                    >
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-border bg-white/10">
+                        {preview?.imageUrl ? (
+                          <img
+                            src={preview.imageUrl}
+                            alt={`#${listing.tokenId}`}
+                            className="h-full w-full object-contain"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-foreground">#{listing.tokenId}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {formatTokenAmount(listing.price)} {listing.currency === "Usdc" ? "USDC" : "XLM"}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-rose-400/30 bg-rose-500/10 text-foreground hover:bg-rose-500/20"
+                        onClick={() => void onCancelListing(listing.listingId)}
+                        disabled={txBusy}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        {t("Cancel", "Cancelar")}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
-          {/* My swap listings */}
+          {mySwapListings.length > 0 || incomingBids.length > 0 || outgoingBids.length > 0 ? (
+            <div className="rounded-2xl border border-border bg-white/5 p-4">
+              <h3 className="mb-3 text-sm font-semibold text-foreground">{t("Swap activity", "Actividad de swaps")}</h3>
+
           {mySwapListings.length > 0 ? (
             <div className="mb-3">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {t("My swap offers", "Mis ofertas de swap")}
-              </p>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{t("My swap offers", "Mis ofertas de swap")}</p>
               <div className="space-y-2">
                 {mySwapListings.map((listing) => (
                   <div
@@ -427,7 +843,6 @@ export function MarketplaceHubStudioSellTab({
             </div>
           ) : null}
 
-          {/* Incoming swap bids */}
           {incomingBids.length > 0 ? (
             <div className="mb-3">
               <p className="mb-2 text-xs font-medium text-muted-foreground">
@@ -465,12 +880,9 @@ export function MarketplaceHubStudioSellTab({
             </div>
           ) : null}
 
-          {/* Outgoing swap bids */}
           {outgoingBids.length > 0 ? (
             <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {t("My outgoing swap bids", "Mis propuestas enviadas")}
-              </p>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">{t("My outgoing swap bids", "Mis propuestas enviadas")}</p>
               <div className="space-y-2">
                 {outgoingBids.map((bid) => (
                   <div
@@ -503,7 +915,9 @@ export function MarketplaceHubStudioSellTab({
               </div>
             </div>
           ) : null}
-        </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

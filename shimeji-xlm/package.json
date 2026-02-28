@@ -22,5 +22,8 @@
     "vercel:env:mainnet": "./scripts/vercel-env-sync.sh mainnet",
     "vercel:env:mainnet:deploy": "./scripts/vercel-env-sync.sh mainnet production --deploy"
   },
-  "packageManager": "pnpm@10.24.0"
+  "packageManager": "pnpm@10.24.0",
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.10.0"
+  }
 }

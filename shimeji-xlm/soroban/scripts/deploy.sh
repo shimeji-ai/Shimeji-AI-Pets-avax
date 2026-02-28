@@ -167,7 +167,9 @@ SHOWCASE_SALE_TOKEN_ID=""
 SHOWCASE_SWAP_TOKEN_ID=""
 SHOWCASE_SWAP_TARGET_TOKEN_ID=""
 SHOWCASE_EGG_TOKEN_ID=""
+SHOWCASE_SALE_COPY_TOKEN_ID=""
 SHOWCASE_SALE_LISTING_ID=""
+SHOWCASE_SALE_COPY_LISTING_ID=""
 SHOWCASE_EGG_LISTING_ID=""
 SHOWCASE_SWAP_ID=""
 
@@ -784,6 +786,14 @@ prepare_marketplace_showcase_assets() {
       image_ipfs_uri="ipfs://${image_cid}"
       image_url="$image_ipfs_uri"
       escaped_name="$(printf "%s" "$char" | sed 's/"/\\"/g')"
+      local edition_mode edition_size
+      if [ "$char" = "$SHOWCASE_SALE_CHARACTER" ]; then
+        edition_mode="edition"
+        edition_size="2"
+      else
+        edition_mode="unique"
+        edition_size="1"
+      fi
       cat > "$metadata_dir/${char}.json" <<EOF
 {
   "name": "Shimeji Placeholder - ${char}",
@@ -794,8 +804,21 @@ prepare_marketplace_showcase_assets() {
     { "trait_type": "placeholder", "value": "true" },
     { "trait_type": "network", "value": "${NETWORK}" },
     { "trait_type": "character", "value": "${char}" },
-    { "trait_type": "sprite_state", "value": "${sprite_state}" }
-  ]
+    { "trait_type": "sprite_state", "value": "${sprite_state}" },
+    { "trait_type": "edition_mode", "value": "${edition_mode}" },
+    { "trait_type": "edition_size", "value": "${edition_size}" }
+  ],
+  "properties": {
+    "shimeji": {
+      "schema": "shimeji_nft_v1",
+      "editionMode": "${edition_mode}",
+      "copies": ${edition_size}
+    }
+  },
+  "edition": {
+    "mode": "${edition_mode}",
+    "size": ${edition_size}
+  }
 }
 EOF
       metadata_cid="$(pinata_upload_file "$pinata_jwt" "$metadata_dir/${char}.json" "${char}.json" "shimeji-${NETWORK}-metadata-${char}")" || {
@@ -1997,6 +2020,18 @@ mint_marketplace_showcase_tokens_pre_minter_if_enabled() {
   fi
   SHOWCASE_SALE_TOKEN_ID="$(extract_last_u64_from_output "$output")"
 
+  if ! output="$(invoke_contract_capture_with_retries "Mint showcase sale NFT copy" \
+    stellar contract invoke \
+      --id "$NFT_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- mint --to "$ADMIN" --token_uri "$SHOWCASE_SALE_TOKEN_URI")"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-mint-sale-copy"
+    return
+  fi
+  SHOWCASE_SALE_COPY_TOKEN_ID="$(extract_last_u64_from_output "$output")"
+
   if ! output="$(invoke_contract_capture_with_retries "Mint showcase swap NFT" \
     stellar contract invoke \
       --id "$NFT_ID" \
@@ -2036,13 +2071,13 @@ mint_marketplace_showcase_tokens_pre_minter_if_enabled() {
   fi
   SHOWCASE_EGG_TOKEN_ID="$(extract_last_u64_from_output "$output")"
 
-  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
+  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SALE_COPY_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
     MARKETPLACE_SHOWCASE_STATUS="failed-parse-token-ids"
     return
   fi
 
   MARKETPLACE_SHOWCASE_STATUS="minted"
-  echo "  Seed NFTs minted: sale=#${SHOWCASE_SALE_TOKEN_ID}, swap=#${SHOWCASE_SWAP_TOKEN_ID}, target=#${SHOWCASE_SWAP_TARGET_TOKEN_ID}, egg=#${SHOWCASE_EGG_TOKEN_ID}"
+  echo "  Seed NFTs minted: sale=#${SHOWCASE_SALE_TOKEN_ID}, sale_copy=#${SHOWCASE_SALE_COPY_TOKEN_ID}, swap=#${SHOWCASE_SWAP_TOKEN_ID}, target=#${SHOWCASE_SWAP_TARGET_TOKEN_ID}, egg=#${SHOWCASE_EGG_TOKEN_ID}"
 }
 
 seed_marketplace_showcase_examples_if_enabled() {
@@ -2056,7 +2091,7 @@ seed_marketplace_showcase_examples_if_enabled() {
     [ "$MARKETPLACE_SHOWCASE_STATUS" = "not-run" ] && MARKETPLACE_SHOWCASE_STATUS="skipped-no-assets"
     return
   fi
-  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
+  if [ -z "$SHOWCASE_SALE_TOKEN_ID" ] || [ -z "$SHOWCASE_SALE_COPY_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -z "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -z "$SHOWCASE_EGG_TOKEN_ID" ]; then
     MARKETPLACE_SHOWCASE_STATUS="skipped-no-seed-tokens"
     return
   fi
@@ -2087,6 +2122,22 @@ seed_marketplace_showcase_examples_if_enabled() {
     return
   fi
   SHOWCASE_SALE_LISTING_ID="$(extract_last_u64_from_output "$output")"
+
+  if ! output="$(invoke_contract_capture_with_retries "Create showcase sale listing (copy)" \
+    stellar contract invoke \
+      --id "$MARKETPLACE_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- list_for_sale \
+      --seller "$ADMIN" \
+      --token_id "$SHOWCASE_SALE_COPY_TOKEN_ID" \
+      --price "$list_price_xlm_stroops" \
+      --currency '"Xlm"')"; then
+    MARKETPLACE_SHOWCASE_STATUS="failed-list-sale-copy"
+    return
+  fi
+  SHOWCASE_SALE_COPY_LISTING_ID="$(extract_last_u64_from_output "$output")"
 
   intention="Auto-seeded open swap listing from deployer artist profile (accepting NFT offers)"
   if ! output="$(invoke_contract_capture_with_retries "Create showcase swap listing" \
@@ -2121,8 +2172,8 @@ seed_marketplace_showcase_examples_if_enabled() {
   fi
   SHOWCASE_EGG_LISTING_ID="$(extract_last_u64_from_output "$output")"
 
-  MARKETPLACE_SHOWCASE_STATUS="seeded-sale-swap-egg"
-  echo "  Showcase listing IDs: sale=#${SHOWCASE_SALE_LISTING_ID}, egg=#${SHOWCASE_EGG_LISTING_ID}; swap=#${SHOWCASE_SWAP_ID}"
+  MARKETPLACE_SHOWCASE_STATUS="seeded-sale-edition-swap-egg"
+  echo "  Showcase listing IDs: sale=#${SHOWCASE_SALE_LISTING_ID}, sale_copy=#${SHOWCASE_SALE_COPY_LISTING_ID}, egg=#${SHOWCASE_EGG_LISTING_ID}; swap=#${SHOWCASE_SWAP_ID}"
 }
 
 deploy_contracts() {
@@ -2794,11 +2845,11 @@ print_success_summary() {
   if [ -n "$SHOWCASE_AUCTION_CHARACTER" ] || [ -n "$SHOWCASE_SALE_CHARACTER" ] || [ -n "$SHOWCASE_SWAP_CHARACTER" ]; then
     echo "   - placeholders: auction=${SHOWCASE_AUCTION_CHARACTER:-n/a}, sale=${SHOWCASE_SALE_CHARACTER:-n/a}, swap=${SHOWCASE_SWAP_CHARACTER:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_CHARACTER:-n/a}, egg=${SHOWCASE_EGG_CHARACTER:-egg}"
   fi
-  if [ -n "$SHOWCASE_SALE_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -n "$SHOWCASE_EGG_TOKEN_ID" ]; then
-    echo "   - minted token ids: sale=${SHOWCASE_SALE_TOKEN_ID:-n/a}, swap=${SHOWCASE_SWAP_TOKEN_ID:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_TOKEN_ID:-n/a}, egg=${SHOWCASE_EGG_TOKEN_ID:-n/a}"
+  if [ -n "$SHOWCASE_SALE_TOKEN_ID" ] || [ -n "$SHOWCASE_SALE_COPY_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -n "$SHOWCASE_EGG_TOKEN_ID" ]; then
+    echo "   - minted token ids: sale=${SHOWCASE_SALE_TOKEN_ID:-n/a}, sale_copy=${SHOWCASE_SALE_COPY_TOKEN_ID:-n/a}, swap=${SHOWCASE_SWAP_TOKEN_ID:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_TOKEN_ID:-n/a}, egg=${SHOWCASE_EGG_TOKEN_ID:-n/a}"
   fi
-  if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
-    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_listing=${SHOWCASE_SWAP_ID:-n/a}"
+  if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_SALE_COPY_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
+    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, sale_copy_listing=${SHOWCASE_SALE_COPY_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_listing=${SHOWCASE_SWAP_ID:-n/a}"
   fi
   if [ "$INITIAL_AUCTION_STATUS" != "created" ] && [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" = "1" ]; then
     echo "   - note: no auction sample was created because AUTO_CREATE_INITIAL_AUCTION is disabled or failed."

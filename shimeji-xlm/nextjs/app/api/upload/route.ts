@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
       success: true,
       ipfsHash: pinataData.IpfsHash,
       ipfsUrl: `https://gateway.pinata.cloud/ipfs/${pinataData.IpfsHash}`,
+      url: `https://gateway.pinata.cloud/ipfs/${pinataData.IpfsHash}`,
     });
   } catch (error) {
     console.error("Upload error:", error);

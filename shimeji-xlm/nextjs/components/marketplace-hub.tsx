@@ -39,7 +39,7 @@ import {
   buildRefundCommissionOrderTx,
 } from "@/lib/marketplace";
 import { buildBidUsdcTx, buildBidXlmTx, buildCreateItemAuctionTx } from "@/lib/auction";
-import { buildCreateCommissionEggTx, buildUpdateTokenUriAsCreatorTx } from "@/lib/nft";
+import { buildCreateCommissionEggTx, buildCreateFinishedNftTx, buildUpdateTokenUriAsCreatorTx } from "@/lib/nft";
 import type {
   MarketplaceFeedResponse,
   MarketplaceMyStudioResponse,
@@ -63,7 +63,8 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const { isSpanish } = useLanguage();
   const { publicKey, isConnected, isConnecting, connect, signTransaction } = useFreighter();
   const t = (en: string, es: string) => (isSpanish ? es : en);
-  const [marketplaceSellTab, setMarketplaceSellTab] = useState<"browse" | "sell" | "commissions">("browse");
+  const [marketplaceSellTab, setMarketplaceSellTab] = useState<"explore" | "selling" | "creators">("explore");
+  const [creatorsStudioTab, setCreatorsStudioTab] = useState<"create" | "commissions">("create");
 
   const [feedAssetFilter, setFeedAssetFilter] = useState<FeedAssetFilter>("all");
   const [feedSaleFilter, setFeedSaleFilter] = useState<FeedSaleFilter>("all");
@@ -359,6 +360,135 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
     }
   }
 
+  async function handleCreateNftPackage(request: {
+    tokenUri: string;
+    mode: "unique" | "edition";
+    copies: number;
+    listMode: "none" | "fixed_price" | "auction";
+    listPrice?: string;
+    listCurrency?: "Xlm" | "Usdc";
+    auctionPriceXlm?: string;
+    auctionPriceUsdc?: string;
+    auctionDurationHours?: string;
+  }) {
+    if (!publicKey) {
+      setTxMessage(
+        t(
+          "Connect a wallet from the global header to mint NFTs.",
+          "Conecta una wallet desde el header global para mintear NFTs.",
+        ),
+      );
+      return;
+    }
+
+    setTxBusy(true);
+    setTxMessage("");
+    try {
+      const mintCopies = request.mode === "unique"
+        ? 1
+        : Math.max(1, Math.min(Number.parseInt(String(request.copies), 10) || 1, 50));
+
+      const previousOwnedTokenIds = new Set((studio?.ownedNfts || []).map((item) => item.tokenId));
+
+      for (let index = 0; index < mintCopies; index += 1) {
+        const mintTxXdr = await buildCreateFinishedNftTx(publicKey, request.tokenUri);
+        await signAndSubmitXdr(mintTxXdr, signTransaction, publicKey);
+        setTxMessage(
+          t(
+            `Minting in progress (${index + 1}/${mintCopies})...`,
+            `Minteo en progreso (${index + 1}/${mintCopies})...`,
+          ),
+        );
+      }
+
+      const refreshedStudio = await loadStudio(publicKey);
+      if (!refreshedStudio) {
+        throw new Error(t("Minted NFTs, but failed to refresh studio data.", "Se mintearon NFTs, pero falló la actualización del estudio."));
+      }
+
+      const mintedTokens = refreshedStudio.ownedNfts
+        .filter((item) => item.tokenUri === request.tokenUri && !previousOwnedTokenIds.has(item.tokenId))
+        .sort((a, b) => a.tokenId - b.tokenId);
+
+      if (mintedTokens.length === 0) {
+        throw new Error(
+          t(
+            "Mint submitted, but the new NFT tokens were not found yet. Refresh and try listing again.",
+            "Minteo enviado, pero los nuevos tokens aún no aparecen. Actualiza e intenta listar otra vez.",
+          ),
+        );
+      }
+
+      if (request.listMode === "fixed_price") {
+        const price = parseAmountToUnits(request.listPrice || "");
+        if (price <= BigInt(0)) {
+          throw new Error(t("Enter a valid fixed listing price.", "Ingresá un precio fijo válido."));
+        }
+        const currency = request.listCurrency === "Usdc" ? "Usdc" : "Xlm";
+        for (const token of mintedTokens) {
+          const listTxXdr = await buildListForSaleTx(publicKey, token.tokenId, price, currency);
+          await signAndSubmitXdr(listTxXdr, signTransaction, publicKey);
+        }
+      } else if (request.listMode === "auction") {
+        if (!refreshedStudio.auctionCapability.itemAuctionsAvailable) {
+          throw new Error(
+            refreshedStudio.auctionCapability.reason ||
+              t("Auctions are not currently available.", "Subastas no disponibles por ahora."),
+          );
+        }
+        const zero = BigInt(0);
+        let priceXlm = parseAmountToUnits(request.auctionPriceXlm || "");
+        let priceUsdc = parseAmountToUnits(request.auctionPriceUsdc || "");
+        if (priceXlm <= zero && priceUsdc <= zero) {
+          throw new Error(t("Set an XLM or USDC starting price.", "Define un precio inicial en XLM o USDC."));
+        }
+        if (priceXlm > zero && priceUsdc <= zero) {
+          priceUsdc = (priceXlm * DEFAULT_XLM_USDC_RATE) / TOKEN_SCALE;
+          if (priceUsdc <= zero) priceUsdc = BigInt(1);
+        } else if (priceUsdc > zero && priceXlm <= zero) {
+          priceXlm = (priceUsdc * TOKEN_SCALE) / DEFAULT_XLM_USDC_RATE;
+          if (priceXlm <= zero) priceXlm = BigInt(1);
+        }
+        const rate = computeRate(priceXlm, priceUsdc);
+        const durationHours = Math.max(1, Number.parseInt(request.auctionDurationHours || "24", 10) || 24);
+
+        for (const token of mintedTokens) {
+          const auctionTxXdr = await buildCreateItemAuctionTx(
+            publicKey,
+            token.tokenId,
+            priceXlm,
+            priceUsdc,
+            rate,
+            durationHours * 3600,
+          );
+          await signAndSubmitXdr(auctionTxXdr, signTransaction, publicKey);
+        }
+      }
+
+      await Promise.all([loadFeed(), loadStudio(publicKey)]);
+      setTxMessage(
+        request.listMode === "fixed_price"
+          ? t(
+              `NFT created. Minted ${mintedTokens.length} token(s) and listed them for sale.`,
+              `NFT creado. Se mintearon ${mintedTokens.length} token(s) y se publicaron en venta.`,
+            )
+          : request.listMode === "auction"
+            ? t(
+                `NFT created. Minted ${mintedTokens.length} token(s) and started auction(s).`,
+                `NFT creado. Se mintearon ${mintedTokens.length} token(s) y se iniciaron subastas.`,
+              )
+            : t(
+                `NFT created successfully. Minted ${mintedTokens.length} token(s).`,
+                `NFT creado correctamente. Se mintearon ${mintedTokens.length} token(s).`,
+              ),
+      );
+    } catch (error) {
+      setTxMessage(error instanceof Error ? error.message : "Failed to create NFT package.");
+    } finally {
+      setTxBusy(false);
+    }
+  }
+
   async function handleCancelListing(listingId: number) {
     if (!publicKey) return;
     setTxBusy(true);
@@ -643,46 +773,46 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => setMarketplaceSellTab("browse")}
+                  onClick={() => setMarketplaceSellTab("explore")}
                   className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-                    marketplaceSellTab === "browse"
+                    marketplaceSellTab === "explore"
                       ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
                       : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
                   }`}
                 >
                   <ShoppingCart className="h-3.5 w-3.5" />
-                  {t("Browse", "Explorar")}
+                  {t("Explore / Shop", "Explorar / Comprar")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMarketplaceSellTab("sell")}
+                  onClick={() => setMarketplaceSellTab("selling")}
                   className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-                    marketplaceSellTab === "sell"
+                    marketplaceSellTab === "selling"
                       ? "border-blue-300/30 bg-blue-400/15 text-foreground"
                       : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
                   }`}
                 >
                   <Tag className="h-3.5 w-3.5" />
-                  {t("Sell / Swap", "Vender / Swap")}
+                  {t("Selling", "Vender")}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMarketplaceSellTab("commissions")}
+                  onClick={() => setMarketplaceSellTab("creators")}
                   className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-                    marketplaceSellTab === "commissions"
+                    marketplaceSellTab === "creators"
                       ? "border-fuchsia-300/30 bg-fuchsia-400/15 text-foreground"
                       : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
                   }`}
                 >
                   <ArrowLeftRight className="h-3.5 w-3.5" />
-                  {t("Commissions", "Comisiones")}
+                  {t("Creators", "Creadores")}
                 </button>
               </div>
             </div>
           ) : null}
 
           {/* Browse tab */}
-          {!isMarketplaceOnlyMode || marketplaceSellTab === "browse" ? (
+          {!isMarketplaceOnlyMode || marketplaceSellTab === "explore" ? (
             <MarketplaceHubMarketplaceTab
               t={t}
               feedSearch={feedSearch}
@@ -710,7 +840,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           ) : null}
 
           {/* Sell / Swap tab */}
-          {isMarketplaceOnlyMode && marketplaceSellTab === "sell" ? (
+          {isMarketplaceOnlyMode && marketplaceSellTab === "selling" ? (
             <section className="rounded-3xl border border-border bg-white/10 p-4 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
@@ -758,10 +888,13 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   tokenPreviews={tokenPreviews}
                   txBusy={txBusy}
                   publicKey={publicKey}
+                  showCreatePanel={false}
+                  showTradePanel
                   onCreateListing={(tokenId, price, currency) => void handleCreateListing(tokenId, price, currency)}
                   onCreateAuction={(tokenId, priceXlm, priceUsdc, durationHours) =>
                     void handleCreateItemAuction(tokenId, priceXlm, priceUsdc, durationHours)
                   }
+                  onCreateNftPackage={(request) => void handleCreateNftPackage(request)}
                   onCancelListing={(listingId) => void handleCancelListing(listingId)}
                   onCreateSwapOffer={(tokenId, intention) => void handleCreateSwapOffer(tokenId, intention)}
                   onAcceptSwapBid={(listingId, bidId) => handleAcceptSwapBid(listingId, bidId)}
@@ -776,13 +909,13 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
             </section>
           ) : null}
 
-          {/* Commissions tab */}
-          {isMarketplaceOnlyMode && marketplaceSellTab === "commissions" ? (
+          {/* Creators tab */}
+          {isMarketplaceOnlyMode && marketplaceSellTab === "creators" ? (
             <section className="rounded-3xl border border-border bg-white/10 p-4 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
                   <ArrowLeftRight className="h-5 w-5 text-fuchsia-300" />
-                  {t("Commission Eggs", "Huevos de Comisión")}
+                  {t("Creators Studio", "Estudio de Creadores")}
                 </h2>
                 {publicKey ? (
                   <Button
@@ -798,10 +931,41 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   </Button>
                 ) : null}
               </div>
+              <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-border bg-white/5 p-1">
+                <button
+                  type="button"
+                  onClick={() => setCreatorsStudioTab("create")}
+                  className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                    creatorsStudioTab === "create"
+                      ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  {t("Create", "Crear")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreatorsStudioTab("commissions")}
+                  className={`inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2 text-xs transition ${
+                    creatorsStudioTab === "commissions"
+                      ? "border-fuchsia-300/30 bg-fuchsia-400/15 text-foreground"
+                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+                >
+                  <ArrowLeftRight className="h-3.5 w-3.5" />
+                  {t("Commissions", "Comisiones")}
+                </button>
+              </div>
               {!isConnected || !publicKey ? (
                 <div className="rounded-2xl border border-dashed border-border bg-white/5 p-6 text-center text-sm text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
-                    <p>{t("Connect a Stellar wallet to manage commission eggs.", "Conecta una wallet Stellar para gestionar huevos de comisión.")}</p>
+                    <p>
+                      {t(
+                        "Connect a Stellar wallet to create NFTs and manage commissions.",
+                        "Conecta una wallet Stellar para crear NFTs y gestionar comisiones.",
+                      )}
+                    </p>
                     <Button
                       type="button"
                       size="sm"
@@ -819,23 +983,45 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : studio ? (
-                <MarketplaceHubStudioCommissionsTab
-                  t={t}
-                  studio={studio}
-                  tokenPreviews={tokenPreviews}
-                  txBusy={txBusy}
-                  publicKey={publicKey}
-                  onCreateCommissionEgg={(uri, price, currency, etaDays) =>
-                    void handleCreateCommissionEgg(uri, price, currency, etaDays)
-                  }
-                  onCancelListing={(listingId) => void handleCancelListing(listingId)}
-                  onCommissionOrderAction={(order, action, metadataUri) =>
-                    handleCommissionOrderAction(order, action, metadataUri)
-                  }
-                  onCommissionRevisionRequest={(order, intention, reference) =>
-                    handleCommissionRevisionRequest(order, intention, reference)
-                  }
-                />
+                creatorsStudioTab === "create" ? (
+                  <MarketplaceHubStudioSellTab
+                    t={t}
+                    studio={studio}
+                    tokenPreviews={tokenPreviews}
+                    txBusy={txBusy}
+                    publicKey={publicKey}
+                    showCreatePanel
+                    showTradePanel={false}
+                    onCreateListing={(tokenId, price, currency) => void handleCreateListing(tokenId, price, currency)}
+                    onCreateAuction={(tokenId, priceXlm, priceUsdc, durationHours) =>
+                      void handleCreateItemAuction(tokenId, priceXlm, priceUsdc, durationHours)
+                    }
+                    onCreateNftPackage={(request) => void handleCreateNftPackage(request)}
+                    onCancelListing={(listingId) => void handleCancelListing(listingId)}
+                    onCreateSwapOffer={(tokenId, intention) => void handleCreateSwapOffer(tokenId, intention)}
+                    onAcceptSwapBid={(listingId, bidId) => handleAcceptSwapBid(listingId, bidId)}
+                    onCancelSwapListing={(listingId) => handleCancelSwapListing(listingId)}
+                    onCancelSwapBid={(bidId) => handleCancelSwapBid(bidId)}
+                  />
+                ) : (
+                  <MarketplaceHubStudioCommissionsTab
+                    t={t}
+                    studio={studio}
+                    tokenPreviews={tokenPreviews}
+                    txBusy={txBusy}
+                    publicKey={publicKey}
+                    onCreateCommissionEgg={(uri, price, currency, etaDays) =>
+                      void handleCreateCommissionEgg(uri, price, currency, etaDays)
+                    }
+                    onCancelListing={(listingId) => void handleCancelListing(listingId)}
+                    onCommissionOrderAction={(order, action, metadataUri) =>
+                      handleCommissionOrderAction(order, action, metadataUri)
+                    }
+                    onCommissionRevisionRequest={(order, intention, reference) =>
+                      handleCommissionRevisionRequest(order, intention, reference)
+                    }
+                  />
+                )
               ) : studioError ? (
                 <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-foreground">
                   {studioError}
