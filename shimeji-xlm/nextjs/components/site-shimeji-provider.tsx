@@ -18,7 +18,7 @@ import {
 } from "@/lib/site-shimeji-chat-ui";
 
 export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw";
-export type SiteShimejiOpenClawMode = "paired" | "manual";
+export type SiteShimejiOpenClawMode = "paired";
 export type SiteShimejiSoundInputProviderKind = "off" | "browser";
 export type SiteShimejiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
 
@@ -231,7 +231,7 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): bool
     sanitizeString(raw.ollamaUrl, DEFAULT_CONFIG.ollamaUrl, 300) || DEFAULT_CONFIG.ollamaUrl;
   const ollamaModel =
     sanitizeString(raw.ollamaModel, DEFAULT_CONFIG.ollamaModel, 120) || DEFAULT_CONFIG.ollamaModel;
-  const openclawMode = raw.openclawMode === "manual" ? "manual" : "paired";
+  const openclawMode: SiteShimejiOpenClawMode = "paired";
   const openclawGatewayUrl =
     sanitizeString(raw.openclawGatewayUrl, DEFAULT_CONFIG.openclawGatewayUrl, 300) ||
     DEFAULT_CONFIG.openclawGatewayUrl;
@@ -312,16 +312,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
       ? raw.provider
       : DEFAULT_CONFIG.provider;
   const provider: SiteShimejiProviderKind = parsedProvider;
-  const hasLegacyManualOpenClawConfig = Boolean(
-    sanitizeString(raw.openclawGatewayToken, "", 600) &&
-      sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32),
-  );
-  const openclawMode: SiteShimejiOpenClawMode =
-    raw.openclawMode === "manual" || raw.openclawMode === "paired"
-      ? raw.openclawMode
-      : hasLegacyManualOpenClawConfig
-        ? "manual"
-        : DEFAULT_CONFIG.openclawMode;
+  const openclawMode: SiteShimejiOpenClawMode = "paired";
   const soundInputProvider: SiteShimejiSoundInputProviderKind =
     raw.soundInputProvider === "browser" || raw.soundInputProvider === "off"
       ? raw.soundInputProvider
@@ -401,13 +392,6 @@ function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: nu
   }
   if (config.provider === "ollama") {
     return Boolean(config.ollamaUrl.trim() && config.ollamaModel.trim());
-  }
-  if (config.openclawMode === "manual") {
-    return Boolean(
-      config.openclawGatewayUrl.trim() &&
-        config.openclawGatewayToken.trim() &&
-        config.openclawAgentName.trim(),
-    );
   }
   const pairedToken = config.openclawPairedSessionToken.trim();
   if (!pairedToken) return false;

@@ -9,6 +9,7 @@ import {
 const STORE_FILE_PATH =
   process.env.OPENCLAW_PAIRING_STORE_FILE || "/tmp/site-shimeji-openclaw-pairings.json";
 const DEFAULT_PAIRING_TTL_SECONDS = 10 * 60;
+const DEFAULT_PAIRING_REQUEST_TTL_SECONDS = 5 * 60;
 const DEFAULT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -23,6 +24,12 @@ type PairingRecord = {
   claimsUsed: number;
 };
 
+type PairingRequestRecord = {
+  code: string;
+  createdAtMs: number;
+  expiresAtMs: number;
+};
+
 type SessionRecord = {
   tokenHash: string;
   createdAtMs: number;
@@ -33,13 +40,15 @@ type SessionRecord = {
 };
 
 type StoreData = {
-  version: 1;
+  version: 2;
+  requests: Record<string, PairingRequestRecord>;
   pairings: Record<string, PairingRecord>;
   sessions: Record<string, SessionRecord>;
 };
 
 type ClaimFailReason = "invalid_code" | "expired_code" | "max_claims_reached";
 type ResolveSessionFailReason = "invalid_session" | "expired_session";
+type PairingRequestConsumeFailReason = "invalid_request_code" | "expired_request_code";
 
 export type PairingClaimResult =
   | {
@@ -51,6 +60,20 @@ export type PairingClaimResult =
   | {
       ok: false;
       reason: ClaimFailReason;
+    };
+
+export type PairingIssueFromRequestResult =
+  | {
+      ok: true;
+      code: string;
+      expiresAt: string;
+      agentName: string;
+      maxClaims: number;
+      ttlSeconds: number;
+    }
+  | {
+      ok: false;
+      reason: PairingRequestConsumeFailReason;
     };
 
 export type ResolveSessionResult =
@@ -69,7 +92,7 @@ export type ResolveSessionResult =
 let storeWriteQueue: Promise<void> = Promise.resolve();
 
 function createEmptyStore(): StoreData {
-  return { version: 1, pairings: {}, sessions: {} };
+  return { version: 2, requests: {}, pairings: {}, sessions: {} };
 }
 
 function toIso(ts: number): string {
@@ -86,6 +109,14 @@ function clampInt(input: unknown, fallback: number, min: number, max: number): n
 function sanitizeToken(input: unknown, maxLength = 1600): string {
   if (typeof input !== "string") return "";
   return input.trim().slice(0, maxLength);
+}
+
+function sanitizePairingCode(input: unknown, maxLength = 12): string {
+  if (typeof input !== "string") return "";
+  return input
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, maxLength);
 }
 
 function getCryptoSecret(): string {
@@ -146,7 +177,8 @@ async function readStore(): Promise<StoreData> {
     const parsed = JSON.parse(raw) as Partial<StoreData>;
     if (!parsed || typeof parsed !== "object") return createEmptyStore();
     return {
-      version: 1,
+      version: 2,
+      requests: parsed.requests && typeof parsed.requests === "object" ? parsed.requests : {},
       pairings: parsed.pairings && typeof parsed.pairings === "object" ? parsed.pairings : {},
       sessions: parsed.sessions && typeof parsed.sessions === "object" ? parsed.sessions : {},
     };
@@ -164,6 +196,12 @@ async function writeStore(data: StoreData): Promise<void> {
 }
 
 function pruneExpiredRecords(store: StoreData, nowMs: number): void {
+  for (const [code, request] of Object.entries(store.requests)) {
+    if (!request || request.expiresAtMs <= nowMs) {
+      delete store.requests[code];
+    }
+  }
+
   for (const [code, pairing] of Object.entries(store.pairings)) {
     if (!pairing || pairing.expiresAtMs <= nowMs || pairing.claimsUsed >= pairing.maxClaims) {
       delete store.pairings[code];
@@ -186,6 +224,72 @@ function withStoreLock<T>(operation: () => Promise<T>): Promise<T> {
   return next;
 }
 
+function createPairingRecord(args: {
+  store: StoreData;
+  nowMs: number;
+  gatewayUrl: string;
+  gatewayToken: string;
+  agentName: string;
+  ttlSeconds: number;
+  maxClaims: number;
+}): { code: string; expiresAt: string; agentName: string } {
+  const { store, nowMs, gatewayUrl, gatewayToken, agentName, ttlSeconds, maxClaims } = args;
+  const expiresAtMs = nowMs + ttlSeconds * 1000;
+
+  let code = randomCode(8);
+  for (let i = 0; i < 20 && (store.pairings[code] || store.requests[code]); i += 1) {
+    code = randomCode(8);
+  }
+
+  store.pairings[code] = {
+    code,
+    createdAtMs: nowMs,
+    expiresAtMs,
+    gatewayUrl,
+    gatewayTokenEnc: encryptSensitive(gatewayToken),
+    agentName,
+    maxClaims,
+    claimsUsed: 0,
+  };
+  return { code, expiresAt: toIso(expiresAtMs), agentName };
+}
+
+export async function createOpenClawPairingRequest(args?: {
+  ttlSeconds?: number;
+}): Promise<{ requestCode: string; expiresAt: string; ttlSeconds: number }> {
+  const ttlSeconds = clampInt(
+    args?.ttlSeconds,
+    DEFAULT_PAIRING_REQUEST_TTL_SECONDS,
+    60,
+    30 * 60,
+  );
+
+  return withStoreLock(async () => {
+    const now = Date.now();
+    const store = await readStore();
+    pruneExpiredRecords(store, now);
+    const expiresAtMs = now + ttlSeconds * 1000;
+
+    let code = randomCode(8);
+    for (let i = 0; i < 20 && (store.requests[code] || store.pairings[code]); i += 1) {
+      code = randomCode(8);
+    }
+
+    store.requests[code] = {
+      code,
+      createdAtMs: now,
+      expiresAtMs,
+    };
+
+    await writeStore(store);
+    return {
+      requestCode: code,
+      expiresAt: toIso(expiresAtMs),
+      ttlSeconds,
+    };
+  });
+}
+
 export async function createOpenClawPairingCode(args: {
   gatewayUrl: string;
   gatewayToken: string;
@@ -204,28 +308,83 @@ export async function createOpenClawPairingCode(args: {
 
   return withStoreLock(async () => {
     const now = Date.now();
-    const expiresAtMs = now + ttlSeconds * 1000;
     const store = await readStore();
     pruneExpiredRecords(store, now);
 
-    let code = randomCode(8);
-    for (let i = 0; i < 10 && store.pairings[code]; i += 1) {
-      code = randomCode(8);
-    }
-
-    store.pairings[code] = {
-      code,
-      createdAtMs: now,
-      expiresAtMs,
+    const created = createPairingRecord({
+      store,
+      nowMs: now,
       gatewayUrl,
-      gatewayTokenEnc: encryptSensitive(gatewayToken),
+      gatewayToken,
       agentName,
+      ttlSeconds,
       maxClaims,
-      claimsUsed: 0,
-    };
+    });
 
     await writeStore(store);
-    return { code, expiresAt: toIso(expiresAtMs), agentName };
+    return created;
+  });
+}
+
+export async function createOpenClawPairingCodeFromRequest(args: {
+  requestCode: string;
+  gatewayUrl: string;
+  gatewayToken: string;
+  agentName?: string;
+  ttlSeconds?: number;
+  maxClaims?: number;
+}): Promise<PairingIssueFromRequestResult> {
+  const requestCode = sanitizePairingCode(args.requestCode);
+  if (!requestCode) {
+    return { ok: false, reason: "invalid_request_code" };
+  }
+
+  const gatewayUrl = normalizeOpenClawGatewayUrl(args.gatewayUrl);
+  const gatewayToken = sanitizeToken(args.gatewayToken);
+  if (!gatewayToken) {
+    throw new Error("OPENCLAW_MISSING_TOKEN");
+  }
+  const agentName = sanitizeOpenClawAgentName(args.agentName, "web-shimeji-1");
+  const ttlSeconds = clampInt(args.ttlSeconds, DEFAULT_PAIRING_TTL_SECONDS, 60, 24 * 60 * 60);
+  const maxClaims = clampInt(args.maxClaims, 1, 1, 25);
+
+  return withStoreLock(async () => {
+    const now = Date.now();
+    const store = await readStore();
+    pruneExpiredRecords(store, now);
+
+    const request = store.requests[requestCode];
+    if (!request) {
+      await writeStore(store);
+      return { ok: false, reason: "invalid_request_code" };
+    }
+
+    if (request.expiresAtMs <= now) {
+      delete store.requests[requestCode];
+      await writeStore(store);
+      return { ok: false, reason: "expired_request_code" };
+    }
+
+    // One-shot request token: consume it before creating pairing code.
+    delete store.requests[requestCode];
+
+    const created = createPairingRecord({
+      store,
+      nowMs: now,
+      gatewayUrl,
+      gatewayToken,
+      agentName,
+      ttlSeconds,
+      maxClaims,
+    });
+
+    await writeStore(store);
+    return {
+      ok: true,
+      ...created,
+      maxClaims,
+      ttlSeconds,
+    };
   });
 }
 
@@ -233,10 +392,7 @@ export async function claimOpenClawPairingCode(args: {
   code: string;
   sessionTtlSeconds?: number;
 }): Promise<PairingClaimResult> {
-  const rawCode =
-    typeof args.code === "string"
-      ? args.code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12)
-      : "";
+  const rawCode = sanitizePairingCode(args.code);
   if (!rawCode) {
     return { ok: false, reason: "invalid_code" };
   }
@@ -273,6 +429,7 @@ export async function claimOpenClawPairingCode(args: {
 
     pairing.claimsUsed += 1;
     if (pairing.claimsUsed >= pairing.maxClaims) {
+      // Pairing code is one-time when maxClaims is 1.
       delete store.pairings[rawCode];
     } else {
       store.pairings[rawCode] = pairing;

@@ -107,44 +107,16 @@ function ProviderFields() {
   // openclaw
   return (
     <div className="space-y-2">
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Gateway URL
-        </span>
-        <input
-          type="text"
-          value={config.openclawGatewayUrl}
-          onChange={(e) => updateConfig({ openclawGatewayUrl: e.target.value })}
-          placeholder="ws://127.0.0.1:18789"
-          className={inputCls}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Nombre del agente" : "Agent name"}
-        </span>
-        <input
-          type="text"
-          value={config.openclawAgentName}
-          onChange={(e) => updateConfig({ openclawAgentName: e.target.value })}
-          placeholder="web-shimeji-1"
-          className={inputCls}
-          maxLength={32}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Token del gateway" : "Gateway token"}
-        </span>
-        <input
-          type="password"
-          value={config.openclawGatewayToken}
-          onChange={(e) => updateConfig({ openclawGatewayToken: e.target.value })}
-          placeholder={isSpanish ? "Token de autenticación" : "Auth token"}
-          className={inputCls}
-          autoComplete="off"
-        />
-      </label>
+      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+        {isSpanish
+          ? "OpenClaw en web usa solo pairing code de un solo uso. Ya no se configura Gateway URL/token aquí."
+          : "OpenClaw on web now uses one-time pairing codes only. Gateway URL/token is no longer configured here."}
+      </div>
+      <div className={`rounded-xl border px-3 py-2 text-xs font-medium ${canUseCurrentProvider ? "border-emerald-500/40 bg-emerald-500/10 text-foreground" : "border-amber-500/40 bg-amber-500/10 text-foreground"}`}>
+        {canUseCurrentProvider
+          ? (isSpanish ? "✓ Sesión OpenClaw activa" : "✓ OpenClaw session active")
+          : (isSpanish ? "Generá un pairing code en 'Más ajustes del shimeji'" : "Generate a pairing code in 'More shimeji settings'")}
+      </div>
     </div>
   );
 }
