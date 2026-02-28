@@ -67,9 +67,14 @@ export default function RootLayout({
   const themeScript = `
     (function() {
       var themes = ['neural', 'pink', 'kawaii', 'pastel'];
-      var saved = null;
-      try { saved = localStorage.getItem('shimeji-theme'); } catch(e) {}
-      var theme = (saved && themes.indexOf(saved) !== -1) ? saved : themes[Math.floor(Math.random() * themes.length)];
+      var lastTheme = null;
+      try { lastTheme = sessionStorage.getItem('shimeji-theme-last'); } catch(e) {}
+      var pool = themes;
+      if (lastTheme && themes.indexOf(lastTheme) !== -1 && themes.length > 1) {
+        pool = themes.filter(function(candidate) { return candidate !== lastTheme; });
+      }
+      var theme = pool[Math.floor(Math.random() * pool.length)];
+      try { sessionStorage.setItem('shimeji-theme-last', theme); } catch(e) {}
       document.documentElement.setAttribute('data-theme', theme);
       if (document.body) {
         document.body.setAttribute('data-theme', theme);

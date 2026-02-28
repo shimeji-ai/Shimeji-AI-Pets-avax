@@ -6,7 +6,7 @@ export type Theme = "neural" | "pink" | "kawaii" | "pastel";
 
 export const THEMES: Theme[] = ["neural", "pink", "kawaii", "pastel"];
 
-const STORAGE_KEY = "shimeji-theme";
+const SESSION_LAST_THEME_KEY = "shimeji-theme-last";
 
 type ThemeContextValue = {
   theme: Theme;
@@ -19,24 +19,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("neural");
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
     const current = document.documentElement.getAttribute("data-theme") as Theme | null;
     const resolved =
-      saved && THEMES.includes(saved)
-        ? saved
-        : current && THEMES.includes(current)
-          ? current
-          : "neural";
+      current && THEMES.includes(current)
+        ? current
+        : "neural";
     setThemeState(resolved);
-    // Lock in the random theme on first visit
-    if (!saved && current) {
-      localStorage.setItem(STORAGE_KEY, current);
-    }
   }, []);
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    try {
+      sessionStorage.setItem(SESSION_LAST_THEME_KEY, newTheme);
+    } catch {
+      // Ignore storage failures (private mode, blocked storage, etc.)
+    }
     document.documentElement.setAttribute("data-theme", newTheme);
     document.body.setAttribute("data-theme", newTheme);
   }, []);
