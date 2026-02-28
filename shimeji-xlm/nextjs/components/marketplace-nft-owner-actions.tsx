@@ -64,11 +64,11 @@ export function MarketplaceNftOwnerActions({
   const [message, setMessage] = useState("");
 
   const [salePrice, setSalePrice] = useState("");
-  const [saleCurrency, setSaleCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [saleCurrency, setSaleCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [commissionEtaDays, setCommissionEtaDays] = useState("7");
 
   const [auctionPrice, setAuctionPrice] = useState("");
-  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapIntention, setSwapIntention] = useState("");
 

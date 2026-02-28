@@ -79,7 +79,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
 
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>(buildProfileDraft(null));
 
-  const [auctionBidCurrency, setAuctionBidCurrency] = useState<"XLM" | "USDC">("XLM");
+  const [auctionBidCurrency, setAuctionBidCurrency] = useState<"XLM" | "USDC">("USDC");
   const [auctionBidAmount, setAuctionBidAmount] = useState("");
   const [txBusy, setTxBusy] = useState(false);
   const [txMessage, setTxMessage] = useState("");
@@ -408,7 +408,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
         if (price <= BigInt(0)) {
           throw new Error(t("Enter a valid fixed listing price.", "Ingresá un precio fijo válido."));
         }
-        const currency = request.listCurrency === "Usdc" ? "Usdc" : "Xlm";
+        const currency = request.listCurrency === "Xlm" ? "Xlm" : "Usdc";
         for (const token of mintedTokens) {
           const listTxXdr = await buildListForSaleTx(publicKey, token.tokenId, price, currency);
           await signAndSubmitXdr(listTxXdr, signTransaction, publicKey);
@@ -424,7 +424,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
         if (price <= BigInt(0)) {
           throw new Error(t("Set a valid starting price.", "Define un precio inicial válido."));
         }
-        const currency = request.auctionCurrency === "Usdc" ? "Usdc" : "Xlm";
+        const currency = request.auctionCurrency === "Xlm" ? "Xlm" : "Usdc";
         const durationHours = Math.max(1, Number.parseInt(request.auctionDurationHours || "24", 10) || 24);
 
         for (const token of mintedTokens) {

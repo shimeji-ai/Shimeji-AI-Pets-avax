@@ -56,13 +56,13 @@ export function MarketplaceHubStudioCommissionsTab({
   const [eggImageUrl, setEggImageUrl] = useState("");
   const [eggImageUploading, setEggImageUploading] = useState(false);
   const [eggPrice, setEggPrice] = useState("");
-  const [eggCurrency, setEggCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [eggCurrency, setEggCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [eggEtaDays, setEggEtaDays] = useState("7");
 
   // Existing egg listing form state
   const [selectedTokenId, setSelectedTokenId] = useState("");
   const [listingPrice, setListingPrice] = useState("");
-  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [listingCommissionEtaDays, setListingCommissionEtaDays] = useState("7");
 
   // Commission order per-order state

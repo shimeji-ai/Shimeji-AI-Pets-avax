@@ -88,9 +88,9 @@ export function MarketplaceHubStudioSellTab({
   const [swapOfferedTokenId, setSwapOfferedTokenId] = useState("");
   const [swapIntention, setSwapIntention] = useState("");
   const [listingPrice, setListingPrice] = useState("");
-  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [auctionPrice, setAuctionPrice] = useState("");
-  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapActionBusyId, setSwapActionBusyId] = useState<string | null>(null);
 
@@ -101,9 +101,9 @@ export function MarketplaceHubStudioSellTab({
   const [mintCopies, setMintCopies] = useState("5");
   const [mintListMode, setMintListMode] = useState<MintListMode>("fixed_price");
   const [mintListPrice, setMintListPrice] = useState("");
-  const [mintListCurrency, setMintListCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [mintListCurrency, setMintListCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [mintAuctionPrice, setMintAuctionPrice] = useState("");
-  const [mintAuctionCurrency, setMintAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
+  const [mintAuctionCurrency, setMintAuctionCurrency] = useState<"Xlm" | "Usdc">("Usdc");
   const [mintAuctionDurationHours, setMintAuctionDurationHours] = useState("24");
   const [mintCoverImage, setMintCoverImage] = useState<File | null>(null);
   const [mintCoverPreviewUrl, setMintCoverPreviewUrl] = useState<string | null>(null);
@@ -253,9 +253,9 @@ export function MarketplaceHubStudioSellTab({
       setMintCopies("5");
       setMintListMode("fixed_price");
       setMintListPrice("");
-      setMintListCurrency("Xlm");
+      setMintListCurrency("Usdc");
       setMintAuctionPrice("");
-      setMintAuctionCurrency("Xlm");
+      setMintAuctionCurrency("Usdc");
       setMintAuctionDurationHours("24");
       setMintCoverImage(null);
       setMintSpriteFiles([]);

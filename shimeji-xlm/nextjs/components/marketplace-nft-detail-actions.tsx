@@ -156,7 +156,7 @@ export function MarketplaceNftDetailActions({
   const [swapBidTokenByListingId, setSwapBidTokenByListingId] = useState<Record<string, string>>({});
 
   const [auctionBidAmount, setAuctionBidAmount] = useState("");
-  const [auctionBidCurrency, setAuctionBidCurrency] = useState<"XLM" | "USDC">("XLM");
+  const [auctionBidCurrency, setAuctionBidCurrency] = useState<"XLM" | "USDC">("USDC");
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
   useEffect(() => {
