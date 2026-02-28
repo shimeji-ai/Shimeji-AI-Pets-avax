@@ -296,6 +296,15 @@ function ProviderFields() {
     ? Date.parse(config.openclawPairedSessionExpiresAt)
     : NaN;
   const pairedSessionExpired = Number.isFinite(pairedSessionExpiresAtMs) && pairedSessionExpiresAtMs <= Date.now();
+  const pairingStatusLower = pairingStatus.toLowerCase();
+  const pairingStatusIsError =
+    pairingStatusLower.includes("error") ||
+    pairingStatusLower.includes("failed") ||
+    pairingStatusLower.includes("invalid") ||
+    pairingStatusLower.includes("venció") ||
+    pairingStatusLower.includes("vencio") ||
+    pairingStatusLower.includes("could not") ||
+    pairingStatusLower.includes("no se pudo");
   const pairingIssueEndpoint =
     typeof window === "undefined"
       ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue"
@@ -805,14 +814,22 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
         </label>
 
         {pairingStatus ? (
-          <p className="text-xs text-muted-foreground">{pairingStatus}</p>
+          <p
+            className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+              pairingStatusIsError
+                ? "border-red-700 bg-red-300 text-black"
+                : "border-green-700 bg-green-300 text-black"
+            }`}
+          >
+            {pairingStatus}
+          </p>
         ) : null}
 
         <div
           className={`rounded-xl border p-3 text-xs ${
             hasPairedSession && !pairedSessionExpired
-              ? "border-emerald-300/20 bg-emerald-300/5 text-emerald-100"
-              : "border-amber-300/20 bg-amber-300/5 text-amber-100"
+              ? "border-green-700 bg-green-300 text-black"
+              : "border-red-700 bg-red-300 text-black"
           }`}
         >
           {hasPairedSession && !pairedSessionExpired
@@ -823,12 +840,12 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
               ? "No hay una sesión activa. Vinculá un código para empezar."
               : "No active session yet. Pair a code to get started."}
           {config.openclawPairedAgentName ? (
-            <div className="mt-2 text-[11px] text-muted-foreground">
+            <div className="mt-2 text-[11px] text-black/80">
               {isSpanish ? "Agente" : "Agent"}: {config.openclawPairedAgentName}
             </div>
           ) : null}
           {config.openclawPairedSessionExpiresAt ? (
-            <div className="mt-1 text-[11px] text-muted-foreground">
+            <div className="mt-1 text-[11px] text-black/80">
               {isSpanish ? "Vence" : "Expires"}:{" "}
               {new Date(config.openclawPairedSessionExpiresAt).toLocaleString()}
             </div>
@@ -846,11 +863,6 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
         ) : null}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {isSpanish
-          ? "OpenClaw en la web usa el gateway para chat/agente, pero no habilita acceso local a terminal o WSL."
-          : "Website OpenClaw uses the gateway for chat/agent tasks, but does not enable local terminal or WSL access."}
-      </p>
     </div>
   );
 }
@@ -1216,14 +1228,14 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                 />
               </label>
 
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-foreground">
                 {catalogError ? (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-red-700 bg-red-300 px-3 py-2 text-black">
                     <span>{catalogError}</span>
                     <button
                       type="button"
                       onClick={() => reloadCatalog().catch(() => undefined)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 text-foreground hover:bg-white/5"
+                      className="inline-flex items-center gap-1 rounded-lg border border-black/40 px-2 py-1 text-black hover:bg-black/10"
                     >
                       <RefreshCw className="h-3 w-3" />
                       {isSpanish ? "Reintentar" : "Retry"}
@@ -1271,8 +1283,8 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
               <div
                 className={`rounded-2xl border p-3 text-xs ${
                   canUseCurrentProvider
-                    ? "border-emerald-300/20 bg-emerald-300/5 text-emerald-100"
-                    : "border-rose-300/20 bg-rose-300/5 text-rose-100"
+                    ? "border-green-700 bg-green-300 text-black"
+                    : "border-red-700 bg-red-300 text-black"
                 }`}
               >
                 {canUseCurrentProvider
@@ -1294,17 +1306,19 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                 </button>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                {isSpanish
-                  ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
-                  : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
-              </p>
+              {config.provider === "site" ? (
+                <p className="text-xs text-foreground">
+                  {isSpanish
+                    ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
+                    : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
+                </p>
+              ) : null}
 
-              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/5 p-4">
-                <p className="text-sm font-semibold text-foreground">
+              <div className="rounded-2xl border border-yellow-700 bg-yellow-200 p-4 text-black">
+                <p className="text-sm font-semibold text-black">
                   {isSpanish ? "Seguridad y alcance" : "Security and scope"}
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-1 text-xs leading-relaxed text-black/85">
                   {isSpanish
                     ? config.provider === "openclaw"
                       ? "En modo pairing, este navegador guarda solo un token de sesión temporal y el relay del sitio usa tu gateway remoto. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
