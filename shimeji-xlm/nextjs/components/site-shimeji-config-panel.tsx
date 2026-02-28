@@ -286,6 +286,15 @@ function ProviderFields() {
   const { config, updateConfig, freeSiteMessagesRemaining, freeSiteMessagesUsed } = useSiteShimeji();
   const openRouterModelKnown = OPENROUTER_MODEL_OPTIONS.some((item) => item.value === config.openrouterModel);
   const openRouterModelSelectValue = openRouterModelKnown ? config.openrouterModel : "__custom__";
+  const [pairingCode, setPairingCode] = useState("");
+  const [pairingBusy, setPairingBusy] = useState(false);
+  const [pairingStatus, setPairingStatus] = useState("");
+
+  const hasPairedSession = Boolean(config.openclawPairedSessionToken.trim());
+  const pairedSessionExpiresAtMs = config.openclawPairedSessionExpiresAt
+    ? Date.parse(config.openclawPairedSessionExpiresAt)
+    : NaN;
+  const pairedSessionExpired = Number.isFinite(pairedSessionExpiresAtMs) && pairedSessionExpiresAtMs <= Date.now();
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
     if (kind === "openrouter") {
@@ -321,6 +330,98 @@ function ProviderFields() {
       >
         {isSpanish ? "Configurar OpenClaw" : "Setup OpenClaw"}
       </a>
+    );
+  }
+
+  async function claimOpenClawPairing() {
+    const code = pairingCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
+    if (!code) {
+      setPairingStatus(
+        isSpanish ? "Ingresá un código de pairing válido." : "Enter a valid pairing code.",
+      );
+      return;
+    }
+
+    setPairingBusy(true);
+    setPairingStatus("");
+    try {
+      const response = await fetch("/api/site-shimeji/openclaw/pairings/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const json = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            sessionToken?: string;
+            sessionExpiresAt?: string;
+            agentName?: string;
+          }
+        | null;
+
+      if (!response.ok || !json?.sessionToken) {
+        const err = json?.error || "OPENCLAW_PAIRING_CLAIM_FAILED";
+        if (err === "OPENCLAW_PAIRING_CODE_EXPIRED") {
+          throw new Error(
+            isSpanish
+              ? "Ese código de pairing venció. Pedí uno nuevo."
+              : "That pairing code has expired. Request a new one.",
+          );
+        }
+        if (err === "OPENCLAW_PAIRING_CODE_USED") {
+          throw new Error(
+            isSpanish
+              ? "Ese código ya fue usado. Pedí uno nuevo."
+              : "That pairing code was already used. Request a new one.",
+          );
+        }
+        if (err === "OPENCLAW_PAIRING_INVALID_CODE") {
+          throw new Error(
+            isSpanish
+              ? "Código inválido. Revisalo e intentá de nuevo."
+              : "Invalid pairing code. Check it and try again.",
+          );
+        }
+        throw new Error(
+          isSpanish
+            ? "No se pudo completar el pairing ahora."
+            : "Could not complete pairing right now.",
+        );
+      }
+
+      updateConfig({
+        openclawMode: "paired",
+        openclawPairedSessionToken: json.sessionToken,
+        openclawPairedSessionExpiresAt: json.sessionExpiresAt || "",
+        openclawPairedAgentName: json.agentName || "",
+      });
+      setPairingCode("");
+      setPairingStatus(
+        isSpanish
+          ? "OpenClaw vinculado correctamente."
+          : "OpenClaw paired successfully.",
+      );
+    } catch (error) {
+      setPairingStatus(
+        error instanceof Error
+          ? error.message
+          : isSpanish
+            ? "Error al vincular OpenClaw."
+            : "Failed to pair OpenClaw.",
+      );
+    } finally {
+      setPairingBusy(false);
+    }
+  }
+
+  function clearPairedSession() {
+    updateConfig({
+      openclawPairedSessionToken: "",
+      openclawPairedSessionExpiresAt: "",
+      openclawPairedAgentName: "",
+    });
+    setPairingStatus(
+      isSpanish ? "Sesión de OpenClaw desconectada." : "OpenClaw session disconnected.",
     );
   }
 
@@ -449,61 +550,144 @@ function ProviderFields() {
       </div>
       <label className="block">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Gateway URL" : "Gateway URL"}
+          {isSpanish ? "Modo de conexión" : "Connection mode"}
         </span>
-        <input
-          type="text"
-          value={config.openclawGatewayUrl}
-          onChange={(event) => updateConfig({ openclawGatewayUrl: event.target.value })}
-          placeholder="ws://127.0.0.1:18789"
+        <select
+          value={config.openclawMode}
+          onChange={(event) =>
+            updateConfig({
+              openclawMode: event.target.value as "paired" | "manual",
+            })
+          }
           className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-        />
+        >
+          <option value="paired">{isSpanish ? "Código de pairing (recomendado)" : "Pairing code (recommended)"}</option>
+          <option value="manual">{isSpanish ? "Manual (URL + token)" : "Manual (URL + token)"}</option>
+        </select>
       </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Nombre del agente" : "Agent name"}
-        </span>
-        <input
-          type="text"
-          value={config.openclawAgentName}
-          onChange={(event) => updateConfig({ openclawAgentName: event.target.value })}
-          placeholder="web-shimeji-1"
-          className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-          maxLength={32}
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isSpanish ? "Token del gateway" : "Gateway auth token"}
-        </span>
-        <input
-          type="password"
-          value={config.openclawGatewayToken}
-          onChange={(event) => updateConfig({ openclawGatewayToken: event.target.value })}
-          placeholder={isSpanish ? "Ingresa el token" : "Enter gateway token"}
-          className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-          autoComplete="off"
-        />
-      </label>
+
+      {config.openclawMode === "paired" ? (
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Código de pairing" : "Pairing code"}
+            </span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={pairingCode}
+                onChange={(event) => setPairingCode(event.target.value.toUpperCase())}
+                placeholder={isSpanish ? "Ej: Q7M4K9P2" : "Ex: Q7M4K9P2"}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                maxLength={12}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => void claimOpenClawPairing()}
+                disabled={pairingBusy}
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {pairingBusy
+                  ? isSpanish
+                    ? "Vinculando..."
+                    : "Pairing..."
+                  : isSpanish
+                    ? "Vincular"
+                    : "Pair"}
+              </button>
+            </div>
+          </label>
+
+          {pairingStatus ? (
+            <p className="text-xs text-muted-foreground">{pairingStatus}</p>
+          ) : null}
+
+          <div
+            className={`rounded-xl border p-3 text-xs ${
+              hasPairedSession && !pairedSessionExpired
+                ? "border-emerald-300/20 bg-emerald-300/5 text-emerald-100"
+                : "border-amber-300/20 bg-amber-300/5 text-amber-100"
+            }`}
+          >
+            {hasPairedSession && !pairedSessionExpired
+              ? isSpanish
+                ? "Sesión de OpenClaw activa en este navegador."
+                : "OpenClaw session is active in this browser."
+              : isSpanish
+                ? "No hay una sesión activa. Vinculá un código para empezar."
+                : "No active session yet. Pair a code to get started."}
+            {config.openclawPairedAgentName ? (
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                {isSpanish ? "Agente" : "Agent"}: {config.openclawPairedAgentName}
+              </div>
+            ) : null}
+            {config.openclawPairedSessionExpiresAt ? (
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {isSpanish ? "Vence" : "Expires"}:{" "}
+                {new Date(config.openclawPairedSessionExpiresAt).toLocaleString()}
+              </div>
+            ) : null}
+          </div>
+
+          {hasPairedSession ? (
+            <button
+              type="button"
+              onClick={clearPairedSession}
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+            >
+              {isSpanish ? "Desconectar sesión" : "Disconnect session"}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Gateway URL" : "Gateway URL"}
+            </span>
+            <input
+              type="text"
+              value={config.openclawGatewayUrl}
+              onChange={(event) => updateConfig({ openclawGatewayUrl: event.target.value })}
+              placeholder="ws://127.0.0.1:18789"
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Nombre del agente" : "Agent name"}
+            </span>
+            <input
+              type="text"
+              value={config.openclawAgentName}
+              onChange={(event) => updateConfig({ openclawAgentName: event.target.value })}
+              placeholder="web-shimeji-1"
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              maxLength={32}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Token del gateway" : "Gateway auth token"}
+            </span>
+            <input
+              type="password"
+              value={config.openclawGatewayToken}
+              onChange={(event) => updateConfig({ openclawGatewayToken: event.target.value })}
+              placeholder={isSpanish ? "Ingresa el token" : "Enter gateway token"}
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              autoComplete="off"
+            />
+          </label>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
         {isSpanish
           ? "OpenClaw en la web usa el gateway para chat/agente, pero no habilita acceso local a terminal o WSL."
           : "Website OpenClaw uses the gateway for chat/agent tasks, but does not enable local terminal or WSL access."}
       </p>
-      <div className="flex flex-col gap-2 pt-1">
-        <button
-          type="button"
-          disabled
-          className="inline-flex w-fit items-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-muted-foreground cursor-not-allowed opacity-60"
-        >
-          {isSpanish ? "Hosting gestionado (próximamente)" : "Managed hosting (coming soon)"}
-        </button>
-        <p className="text-xs text-muted-foreground">
-          {isSpanish
-            ? "Pronto ofreceremos hosting gestionado de OpenClaw para que no tengas que correrlo vos mismo."
-            : "We will soon offer managed OpenClaw hosting so you don't have to run it yourself."}
-        </p>
-      </div>
     </div>
   );
 }
@@ -959,8 +1143,12 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {isSpanish
-                    ? "Las keys y tokens se guardan solo en tu navegador (localStorage) y no se guardan en nuestro servidor. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
-                    : "Keys and tokens are stored only in your browser (localStorage) and are not saved on our server. This website shimeji has no WSL or local terminal access."}
+                    ? config.provider === "openclaw" && config.openclawMode === "paired"
+                      ? "En modo pairing, este navegador guarda solo un token de sesión temporal y el relay del sitio usa tu gateway remoto. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
+                      : "Las keys y tokens se guardan solo en tu navegador (localStorage). Este shimeji web no tiene acceso a WSL ni a tu terminal local."
+                    : config.provider === "openclaw" && config.openclawMode === "paired"
+                      ? "In pairing mode, this browser stores only a temporary session token while the site relay uses your remote gateway. This website shimeji has no WSL or local terminal access."
+                      : "Keys and tokens are stored only in your browser (localStorage). This website shimeji has no WSL or local terminal access."}
                 </p>
               </div>
 

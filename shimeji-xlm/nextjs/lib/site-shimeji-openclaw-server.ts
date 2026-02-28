@@ -1,0 +1,221 @@
+import {
+  buildOpenClawSessionKey,
+  extractOpenClawText,
+  getLastUserMessageText,
+  mergeOpenClawStreamText,
+  nextOpenClawId,
+  normalizeOpenClawGatewayUrl,
+  type OpenClawChatRequestMessage,
+} from "@/lib/site-shimeji-openclaw-protocol";
+
+export async function sendOpenClawServerChat(args: {
+  messages: OpenClawChatRequestMessage[];
+  gatewayUrl: string;
+  gatewayToken: string;
+  agentName: string;
+  timeoutMs?: number;
+}): Promise<string> {
+  if (typeof WebSocket !== "function") {
+    throw new Error("OPENCLAW_WEBSOCKET_UNAVAILABLE");
+  }
+
+  const normalizedUrl = normalizeOpenClawGatewayUrl(args.gatewayUrl);
+  const authToken = String(args.gatewayToken || "").trim();
+  if (!authToken) throw new Error("OPENCLAW_MISSING_TOKEN");
+
+  const messageText = getLastUserMessageText(args.messages);
+  if (!messageText) throw new Error("OPENCLAW_EMPTY_MESSAGE");
+
+  const sessionKey = buildOpenClawSessionKey(args.agentName);
+  const timeoutMs =
+    typeof args.timeoutMs === "number" && Number.isFinite(args.timeoutMs)
+      ? Math.max(5_000, Math.min(120_000, Math.round(args.timeoutMs)))
+      : 70_000;
+
+  return new Promise((resolve, reject) => {
+    let ws: WebSocket | null = null;
+    let settled = false;
+    let authenticated = false;
+    let chatRequestSent = false;
+    let sawCompletion = false;
+    let responseText = "";
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const timeout = setTimeout(() => {
+      fail(new Error(`OPENCLAW_TIMEOUT:${normalizedUrl}`));
+    }, timeoutMs);
+
+    const armIdleTimer = () => {
+      if (idleTimer !== null) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (sawCompletion && responseText) {
+          finish(responseText);
+          return;
+        }
+        fail(new Error(`OPENCLAW_IDLE_TIMEOUT:${normalizedUrl}`));
+      }, 20_000);
+    };
+
+    const touchActivity = () => {
+      armIdleTimer();
+    };
+
+    const finish = (result: string) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      if (ws && ws.readyState === ws.OPEN) ws.close(1000, "done");
+      resolve(result);
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer);
+        idleTimer = null;
+      }
+      if (ws && ws.readyState === ws.OPEN) ws.close(1011, "error");
+      reject(error);
+    };
+
+    const pushText = (nextText: string) => {
+      if (!nextText) return;
+      responseText = mergeOpenClawStreamText(responseText, nextText);
+    };
+
+    try {
+      ws = new WebSocket(normalizedUrl);
+    } catch {
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
+      return;
+    }
+
+    ws.addEventListener("open", touchActivity);
+
+    ws.addEventListener("message", (event) => {
+      touchActivity();
+      let data: any;
+      try {
+        const raw = typeof event.data === "string" ? event.data : "";
+        if (!raw) return;
+        data = JSON.parse(raw);
+      } catch {
+        return;
+      }
+
+      if (data.type === "event" && data.event === "connect.challenge") {
+        const connectReq = {
+          type: "req",
+          id: nextOpenClawId("connect"),
+          method: "connect",
+          params: {
+            minProtocol: 3,
+            maxProtocol: 3,
+            client: {
+              id: "gateway-client",
+              version: "1.0.0",
+              platform: "server",
+              mode: "site-relay",
+            },
+            role: "operator",
+            scopes: ["operator.read", "operator.write"],
+            auth: { token: authToken },
+          },
+        };
+        ws?.send(JSON.stringify(connectReq));
+        return;
+      }
+
+      if (data.type === "res" && !authenticated && data.ok === false) {
+        const reason = data.error?.message || data.error?.code || "Authentication failed";
+        fail(new Error(`OPENCLAW_AUTH_FAILED:${reason}`));
+        return;
+      }
+
+      if (data.type === "res" && !authenticated && (data.payload?.type === "hello-ok" || data.ok === true)) {
+        authenticated = true;
+        if (!chatRequestSent) {
+          chatRequestSent = true;
+          ws?.send(
+            JSON.stringify({
+              type: "req",
+              id: nextOpenClawId("chat"),
+              method: "chat.send",
+              params: {
+                sessionKey,
+                message: messageText,
+                idempotencyKey: nextOpenClawId("idem"),
+              },
+            }),
+          );
+        }
+        return;
+      }
+
+      if (data.type === "event") {
+        const payload = data.payload || {};
+        const text = extractOpenClawText(payload);
+        if (text) pushText(text);
+        if (
+          payload.status === "completed" ||
+          payload.status === "done" ||
+          payload.type === "done" ||
+          payload.done === true
+        ) {
+          sawCompletion = true;
+          finish(responseText || text || "(no response)");
+        }
+        return;
+      }
+
+      if (data.type === "res" && authenticated && data.ok === true) {
+        if (data.payload?.runId) return;
+        const text = extractOpenClawText(data.payload);
+        if (text) pushText(text);
+        if (
+          data.payload?.status === "completed" ||
+          data.payload?.status === "done" ||
+          data.payload?.done
+        ) {
+          sawCompletion = true;
+          finish(responseText || text || "(no response)");
+        }
+        return;
+      }
+
+      if (data.type === "res" && authenticated && data.ok === false) {
+        const reason = data.error?.message || data.error?.code || "Agent request failed";
+        fail(new Error(`OPENCLAW_ERROR:${reason}`));
+      }
+    });
+
+    ws.addEventListener("error", () => {
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
+    });
+
+    ws.addEventListener("close", (event) => {
+      if (settled) return;
+      if (sawCompletion && responseText) {
+        finish(responseText);
+        return;
+      }
+      if (responseText) {
+        fail(new Error(`OPENCLAW_INCOMPLETE_CLOSE:${event.code}`));
+        return;
+      }
+      if (event.code === 1000 || event.code === 1001) {
+        fail(new Error("OPENCLAW_EMPTY_RESPONSE"));
+        return;
+      }
+      fail(new Error(`OPENCLAW_CLOSED:${event.code}`));
+    });
+
+    armIdleTimer();
+  });
+}

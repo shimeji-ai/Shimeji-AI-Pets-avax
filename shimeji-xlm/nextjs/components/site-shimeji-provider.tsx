@@ -18,6 +18,7 @@ import {
 } from "@/lib/site-shimeji-chat-ui";
 
 export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw";
+export type SiteShimejiOpenClawMode = "paired" | "manual";
 export type SiteShimejiSoundInputProviderKind = "off" | "browser";
 export type SiteShimejiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
 
@@ -49,9 +50,13 @@ export type SiteShimejiConfig = {
   openrouterModel: string;
   ollamaUrl: string;
   ollamaModel: string;
+  openclawMode: SiteShimejiOpenClawMode;
   openclawGatewayUrl: string;
   openclawGatewayToken: string;
   openclawAgentName: string;
+  openclawPairedSessionToken: string;
+  openclawPairedSessionExpiresAt: string;
+  openclawPairedAgentName: string;
   soundInputProvider: SiteShimejiSoundInputProviderKind;
   soundInputAutoSend: boolean;
   soundOutputProvider: SiteShimejiSoundOutputProviderKind;
@@ -106,9 +111,13 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   openrouterModel: "openai/gpt-4o-mini",
   ollamaUrl: "http://127.0.0.1:11434",
   ollamaModel: "gemma3:1b",
+  openclawMode: "paired",
   openclawGatewayUrl: "ws://127.0.0.1:18789",
   openclawGatewayToken: "",
   openclawAgentName: "web-shimeji-1",
+  openclawPairedSessionToken: "",
+  openclawPairedSessionExpiresAt: "",
+  openclawPairedAgentName: "",
   soundInputProvider: "off",
   soundInputAutoSend: false,
   soundOutputProvider: "off",
@@ -170,6 +179,14 @@ function sanitizeString(value: unknown, fallback = "", maxLength = 256): string 
   return value.trim().slice(0, maxLength);
 }
 
+function sanitizeIsoDateString(value: unknown): string {
+  const raw = sanitizeString(value, "", 64);
+  if (!raw) return "";
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return "";
+  return new Date(parsed).toISOString();
+}
+
 function sanitizeHexColor(value: unknown, fallback: string): string {
   const raw = sanitizeString(value, fallback, 16);
   return /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : fallback;
@@ -214,6 +231,7 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): bool
     sanitizeString(raw.ollamaUrl, DEFAULT_CONFIG.ollamaUrl, 300) || DEFAULT_CONFIG.ollamaUrl;
   const ollamaModel =
     sanitizeString(raw.ollamaModel, DEFAULT_CONFIG.ollamaModel, 120) || DEFAULT_CONFIG.ollamaModel;
+  const openclawMode = raw.openclawMode === "manual" ? "manual" : "paired";
   const openclawGatewayUrl =
     sanitizeString(raw.openclawGatewayUrl, DEFAULT_CONFIG.openclawGatewayUrl, 300) ||
     DEFAULT_CONFIG.openclawGatewayUrl;
@@ -221,6 +239,9 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): bool
   const openclawAgentName =
     sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32) ||
     DEFAULT_CONFIG.openclawAgentName;
+  const openclawPairedSessionToken = sanitizeString(raw.openclawPairedSessionToken, "", 1200);
+  const openclawPairedSessionExpiresAt = sanitizeIsoDateString(raw.openclawPairedSessionExpiresAt);
+  const openclawPairedAgentName = sanitizeString(raw.openclawPairedAgentName, "", 64);
 
   return Boolean(
     !openrouterApiKey &&
@@ -229,7 +250,11 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteShimejiConfig>): bool
       ollamaModel === DEFAULT_CONFIG.ollamaModel &&
       openclawGatewayUrl === DEFAULT_CONFIG.openclawGatewayUrl &&
       !openclawGatewayToken &&
-      openclawAgentName === DEFAULT_CONFIG.openclawAgentName,
+      openclawAgentName === DEFAULT_CONFIG.openclawAgentName &&
+      openclawMode === DEFAULT_CONFIG.openclawMode &&
+      !openclawPairedSessionToken &&
+      !openclawPairedSessionExpiresAt &&
+      !openclawPairedAgentName,
   );
 }
 
@@ -287,6 +312,16 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
       ? raw.provider
       : DEFAULT_CONFIG.provider;
   const provider: SiteShimejiProviderKind = parsedProvider;
+  const hasLegacyManualOpenClawConfig = Boolean(
+    sanitizeString(raw.openclawGatewayToken, "", 600) &&
+      sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32),
+  );
+  const openclawMode: SiteShimejiOpenClawMode =
+    raw.openclawMode === "manual" || raw.openclawMode === "paired"
+      ? raw.openclawMode
+      : hasLegacyManualOpenClawConfig
+        ? "manual"
+        : DEFAULT_CONFIG.openclawMode;
   const soundInputProvider: SiteShimejiSoundInputProviderKind =
     raw.soundInputProvider === "browser" || raw.soundInputProvider === "off"
       ? raw.soundInputProvider
@@ -313,6 +348,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
       sanitizeString(raw.ollamaUrl, DEFAULT_CONFIG.ollamaUrl, 300) || DEFAULT_CONFIG.ollamaUrl,
     ollamaModel:
       sanitizeString(raw.ollamaModel, DEFAULT_CONFIG.ollamaModel, 120) || DEFAULT_CONFIG.ollamaModel,
+    openclawMode,
     openclawGatewayUrl:
       sanitizeString(raw.openclawGatewayUrl, DEFAULT_CONFIG.openclawGatewayUrl, 300) ||
       DEFAULT_CONFIG.openclawGatewayUrl,
@@ -320,6 +356,9 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     openclawAgentName:
       sanitizeString(raw.openclawAgentName, DEFAULT_CONFIG.openclawAgentName, 32) ||
       DEFAULT_CONFIG.openclawAgentName,
+    openclawPairedSessionToken: sanitizeString(raw.openclawPairedSessionToken, "", 1200),
+    openclawPairedSessionExpiresAt: sanitizeIsoDateString(raw.openclawPairedSessionExpiresAt),
+    openclawPairedAgentName: sanitizeString(raw.openclawPairedAgentName, "", 64),
     soundInputProvider,
     soundInputAutoSend: sanitizeBoolean(raw.soundInputAutoSend, DEFAULT_CONFIG.soundInputAutoSend),
     soundOutputProvider,
@@ -363,11 +402,22 @@ function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: nu
   if (config.provider === "ollama") {
     return Boolean(config.ollamaUrl.trim() && config.ollamaModel.trim());
   }
-  return Boolean(
-    config.openclawGatewayUrl.trim() &&
-      config.openclawGatewayToken.trim() &&
-      config.openclawAgentName.trim(),
-  );
+  if (config.openclawMode === "manual") {
+    return Boolean(
+      config.openclawGatewayUrl.trim() &&
+        config.openclawGatewayToken.trim() &&
+        config.openclawAgentName.trim(),
+    );
+  }
+  const pairedToken = config.openclawPairedSessionToken.trim();
+  if (!pairedToken) return false;
+  if (config.openclawPairedSessionExpiresAt) {
+    const expiresAtMs = Date.parse(config.openclawPairedSessionExpiresAt);
+    if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function SiteShimejiProvider({ children }: { children: ReactNode }) {

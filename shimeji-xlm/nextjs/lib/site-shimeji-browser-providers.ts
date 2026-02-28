@@ -1,88 +1,15 @@
 import type { SiteShimejiChatMessage } from "@/lib/site-shimeji-chat";
+import {
+  buildOpenClawSessionKey,
+  extractOpenClawText,
+  getLastUserMessageText,
+  mergeOpenClawStreamText,
+  nextOpenClawId,
+  normalizeOpenClawGatewayUrl,
+  type OpenClawChatRequestMessage,
+} from "@/lib/site-shimeji-openclaw-protocol";
 
-type ChatRequestMessage = { role: "system" | "user" | "assistant"; content: string };
-
-function getLastUserMessageText(messages: ChatRequestMessage[]): string {
-  const lastUser = [...messages].reverse().find((entry) => entry.role === "user");
-  return String(lastUser?.content || "").trim();
-}
-
-function normalizeOpenClawGatewayUrl(rawUrl: string): string {
-  const fallback = "ws://127.0.0.1:18789";
-  const input = String(rawUrl || fallback).trim();
-  const withProtocol = /^[a-z]+:\/\//i.test(input) ? input : `ws://${input}`;
-
-  let parsed: URL;
-  try {
-    parsed = new URL(withProtocol);
-  } catch {
-    throw new Error(`OPENCLAW_INVALID_URL:${input || fallback}`);
-  }
-
-  if (parsed.protocol === "http:") parsed.protocol = "ws:";
-  if (parsed.protocol === "https:") parsed.protocol = "wss:";
-  if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
-    throw new Error(`OPENCLAW_INVALID_URL:${input || fallback}`);
-  }
-
-  return parsed.toString();
-}
-
-function extractOpenClawText(payload: unknown): string {
-  if (!payload) return "";
-  if (typeof payload === "string") return payload;
-  if (typeof payload !== "object") return "";
-  const value = payload as any;
-  if (typeof value.content === "string") return value.content;
-  if (typeof value.text === "string") return value.text;
-  if (value.delta) {
-    if (typeof value.delta.content === "string") return value.delta.content;
-    if (typeof value.delta.text === "string") return value.delta.text;
-  }
-  if (value.message) {
-    const msg = value.message;
-    if (typeof msg.content === "string") return msg.content;
-    if (Array.isArray(msg.content)) {
-      return msg.content.map((c: any) => c?.text || c?.content || c?.value || "").join("");
-    }
-  }
-  if (Array.isArray(value.content)) {
-    return value.content.map((c: any) => c?.text || c?.content || c?.value || "").join("");
-  }
-  return "";
-}
-
-function mergeOpenClawStreamText(current: string, next: string): string {
-  if (!next) return current;
-  if (!current) return next;
-  if (next === current) return current;
-  if (next.startsWith(current)) return next;
-  if (current.startsWith(next)) return current;
-  if (next.includes(current)) return next;
-  if (current.includes(next)) return current;
-  const maxOverlap = Math.min(current.length, next.length);
-  for (let i = maxOverlap; i > 0; i -= 1) {
-    if (current.slice(-i) === next.slice(0, i)) {
-      return current + next.slice(i);
-    }
-  }
-  return current + next;
-}
-
-let openClawReqCounter = 0;
-
-function nextOpenClawId(prefix = "shimeji") {
-  openClawReqCounter = (openClawReqCounter + 1) % 1_000_000_000;
-  return `${prefix}-${Date.now()}-${openClawReqCounter}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-}
-
-function buildOpenClawSessionKey(agentName: string) {
-  const raw = String(agentName || "web-shimeji-1").toLowerCase();
-  const safe = raw.replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-").slice(0, 48) || "main";
-  return `agent:${safe}:main`;
-}
+type ChatRequestMessage = OpenClawChatRequestMessage;
 
 function resolveOllamaUrl(rawUrl: string): string {
   const fallback = "http://127.0.0.1:11434";
@@ -385,6 +312,26 @@ export function formatSiteShimejiProviderError(
       ? "No se pudo conectar al gateway de OpenClaw desde tu navegador."
       : "Could not connect to the OpenClaw gateway from your browser.";
   }
+  if (message.startsWith("OPENCLAW_PAIRING_REQUIRED")) {
+    return isSpanish
+      ? "Primero vinculá OpenClaw con un código de pairing en la configuración."
+      : "Pair OpenClaw first with a pairing code in settings.";
+  }
+  if (message.startsWith("OPENCLAW_PAIRING_EXPIRED")) {
+    return isSpanish
+      ? "Tu sesión de OpenClaw venció. Vinculá un nuevo código."
+      : "Your OpenClaw session expired. Pair with a new code.";
+  }
+  if (message.startsWith("OPENCLAW_PAIRING_INVALID")) {
+    return isSpanish
+      ? "La sesión de OpenClaw no es válida. Volvé a vincular con un código."
+      : "OpenClaw session is invalid. Pair again with a code.";
+  }
+  if (message.startsWith("OPENCLAW_RELAY_FAILED")) {
+    return isSpanish
+      ? "No se pudo completar el chat por el relay de OpenClaw."
+      : "Could not complete chat through the OpenClaw relay.";
+  }
   if (provider === "openrouter") {
     return isSpanish
       ? "No se pudo completar la solicitud con OpenRouter. Revisa tu key y modelo."
@@ -401,4 +348,3 @@ export function formatSiteShimejiProviderError(
 }
 
 export type SiteShimejiClientHistoryMessage = SiteShimejiChatMessage;
-

@@ -1142,12 +1142,33 @@ export function SiteShimejiMascot() {
                 ollamaUrl: config.ollamaUrl,
                 ollamaModel: config.ollamaModel,
               })
-            : await sendOpenClawBrowserChat({
-                messages: providerMessages,
-                gatewayUrl: config.openclawGatewayUrl,
-                gatewayToken: config.openclawGatewayToken,
-                agentName: config.openclawAgentName,
-              });
+            : config.openclawMode === "paired"
+              ? await (async () => {
+                  const relayResponse = await fetch("/api/site-shimeji/openclaw/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      sessionToken: config.openclawPairedSessionToken,
+                      messages: providerMessages,
+                    }),
+                  });
+                  const relayJson = (await relayResponse.json().catch(() => null)) as
+                    | { reply?: string; error?: string; sessionExpiresAt?: string }
+                    | null;
+                  if (!relayResponse.ok || typeof relayJson?.reply !== "string" || !relayJson.reply.trim()) {
+                    throw new Error(relayJson?.error || "OPENCLAW_RELAY_FAILED");
+                  }
+                  if (typeof relayJson.sessionExpiresAt === "string" && relayJson.sessionExpiresAt) {
+                    updateConfig({ openclawPairedSessionExpiresAt: relayJson.sessionExpiresAt });
+                  }
+                  return relayJson.reply.trim();
+                })()
+              : await sendOpenClawBrowserChat({
+                  messages: providerMessages,
+                  gatewayUrl: config.openclawGatewayUrl,
+                  gatewayToken: config.openclawGatewayToken,
+                  agentName: config.openclawAgentName,
+                });
       } else {
         const resp = await fetch("/api/shimeji-chat", {
           method: "POST",
@@ -1186,6 +1207,18 @@ export function SiteShimejiMascot() {
         incrementFreeSiteMessagesUsed();
       }
     } catch (error) {
+      const rawErrorMessage = String((error as Error)?.message || "");
+      if (
+        providerForRequest === "openclaw" &&
+        config.openclawMode === "paired" &&
+        (rawErrorMessage.startsWith("OPENCLAW_PAIRING_EXPIRED") ||
+          rawErrorMessage.startsWith("OPENCLAW_PAIRING_INVALID"))
+      ) {
+        updateConfig({
+          openclawPairedSessionToken: "",
+          openclawPairedSessionExpiresAt: "",
+        });
+      }
       const fallback = formatSiteShimejiProviderError(
         error,
         isSpanish,
