@@ -295,10 +295,10 @@ function ProviderFields() {
     ? Date.parse(config.openclawPairedSessionExpiresAt)
     : NaN;
   const pairedSessionExpired = Number.isFinite(pairedSessionExpiresAtMs) && pairedSessionExpiresAtMs <= Date.now();
-  const pairingEndpoint =
+  const pairingIssueEndpoint =
     typeof window === "undefined"
-      ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings"
-      : `${window.location.origin}/api/site-shimeji/openclaw/pairings`;
+      ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue"
+      : `${window.location.origin}/api/site-shimeji/openclaw/pairings/issue`;
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
     if (kind === "openrouter") {
@@ -430,10 +430,10 @@ function ProviderFields() {
   }
 
   function pairingCurlCommand() {
-    return `curl -X POST ${pairingEndpoint} \\
-  -H "Authorization: Bearer YOUR_OPENCLAW_PAIRING_ADMIN_TOKEN" \\
+    return `curl -sS -X POST ${pairingIssueEndpoint} \\
+  -H "Authorization: Bearer $OPENCLAW_PAIRING_ISSUER_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d '{"gatewayUrl":"wss://your-gateway.example","gatewayToken":"YOUR_GATEWAY_TOKEN","agentName":"web-shimeji-1"}'`;
+  -d '{"agentName":"web-shimeji-1"}'`;
   }
 
   function pairingMarkdownInstructions() {
@@ -442,20 +442,18 @@ function ProviderFields() {
 Return ONLY the pairing code text (example: Q7M4K9P2). Do not add explanations.
 
 ## Endpoint
-${pairingEndpoint}
+${pairingIssueEndpoint}
 
 ## Required values
-- OPENCLAW_PAIRING_ADMIN_TOKEN
-- OPENCLAW_GATEWAY_URL
-- OPENCLAW_GATEWAY_TOKEN
-- OPENCLAW_AGENT_NAME (optional, default: web-shimeji-1)
+- OPENCLAW_PAIRING_ISSUER_TOKEN
+- Optional OPENCLAW_AGENT_NAME (default: web-shimeji-1)
 
 ## Command
 \`\`\`bash
-curl -sS -X POST ${pairingEndpoint} \\
-  -H "Authorization: Bearer $OPENCLAW_PAIRING_ADMIN_TOKEN" \\
+curl -sS -X POST ${pairingIssueEndpoint} \\
+  -H "Authorization: Bearer $OPENCLAW_PAIRING_ISSUER_TOKEN" \\
   -H "Content-Type: application/json" \\
-  -d "{\"gatewayUrl\":\"$OPENCLAW_GATEWAY_URL\",\"gatewayToken\":\"$OPENCLAW_GATEWAY_TOKEN\",\"agentName\":\"\${OPENCLAW_AGENT_NAME:-web-shimeji-1}\"}"
+  -d "{\"agentName\":\"\${OPENCLAW_AGENT_NAME:-web-shimeji-1}\"}"
 \`\`\`
 
 ## Output rule
@@ -651,8 +649,8 @@ From the JSON response, extract \`pairingCode\` and print only that value.`;
             </ol>
             <p className="mt-2">
               {isSpanish
-                ? "El backend web usa `OPENCLAW_PAIRING_ADMIN_TOKEN` para autorizar esa creación de códigos."
-                : "The web backend uses `OPENCLAW_PAIRING_ADMIN_TOKEN` to authorize code creation."}
+                ? "Modo seguro recomendado: el agente llama /pairings/issue con `OPENCLAW_PAIRING_ISSUER_TOKEN`. El gateway token real queda guardado en el backend del sitio."
+                : "Recommended secure mode: the agent calls /pairings/issue with `OPENCLAW_PAIRING_ISSUER_TOKEN`. The real gateway token stays on website backend."}
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button
