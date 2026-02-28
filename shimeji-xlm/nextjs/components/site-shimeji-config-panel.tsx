@@ -437,23 +437,29 @@ function ProviderFields() {
   }
 
   function pairingMarkdownInstructions() {
-    return `# OpenClaw Pairing Code (for web users)
+    return `# Task: generate pairing code for web user
 
-Use this on your OpenClaw server/agent to generate a pairing code for the user.
+Return ONLY the pairing code text (example: Q7M4K9P2). Do not add explanations.
 
-## 1) Generate pairing code
+## Endpoint
+${pairingEndpoint}
+
+## Required values
+- OPENCLAW_PAIRING_ADMIN_TOKEN
+- OPENCLAW_GATEWAY_URL
+- OPENCLAW_GATEWAY_TOKEN
+- OPENCLAW_AGENT_NAME (optional, default: web-shimeji-1)
+
+## Command
 \`\`\`bash
-${pairingCurlCommand()}
+curl -sS -X POST ${pairingEndpoint} \\
+  -H "Authorization: Bearer $OPENCLAW_PAIRING_ADMIN_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d "{\"gatewayUrl\":\"$OPENCLAW_GATEWAY_URL\",\"gatewayToken\":\"$OPENCLAW_GATEWAY_TOKEN\",\"agentName\":\"\${OPENCLAW_AGENT_NAME:-web-shimeji-1}\"}"
 \`\`\`
 
-## 2) Return the code
-- Read JSON field \`pairingCode\`.
-- Send that code to the user so they can paste it in the website pairing input.
-
-## Notes
-- Endpoint: \`${pairingEndpoint}\`
-- This endpoint requires \`OPENCLAW_PAIRING_ADMIN_TOKEN\` configured on the website backend.
-- The user never needs to paste gateway URL/token in web when using pairing mode.`;
+## Output rule
+From the JSON response, extract \`pairingCode\` and print only that value.`;
   }
 
   async function copyToClipboard(value: string, successEn: string, successEs: string) {
@@ -653,36 +659,15 @@ ${pairingCurlCommand()}
                 type="button"
                 onClick={() =>
                   void copyToClipboard(
-                    pairingCurlCommand(),
-                    "Pairing command copied.",
-                    "Comando de pairing copiado.",
-                  )
-                }
-                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
-              >
-                {isSpanish ? "Copiar comando" : "Copy command"}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void copyToClipboard(
                     pairingMarkdownInstructions(),
-                    "Agent markdown instructions copied.",
-                    "Instrucciones markdown para el agente copiadas.",
+                    "Agent instructions copied.",
+                    "Instrucciones para el agente copiadas.",
                   )
                 }
                 className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
               >
-                {isSpanish ? "Copiar instrucciones MD" : "Copy markdown instructions"}
+                {isSpanish ? "Copiar instrucciones para agente" : "Copy agent instructions"}
               </button>
-              <a
-                href="/openclaw-pairing-agent-template.md"
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
-              >
-                {isSpanish ? "Ver template MD" : "Open markdown template"}
-              </a>
             </div>
             <pre className="mt-2 overflow-x-auto rounded-lg border border-white/10 bg-black/35 p-2 text-[11px] leading-relaxed text-foreground">
               <code>
