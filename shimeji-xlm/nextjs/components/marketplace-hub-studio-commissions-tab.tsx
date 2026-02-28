@@ -137,7 +137,7 @@ export function MarketplaceHubStudioCommissionsTab({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="config-contrast-panel space-y-4">
       {/* Lock status banner */}
       {!canListNewCommissionEgg && lockReason ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-foreground">

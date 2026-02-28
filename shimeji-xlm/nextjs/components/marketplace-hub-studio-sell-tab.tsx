@@ -294,7 +294,7 @@ export function MarketplaceHubStudioSellTab({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="config-contrast-panel space-y-4">
       {showCreatePanel ? (
         <div className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4">
         <h3 className="text-sm font-semibold text-foreground">{t("Create and Publish NFT", "Crear y Publicar NFT")}</h3>

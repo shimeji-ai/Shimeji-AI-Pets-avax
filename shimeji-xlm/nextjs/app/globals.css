@@ -1368,6 +1368,14 @@ body[data-theme="pastel"] #giveaway-panel .neural-button:hover {
   color: color-mix(in oklab, var(--muted-foreground) 85%, transparent) !important;
 }
 
+.shimeji-settings-panel .text-muted-foreground {
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background) 26%) !important;
+}
+
+.shimeji-settings-panel [class*="text-muted-foreground/"] {
+  color: color-mix(in oklab, var(--foreground) 80%, var(--background) 20%) !important;
+}
+
 .shimeji-settings-panel select option {
   color: var(--foreground) !important;
   background: var(--background) !important;
@@ -1379,4 +1387,36 @@ body[data-theme="pastel"] #giveaway-panel .neural-button:hover {
 
 .shimeji-settings-panel :is(.rounded-3xl.border, .rounded-2xl.border, .rounded-xl.border) {
   border-color: color-mix(in oklab, var(--border) 90%, transparent) !important;
+}
+
+/* Generic contrast layer for config-heavy panels (marketplace + settings) */
+.config-contrast-panel {
+  color: var(--foreground);
+}
+
+.config-contrast-panel .text-muted-foreground {
+  color: color-mix(in oklab, var(--foreground) 72%, var(--background) 28%) !important;
+}
+
+.config-contrast-panel [class*="text-muted-foreground/"] {
+  color: color-mix(in oklab, var(--foreground) 78%, var(--background) 22%) !important;
+}
+
+.config-contrast-panel :is(input:not([type="range"]), select, textarea) {
+  color: var(--foreground) !important;
+  border-color: color-mix(in oklab, var(--border) 86%, var(--foreground) 14%) !important;
+  background: color-mix(in oklab, var(--card) 90%, var(--background) 10%) !important;
+}
+
+.config-contrast-panel :is(input:not([type="range"]), select, textarea)::placeholder {
+  color: color-mix(in oklab, var(--foreground) 60%, var(--background) 40%) !important;
+}
+
+.config-contrast-panel select option {
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+}
+
+.config-contrast-panel select option:disabled {
+  color: color-mix(in oklab, var(--foreground) 56%, var(--background) 44%) !important;
 }

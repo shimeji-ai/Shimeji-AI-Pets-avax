@@ -568,6 +568,44 @@ function ProviderFields() {
 
       {config.openclawMode === "paired" ? (
         <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">
+              {isSpanish
+                ? "¿De dónde sale el código de pairing?"
+                : "Where does the pairing code come from?"}
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
+              <li>
+                {isSpanish
+                  ? "Tu agente/servidor OpenClaw debe llamar al endpoint de pairing del sitio."
+                  : "Your OpenClaw agent/server must call the website pairing endpoint."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Esa llamada devuelve `pairingCode`."
+                  : "That call returns a `pairingCode`."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Pegá ese código acá y presioná Vincular."
+                  : "Paste that code here and press Pair."}
+              </li>
+            </ol>
+            <p className="mt-2">
+              {isSpanish
+                ? "El backend web usa `OPENCLAW_PAIRING_ADMIN_TOKEN` para autorizar esa creación de códigos."
+                : "The web backend uses `OPENCLAW_PAIRING_ADMIN_TOKEN` to authorize code creation."}
+            </p>
+            <pre className="mt-2 overflow-x-auto rounded-lg border border-white/10 bg-black/35 p-2 text-[11px] leading-relaxed text-foreground">
+              <code>
+{`curl -X POST https://YOUR_SITE/api/site-shimeji/openclaw/pairings \\
+  -H "Authorization: Bearer YOUR_OPENCLAW_PAIRING_ADMIN_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"gatewayUrl":"wss://your-gateway.example","gatewayToken":"YOUR_GATEWAY_TOKEN","agentName":"web-shimeji-1"}'`}
+              </code>
+            </pre>
+          </div>
+
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {isSpanish ? "Código de pairing" : "Pairing code"}

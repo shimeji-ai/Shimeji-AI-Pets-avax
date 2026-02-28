@@ -195,7 +195,7 @@ export function SettingsMenu() {
         <div
           role="dialog"
           aria-label={isSpanish ? "Ajustes del sitio" : "Site settings"}
-          className="absolute right-0 top-full mt-2 w-80 max-h-[82vh] overflow-y-auto rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur z-50"
+          className="shimeji-settings-panel config-contrast-panel absolute right-0 top-full mt-2 w-80 max-h-[82vh] overflow-y-auto rounded-2xl border border-border bg-background/95 shadow-2xl backdrop-blur z-50"
         >
           {/* ── Panel header ── */}
           <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur">

@@ -815,7 +815,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
 
           {/* Sell / Swap tab */}
           {isMarketplaceOnlyMode && marketplaceSellTab === "selling" ? (
-            <section className="rounded-3xl border border-border bg-white/10 p-4 md:p-6">
+            <section className="config-contrast-panel rounded-3xl border border-border bg-white/10 p-4 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
                   <Tag className="h-5 w-5 text-blue-300" />
@@ -885,7 +885,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
 
           {/* Creators tab */}
           {isMarketplaceOnlyMode && marketplaceSellTab === "creators" ? (
-            <section className="rounded-3xl border border-border bg-white/10 p-4 md:p-6">
+            <section className="config-contrast-panel rounded-3xl border border-border bg-white/10 p-4 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
                   <ArrowLeftRight className="h-5 w-5 text-fuchsia-300" />
