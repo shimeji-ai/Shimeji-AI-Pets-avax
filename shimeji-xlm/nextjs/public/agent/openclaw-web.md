@@ -16,7 +16,8 @@ Goal: connect any OpenClaw agent to `https://www.shimeji.dev/` with a secure one
 The copied instructions already include:
 - one-time `requestCode` (short-lived),
 - endpoint `/api/site-shimeji/openclaw/pairings/issue`,
-- command to send `gatewayUrl` + `gatewayToken` + `agentName`.
+- command to send `gatewayUrl` + `gatewayToken` + `agentName`,
+- localhost/private gateway autodetection with automatic Cloudflare Tunnel fallback.
 
 The agent should return only the pairing code.
 

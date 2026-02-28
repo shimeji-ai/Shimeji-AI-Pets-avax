@@ -1,50 +1,16 @@
 import crypto from "crypto";
-import { promises as fs } from "fs";
-import path from "path";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import {
   normalizeOpenClawGatewayUrl,
   sanitizeOpenClawAgentName,
 } from "@/lib/site-shimeji-openclaw-protocol";
 
-const STORE_FILE_PATH =
-  process.env.OPENCLAW_PAIRING_STORE_FILE || "/tmp/site-shimeji-openclaw-pairings.json";
 const DEFAULT_PAIRING_TTL_SECONDS = 10 * 60;
 const DEFAULT_PAIRING_REQUEST_TTL_SECONDS = 5 * 60;
 const DEFAULT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-type PairingRecord = {
-  code: string;
-  createdAtMs: number;
-  expiresAtMs: number;
-  gatewayUrl: string;
-  gatewayTokenEnc: string;
-  agentName: string;
-  maxClaims: number;
-  claimsUsed: number;
-};
-
-type PairingRequestRecord = {
-  code: string;
-  createdAtMs: number;
-  expiresAtMs: number;
-};
-
-type SessionRecord = {
-  tokenHash: string;
-  createdAtMs: number;
-  expiresAtMs: number;
-  gatewayUrl: string;
-  gatewayTokenEnc: string;
-  agentName: string;
-};
-
-type StoreData = {
-  version: 2;
-  requests: Record<string, PairingRequestRecord>;
-  pairings: Record<string, PairingRecord>;
-  sessions: Record<string, SessionRecord>;
-};
+let ensurePairingTablesPromise: Promise<void> | null = null;
 
 type ClaimFailReason = "invalid_code" | "expired_code" | "max_claims_reached";
 type ResolveSessionFailReason = "invalid_session" | "expired_session";
@@ -88,12 +54,6 @@ export type ResolveSessionResult =
       ok: false;
       reason: ResolveSessionFailReason;
     };
-
-let storeWriteQueue: Promise<void> = Promise.resolve();
-
-function createEmptyStore(): StoreData {
-  return { version: 2, requests: {}, pairings: {}, sessions: {} };
-}
 
 function toIso(ts: number): string {
   return new Date(ts).toISOString();
@@ -146,11 +106,7 @@ function decryptSensitive(payload: string): string {
   }
   const iv = Uint8Array.from(Buffer.from(ivRaw, "base64url"));
   const tag = Uint8Array.from(Buffer.from(tagRaw, "base64url"));
-  const decipher = crypto.createDecipheriv(
-    "aes-256-gcm",
-    deriveKey(),
-    iv,
-  );
+  const decipher = crypto.createDecipheriv("aes-256-gcm", deriveKey(), iv);
   decipher.setAuthTag(tag);
   return `${decipher.update(cipherRaw, "base64url", "utf8")}${decipher.final("utf8")}`;
 }
@@ -171,92 +127,135 @@ function randomSessionToken(): string {
   return crypto.randomBytes(24).toString("base64url");
 }
 
-async function readStore(): Promise<StoreData> {
-  try {
-    const raw = await fs.readFile(STORE_FILE_PATH, "utf8");
-    const parsed = JSON.parse(raw) as Partial<StoreData>;
-    if (!parsed || typeof parsed !== "object") return createEmptyStore();
-    return {
-      version: 2,
-      requests: parsed.requests && typeof parsed.requests === "object" ? parsed.requests : {},
-      pairings: parsed.pairings && typeof parsed.pairings === "object" ? parsed.pairings : {},
-      sessions: parsed.sessions && typeof parsed.sessions === "object" ? parsed.sessions : {},
-    };
-  } catch {
-    return createEmptyStore();
-  }
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025";
 }
 
-async function writeStore(data: StoreData): Promise<void> {
-  const dir = path.dirname(STORE_FILE_PATH);
-  await fs.mkdir(dir, { recursive: true });
-  const tmpPath = `${STORE_FILE_PATH}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify(data), "utf8");
-  await fs.rename(tmpPath, STORE_FILE_PATH);
+type PairingStoreDelegates = {
+  openClawPairingRequest: any;
+  openClawPairingCode: any;
+  openClawPairingSession: any;
+};
+
+function pairingStore(client: Prisma.TransactionClient | typeof prisma): PairingStoreDelegates {
+  return client as unknown as PairingStoreDelegates;
 }
 
-function pruneExpiredRecords(store: StoreData, nowMs: number): void {
-  for (const [code, request] of Object.entries(store.requests)) {
-    if (!request || request.expiresAtMs <= nowMs) {
-      delete store.requests[code];
-    }
-  }
+async function ensurePairingTables(): Promise<void> {
+  if (ensurePairingTablesPromise) return ensurePairingTablesPromise;
 
-  for (const [code, pairing] of Object.entries(store.pairings)) {
-    if (!pairing || pairing.expiresAtMs <= nowMs || pairing.claimsUsed >= pairing.maxClaims) {
-      delete store.pairings[code];
-    }
-  }
+  ensurePairingTablesPromise = (async () => {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "openclaw_pairing_requests" (
+        "code" TEXT PRIMARY KEY,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expiresAt" TIMESTAMP(3) NOT NULL
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "openclaw_pairing_codes" (
+        "code" TEXT PRIMARY KEY,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "gatewayUrl" TEXT NOT NULL,
+        "gatewayTokenEnc" TEXT NOT NULL,
+        "agentName" TEXT NOT NULL,
+        "maxClaims" INTEGER NOT NULL DEFAULT 1,
+        "claimsUsed" INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "openclaw_pairing_sessions" (
+        "tokenHash" TEXT PRIMARY KEY,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "gatewayUrl" TEXT NOT NULL,
+        "gatewayTokenEnc" TEXT NOT NULL,
+        "agentName" TEXT NOT NULL
+      );
+    `);
 
-  for (const [tokenHash, session] of Object.entries(store.sessions)) {
-    if (!session || session.expiresAtMs <= nowMs) {
-      delete store.sessions[tokenHash];
-    }
-  }
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "openclaw_pairing_requests_expiresAt_idx"
+      ON "openclaw_pairing_requests" ("expiresAt");
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "openclaw_pairing_codes_expiresAt_idx"
+      ON "openclaw_pairing_codes" ("expiresAt");
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "openclaw_pairing_sessions_expiresAt_idx"
+      ON "openclaw_pairing_sessions" ("expiresAt");
+    `);
+  })().catch((error) => {
+    ensurePairingTablesPromise = null;
+    throw error;
+  });
+
+  return ensurePairingTablesPromise;
 }
 
-function withStoreLock<T>(operation: () => Promise<T>): Promise<T> {
-  const next = storeWriteQueue.then(operation, operation);
-  storeWriteQueue = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  return next;
+async function pruneExpiredRecords(tx: Prisma.TransactionClient, now: Date): Promise<void> {
+  const db = pairingStore(tx);
+  await Promise.all([
+    db.openClawPairingRequest.deleteMany({
+      where: { expiresAt: { lte: now } },
+    }),
+    db.openClawPairingCode.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lte: now } }, { claimsUsed: { gte: 1 }, maxClaims: 1 }],
+      },
+    }),
+    db.openClawPairingSession.deleteMany({
+      where: { expiresAt: { lte: now } },
+    }),
+  ]);
 }
 
-function createPairingRecord(args: {
-  store: StoreData;
+async function generateUniqueCode(tx: Prisma.TransactionClient): Promise<string> {
+  const db = pairingStore(tx);
+  for (let i = 0; i < 40; i += 1) {
+    const code = randomCode(8);
+    const [request, pairing] = await Promise.all([
+      db.openClawPairingRequest.findUnique({ where: { code }, select: { code: true } }),
+      db.openClawPairingCode.findUnique({ where: { code }, select: { code: true } }),
+    ]);
+    if (!request && !pairing) return code;
+  }
+  throw new Error("OPENCLAW_PAIRING_CODE_COLLISION");
+}
+
+async function createPairingRecord(args: {
+  tx: Prisma.TransactionClient;
   nowMs: number;
   gatewayUrl: string;
   gatewayToken: string;
   agentName: string;
   ttlSeconds: number;
   maxClaims: number;
-}): { code: string; expiresAt: string; agentName: string } {
-  const { store, nowMs, gatewayUrl, gatewayToken, agentName, ttlSeconds, maxClaims } = args;
-  const expiresAtMs = nowMs + ttlSeconds * 1000;
-
-  let code = randomCode(8);
-  for (let i = 0; i < 20 && (store.pairings[code] || store.requests[code]); i += 1) {
-    code = randomCode(8);
-  }
-
-  store.pairings[code] = {
-    code,
-    createdAtMs: nowMs,
-    expiresAtMs,
-    gatewayUrl,
-    gatewayTokenEnc: encryptSensitive(gatewayToken),
-    agentName,
-    maxClaims,
-    claimsUsed: 0,
-  };
-  return { code, expiresAt: toIso(expiresAtMs), agentName };
+}): Promise<{ code: string; expiresAt: string; agentName: string }> {
+  const db = pairingStore(args.tx);
+  const code = await generateUniqueCode(args.tx);
+  const expiresAtMs = args.nowMs + args.ttlSeconds * 1000;
+  await db.openClawPairingCode.create({
+    data: {
+      code,
+      createdAt: new Date(args.nowMs),
+      expiresAt: new Date(expiresAtMs),
+      gatewayUrl: args.gatewayUrl,
+      gatewayTokenEnc: encryptSensitive(args.gatewayToken),
+      agentName: args.agentName,
+      maxClaims: args.maxClaims,
+      claimsUsed: 0,
+    },
+  });
+  return { code, expiresAt: toIso(expiresAtMs), agentName: args.agentName };
 }
 
 export async function createOpenClawPairingRequest(args?: {
   ttlSeconds?: number;
 }): Promise<{ requestCode: string; expiresAt: string; ttlSeconds: number }> {
+  await ensurePairingTables();
   const ttlSeconds = clampInt(
     args?.ttlSeconds,
     DEFAULT_PAIRING_REQUEST_TTL_SECONDS,
@@ -264,26 +263,21 @@ export async function createOpenClawPairingRequest(args?: {
     30 * 60,
   );
 
-  return withStoreLock(async () => {
+  return prisma.$transaction(async (tx) => {
+    const db = pairingStore(tx);
     const now = Date.now();
-    const store = await readStore();
-    pruneExpiredRecords(store, now);
+    await pruneExpiredRecords(tx, new Date(now));
+    const requestCode = await generateUniqueCode(tx);
     const expiresAtMs = now + ttlSeconds * 1000;
-
-    let code = randomCode(8);
-    for (let i = 0; i < 20 && (store.requests[code] || store.pairings[code]); i += 1) {
-      code = randomCode(8);
-    }
-
-    store.requests[code] = {
-      code,
-      createdAtMs: now,
-      expiresAtMs,
-    };
-
-    await writeStore(store);
+    await db.openClawPairingRequest.create({
+      data: {
+        code: requestCode,
+        createdAt: new Date(now),
+        expiresAt: new Date(expiresAtMs),
+      },
+    });
     return {
-      requestCode: code,
+      requestCode,
       expiresAt: toIso(expiresAtMs),
       ttlSeconds,
     };
@@ -297,6 +291,7 @@ export async function createOpenClawPairingCode(args: {
   ttlSeconds?: number;
   maxClaims?: number;
 }): Promise<{ code: string; expiresAt: string; agentName: string }> {
+  await ensurePairingTables();
   const gatewayUrl = normalizeOpenClawGatewayUrl(args.gatewayUrl);
   const gatewayToken = sanitizeToken(args.gatewayToken);
   if (!gatewayToken) {
@@ -306,13 +301,11 @@ export async function createOpenClawPairingCode(args: {
   const ttlSeconds = clampInt(args.ttlSeconds, DEFAULT_PAIRING_TTL_SECONDS, 60, 24 * 60 * 60);
   const maxClaims = clampInt(args.maxClaims, 1, 1, 25);
 
-  return withStoreLock(async () => {
+  return prisma.$transaction(async (tx) => {
     const now = Date.now();
-    const store = await readStore();
-    pruneExpiredRecords(store, now);
-
-    const created = createPairingRecord({
-      store,
+    await pruneExpiredRecords(tx, new Date(now));
+    return createPairingRecord({
+      tx,
       nowMs: now,
       gatewayUrl,
       gatewayToken,
@@ -320,9 +313,6 @@ export async function createOpenClawPairingCode(args: {
       ttlSeconds,
       maxClaims,
     });
-
-    await writeStore(store);
-    return created;
   });
 }
 
@@ -334,6 +324,7 @@ export async function createOpenClawPairingCodeFromRequest(args: {
   ttlSeconds?: number;
   maxClaims?: number;
 }): Promise<PairingIssueFromRequestResult> {
+  await ensurePairingTables();
   const requestCode = sanitizePairingCode(args.requestCode);
   if (!requestCode) {
     return { ok: false, reason: "invalid_request_code" };
@@ -348,28 +339,33 @@ export async function createOpenClawPairingCodeFromRequest(args: {
   const ttlSeconds = clampInt(args.ttlSeconds, DEFAULT_PAIRING_TTL_SECONDS, 60, 24 * 60 * 60);
   const maxClaims = clampInt(args.maxClaims, 1, 1, 25);
 
-  return withStoreLock(async () => {
+  return prisma.$transaction(async (tx) => {
+    const db = pairingStore(tx);
     const now = Date.now();
-    const store = await readStore();
-    pruneExpiredRecords(store, now);
+    await pruneExpiredRecords(tx, new Date(now));
 
-    const request = store.requests[requestCode];
+    const request = await db.openClawPairingRequest.findUnique({
+      where: { code: requestCode },
+    });
     if (!request) {
-      await writeStore(store);
-      return { ok: false, reason: "invalid_request_code" };
+      return { ok: false, reason: "invalid_request_code" as const };
+    }
+    if (request.expiresAt.getTime() <= now) {
+      await db.openClawPairingRequest.delete({ where: { code: requestCode } }).catch(() => undefined);
+      return { ok: false, reason: "expired_request_code" as const };
     }
 
-    if (request.expiresAtMs <= now) {
-      delete store.requests[requestCode];
-      await writeStore(store);
-      return { ok: false, reason: "expired_request_code" };
+    try {
+      await db.openClawPairingRequest.delete({ where: { code: requestCode } });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return { ok: false, reason: "invalid_request_code" as const };
+      }
+      throw error;
     }
 
-    // One-shot request token: consume it before creating pairing code.
-    delete store.requests[requestCode];
-
-    const created = createPairingRecord({
-      store,
+    const created = await createPairingRecord({
+      tx,
       nowMs: now,
       gatewayUrl,
       gatewayToken,
@@ -378,7 +374,6 @@ export async function createOpenClawPairingCodeFromRequest(args: {
       maxClaims,
     });
 
-    await writeStore(store);
     return {
       ok: true,
       ...created,
@@ -392,6 +387,7 @@ export async function claimOpenClawPairingCode(args: {
   code: string;
   sessionTtlSeconds?: number;
 }): Promise<PairingClaimResult> {
+  await ensurePairingTables();
   const rawCode = sanitizePairingCode(args.code);
   if (!rawCode) {
     return { ok: false, reason: "invalid_code" };
@@ -404,51 +400,78 @@ export async function claimOpenClawPairingCode(args: {
     60 * 24 * 60 * 60,
   );
 
-  return withStoreLock(async () => {
+  return prisma.$transaction(async (tx) => {
+    const db = pairingStore(tx);
     const now = Date.now();
-    const store = await readStore();
-    pruneExpiredRecords(store, now);
+    await pruneExpiredRecords(tx, new Date(now));
 
-    const pairing = store.pairings[rawCode];
+    const pairing = await db.openClawPairingCode.findUnique({ where: { code: rawCode } });
     if (!pairing) {
-      await writeStore(store);
-      return { ok: false, reason: "invalid_code" };
+      return { ok: false, reason: "invalid_code" as const };
     }
 
-    if (pairing.expiresAtMs <= now) {
-      delete store.pairings[rawCode];
-      await writeStore(store);
-      return { ok: false, reason: "expired_code" };
+    if (pairing.expiresAt.getTime() <= now) {
+      await db.openClawPairingCode.delete({ where: { code: rawCode } }).catch(() => undefined);
+      return { ok: false, reason: "expired_code" as const };
     }
 
     if (pairing.claimsUsed >= pairing.maxClaims) {
-      delete store.pairings[rawCode];
-      await writeStore(store);
-      return { ok: false, reason: "max_claims_reached" };
+      await db.openClawPairingCode.delete({ where: { code: rawCode } }).catch(() => undefined);
+      return { ok: false, reason: "max_claims_reached" as const };
     }
 
-    pairing.claimsUsed += 1;
-    if (pairing.claimsUsed >= pairing.maxClaims) {
-      // Pairing code is one-time when maxClaims is 1.
-      delete store.pairings[rawCode];
-    } else {
-      store.pairings[rawCode] = pairing;
+    const incrementResult = await db.openClawPairingCode.updateMany({
+      where: {
+        code: rawCode,
+        claimsUsed: pairing.claimsUsed,
+      },
+      data: {
+        claimsUsed: {
+          increment: 1,
+        },
+      },
+    });
+    if (incrementResult.count !== 1) {
+      const latest = await db.openClawPairingCode.findUnique({ where: { code: rawCode } });
+      if (!latest) return { ok: false, reason: "invalid_code" as const };
+      if (latest.expiresAt.getTime() <= now) return { ok: false, reason: "expired_code" as const };
+      return { ok: false, reason: "max_claims_reached" as const };
     }
 
-    const sessionToken = randomSessionToken();
-    const tokenHash = hashSessionToken(sessionToken);
+    const claimsUsed = pairing.claimsUsed + 1;
+    if (claimsUsed >= pairing.maxClaims) {
+      await db.openClawPairingCode.delete({ where: { code: rawCode } }).catch(() => undefined);
+    }
+
     const expiresAtMs = now + sessionTtlSeconds * 1000;
+    let sessionToken = "";
+    for (let i = 0; i < 6; i += 1) {
+      const candidate = randomSessionToken();
+      const tokenHash = hashSessionToken(candidate);
+      try {
+        await db.openClawPairingSession.create({
+          data: {
+            tokenHash,
+            createdAt: new Date(now),
+            expiresAt: new Date(expiresAtMs),
+            gatewayUrl: pairing.gatewayUrl,
+            gatewayTokenEnc: pairing.gatewayTokenEnc,
+            agentName: pairing.agentName,
+          },
+        });
+        sessionToken = candidate;
+        break;
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          continue;
+        }
+        throw error;
+      }
+    }
+    if (!sessionToken) {
+      throw new Error("OPENCLAW_PAIRING_SESSION_CREATE_FAILED");
+    }
 
-    store.sessions[tokenHash] = {
-      tokenHash,
-      createdAtMs: now,
-      expiresAtMs,
-      gatewayUrl: pairing.gatewayUrl,
-      gatewayTokenEnc: pairing.gatewayTokenEnc,
-      agentName: pairing.agentName,
-    };
-
-    await writeStore(store);
     return {
       ok: true,
       sessionToken,
@@ -459,45 +482,40 @@ export async function claimOpenClawPairingCode(args: {
 }
 
 export async function resolveOpenClawPairingSession(sessionToken: string): Promise<ResolveSessionResult> {
+  await ensurePairingTables();
   const token = sanitizeToken(sessionToken, 2048);
   if (!token) {
     return { ok: false, reason: "invalid_session" };
   }
 
-  return withStoreLock(async () => {
-    const now = Date.now();
-    const store = await readStore();
-    pruneExpiredRecords(store, now);
+  const tokenHash = hashSessionToken(token);
+  const now = Date.now();
 
-    const tokenHash = hashSessionToken(token);
-    const session = store.sessions[tokenHash];
-    if (!session) {
-      await writeStore(store);
-      return { ok: false, reason: "invalid_session" };
-    }
-
-    if (session.expiresAtMs <= now) {
-      delete store.sessions[tokenHash];
-      await writeStore(store);
-      return { ok: false, reason: "expired_session" };
-    }
-
-    let gatewayToken = "";
-    try {
-      gatewayToken = decryptSensitive(session.gatewayTokenEnc);
-    } catch {
-      delete store.sessions[tokenHash];
-      await writeStore(store);
-      return { ok: false, reason: "invalid_session" };
-    }
-
-    await writeStore(store);
-    return {
-      ok: true,
-      gatewayUrl: session.gatewayUrl,
-      gatewayToken,
-      agentName: session.agentName,
-      sessionExpiresAt: toIso(session.expiresAtMs),
-    };
+  const db = pairingStore(prisma);
+  const session = await db.openClawPairingSession.findUnique({
+    where: { tokenHash },
   });
+  if (!session) {
+    return { ok: false, reason: "invalid_session" };
+  }
+  if (session.expiresAt.getTime() <= now) {
+    await db.openClawPairingSession.delete({ where: { tokenHash } }).catch(() => undefined);
+    return { ok: false, reason: "expired_session" };
+  }
+
+  let gatewayToken = "";
+  try {
+    gatewayToken = decryptSensitive(session.gatewayTokenEnc);
+  } catch {
+    await db.openClawPairingSession.delete({ where: { tokenHash } }).catch(() => undefined);
+    return { ok: false, reason: "invalid_session" };
+  }
+
+  return {
+    ok: true,
+    gatewayUrl: session.gatewayUrl,
+    gatewayToken,
+    agentName: session.agentName,
+    sessionExpiresAt: session.expiresAt.toISOString(),
+  };
 }

@@ -15,6 +15,41 @@ function sanitizeString(input: unknown, max = 1600): string {
   return typeof input === "string" ? input.trim().slice(0, max) : "";
 }
 
+function parseGatewayUrl(input: string): URL | null {
+  const withProtocol = /^[a-z]+:\/\//i.test(input) ? input : `ws://${input}`;
+  try {
+    return new URL(withProtocol);
+  } catch {
+    return null;
+  }
+}
+
+function isPrivateHost(hostname: string): boolean {
+  const host = hostname.trim().toLowerCase();
+  if (!host) return true;
+  if (
+    host === "localhost" ||
+    host === "host.docker.internal" ||
+    host.endsWith(".local")
+  ) {
+    return true;
+  }
+  if (host === "::1" || host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")) {
+    return true;
+  }
+
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!ipv4) return false;
+  const a = Number(ipv4[1]);
+  const b = Number(ipv4[2]);
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as IssuePayload;
@@ -28,6 +63,20 @@ export async function POST(request: NextRequest) {
     }
     if (!gatewayUrl || !gatewayToken) {
       return NextResponse.json({ error: "OPENCLAW_PAIRING_GATEWAY_REQUIRED" }, { status: 400 });
+    }
+    const parsedGateway = parseGatewayUrl(gatewayUrl);
+    if (!parsedGateway) {
+      return NextResponse.json({ error: "OPENCLAW_INVALID_URL" }, { status: 400 });
+    }
+    if (isPrivateHost(parsedGateway.hostname)) {
+      return NextResponse.json(
+        {
+          error: "OPENCLAW_PAIRING_PUBLIC_GATEWAY_REQUIRED",
+          message:
+            "Gateway URL is local/private. Expose your local OpenClaw via tunnel (for example Cloudflare Tunnel) and use the public URL.",
+        },
+        { status: 400 },
+      );
     }
 
     const created = await createOpenClawPairingCodeFromRequest({

@@ -75,3 +75,38 @@ model MarketplaceReport {
   @@index([createdAt])
   @@map("marketplace_reports")
 }
+
+model OpenClawPairingRequest {
+  code      String   @id
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("openclaw_pairing_requests")
+}
+
+model OpenClawPairingCode {
+  code            String   @id
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  gatewayUrl      String
+  gatewayTokenEnc String
+  agentName       String
+  maxClaims       Int      @default(1)
+  claimsUsed      Int      @default(0)
+
+  @@index([expiresAt])
+  @@map("openclaw_pairing_codes")
+}
+
+model OpenClawPairingSession {
+  tokenHash       String   @id
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
+  gatewayUrl      String
+  gatewayTokenEnc String
+  agentName       String
+
+  @@index([expiresAt])
+  @@map("openclaw_pairing_sessions")
+}
