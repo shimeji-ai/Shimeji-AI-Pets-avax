@@ -295,6 +295,10 @@ function ProviderFields() {
     ? Date.parse(config.openclawPairedSessionExpiresAt)
     : NaN;
   const pairedSessionExpired = Number.isFinite(pairedSessionExpiresAtMs) && pairedSessionExpiresAtMs <= Date.now();
+  const pairingEndpoint =
+    typeof window === "undefined"
+      ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings"
+      : `${window.location.origin}/api/site-shimeji/openclaw/pairings`;
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
     if (kind === "openrouter") {
@@ -423,6 +427,54 @@ function ProviderFields() {
     setPairingStatus(
       isSpanish ? "Sesión de OpenClaw desconectada." : "OpenClaw session disconnected.",
     );
+  }
+
+  function pairingCurlCommand() {
+    return `curl -X POST ${pairingEndpoint} \\
+  -H "Authorization: Bearer YOUR_OPENCLAW_PAIRING_ADMIN_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{"gatewayUrl":"wss://your-gateway.example","gatewayToken":"YOUR_GATEWAY_TOKEN","agentName":"web-shimeji-1"}'`;
+  }
+
+  function pairingMarkdownInstructions() {
+    return `# OpenClaw Pairing Code (for web users)
+
+Use this on your OpenClaw server/agent to generate a pairing code for the user.
+
+## 1) Generate pairing code
+\`\`\`bash
+${pairingCurlCommand()}
+\`\`\`
+
+## 2) Return the code
+- Read JSON field \`pairingCode\`.
+- Send that code to the user so they can paste it in the website pairing input.
+
+## Notes
+- Endpoint: \`${pairingEndpoint}\`
+- This endpoint requires \`OPENCLAW_PAIRING_ADMIN_TOKEN\` configured on the website backend.
+- The user never needs to paste gateway URL/token in web when using pairing mode.`;
+  }
+
+  async function copyToClipboard(value: string, successEn: string, successEs: string) {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      setPairingStatus(
+        isSpanish
+          ? "No se pudo copiar automáticamente. Copialo manualmente."
+          : "Could not copy automatically. Please copy it manually.",
+      );
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      setPairingStatus(isSpanish ? successEs : successEn);
+    } catch {
+      setPairingStatus(
+        isSpanish
+          ? "No se pudo copiar automáticamente. Copialo manualmente."
+          : "Could not copy automatically. Please copy it manually.",
+      );
+    }
   }
 
   if (config.provider === "site") {
@@ -596,12 +648,45 @@ function ProviderFields() {
                 ? "El backend web usa `OPENCLAW_PAIRING_ADMIN_TOKEN` para autorizar esa creación de códigos."
                 : "The web backend uses `OPENCLAW_PAIRING_ADMIN_TOKEN` to authorize code creation."}
             </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  void copyToClipboard(
+                    pairingCurlCommand(),
+                    "Pairing command copied.",
+                    "Comando de pairing copiado.",
+                  )
+                }
+                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
+              >
+                {isSpanish ? "Copiar comando" : "Copy command"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void copyToClipboard(
+                    pairingMarkdownInstructions(),
+                    "Agent markdown instructions copied.",
+                    "Instrucciones markdown para el agente copiadas.",
+                  )
+                }
+                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
+              >
+                {isSpanish ? "Copiar instrucciones MD" : "Copy markdown instructions"}
+              </button>
+              <a
+                href="/openclaw-pairing-agent-template.md"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-white/10"
+              >
+                {isSpanish ? "Ver template MD" : "Open markdown template"}
+              </a>
+            </div>
             <pre className="mt-2 overflow-x-auto rounded-lg border border-white/10 bg-black/35 p-2 text-[11px] leading-relaxed text-foreground">
               <code>
-{`curl -X POST https://YOUR_SITE/api/site-shimeji/openclaw/pairings \\
-  -H "Authorization: Bearer YOUR_OPENCLAW_PAIRING_ADMIN_TOKEN" \\
-  -H "Content-Type: application/json" \\
-  -d '{"gatewayUrl":"wss://your-gateway.example","gatewayToken":"YOUR_GATEWAY_TOKEN","agentName":"web-shimeji-1"}'`}
+{pairingCurlCommand()}
               </code>
             </pre>
           </div>
