@@ -46,6 +46,12 @@ export function MarketplaceHubStudioCommissionsTab({
   onCommissionOrderAction,
   onCommissionRevisionRequest,
 }: Props) {
+  const selectClassName =
+    "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60";
+  const selectStyle = { backgroundColor: "var(--card)", color: "var(--foreground)" } as const;
+  const selectOptionClassName = "bg-popover text-popover-foreground";
+  const selectOptionStyle = { backgroundColor: "var(--popover)", color: "var(--popover-foreground)" } as const;
+
   // Egg creation form state
   const [eggImageUrl, setEggImageUrl] = useState("");
   const [eggImageUploading, setEggImageUploading] = useState(false);
@@ -213,10 +219,15 @@ export function MarketplaceHubStudioCommissionsTab({
                 <select
                   value={eggCurrency}
                   onChange={(e) => setEggCurrency(e.target.value as "Xlm" | "Usdc")}
-                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                  className={selectClassName}
+                  style={selectStyle}
                 >
-                  <option value="Xlm">XLM</option>
-                  <option value="Usdc">USDC</option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">
+                    XLM
+                  </option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
+                    USDC
+                  </option>
                 </select>
               </div>
             </div>
@@ -333,10 +344,15 @@ export function MarketplaceHubStudioCommissionsTab({
               <select
                 value={listingCurrency}
                 onChange={(e) => setListingCurrency(e.target.value as "Xlm" | "Usdc")}
-                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                className={selectClassName}
+                style={selectStyle}
               >
-                <option value="Xlm">XLM</option>
-                <option value="Usdc">USDC</option>
+                <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">
+                  XLM
+                </option>
+                <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
+                  USDC
+                </option>
               </select>
             </div>
           </div>

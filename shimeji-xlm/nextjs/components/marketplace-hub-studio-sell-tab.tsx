@@ -18,8 +18,8 @@ type CreateMintPackageRequest = {
   listMode: MintListMode;
   listPrice?: string;
   listCurrency?: "Xlm" | "Usdc";
-  auctionPriceXlm?: string;
-  auctionPriceUsdc?: string;
+  auctionPrice?: string;
+  auctionCurrency?: "Xlm" | "Usdc";
   auctionDurationHours?: string;
 };
 
@@ -32,7 +32,7 @@ type Props = {
   showCreatePanel?: boolean;
   showTradePanel?: boolean;
   onCreateListing: (tokenId: number, price: string, currency: "Xlm" | "Usdc") => void | Promise<void>;
-  onCreateAuction: (tokenId: number, priceXlm: string, priceUsdc: string, durationHours: string) => void | Promise<void>;
+  onCreateAuction: (tokenId: number, price: string, currency: "Xlm" | "Usdc", durationHours: string) => void | Promise<void>;
   onCreateNftPackage: (request: CreateMintPackageRequest) => void | Promise<void>;
   onCancelListing: (listingId: number) => void | Promise<void>;
   onCreateSwapOffer: (tokenId: number, intention: string) => void | Promise<void>;
@@ -77,14 +77,20 @@ export function MarketplaceHubStudioSellTab({
   onCancelSwapListing,
   onCancelSwapBid,
 }: Props) {
+  const selectClassName =
+    "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60";
+  const selectStyle = { backgroundColor: "var(--card)", color: "var(--foreground)" } as const;
+  const selectOptionClassName = "bg-popover text-popover-foreground";
+  const selectOptionStyle = { backgroundColor: "var(--popover)", color: "var(--popover-foreground)" } as const;
+
   const [listAction, setListAction] = useState<ListAction>("fixed_price");
   const [selectedTokenId, setSelectedTokenId] = useState("");
   const [swapOfferedTokenId, setSwapOfferedTokenId] = useState("");
   const [swapIntention, setSwapIntention] = useState("");
   const [listingPrice, setListingPrice] = useState("");
   const [listingCurrency, setListingCurrency] = useState<"Xlm" | "Usdc">("Xlm");
-  const [auctionPriceXlm, setAuctionPriceXlm] = useState("");
-  const [auctionPriceUsdc, setAuctionPriceUsdc] = useState("");
+  const [auctionPrice, setAuctionPrice] = useState("");
+  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapActionBusyId, setSwapActionBusyId] = useState<string | null>(null);
 
@@ -96,8 +102,8 @@ export function MarketplaceHubStudioSellTab({
   const [mintListMode, setMintListMode] = useState<MintListMode>("fixed_price");
   const [mintListPrice, setMintListPrice] = useState("");
   const [mintListCurrency, setMintListCurrency] = useState<"Xlm" | "Usdc">("Xlm");
-  const [mintAuctionPriceXlm, setMintAuctionPriceXlm] = useState("");
-  const [mintAuctionPriceUsdc, setMintAuctionPriceUsdc] = useState("");
+  const [mintAuctionPrice, setMintAuctionPrice] = useState("");
+  const [mintAuctionCurrency, setMintAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
   const [mintAuctionDurationHours, setMintAuctionDurationHours] = useState("24");
   const [mintCoverImage, setMintCoverImage] = useState<File | null>(null);
   const [mintCoverPreviewUrl, setMintCoverPreviewUrl] = useState<string | null>(null);
@@ -149,7 +155,7 @@ export function MarketplaceHubStudioSellTab({
     } else if (listAction === "auction") {
       const tokenId = Number.parseInt(selectedTokenId, 10);
       if (!Number.isFinite(tokenId)) return;
-      void onCreateAuction(tokenId, auctionPriceXlm, auctionPriceUsdc, auctionDurationHours);
+      void onCreateAuction(tokenId, auctionPrice, auctionCurrency, auctionDurationHours);
     } else {
       const tokenId = Number.parseInt(swapOfferedTokenId, 10);
       if (!Number.isFinite(tokenId)) return;
@@ -193,8 +199,8 @@ export function MarketplaceHubStudioSellTab({
       setMintFormError(t("Set a fixed listing price.", "Definí un precio fijo para publicar."));
       return;
     }
-    if (mintListMode === "auction" && !mintAuctionPriceXlm.trim() && !mintAuctionPriceUsdc.trim()) {
-      setMintFormError(t("Set XLM or USDC auction start price.", "Definí precio inicial de subasta en XLM o USDC."));
+    if (mintListMode === "auction" && !mintAuctionPrice.trim()) {
+      setMintFormError(t("Set auction start price.", "Definí precio inicial de subasta."));
       return;
     }
     if (mintListMode === "auction" && !studio.auctionCapability.itemAuctionsAvailable) {
@@ -235,8 +241,8 @@ export function MarketplaceHubStudioSellTab({
         listMode: mintListMode,
         listPrice: mintListPrice,
         listCurrency: mintListCurrency,
-        auctionPriceXlm: mintAuctionPriceXlm,
-        auctionPriceUsdc: mintAuctionPriceUsdc,
+        auctionPrice: mintAuctionPrice,
+        auctionCurrency: mintAuctionCurrency,
         auctionDurationHours: mintAuctionDurationHours,
       });
 
@@ -248,8 +254,8 @@ export function MarketplaceHubStudioSellTab({
       setMintListMode("fixed_price");
       setMintListPrice("");
       setMintListCurrency("Xlm");
-      setMintAuctionPriceXlm("");
-      setMintAuctionPriceUsdc("");
+      setMintAuctionPrice("");
+      setMintAuctionCurrency("Xlm");
       setMintAuctionDurationHours("24");
       setMintCoverImage(null);
       setMintSpriteFiles([]);
@@ -446,11 +452,18 @@ export function MarketplaceHubStudioSellTab({
                 <select
                   value={mintListMode}
                   onChange={(e) => setMintListMode(e.target.value as MintListMode)}
-                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                  className={selectClassName}
+                  style={selectStyle}
                 >
-                  <option value="fixed_price">{t("Auto-list fixed price", "Publicar a precio fijo")}</option>
-                  <option value="auction">{t("Auto-start auction", "Iniciar subasta")}</option>
-                  <option value="none">{t("Mint only", "Solo mintear")}</option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="fixed_price">
+                    {t("Auto-list fixed price", "Publicar a precio fijo")}
+                  </option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="auction">
+                    {t("Auto-start auction", "Iniciar subasta")}
+                  </option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="none">
+                    {t("Mint only", "Solo mintear")}
+                  </option>
                 </select>
               </div>
               {mintListMode === "fixed_price" ? (
@@ -471,10 +484,15 @@ export function MarketplaceHubStudioSellTab({
                     <select
                       value={mintListCurrency}
                       onChange={(e) => setMintListCurrency(e.target.value as "Xlm" | "Usdc")}
-                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                      className={selectClassName}
+                      style={selectStyle}
                     >
-                      <option value="Xlm">XLM</option>
-                      <option value="Usdc">USDC</option>
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">
+                        XLM
+                      </option>
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
+                        USDC
+                      </option>
                     </select>
                   </div>
                 </>
@@ -482,26 +500,27 @@ export function MarketplaceHubStudioSellTab({
               {mintListMode === "auction" ? (
                 <>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start XLM", "Inicio XLM")}</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start price", "Precio inicial")}</label>
                     <input
                       type="number"
-                      value={mintAuctionPriceXlm}
-                      onChange={(e) => setMintAuctionPriceXlm(e.target.value)}
+                      value={mintAuctionPrice}
+                      onChange={(e) => setMintAuctionPrice(e.target.value)}
                       min="0"
                       placeholder="0"
                       className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start USDC", "Inicio USDC")}</label>
-                    <input
-                      type="number"
-                      value={mintAuctionPriceUsdc}
-                      onChange={(e) => setMintAuctionPriceUsdc(e.target.value)}
-                      min="0"
-                      placeholder="0"
-                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                    />
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                    <select
+                      value={mintAuctionCurrency}
+                      onChange={(e) => setMintAuctionCurrency(e.target.value as "Xlm" | "Usdc")}
+                      className={selectClassName}
+                      style={selectStyle}
+                    >
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">XLM</option>
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">USDC</option>
+                    </select>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Duration (hours)", "Duración (horas)")}</label>
@@ -668,37 +687,43 @@ export function MarketplaceHubStudioSellTab({
                 <select
                   value={listingCurrency}
                   onChange={(e) => setListingCurrency(e.target.value as "Xlm" | "Usdc")}
-                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                  className={selectClassName}
+                  style={selectStyle}
                 >
-                  <option value="Xlm">XLM</option>
-                  <option value="Usdc">USDC</option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">
+                    XLM
+                  </option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
+                    USDC
+                  </option>
                 </select>
               </div>
             </div>
           ) : listAction === "auction" ? (
             <>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start XLM", "Inicio XLM")}</label>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start price", "Precio inicial")}</label>
                   <input
                     type="number"
-                    value={auctionPriceXlm}
-                    onChange={(e) => setAuctionPriceXlm(e.target.value)}
+                    value={auctionPrice}
+                    onChange={(e) => setAuctionPrice(e.target.value)}
                     placeholder="0"
                     min="0"
                     className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start USDC", "Inicio USDC")}</label>
-                  <input
-                    type="number"
-                    value={auctionPriceUsdc}
-                    onChange={(e) => setAuctionPriceUsdc(e.target.value)}
-                    placeholder="0"
-                    min="0"
-                    className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-                  />
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                  <select
+                    value={auctionCurrency}
+                    onChange={(e) => setAuctionCurrency(e.target.value as "Xlm" | "Usdc")}
+                    className={selectClassName}
+                    style={selectStyle}
+                  >
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="Xlm">XLM</option>
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">USDC</option>
+                  </select>
                 </div>
               </div>
               <div>
