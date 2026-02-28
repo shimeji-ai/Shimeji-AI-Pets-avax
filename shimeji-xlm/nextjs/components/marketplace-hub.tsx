@@ -11,10 +11,7 @@ import {
   type FeedSort,
   type ProfileDraft,
   type TokenPreview,
-  DEFAULT_XLM_USDC_RATE,
-  TOKEN_SCALE,
   buildProfileDraft,
-  computeRate,
   formatTokenAmount,
   isLikelyImageUrl,
   parseAmountToUnits,
@@ -286,7 +283,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
     }
   }
 
-  async function handleCreateItemAuction(tokenId: number, priceXlmRaw: string, priceUsdcRaw: string, durationHoursRaw: string) {
+  async function handleCreateItemAuction(tokenId: number, priceRaw: string, currency: "Xlm" | "Usdc", durationHoursRaw: string) {
     if (!publicKey) {
       setTxMessage(
         t(
@@ -324,29 +321,16 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
     setTxBusy(true);
     setTxMessage("");
     try {
-      const zero = BigInt(0);
-      let priceXlm = parseAmountToUnits(priceXlmRaw);
-      let priceUsdc = parseAmountToUnits(priceUsdcRaw);
-      if (priceXlm <= zero && priceUsdc <= zero) {
-        throw new Error(t("Set an XLM or USDC starting price.", "Define un precio inicial en XLM o USDC."));
+      const price = parseAmountToUnits(priceRaw);
+      if (price <= BigInt(0)) {
+        throw new Error(t("Set a valid starting price.", "Define un precio inicial válido."));
       }
-      // Auction contract requires both > 0 — derive missing one
-      if (priceXlm > zero && priceUsdc <= zero) {
-        priceUsdc = (priceXlm * DEFAULT_XLM_USDC_RATE) / TOKEN_SCALE;
-        if (priceUsdc <= zero) priceUsdc = BigInt(1);
-      } else if (priceUsdc > zero && priceXlm <= zero) {
-        priceXlm = (priceUsdc * TOKEN_SCALE) / DEFAULT_XLM_USDC_RATE;
-        if (priceXlm <= zero) priceXlm = BigInt(1);
-      }
-
-      const rate = computeRate(priceXlm, priceUsdc);
       const durationHours = Math.max(1, Number.parseInt(durationHoursRaw || "24", 10) || 24);
       const txXdr = await buildCreateItemAuctionTx(
         publicKey,
         tokenId,
-        priceXlm,
-        priceUsdc,
-        rate,
+        price,
+        currency,
         durationHours * 3600,
       );
 
@@ -367,8 +351,8 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
     listMode: "none" | "fixed_price" | "auction";
     listPrice?: string;
     listCurrency?: "Xlm" | "Usdc";
-    auctionPriceXlm?: string;
-    auctionPriceUsdc?: string;
+    auctionPrice?: string;
+    auctionCurrency?: "Xlm" | "Usdc";
     auctionDurationHours?: string;
   }) {
     if (!publicKey) {
@@ -436,29 +420,19 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
               t("Auctions are not currently available.", "Subastas no disponibles por ahora."),
           );
         }
-        const zero = BigInt(0);
-        let priceXlm = parseAmountToUnits(request.auctionPriceXlm || "");
-        let priceUsdc = parseAmountToUnits(request.auctionPriceUsdc || "");
-        if (priceXlm <= zero && priceUsdc <= zero) {
-          throw new Error(t("Set an XLM or USDC starting price.", "Define un precio inicial en XLM o USDC."));
+        const price = parseAmountToUnits(request.auctionPrice || "");
+        if (price <= BigInt(0)) {
+          throw new Error(t("Set a valid starting price.", "Define un precio inicial válido."));
         }
-        if (priceXlm > zero && priceUsdc <= zero) {
-          priceUsdc = (priceXlm * DEFAULT_XLM_USDC_RATE) / TOKEN_SCALE;
-          if (priceUsdc <= zero) priceUsdc = BigInt(1);
-        } else if (priceUsdc > zero && priceXlm <= zero) {
-          priceXlm = (priceUsdc * TOKEN_SCALE) / DEFAULT_XLM_USDC_RATE;
-          if (priceXlm <= zero) priceXlm = BigInt(1);
-        }
-        const rate = computeRate(priceXlm, priceUsdc);
+        const currency = request.auctionCurrency === "Usdc" ? "Usdc" : "Xlm";
         const durationHours = Math.max(1, Number.parseInt(request.auctionDurationHours || "24", 10) || 24);
 
         for (const token of mintedTokens) {
           const auctionTxXdr = await buildCreateItemAuctionTx(
             publicKey,
             token.tokenId,
-            priceXlm,
-            priceUsdc,
-            rate,
+            price,
+            currency,
             durationHours * 3600,
           );
           await signAndSubmitXdr(auctionTxXdr, signTransaction, publicKey);
@@ -891,8 +865,8 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                   showCreatePanel={false}
                   showTradePanel
                   onCreateListing={(tokenId, price, currency) => void handleCreateListing(tokenId, price, currency)}
-                  onCreateAuction={(tokenId, priceXlm, priceUsdc, durationHours) =>
-                    void handleCreateItemAuction(tokenId, priceXlm, priceUsdc, durationHours)
+                  onCreateAuction={(tokenId, price, currency, durationHours) =>
+                    void handleCreateItemAuction(tokenId, price, currency, durationHours)
                   }
                   onCreateNftPackage={(request) => void handleCreateNftPackage(request)}
                   onCancelListing={(listingId) => void handleCancelListing(listingId)}

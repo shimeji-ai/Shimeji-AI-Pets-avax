@@ -37,7 +37,6 @@ set -euo pipefail
 #   AUTO_CREATE_INITIAL_AUCTION=1|0 (default 1)
 #   INITIAL_AUCTION_MIN_CURRENCY=usdc|xlm (default usdc)
 #   INITIAL_AUCTION_MIN_AMOUNT=50 (human amount for selected currency)
-#   INITIAL_AUCTION_XLM_USDC_RATE=1600000 (7 decimals; auto-fetched from CoinGecko/SDEX if available)
 #   INITIAL_AUCTION_TOKEN_URI=ipfs://...
 #   AUTO_SEED_MARKETPLACE_SHOWCASE=auto|1|0 (default auto; enabled for local/testnet)
 #   MARKETPLACE_SHOWCASE_BASE_URL=https://<domain> (used for external links/profile seed; default NEXT_PUBLIC_BASE_URL/NEXT_PUBLIC_SITE_URL or https://www.shimeji.dev)
@@ -85,7 +84,6 @@ STELLAR_RPC_HEADERS="${STELLAR_RPC_HEADERS:-}"
 AUTO_CREATE_INITIAL_AUCTION="${AUTO_CREATE_INITIAL_AUCTION:-1}"
 INITIAL_AUCTION_MIN_CURRENCY="${INITIAL_AUCTION_MIN_CURRENCY:-usdc}"
 INITIAL_AUCTION_MIN_AMOUNT="${INITIAL_AUCTION_MIN_AMOUNT:-50}"
-INITIAL_AUCTION_XLM_USDC_RATE="${INITIAL_AUCTION_XLM_USDC_RATE:-1600000}"
 INITIAL_AUCTION_TOKEN_URI="${INITIAL_AUCTION_TOKEN_URI:-ipfs://shimeji/default-auction.json}"
 AUTO_SEED_MARKETPLACE_SHOWCASE="${AUTO_SEED_MARKETPLACE_SHOWCASE:-auto}"
 MARKETPLACE_SHOWCASE_BASE_URL="${MARKETPLACE_SHOWCASE_BASE_URL:-${NEXT_PUBLIC_BASE_URL:-${NEXT_PUBLIC_SITE_URL:-}}}"
@@ -146,8 +144,8 @@ COMMISSION_WASM_HASH_ONCHAIN=""
 INITIAL_AUCTION_STATUS="not-run"
 INITIAL_AUCTION_ID=""
 INITIAL_AUCTION_TOKEN_ID=""
-INITIAL_AUCTION_STARTING_XLM=""
-INITIAL_AUCTION_STARTING_USDC=""
+INITIAL_AUCTION_STARTING_PRICE=""
+INITIAL_AUCTION_STARTING_CURRENCY=""
 MARKETPLACE_SHOWCASE_STATUS="not-run"
 MARKETPLACE_SHOWCASE_ASSETS_STATUS="not-prepared"
 MARKETPLACE_SHOWCASE_PROFILE_STATUS="not-run"
@@ -1023,7 +1021,7 @@ prepare_initial_auction_config() {
       return
     fi
 
-    echo "Set minimum bid currency for initial auction:"
+    echo "Set starting price currency for initial auction:"
     echo "  1) USDC"
     echo "  2) XLM"
     if [ "$INITIAL_AUCTION_MIN_CURRENCY" = "xlm" ]; then
@@ -1043,13 +1041,7 @@ prepare_initial_auction_config() {
     else
       default_amount="50"
     fi
-    INITIAL_AUCTION_MIN_AMOUNT="$(prompt_default "Initial minimum amount (${INITIAL_AUCTION_MIN_CURRENCY^^})" "${INITIAL_AUCTION_MIN_AMOUNT:-$default_amount}")"
-    local live_rate
-    live_rate="$(fetch_xlm_usdc_rate)" || true
-    if [ -n "$live_rate" ]; then
-      INITIAL_AUCTION_XLM_USDC_RATE="$live_rate"
-    fi
-    INITIAL_AUCTION_XLM_USDC_RATE="$(prompt_default "XLM/USDC rate (7 decimals, 1600000 = 0.16)" "$INITIAL_AUCTION_XLM_USDC_RATE")"
+    INITIAL_AUCTION_MIN_AMOUNT="$(prompt_default "Initial starting price (${INITIAL_AUCTION_MIN_CURRENCY^^})" "${INITIAL_AUCTION_MIN_AMOUNT:-$default_amount}")"
     INITIAL_AUCTION_TOKEN_URI="$(prompt_default "Initial auction token URI" "$INITIAL_AUCTION_TOKEN_URI")"
   fi
 
@@ -1058,29 +1050,11 @@ prepare_initial_auction_config() {
     *) die "INITIAL_AUCTION_MIN_CURRENCY must be usdc or xlm. Current value: $INITIAL_AUCTION_MIN_CURRENCY" ;;
   esac
 
-  # Auto-fetch rate if still at default value in non-interactive mode
-  if [ "$INTERACTIVE" -ne 1 ] && [ "$INITIAL_AUCTION_XLM_USDC_RATE" = "1000000" ]; then
-    local live_rate
-    live_rate="$(fetch_xlm_usdc_rate)" || true
-    if [ -n "$live_rate" ]; then
-      INITIAL_AUCTION_XLM_USDC_RATE="$live_rate"
-    fi
-  fi
-
-  if ! [[ "$INITIAL_AUCTION_XLM_USDC_RATE" =~ ^[0-9]+$ ]] || [ "$INITIAL_AUCTION_XLM_USDC_RATE" -le 0 ]; then
-    die "INITIAL_AUCTION_XLM_USDC_RATE must be a positive integer (7 decimals)."
-  fi
-
   local min_amount_stroops
   min_amount_stroops="$(human_amount_to_stroops "$INITIAL_AUCTION_MIN_AMOUNT")" || die "INITIAL_AUCTION_MIN_AMOUNT must be a positive number (up to 7 decimals)."
 
-  if [ "$INITIAL_AUCTION_MIN_CURRENCY" = "usdc" ]; then
-    INITIAL_AUCTION_STARTING_USDC="$min_amount_stroops"
-    INITIAL_AUCTION_STARTING_XLM="$(( (min_amount_stroops * 10000000 + INITIAL_AUCTION_XLM_USDC_RATE - 1) / INITIAL_AUCTION_XLM_USDC_RATE ))"
-  else
-    INITIAL_AUCTION_STARTING_XLM="$min_amount_stroops"
-    INITIAL_AUCTION_STARTING_USDC="$(( (min_amount_stroops * INITIAL_AUCTION_XLM_USDC_RATE + 10000000 - 1) / 10000000 ))"
-  fi
+  INITIAL_AUCTION_STARTING_PRICE="$min_amount_stroops"
+  INITIAL_AUCTION_STARTING_CURRENCY="$INITIAL_AUCTION_MIN_CURRENCY"
 
   if [ -z "$INITIAL_AUCTION_TOKEN_URI" ]; then
     die "INITIAL_AUCTION_TOKEN_URI cannot be empty when AUTO_CREATE_INITIAL_AUCTION=1."
@@ -1703,7 +1677,6 @@ write_deploy_env_export_file() {
     printf "AUTO_CREATE_INITIAL_AUCTION=%q\n" "$AUTO_CREATE_INITIAL_AUCTION"
     printf "INITIAL_AUCTION_MIN_CURRENCY=%q\n" "$INITIAL_AUCTION_MIN_CURRENCY"
     printf "INITIAL_AUCTION_MIN_AMOUNT=%q\n" "$INITIAL_AUCTION_MIN_AMOUNT"
-    printf "INITIAL_AUCTION_XLM_USDC_RATE=%q\n" "$INITIAL_AUCTION_XLM_USDC_RATE"
     printf "INITIAL_AUCTION_TOKEN_URI=%q\n" "$INITIAL_AUCTION_TOKEN_URI"
   } > "$export_file"
 
@@ -2123,22 +2096,6 @@ seed_marketplace_showcase_examples_if_enabled() {
   fi
   SHOWCASE_SALE_LISTING_ID="$(extract_last_u64_from_output "$output")"
 
-  if ! output="$(invoke_contract_capture_with_retries "Create showcase sale listing (copy)" \
-    stellar contract invoke \
-      --id "$MARKETPLACE_ID" \
-      --source "$IDENTITY" \
-      --rpc-url "$RPC_URL" \
-      --network-passphrase "$PASSPHRASE" \
-      -- list_for_sale \
-      --seller "$ADMIN" \
-      --token_id "$SHOWCASE_SALE_COPY_TOKEN_ID" \
-      --price "$list_price_xlm_stroops" \
-      --currency '"Xlm"')"; then
-    MARKETPLACE_SHOWCASE_STATUS="failed-list-sale-copy"
-    return
-  fi
-  SHOWCASE_SALE_COPY_LISTING_ID="$(extract_last_u64_from_output "$output")"
-
   intention="Auto-seeded open swap listing from deployer artist profile (accepting NFT offers)"
   if ! output="$(invoke_contract_capture_with_retries "Create showcase swap listing" \
     stellar contract invoke \
@@ -2173,7 +2130,8 @@ seed_marketplace_showcase_examples_if_enabled() {
   SHOWCASE_EGG_LISTING_ID="$(extract_last_u64_from_output "$output")"
 
   MARKETPLACE_SHOWCASE_STATUS="seeded-sale-edition-swap-egg"
-  echo "  Showcase listing IDs: sale=#${SHOWCASE_SALE_LISTING_ID}, sale_copy=#${SHOWCASE_SALE_COPY_LISTING_ID}, egg=#${SHOWCASE_EGG_LISTING_ID}; swap=#${SHOWCASE_SWAP_ID}"
+  # Keep the showcase mix concise: 1 sale listing, 1 swap listing, 1 commission egg listing.
+  echo "  Showcase listing IDs: sale=#${SHOWCASE_SALE_LISTING_ID}, egg=#${SHOWCASE_EGG_LISTING_ID}; swap=#${SHOWCASE_SWAP_ID}"
 }
 
 deploy_contracts() {
@@ -2366,8 +2324,19 @@ deploy_contracts() {
       -- configure_oracle \
       --oracle "$REFLECTOR_ORACLE_ADDRESS"
     wait_for_network_propagation_step "ShimejiMarketplace oracle configuration"
+
+    echo "==> Configuring Reflector oracle on ShimejiAuction..."
+    run_with_deploy_retries "Configure auction oracle" \
+      stellar contract invoke \
+      --id "$AUCTION_ID" \
+      --source "$IDENTITY" \
+      --rpc-url "$RPC_URL" \
+      --network-passphrase "$PASSPHRASE" \
+      -- configure_oracle \
+      --oracle "$REFLECTOR_ORACLE_ADDRESS"
+    wait_for_network_propagation_step "ShimejiAuction oracle configuration"
   else
-    echo "==> REFLECTOR_ORACLE_ADDRESS not set; skipping oracle configuration."
+    echo "==> REFLECTOR_ORACLE_ADDRESS not set; skipping oracle configuration for marketplace and auction."
   fi
 
   # Allow a short pause before deploying the commission contract on non-local
@@ -2431,6 +2400,15 @@ create_initial_auction_if_enabled() {
     return
   fi
 
+  # Build the Currency enum JSON value expected by the current contract CLI ABI
+  # (e.g. "\"Xlm\"" or "\"Usdc\"").
+  local currency_enum
+  if [ "$INITIAL_AUCTION_STARTING_CURRENCY" = "usdc" ]; then
+    currency_enum='"Usdc"'
+  else
+    currency_enum='"Xlm"'
+  fi
+
   echo "==> Creating initial item auction automatically..."
   create_output="$(stellar contract invoke \
     --id "$AUCTION_ID" \
@@ -2440,9 +2418,8 @@ create_initial_auction_if_enabled() {
     -- create_item_auction \
     --seller "$ADMIN" \
     --token_id "$INITIAL_AUCTION_TOKEN_ID" \
-    --starting_price_xlm "$INITIAL_AUCTION_STARTING_XLM" \
-    --starting_price_usdc "$INITIAL_AUCTION_STARTING_USDC" \
-    --xlm_usdc_rate "$INITIAL_AUCTION_XLM_USDC_RATE" \
+    --starting_price "$INITIAL_AUCTION_STARTING_PRICE" \
+    --currency "$currency_enum" \
     --duration_seconds "$duration_seconds" 2>&1)" || {
       INITIAL_AUCTION_STATUS="failed-create"
       echo "==> Failed to create initial item auction:"
@@ -2457,7 +2434,7 @@ create_initial_auction_if_enabled() {
 
   INITIAL_AUCTION_STATUS="created"
   echo "  Initial item auction created with id: $INITIAL_AUCTION_ID (token #$INITIAL_AUCTION_TOKEN_ID)"
-  echo "  Start price: ${INITIAL_AUCTION_STARTING_USDC} stroops USDC / ${INITIAL_AUCTION_STARTING_XLM} stroops XLM"
+  echo "  Starting price: ${INITIAL_AUCTION_STARTING_PRICE} stroops ${INITIAL_AUCTION_STARTING_CURRENCY^^}"
 }
 
 run_build_info_query_with_optional_api_key() {
@@ -2655,8 +2632,7 @@ print_success_summary() {
   if [ "$INITIAL_AUCTION_STATUS" = "created" ]; then
     echo "  - Auction ID:     $INITIAL_AUCTION_ID"
     echo "  - Token ID:       $INITIAL_AUCTION_TOKEN_ID"
-    echo "  - Min USDC:       $INITIAL_AUCTION_STARTING_USDC (7 decimals)"
-    echo "  - Min XLM:        $INITIAL_AUCTION_STARTING_XLM (7 decimals)"
+    echo "  - Starting price: $INITIAL_AUCTION_STARTING_PRICE stroops ${INITIAL_AUCTION_STARTING_CURRENCY^^}"
   fi
   echo "  Admin:            $ADMIN"
   echo "  Identity Alias:   $IDENTITY"
@@ -2808,9 +2784,7 @@ print_success_summary() {
     echo "   - auction_id: $INITIAL_AUCTION_ID"
     echo "   - token_id: $INITIAL_AUCTION_TOKEN_ID"
     echo "   - token_uri: $INITIAL_AUCTION_TOKEN_URI"
-    echo "   - starting_price_xlm: $INITIAL_AUCTION_STARTING_XLM"
-    echo "   - starting_price_usdc: $INITIAL_AUCTION_STARTING_USDC"
-    echo "   - xlm_usdc_rate: $INITIAL_AUCTION_XLM_USDC_RATE"
+    echo "   - starting_price: $INITIAL_AUCTION_STARTING_PRICE stroops ${INITIAL_AUCTION_STARTING_CURRENCY^^}"
     echo ""
   else
     echo "1) No initial item auction was auto-created. Create one manually (must own the NFT):"
@@ -2822,9 +2796,8 @@ print_success_summary() {
     echo "     -- create_item_auction \\"
     echo "     --seller \"$ADMIN\" \\"
     echo "     --token_id <token_id_you_own> \\"
-    echo "     --starting_price_xlm 5000000000 \\"
-    echo "     --starting_price_usdc 500000000 \\"
-    echo "     --xlm_usdc_rate 1000000 \\"
+    echo "     --starting_price 5000000000 \\"
+    echo "     --currency '\"Xlm\"' \\"
     echo "     --duration_seconds 86400"
     echo ""
   fi
@@ -2848,8 +2821,8 @@ print_success_summary() {
   if [ -n "$SHOWCASE_SALE_TOKEN_ID" ] || [ -n "$SHOWCASE_SALE_COPY_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TOKEN_ID" ] || [ -n "$SHOWCASE_SWAP_TARGET_TOKEN_ID" ] || [ -n "$SHOWCASE_EGG_TOKEN_ID" ]; then
     echo "   - minted token ids: sale=${SHOWCASE_SALE_TOKEN_ID:-n/a}, sale_copy=${SHOWCASE_SALE_COPY_TOKEN_ID:-n/a}, swap=${SHOWCASE_SWAP_TOKEN_ID:-n/a}, swap_target=${SHOWCASE_SWAP_TARGET_TOKEN_ID:-n/a}, egg=${SHOWCASE_EGG_TOKEN_ID:-n/a}"
   fi
-  if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_SALE_COPY_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
-    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, sale_copy_listing=${SHOWCASE_SALE_COPY_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_listing=${SHOWCASE_SWAP_ID:-n/a}"
+  if [ -n "$SHOWCASE_SALE_LISTING_ID" ] || [ -n "$SHOWCASE_EGG_LISTING_ID" ] || [ -n "$SHOWCASE_SWAP_ID" ]; then
+    echo "   - marketplace ids: sale_listing=${SHOWCASE_SALE_LISTING_ID:-n/a}, egg_listing=${SHOWCASE_EGG_LISTING_ID:-n/a}, swap_listing=${SHOWCASE_SWAP_ID:-n/a}"
   fi
   if [ "$INITIAL_AUCTION_STATUS" != "created" ] && [ "$AUTO_SEED_MARKETPLACE_SHOWCASE" = "1" ]; then
     echo "   - note: no auction sample was created because AUTO_CREATE_INITIAL_AUCTION is disabled or failed."

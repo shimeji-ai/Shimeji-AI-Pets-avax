@@ -68,16 +68,11 @@
                   }
                 },
                 {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 500000000
-                  }
-                },
-                {
-                  "i128": {
-                    "hi": 0,
-                    "lo": 1000000
-                  }
+                  "vec": [
+                    {
+                      "symbol": "Xlm"
+                    }
+                  ]
                 },
                 {
                   "u64": 604800
@@ -371,6 +366,18 @@
                   "map": [
                     {
                       "key": {
+                        "symbol": "currency"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Xlm"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "end_time"
                       },
                       "val": {
@@ -431,18 +438,7 @@
                     },
                     {
                       "key": {
-                        "symbol": "starting_price_usdc"
-                      },
-                      "val": {
-                        "i128": {
-                          "hi": 0,
-                          "lo": 500000000
-                        }
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "starting_price_xlm"
+                        "symbol": "starting_price"
                       },
                       "val": {
                         "i128": {
@@ -465,17 +461,6 @@
                       },
                       "val": {
                         "string": "ipfs://shimeji-metadata"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "xlm_usdc_rate"
-                      },
-                      "val": {
-                        "i128": {
-                          "hi": 0,
-                          "lo": 1000000
-                        }
                       }
                     }
                   ]

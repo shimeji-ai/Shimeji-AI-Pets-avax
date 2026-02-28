@@ -7,6 +7,23 @@ const AUCTION_DURATION: u64 = 604_800; // 7 days in seconds
 const MIN_AUCTION_DURATION: u64 = 3_600; // 1 hour
 const MAX_AUCTION_DURATION: u64 = 2_592_000; // 30 days
 const MIN_INCREMENT_BPS: i128 = 500; // 5% minimum bid increment
+const TOKEN_SCALE: i128 = 10_000_000; // 7 decimals
+
+/// Oracle asset descriptor (Reflector protocol).
+#[contracttype]
+#[derive(Clone)]
+pub enum OracleAsset {
+    Stellar(Address),
+    Other(Symbol),
+}
+
+/// Oracle price data returned by Reflector (price is at 10^14 scale).
+#[contracttype]
+#[derive(Clone)]
+pub struct OraclePriceData {
+    pub price: i128,
+    pub timestamp: u64,
+}
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -31,9 +48,8 @@ pub struct AuctionInfo {
     pub token_id: u64,
     pub start_time: u64,
     pub end_time: u64,
-    pub starting_price_xlm: i128,
-    pub starting_price_usdc: i128,
-    pub xlm_usdc_rate: i128, // XLM price in USDC with 7 decimals (e.g. 1_000_000 = $0.10)
+    pub starting_price: i128,
+    pub currency: Currency,
     pub finalized: bool,
     pub escrow_provider: EscrowProvider,
     pub escrow_settled: bool,
@@ -56,6 +72,7 @@ pub enum DataKey {
     EscrowProvider,
     TrustlessEscrowXlm,
     TrustlessEscrowUsdc,
+    OracleContract,
     NextAuctionId,
     Auction(u64),
     HighestBid(u64),
@@ -65,11 +82,32 @@ pub enum DataKey {
 pub struct ShimejiAuction;
 
 impl ShimejiAuction {
-    fn normalize_to_usdc(amount: i128, currency: &Currency, xlm_usdc_rate: i128) -> i128 {
+    /// Normalize `amount` in `currency` to USDC equivalent using the Reflector oracle.
+    /// Only calls the oracle when `currency` is XLM.
+    fn normalize_to_usdc(env: &Env, amount: i128, currency: &Currency) -> i128 {
         match currency {
             Currency::Usdc => amount,
-            Currency::Xlm => amount * xlm_usdc_rate / 10_000_000,
+            Currency::Xlm => {
+                let rate = Self::get_xlm_usdc_rate(env)
+                    .unwrap_or_else(|| panic!("oracle not configured for cross-currency comparison"));
+                amount * rate / TOKEN_SCALE
+            }
         }
+    }
+
+    /// Fetch XLM/USDC rate from Reflector oracle.
+    /// Returns XLM price expressed in USDC at TOKEN_SCALE (10^7), or None if no oracle configured.
+    fn get_xlm_usdc_rate(env: &Env) -> Option<i128> {
+        let oracle: Option<Address> = env.storage().instance().get(&DataKey::OracleContract);
+        let oracle = oracle?;
+        let asset = OracleAsset::Other(Symbol::new(env, "XLM"));
+        let data: Option<OraclePriceData> = env.invoke_contract(
+            &oracle,
+            &Symbol::new(env, "lastprice"),
+            (asset,).into_val(env),
+        );
+        // Reflector returns price at 10^14 scale; convert to 10^7 by dividing by 10^7
+        data.map(|pd| pd.price / TOKEN_SCALE)
     }
 
     fn require_admin(env: &Env) -> Address {
@@ -153,6 +191,11 @@ impl ShimejiAuction {
         env.storage().instance().set(&DataKey::NextAuctionId, &0u64);
     }
 
+    pub fn configure_oracle(env: Env, oracle: Address) {
+        Self::require_admin(&env);
+        env.storage().instance().set(&DataKey::OracleContract, &oracle);
+    }
+
     pub fn configure_internal_escrow(env: Env) {
         Self::require_admin(&env);
         env.storage()
@@ -191,9 +234,8 @@ impl ShimejiAuction {
         env: Env,
         seller: Address,
         token_id: u64,
-        starting_price_xlm: i128,
-        starting_price_usdc: i128,
-        xlm_usdc_rate: i128,
+        starting_price: i128,
+        currency: Currency,
         duration_seconds: u64,
     ) -> u64 {
         seller.require_auth();
@@ -217,9 +259,8 @@ impl ShimejiAuction {
             token_id,
             start_time: now,
             end_time: now + duration_seconds,
-            starting_price_xlm,
-            starting_price_usdc,
-            xlm_usdc_rate,
+            starting_price,
+            currency,
             finalized: false,
             // Item auctions use the currently configured escrow provider
             // (TrustlessWork when available; Internal otherwise).
@@ -257,19 +298,22 @@ impl ShimejiAuction {
             panic!("auction already finalized");
         }
 
-        let normalized_bid = Self::normalize_to_usdc(amount, &currency, auction.xlm_usdc_rate);
-
-        // Check minimum starting price
-        let min_starting = match currency {
-            Currency::Xlm => auction.starting_price_xlm,
-            Currency::Usdc => auction.starting_price_usdc,
-        };
-        let normalized_min = Self::normalize_to_usdc(min_starting, &currency, auction.xlm_usdc_rate);
-        if normalized_bid < normalized_min {
-            panic!("bid below minimum starting price");
+        // Check bid meets the minimum starting price.
+        // Same currency → direct comparison; cross-currency → normalize both to USDC via oracle.
+        if currency == auction.currency {
+            if amount < auction.starting_price {
+                panic!("bid below minimum starting price");
+            }
+        } else {
+            let bid_usdc = Self::normalize_to_usdc(env, amount, &currency);
+            let starting_usdc = Self::normalize_to_usdc(env, auction.starting_price, &auction.currency);
+            if bid_usdc < starting_usdc {
+                panic!("bid below minimum starting price");
+            }
         }
 
-        // Check against current highest bid
+        // Check against current highest bid.
+        // Same currency as highest bid → direct comparison; different → normalize to USDC via oracle.
         let has_existing_bid = env.storage().persistent().has(&DataKey::HighestBid(auction_id));
         if has_existing_bid {
             let current_bid: BidInfo = env
@@ -277,12 +321,21 @@ impl ShimejiAuction {
                 .persistent()
                 .get(&DataKey::HighestBid(auction_id))
                 .unwrap();
-            let current_normalized =
-                Self::normalize_to_usdc(current_bid.amount, &current_bid.currency, auction.xlm_usdc_rate);
 
-            let min_required = current_normalized + (current_normalized * MIN_INCREMENT_BPS / 10_000);
-            if normalized_bid < min_required {
-                panic!("bid must be at least 5% higher than current highest");
+            if currency == current_bid.currency {
+                // Same currency: compare directly
+                let min_required = current_bid.amount + (current_bid.amount * MIN_INCREMENT_BPS / 10_000);
+                if amount < min_required {
+                    panic!("bid must be at least 5% higher than current highest");
+                }
+            } else {
+                // Cross-currency: normalize both to USDC
+                let bid_usdc = Self::normalize_to_usdc(env, amount, &currency);
+                let current_usdc = Self::normalize_to_usdc(env, current_bid.amount, &current_bid.currency);
+                let required_usdc = current_usdc + (current_usdc * MIN_INCREMENT_BPS / 10_000);
+                if bid_usdc < required_usdc {
+                    panic!("bid must be at least 5% higher than current highest");
+                }
             }
 
             // Refund previous bidder in their original currency
@@ -452,6 +505,7 @@ mod test {
         Env, String,
     };
 
+    // MockNft — unchanged
     #[contract]
     struct MockNft;
 
@@ -512,6 +566,21 @@ mod test {
         }
     }
 
+    // MockOracle — returns a fixed XLM/USDC rate of $0.10 (rate = 1_000_000 at 10^7 scale).
+    // Reflector price at 10^14 scale: 0.10 * 10^14 = 10_000_000_000_000
+    #[contract]
+    struct MockOracle;
+
+    #[contractimpl]
+    impl MockOracle {
+        pub fn lastprice(_env: Env, _asset: OracleAsset) -> Option<OraclePriceData> {
+            Some(OraclePriceData {
+                price: 10_000_000_000_000, // $0.10 per XLM at 10^14 scale
+                timestamp: 0,
+            })
+        }
+    }
+
     struct TestEnv {
         env: Env,
         admin: Address,
@@ -524,10 +593,10 @@ mod test {
         usdc_sac: StellarAssetClient<'static>,
     }
 
-    // Rate: 1_000_000 = $0.10 per XLM (7 decimals). So 500 XLM ≈ 50 USDC.
-    const XLM_USDC_RATE: i128 = 1_000_000;
-    const START_XLM: i128 = 500_0000000; // 500 XLM
-    const START_USDC: i128 = 50_0000000; // 50 USDC
+    // Rate after oracle conversion: $0.10/XLM → 1_000_000 at 10^7 scale
+    // So 500 XLM ≈ 50 USDC
+    const START_XLM: i128 = 500_0000000; // 500 XLM (7 decimals)
+    const START_USDC: i128 = 50_0000000; // 50 USDC (7 decimals)
 
     fn setup() -> TestEnv {
         let env = Env::default();
@@ -555,6 +624,12 @@ mod test {
         TestEnv { env, admin, contract_addr, client, nft, xlm, usdc, xlm_sac, usdc_sac }
     }
 
+    /// Configure the mock oracle so cross-currency bids work in tests.
+    fn configure_oracle(t: &TestEnv) {
+        let oracle_addr = t.env.register(MockOracle, ());
+        t.client.configure_oracle(&oracle_addr);
+    }
+
     fn fund_xlm(t: &TestEnv, to: &Address, amount: i128) {
         t.xlm_sac.mint(to, &amount);
     }
@@ -568,14 +643,26 @@ mod test {
         t.nft.mint(to, &uri)
     }
 
-    fn create_default_auction(t: &TestEnv) -> u64 {
+    /// Create a default XLM auction (starting at START_XLM).
+    fn create_xlm_auction(t: &TestEnv) -> u64 {
         let token_id = mint_nft(t, &t.admin);
         t.client.create_item_auction(
             &t.admin,
             &token_id,
             &START_XLM,
+            &Currency::Xlm,
+            &AUCTION_DURATION,
+        )
+    }
+
+    /// Create a USDC auction (starting at START_USDC).
+    fn create_usdc_auction(t: &TestEnv) -> u64 {
+        let token_id = mint_nft(t, &t.admin);
+        t.client.create_item_auction(
+            &t.admin,
+            &token_id,
             &START_USDC,
-            &XLM_USDC_RATE,
+            &Currency::Usdc,
             &AUCTION_DURATION,
         )
     }
@@ -590,13 +677,13 @@ mod test {
     #[test]
     fn test_create_item_auction() {
         let t = setup();
-        let id = create_default_auction(&t);
+        let id = create_xlm_auction(&t);
         assert_eq!(id, 0);
         assert_eq!(t.client.total_auctions(), 1);
 
         let info = t.client.get_auction(&0);
-        assert_eq!(info.starting_price_xlm, START_XLM);
-        assert_eq!(info.starting_price_usdc, START_USDC);
+        assert_eq!(info.starting_price, START_XLM);
+        assert_eq!(info.currency, Currency::Xlm);
         assert!(!info.finalized);
         assert_eq!(info.escrow_provider, EscrowProvider::Internal);
         assert!(!info.escrow_settled);
@@ -604,9 +691,19 @@ mod test {
     }
 
     #[test]
+    fn test_create_usdc_auction() {
+        let t = setup();
+        let id = create_usdc_auction(&t);
+        assert_eq!(id, 0);
+        let info = t.client.get_auction(&0);
+        assert_eq!(info.starting_price, START_USDC);
+        assert_eq!(info.currency, Currency::Usdc);
+    }
+
+    #[test]
     fn test_bid_xlm_happy_path() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder = Address::generate(&t.env);
         fund_xlm(&t, &bidder, 600_0000000);
@@ -624,7 +721,7 @@ mod test {
     #[test]
     fn test_bid_usdc_happy_path() {
         let t = setup();
-        create_default_auction(&t);
+        create_usdc_auction(&t);
 
         let bidder = Address::generate(&t.env);
         fund_usdc(&t, &bidder, 60_0000000);
@@ -641,7 +738,7 @@ mod test {
     #[test]
     fn test_outbid_refunds_previous_bidder() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder1 = Address::generate(&t.env);
         let bidder2 = Address::generate(&t.env);
@@ -663,14 +760,17 @@ mod test {
     #[test]
     fn test_cross_currency_outbid() {
         let t = setup();
-        create_default_auction(&t);
+        configure_oracle(&t);
+        create_xlm_auction(&t); // XLM auction at 500 XLM
 
-        // Bidder1 bids 600 XLM (= 60 USDC equivalent at 0.10 rate)
+        // Bidder1 bids 600 XLM (same currency as auction, no oracle needed)
         let bidder1 = Address::generate(&t.env);
         fund_xlm(&t, &bidder1, 600_0000000);
         t.client.bid_xlm(&0, &bidder1, &600_0000000);
 
-        // Bidder2 outbids with 70 USDC (> 60 * 1.05 = 63 USDC)
+        // Bidder2 outbids with 70 USDC (cross-currency: oracle converts)
+        // 600 XLM * 0.10 = 60 USDC equivalent; 5% of 60 = 3; min = 63 USDC.
+        // 70 USDC > 63 USDC → valid.
         let bidder2 = Address::generate(&t.env);
         fund_usdc(&t, &bidder2, 70_0000000);
         t.client.bid_usdc(&0, &bidder2, &70_0000000);
@@ -683,9 +783,48 @@ mod test {
     }
 
     #[test]
+    #[should_panic(expected = "oracle not configured for cross-currency comparison")]
+    fn test_cross_currency_bid_without_oracle_panics() {
+        let t = setup();
+        create_xlm_auction(&t);
+
+        let bidder = Address::generate(&t.env);
+        fund_usdc(&t, &bidder, 60_0000000);
+        t.client.bid_usdc(&0, &bidder, &60_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "bid below minimum starting price")]
+    fn test_cross_currency_first_bid_below_minimum_from_starting_price() {
+        let t = setup();
+        configure_oracle(&t);
+        create_xlm_auction(&t); // 500 XLM => 50 USDC equivalent with mock oracle
+
+        let bidder = Address::generate(&t.env);
+        fund_usdc(&t, &bidder, 49_0000000);
+        t.client.bid_usdc(&0, &bidder, &49_0000000);
+    }
+
+    #[test]
+    fn test_cross_currency_first_bid_exact_minimum_from_starting_price() {
+        let t = setup();
+        configure_oracle(&t);
+        create_xlm_auction(&t); // 500 XLM => 50 USDC equivalent with mock oracle
+
+        let bidder = Address::generate(&t.env);
+        fund_usdc(&t, &bidder, 50_0000000);
+        t.client.bid_usdc(&0, &bidder, &50_0000000);
+
+        let bid = t.client.get_highest_bid(&0);
+        assert_eq!(bid.bidder, bidder);
+        assert_eq!(bid.amount, 50_0000000);
+        assert_eq!(bid.currency, Currency::Usdc);
+    }
+
+    #[test]
     fn test_finalize_no_bids() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         t.env.ledger().with_mut(|li| {
             li.timestamp += AUCTION_DURATION + 1;
@@ -700,7 +839,7 @@ mod test {
     #[test]
     fn test_finalize_item_auction_transfers_nft_and_pays_seller() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder = Address::generate(&t.env);
         fund_xlm(&t, &bidder, 600_0000000);
@@ -727,7 +866,7 @@ mod test {
         let xlm_destination = Address::generate(&t.env);
         let usdc_destination = Address::generate(&t.env);
         configure_trustless(&t, &xlm_destination, &usdc_destination);
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder = Address::generate(&t.env);
         fund_xlm(&t, &bidder, 600_0000000);
@@ -752,7 +891,7 @@ mod test {
     #[test]
     fn test_bid_exactly_at_minimum() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder = Address::generate(&t.env);
         fund_xlm(&t, &bidder, START_XLM);
@@ -762,28 +901,13 @@ mod test {
         assert_eq!(t.client.get_highest_bid(&0).amount, START_XLM);
     }
 
-    #[test]
-    fn test_normalization_math() {
-        // 500 XLM at rate 1_000_000 (=$0.10) → 50 USDC equivalent
-        let normalized = ShimejiAuction::normalize_to_usdc(500_0000000, &Currency::Xlm, 1_000_000);
-        assert_eq!(normalized, 50_0000000);
-
-        // USDC passes through unchanged
-        let normalized_usdc = ShimejiAuction::normalize_to_usdc(50_0000000, &Currency::Usdc, 1_000_000);
-        assert_eq!(normalized_usdc, 50_0000000);
-
-        // Higher rate ($0.50/XLM): 100 XLM → 50 USDC
-        let normalized_high = ShimejiAuction::normalize_to_usdc(100_0000000, &Currency::Xlm, 5_000_000);
-        assert_eq!(normalized_high, 50_0000000);
-    }
-
     // ── Edge cases ─────────────────────────────────────────────
 
     #[test]
     #[should_panic(expected = "bid below minimum starting price")]
     fn test_bid_below_minimum_xlm() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t); // 500 XLM minimum
 
         let bidder = Address::generate(&t.env);
         fund_xlm(&t, &bidder, 400_0000000);
@@ -794,7 +918,7 @@ mod test {
     #[should_panic(expected = "bid below minimum starting price")]
     fn test_bid_below_minimum_usdc() {
         let t = setup();
-        create_default_auction(&t);
+        create_usdc_auction(&t); // 50 USDC minimum
 
         let bidder = Address::generate(&t.env);
         fund_usdc(&t, &bidder, 40_0000000);
@@ -805,7 +929,7 @@ mod test {
     #[should_panic(expected = "bid must be at least 5% higher")]
     fn test_bid_insufficient_increment() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         let bidder1 = Address::generate(&t.env);
         let bidder2 = Address::generate(&t.env);
@@ -821,7 +945,7 @@ mod test {
     #[should_panic(expected = "auction has ended")]
     fn test_bid_after_auction_ends() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         t.env.ledger().with_mut(|li| {
             li.timestamp += AUCTION_DURATION + 1;
@@ -836,7 +960,7 @@ mod test {
     #[should_panic(expected = "auction has not ended yet")]
     fn test_finalize_before_end() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
         t.client.finalize(&0);
     }
 
@@ -844,7 +968,7 @@ mod test {
     #[should_panic(expected = "auction already finalized")]
     fn test_double_finalize() {
         let t = setup();
-        create_default_auction(&t);
+        create_xlm_auction(&t);
 
         t.env.ledger().with_mut(|li| {
             li.timestamp += AUCTION_DURATION + 1;

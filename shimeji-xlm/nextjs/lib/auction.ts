@@ -39,9 +39,8 @@ export interface AuctionInfo {
   tokenId: number | null;
   startTime: number;
   endTime: number;
-  startingPriceXlm: bigint;
-  startingPriceUsdc: bigint;
-  xlmUsdcRate: bigint;
+  startingPrice: bigint;
+  currency: "Xlm" | "Usdc";
   finalized: boolean;
   escrowProvider: "Internal" | "TrustlessWork" | string | null;
   escrowSettled: boolean;
@@ -276,17 +275,19 @@ function mapAuctionInfoFromScVal(auctionData: Record<string, unknown>): AuctionI
   const tokenIdRaw = auctionData.token_id;
   const tokenId = typeof tokenIdRaw === "number" && Number.isFinite(tokenIdRaw) ? tokenIdRaw : null;
   const seller = typeof auctionData.seller === "string" ? auctionData.seller : null;
+  const currencyRaw = auctionData.currency;
+  const currency: "Xlm" | "Usdc" =
+    typeof currencyRaw === "string" && currencyRaw === "Usdc" ? "Usdc" : "Xlm";
 
   return {
     tokenUri: String(auctionData.token_uri ?? ""),
     isItemAuction,
-    seller: isItemAuction ? seller : seller,
+    seller,
     tokenId: isItemAuction ? tokenId : null,
     startTime: Number(auctionData.start_time ?? 0),
     endTime: Number(auctionData.end_time ?? 0),
-    startingPriceXlm: (auctionData.starting_price_xlm as bigint) ?? BigInt(0),
-    startingPriceUsdc: (auctionData.starting_price_usdc as bigint) ?? BigInt(0),
-    xlmUsdcRate: (auctionData.xlm_usdc_rate as bigint) ?? BigInt(0),
+    startingPrice: (auctionData.starting_price as bigint) ?? BigInt(0),
+    currency,
     finalized: Boolean(auctionData.finalized),
     escrowProvider:
       typeof auctionData.escrow_provider === "string" ? (auctionData.escrow_provider as string) : null,
@@ -454,9 +455,8 @@ export async function buildBidXlmTx(
 export async function buildCreateItemAuctionTx(
   sourcePublicKey: string,
   tokenId: number,
-  startingPriceXlm: bigint,
-  startingPriceUsdc: bigint,
-  xlmUsdcRate: bigint,
+  startingPrice: bigint,
+  currency: "Xlm" | "Usdc",
   durationSeconds: number,
 ): Promise<string> {
   const server = getServer();
@@ -472,9 +472,9 @@ export async function buildCreateItemAuctionTx(
         "create_item_auction",
         new Address(sourcePublicKey).toScVal(),
         nativeToScVal(tokenId, { type: "u64" }),
-        nativeToScVal(startingPriceXlm, { type: "i128" }),
-        nativeToScVal(startingPriceUsdc, { type: "i128" }),
-        nativeToScVal(xlmUsdcRate, { type: "i128" }),
+        nativeToScVal(startingPrice, { type: "i128" }),
+        // Currency enum variant: scvVec([scvSymbol("Xlm")]) or scvVec([scvSymbol("Usdc")])
+        xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(currency)]),
         nativeToScVal(durationSeconds, { type: "u64" }),
       ),
     )

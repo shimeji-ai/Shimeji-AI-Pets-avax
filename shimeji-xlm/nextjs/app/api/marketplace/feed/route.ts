@@ -164,9 +164,8 @@ export async function GET(request: NextRequest) {
         tokenUri: token?.tokenUri ?? auction.tokenUri ?? null,
         sellerWallet,
         sellerProfile,
-        // Auction contract still uses dual prices; expose the min XLM price as the primary display price
-        price: auction.startingPriceXlm.toString(),
-        currency: "Xlm" as const,
+        price: auction.startingPrice.toString(),
+        currency: auction.currency,
         auction: {
           auctionId: snapshot.auctionId,
           startTime: auction.startTime,

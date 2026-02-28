@@ -7,6 +7,19 @@
     { "trait_type": "placeholder", "value": "true" },
     { "trait_type": "network", "value": "testnet" },
     { "trait_type": "character", "value": "bunny" },
-    { "trait_type": "sprite_state", "value": "idle" }
-  ]
+    { "trait_type": "sprite_state", "value": "idle" },
+    { "trait_type": "edition_mode", "value": "edition" },
+    { "trait_type": "edition_size", "value": "2" }
+  ],
+  "properties": {
+    "shimeji": {
+      "schema": "shimeji_nft_v1",
+      "editionMode": "edition",
+      "copies": 2
+    }
+  },
+  "edition": {
+    "mode": "edition",
+    "size": 2
+  }
 }

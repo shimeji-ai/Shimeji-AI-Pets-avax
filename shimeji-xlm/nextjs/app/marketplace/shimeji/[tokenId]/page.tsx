@@ -250,9 +250,8 @@ export default async function MarketplaceShimejiPage({ params }: Params) {
         auctionId: displayAuction.auctionId,
         startTime: displayAuction.auction.startTime,
         endTime: displayAuction.auction.endTime,
-        startingPriceXlm: toStringUnits(displayAuction.auction.startingPriceXlm),
-        startingPriceUsdc: toStringUnits(displayAuction.auction.startingPriceUsdc),
-        xlmUsdcRate: toStringUnits(displayAuction.auction.xlmUsdcRate),
+        startingPrice: toStringUnits(displayAuction.auction.startingPrice),
+        currency: displayAuction.auction.currency,
         highestBid: displayAuction.highestBid
           ? {
               bidder: displayAuction.highestBid.bidder,

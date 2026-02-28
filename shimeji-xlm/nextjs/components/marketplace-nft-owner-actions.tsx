@@ -23,7 +23,6 @@ type Props = {
 };
 
 const TOKEN_SCALE = BigInt(10_000_000);
-const DEFAULT_XLM_USDC_RATE = BigInt(1_600_000);
 
 function parseAmountToUnits(value: string, invalidFormatMessage = "Invalid amount format"): bigint {
   const trimmed = value.trim();
@@ -34,14 +33,6 @@ function parseAmountToUnits(value: string, invalidFormatMessage = "Invalid amoun
   const [whole, fraction = ""] = trimmed.split(".");
   const fracPadded = (fraction + "0000000").slice(0, 7);
   return BigInt(whole) * TOKEN_SCALE + BigInt(fracPadded);
-}
-
-function computeRate(priceXlm: bigint, priceUsdc: bigint): bigint {
-  const zero = BigInt(0);
-  if (priceXlm > zero && priceUsdc > zero) {
-    return (priceUsdc * TOKEN_SCALE) / priceXlm;
-  }
-  return DEFAULT_XLM_USDC_RATE;
 }
 
 async function signAndSubmitXdr(
@@ -76,8 +67,8 @@ export function MarketplaceNftOwnerActions({
   const [saleCurrency, setSaleCurrency] = useState<"Xlm" | "Usdc">("Xlm");
   const [commissionEtaDays, setCommissionEtaDays] = useState("7");
 
-  const [auctionPriceXlm, setAuctionPriceXlm] = useState("");
-  const [auctionPriceUsdc, setAuctionPriceUsdc] = useState("");
+  const [auctionPrice, setAuctionPrice] = useState("");
+  const [auctionCurrency, setAuctionCurrency] = useState<"Xlm" | "Usdc">("Xlm");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapIntention, setSwapIntention] = useState("");
 
@@ -126,20 +117,16 @@ export function MarketplaceNftOwnerActions({
         );
       }
       const invalidAmountMessage = t("Invalid amount format", "Formato de monto inválido");
-      const priceXlm = parseAmountToUnits(auctionPriceXlm, invalidAmountMessage);
-      const priceUsdc = parseAmountToUnits(auctionPriceUsdc, invalidAmountMessage);
-      if (priceXlm <= BigInt(0) && priceUsdc <= BigInt(0)) {
-        throw new Error(
-          t("Set an XLM or USDC starting price.", "Definí un precio inicial en XLM o USDC."),
-        );
+      const price = parseAmountToUnits(auctionPrice, invalidAmountMessage);
+      if (price <= BigInt(0)) {
+        throw new Error(t("Enter a valid starting price.", "Ingresá un precio inicial válido."));
       }
       const durationHours = Math.max(1, Number.parseInt(auctionDurationHours || "24", 10) || 24);
       const txXdr = await buildCreateItemAuctionTx(
         publicKey,
         tokenId,
-        priceXlm,
-        priceUsdc,
-        computeRate(priceXlm, priceUsdc),
+        price,
+        auctionCurrency,
         durationHours * 3600,
       );
       await signAndSubmitXdr(txXdr, signTransaction, publicKey);
@@ -275,28 +262,31 @@ export function MarketplaceNftOwnerActions({
             ) : null}
           </div>
           {isCommissionEgg || hasActiveAuction ? null : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <div className="grid gap-2 sm:grid-cols-[1fr_120px]">
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  <span>{t("Starting price", "Precio inicial")}</span>
+                  <input
+                    className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    value={auctionPrice}
+                    onChange={(event) => setAuctionPrice(event.target.value)}
+                    placeholder="0"
+                    inputMode="decimal"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  <span>{t("Currency", "Moneda")}</span>
+                  <select
+                    className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                    value={auctionCurrency}
+                    onChange={(event) => setAuctionCurrency(event.target.value as "Xlm" | "Usdc")}
+                  >
+                    <option value="Xlm">XLM</option>
+                    <option value="Usdc">USDC</option>
+                  </select>
+                </label>
+              </div>
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>{t("Start XLM", "Inicio XLM")}</span>
-                <input
-                  className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                  value={auctionPriceXlm}
-                  onChange={(event) => setAuctionPriceXlm(event.target.value)}
-                  placeholder="0"
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-                <span>{t("Start USDC", "Inicio USDC")}</span>
-                <input
-                  className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                  value={auctionPriceUsdc}
-                  onChange={(event) => setAuctionPriceUsdc(event.target.value)}
-                  placeholder="0"
-                  inputMode="decimal"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-muted-foreground sm:col-span-2">
                 <span>{t("Duration (hours)", "Duración (horas)")}</span>
                 <input
                   className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
@@ -306,21 +296,19 @@ export function MarketplaceNftOwnerActions({
                   inputMode="numeric"
                 />
               </label>
-              <div className="sm:col-span-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full bg-amber-400 text-black hover:bg-amber-300"
-                  onClick={() => void submitAuction()}
-                  disabled={Boolean(busy) || hasActiveListing}
-                >
-                  {busy === "auction"
-                    ? t("Creating...", "Creando...")
-                    : hasActiveListing
-                      ? t("Cancel sale first", "Cancelá la venta primero")
-                      : t("Create auction", "Crear subasta")}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="w-full bg-amber-400 text-black hover:bg-amber-300"
+                onClick={() => void submitAuction()}
+                disabled={Boolean(busy) || hasActiveListing}
+              >
+                {busy === "auction"
+                  ? t("Creating...", "Creando...")
+                  : hasActiveListing
+                    ? t("Cancel sale first", "Cancelá la venta primero")
+                    : t("Create auction", "Crear subasta")}
+              </Button>
             </div>
           )}
         </div>

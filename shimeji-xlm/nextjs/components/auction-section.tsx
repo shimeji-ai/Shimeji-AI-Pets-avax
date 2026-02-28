@@ -23,7 +23,6 @@ import {
 
 const LOCAL_BURNER_STORAGE_KEY = "shimeji_local_burner_secret";
 const MAINNET_XLM_ONRAMP_URL = "https://stellar.org/products-and-tools/moneygram";
-const TOKEN_SCALE = BigInt(10_000_000);
 const MIN_INCREMENT_BPS = BigInt(500);
 const BPS_DENOMINATOR = BigInt(10_000);
 
@@ -66,12 +65,6 @@ function formatShortDateTime(value: Date, includeYear: boolean) {
   return `${day}/${month} ${hour}:${minute}`;
 }
 
-function ceilDiv(a: bigint, b: bigint): bigint {
-  const zero = BigInt(0);
-  const one = BigInt(1);
-  if (b <= zero) return zero;
-  return (a + b - one) / b;
-}
 
 function isSameBid(a: BidInfo, b: BidInfo): boolean {
   return a.bidder === b.bidder && a.amount === b.amount && a.currency === b.currency;
@@ -388,33 +381,23 @@ export function AuctionSection() {
       return { XLM: 500, USDC: 50 };
     }
 
-    const startingXlmRaw = auction.startingPriceXlm;
-    const startingUsdcRaw = auction.startingPriceUsdc;
-    const rate = auction.xlmUsdcRate;
+    const startingPrice = auction.startingPrice;
+    const auctionCurrency = auction.currency; // "Xlm" | "Usdc"
 
-    let minXlmRaw = startingXlmRaw;
-    let minUsdcRaw = startingUsdcRaw;
-
-    if (highestBid) {
-      const highestRaw = highestBid.amount;
-      const highestNormUsdc =
-        highestBid.currency === "Usdc"
-          ? highestRaw
-          : (highestRaw * rate) / TOKEN_SCALE;
-
-      const requiredNormUsdc =
-        highestNormUsdc + (highestNormUsdc * MIN_INCREMENT_BPS) / BPS_DENOMINATOR;
-
-      minUsdcRaw = requiredNormUsdc > minUsdcRaw ? requiredNormUsdc : minUsdcRaw;
-
-      const requiredXlmRaw =
-        rate > BigInt(0) ? ceilDiv(requiredNormUsdc * TOKEN_SCALE, rate) : minXlmRaw;
-      minXlmRaw = requiredXlmRaw > minXlmRaw ? requiredXlmRaw : minXlmRaw;
+    // Compute the minimum for a bid in `bidCurrency` when it matches the auction currency.
+    // For cross-currency bids the contract uses the oracle on-chain; return 0 to signal "no frontend min".
+    function computeSameCurrencyMin(bidCurrency: "Xlm" | "Usdc"): number {
+      let minRaw = startingPrice;
+      if (highestBid && highestBid.currency === bidCurrency) {
+        const required = highestBid.amount + (highestBid.amount * MIN_INCREMENT_BPS) / BPS_DENOMINATOR;
+        if (required > minRaw) minRaw = required;
+      }
+      return Number(minRaw) / 1e7;
     }
 
     return {
-      XLM: Number(minXlmRaw) / 1e7,
-      USDC: Number(minUsdcRaw) / 1e7,
+      XLM: auctionCurrency === "Xlm" ? computeSameCurrencyMin("Xlm") : 0,
+      USDC: auctionCurrency === "Usdc" ? computeSameCurrencyMin("Usdc") : 0,
     };
   }, [auction, highestBid]);
   const minimumBid = minimumBidByCurrency[currency];
@@ -426,9 +409,11 @@ export function AuctionSection() {
       const next = { ...prev };
       let changed = false;
       (["XLM", "USDC"] as const).forEach((code) => {
+        const min = minimumBidByCurrency[code];
+        if (min <= 0) return; // cross-currency: no frontend minimum, skip auto-fill
         const parsed = Number.parseFloat(prev[code]);
-        if (!prev[code] || !Number.isFinite(parsed) || parsed < minimumBidByCurrency[code]) {
-          next[code] = formatBidInput(minimumBidByCurrency[code]);
+        if (!prev[code] || !Number.isFinite(parsed) || parsed < min) {
+          next[code] = formatBidInput(min);
           changed = true;
         }
       });
@@ -441,21 +426,14 @@ export function AuctionSection() {
     setBidSuccess(false);
     let amount = parseFloat(bidAmounts[currency]);
     if (!amount || amount <= 0) {
-      if (minimumBid > 0) {
-        amount = minimumBid;
-        setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
-      } else {
-        setBidError(t("Enter a valid bid amount.", "Ingresa un monto válido."));
-        return;
-      }
-    }
-    if (amount < minimumBid) {
-      amount = minimumBid;
-      setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
-    }
-    if (!amount || amount <= 0) {
       setBidError(t("Enter a valid bid amount.", "Ingresa un monto válido."));
       return;
+    }
+    // Only enforce frontend minimum for same-currency bids (minimumBid > 0).
+    // For cross-currency bids the contract validates via oracle on-chain.
+    if (minimumBid > 0 && amount < minimumBid) {
+      amount = minimumBid;
+      setBidAmounts((prev) => ({ ...prev, [currency]: minimumBidText }));
     }
     if (!activePublicKey) {
       setBidError(t("Connect your wallet to place a bid.", "Conecta tu wallet para ofertar."));
@@ -774,7 +752,7 @@ export function AuctionSection() {
                             onChange={(e) =>
                               setBidAmounts((prev) => ({ ...prev, [currency]: e.target.value }))
                             }
-                            placeholder={minimumBidText}
+                            placeholder={minimumBid > 0 ? minimumBidText : ""}
                             min={0}
                             step="any"
                             className="w-full flex-1 rounded-xl border border-white/10 bg-[#0b0f14] px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--brand-accent)]"
@@ -796,6 +774,14 @@ export function AuctionSection() {
                       ) : (
                         walletConnectPrompt
                       )}
+                      {hasConnectedWallet && auction && minimumBid <= 0 ? (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          {t(
+                            "Cross-currency bid — the contract validates the minimum using the live oracle rate.",
+                            "Puja en otra moneda — el contrato valida el mínimo con el tipo de cambio del oráculo en tiempo real.",
+                          )}
+                        </p>
+                      ) : null}
 
                       {hasConnectedWallet ? (
                         <>

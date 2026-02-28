@@ -55,9 +55,8 @@ type AuctionActionData = {
   auctionId: number;
   startTime: number;
   endTime: number;
-  startingPriceXlm: string;
-  startingPriceUsdc: string;
-  xlmUsdcRate: string;
+  startingPrice: string;
+  currency: "Xlm" | "Usdc";
   highestBid: AuctionBidData | null;
   recentBids: AuctionBidData[];
 };
@@ -135,17 +134,6 @@ function ceilDiv(a: bigint, b: bigint) {
   return (a + b - BIGINT_ONE) / b;
 }
 
-function normalizeToUsdc(amount: bigint, currency: "Xlm" | "Usdc", xlmUsdcRate: bigint) {
-  if (currency === "Usdc") return amount;
-  if (xlmUsdcRate <= BIGINT_ZERO) return BIGINT_ZERO;
-  return (amount * xlmUsdcRate) / TOKEN_SCALE;
-}
-
-function denormalizeFromUsdc(amountUsdcUnits: bigint, target: "Xlm" | "Usdc", xlmUsdcRate: bigint) {
-  if (target === "Usdc") return amountUsdcUnits;
-  if (xlmUsdcRate <= BIGINT_ZERO) return BIGINT_ZERO;
-  return ceilDiv(amountUsdcUnits * TOKEN_SCALE, xlmUsdcRate);
-}
 
 export function MarketplaceNftDetailActions({
   tokenId,
@@ -208,33 +196,27 @@ export function MarketplaceNftDetailActions({
     };
   }, [publicKey]);
 
-  const suggestedAuctionBids = useMemo(() => {
-    if (!activeAuction) return { xlm: BIGINT_ZERO, usdc: BIGINT_ZERO };
-    const rate = parseBigIntSafe(activeAuction.xlmUsdcRate);
-    const startXlm = parseBigIntSafe(activeAuction.startingPriceXlm);
-    const startUsdc = parseBigIntSafe(activeAuction.startingPriceUsdc);
+  const suggestedAuctionBids = useMemo((): { xlm: bigint | null; usdc: bigint | null } => {
+    if (!activeAuction) return { xlm: null, usdc: null };
+    const startingPrice = parseBigIntSafe(activeAuction.startingPrice);
+    const auctionCurrency = activeAuction.currency;
 
     if (activeAuction.highestBid) {
       const currentAmount = parseBigIntSafe(activeAuction.highestBid.amount);
-      const normalizedCurrent = normalizeToUsdc(currentAmount, activeAuction.highestBid.currency, rate);
-      const normalizedMin =
-        normalizedCurrent + ((normalizedCurrent * MIN_AUCTION_INCREMENT_BPS) / BPS_DENOMINATOR);
+      const minAmount = ceilDiv(
+        currentAmount * (BPS_DENOMINATOR + MIN_AUCTION_INCREMENT_BPS),
+        BPS_DENOMINATOR,
+      );
+      const bidCurrency = activeAuction.highestBid.currency;
       return {
-        xlm: denormalizeFromUsdc(normalizedMin, "Xlm", rate),
-        usdc: denormalizeFromUsdc(normalizedMin, "Usdc", rate),
+        xlm: bidCurrency === "Xlm" ? minAmount : null,
+        usdc: bidCurrency === "Usdc" ? minAmount : null,
       };
     }
 
-    const normalizedStartXlm = normalizeToUsdc(startXlm, "Xlm", rate);
-    const normalizedStartUsdc = normalizeToUsdc(startUsdc, "Usdc", rate);
-    const normalizedStart =
-      normalizedStartUsdc > BIGINT_ZERO ? normalizedStartUsdc : normalizedStartXlm;
-
     return {
-      xlm:
-        startXlm > BIGINT_ZERO ? startXlm : denormalizeFromUsdc(normalizedStart, "Xlm", rate),
-      usdc:
-        startUsdc > BIGINT_ZERO ? startUsdc : denormalizeFromUsdc(normalizedStart, "Usdc", rate),
+      xlm: auctionCurrency === "Xlm" ? startingPrice : null,
+      usdc: auctionCurrency === "Usdc" ? startingPrice : null,
     };
   }, [activeAuction]);
 
@@ -646,13 +628,17 @@ export function MarketplaceNftDetailActions({
               <div className="rounded-xl border border-border bg-white/5 p-3">
                 <p className="text-xs text-muted-foreground">{t("Suggested min XLM", "Mínimo sugerido XLM")}</p>
                 <p className="text-sm font-medium text-foreground">
-                  {formatTokenAmount(suggestedAuctionBids.xlm)} XLM
+                  {suggestedAuctionBids.xlm !== null
+                    ? `${formatTokenAmount(suggestedAuctionBids.xlm)} XLM`
+                    : "-"}
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white/5 p-3">
                 <p className="text-xs text-muted-foreground">{t("Suggested min USDC", "Mínimo sugerido USDC")}</p>
                 <p className="text-sm font-medium text-foreground">
-                  {formatTokenAmount(suggestedAuctionBids.usdc)} USDC
+                  {suggestedAuctionBids.usdc !== null
+                    ? `${formatTokenAmount(suggestedAuctionBids.usdc)} USDC`
+                    : "-"}
                 </p>
               </div>
             </div>
@@ -704,8 +690,15 @@ export function MarketplaceNftDetailActions({
                   size="sm"
                   variant="outline"
                   className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                  onClick={() => void submitAuctionBid("XLM", formatTokenAmount(suggestedAuctionBids.xlm))}
-                  disabled={busyAction === "bid:XLM"}
+                  onClick={() =>
+                    void submitAuctionBid(
+                      "XLM",
+                      suggestedAuctionBids.xlm !== null
+                        ? formatTokenAmount(suggestedAuctionBids.xlm)
+                        : "",
+                    )
+                  }
+                  disabled={busyAction === "bid:XLM" || suggestedAuctionBids.xlm === null}
                 >
                   {busyAction === "bid:XLM" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {t("Bid suggested XLM", "Ofertar mínimo sugerido XLM")}
@@ -715,8 +708,15 @@ export function MarketplaceNftDetailActions({
                   size="sm"
                   variant="outline"
                   className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                  onClick={() => void submitAuctionBid("USDC", formatTokenAmount(suggestedAuctionBids.usdc))}
-                  disabled={busyAction === "bid:USDC"}
+                  onClick={() =>
+                    void submitAuctionBid(
+                      "USDC",
+                      suggestedAuctionBids.usdc !== null
+                        ? formatTokenAmount(suggestedAuctionBids.usdc)
+                        : "",
+                    )
+                  }
+                  disabled={busyAction === "bid:USDC" || suggestedAuctionBids.usdc === null}
                 >
                   {busyAction === "bid:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {t("Bid suggested USDC", "Ofertar mínimo sugerido USDC")}
