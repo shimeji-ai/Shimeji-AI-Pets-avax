@@ -294,7 +294,7 @@ export function formatSiteShimejiProviderError(
       ? "El modelo configurado no existe en el proveedor."
       : "The configured model was not found on the provider.";
   }
-  if (message.startsWith("OPENCLAW_INVALID_URL:")) {
+  if (message.startsWith("OPENCLAW_INVALID_URL")) {
     return isSpanish ? "La URL de OpenClaw no es válida." : "The OpenClaw URL is invalid.";
   }
   if (message.startsWith("OPENCLAW_MISSING_TOKEN")) {
@@ -302,15 +302,25 @@ export function formatSiteShimejiProviderError(
       ? "Falta el token de OpenClaw. Configúralo en el panel."
       : "OpenClaw token is missing. Configure it in the panel.";
   }
-  if (message.startsWith("OPENCLAW_AUTH_FAILED:")) {
+  if (message.startsWith("OPENCLAW_AUTH_FAILED")) {
     return isSpanish
       ? "Falló la autenticación con OpenClaw."
       : "OpenClaw authentication failed.";
   }
-  if (message.startsWith("OPENCLAW_CONNECT:")) {
+  if (message.startsWith("OPENCLAW_CONNECT")) {
     return isSpanish
-      ? "No se pudo conectar al gateway de OpenClaw desde tu navegador."
-      : "Could not connect to the OpenClaw gateway from your browser.";
+      ? "No se pudo conectar al gateway de OpenClaw desde el servidor del sitio. Si tu agente corre local, necesitás un túnel público (wss/https)."
+      : "Could not connect to the OpenClaw gateway from the website server. If your agent is local, you need a public tunnel (wss/https).";
+  }
+  if (
+    message.startsWith("OPENCLAW_ERROR") ||
+    message.startsWith("OPENCLAW_CLOSED") ||
+    message.startsWith("OPENCLAW_INCOMPLETE_CLOSE") ||
+    message.startsWith("OPENCLAW_EMPTY_RESPONSE")
+  ) {
+    return isSpanish
+      ? "OpenClaw respondió con un error o cerró la conexión antes de completar la respuesta."
+      : "OpenClaw returned an error or closed the connection before completing the response.";
   }
   if (message.startsWith("OPENCLAW_PAIRING_REQUIRED")) {
     return isSpanish
