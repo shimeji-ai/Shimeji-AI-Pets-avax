@@ -1174,8 +1174,10 @@ export function SiteShimejiMascot() {
                   typeof relayJson?.error === "string" && relayJson.error.trim()
                     ? relayJson.error.trim() === "OPENCLAW_RELAY_FAILED" &&
                       typeof relayJson?.errorDetail === "string" &&
-                      relayJson.errorDetail.trim().startsWith("OPENCLAW_")
-                      ? relayJson.errorDetail.trim()
+                      relayJson.errorDetail.trim()
+                      ? relayJson.errorDetail.trim().startsWith("OPENCLAW_")
+                        ? relayJson.errorDetail.trim()
+                        : `OPENCLAW_RELAY_DETAIL:${relayJson.errorDetail.trim().slice(0, 120)}`
                       : relayJson.error.trim()
                     : !relayResponse.ok
                       ? `OPENCLAW_RELAY_HTTP_${relayResponse.status}`

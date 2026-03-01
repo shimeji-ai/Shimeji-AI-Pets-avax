@@ -348,6 +348,12 @@ export function formatSiteShimejiProviderError(
       ? `El relay de OpenClaw devolvió HTTP ${status}.`
       : `The OpenClaw relay returned HTTP ${status}.`;
   }
+  if (message.startsWith("OPENCLAW_RELAY_DETAIL:")) {
+    const detail = message.slice("OPENCLAW_RELAY_DETAIL:".length).trim() || "unknown";
+    return isSpanish
+      ? `El relay de OpenClaw falló: ${detail}`
+      : `The OpenClaw relay failed: ${detail}`;
+  }
   if (message.startsWith("OPENCLAW_RELAY_FAILED")) {
     return isSpanish
       ? "No se pudo completar el chat por el relay de OpenClaw."
