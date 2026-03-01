@@ -14,6 +14,8 @@ https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue
 - OPENCLAW_GATEWAY_TOKEN
   - Recommended source: `openclaw config get gateway.auth.token`
 - OPENCLAW_GATEWAY_URL
+  - Hosted/online OpenClaw: set a public `wss://...` URL (or let command read `openclaw config get gateway.url`)
+  - Local OpenClaw fallback default: `ws://127.0.0.1:18789`
   - If local/private, the command auto-creates a public tunnel URL
   - Tunnel priority: `ssh` + `localhost.run` first, then Cloudflare (`cloudflared`)
 
@@ -21,6 +23,7 @@ https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue
 ```bash
 REQUEST_CODE="PASTE_REQUEST_CODE_HERE"
 OPENCLAW_AGENT_NAME="${OPENCLAW_AGENT_NAME:-web-shimeji-1}"
+OPENCLAW_GATEWAY_URL="${OPENCLAW_GATEWAY_URL:-$(openclaw config get gateway.url 2>/dev/null || true)}"
 OPENCLAW_GATEWAY_URL="${OPENCLAW_GATEWAY_URL:-ws://127.0.0.1:18789}"
 OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(openclaw config get gateway.auth.token)}"
 OPENCLAW_TUNNEL_DIR="${OPENCLAW_TUNNEL_DIR:-/tmp/openclaw-pairing}"
@@ -93,9 +96,22 @@ if is_private_host "$GATEWAY_HOST"; then
 fi
 
 PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"
-curl -sS -X POST https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD"
+RESPONSE="$(
+  curl -sS --connect-timeout 8 --max-time 25 --retry 1 --retry-delay 1 \
+    -w '\nHTTP_STATUS:%{http_code}\n' \
+    -X POST https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD"
+)"
+BODY="$(printf '%s' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
+STATUS="$(printf '%s' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)"
+
+if [[ "$STATUS" != "200" ]]; then
+  echo "pairing issue failed (status=$STATUS): $BODY" >&2
+  exit 1
+fi
+
+echo "$BODY"
 ```
 
 ## Output format (strict)

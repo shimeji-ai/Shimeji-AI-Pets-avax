@@ -309,8 +309,8 @@ export function formatSiteShimejiProviderError(
   }
   if (message.startsWith("OPENCLAW_CONNECT")) {
     return isSpanish
-      ? "No se pudo conectar al gateway de OpenClaw desde el servidor del sitio. Si tu agente corre local, necesitás un túnel público (wss/https)."
-      : "Could not connect to the OpenClaw gateway from the website server. If your agent is local, you need a public tunnel (wss/https).";
+      ? "No se pudo conectar al gateway de OpenClaw desde el servidor del sitio. Verificá que la URL/token del gateway sean correctos y públicos; si el agente es local, usá un túnel público (wss/https)."
+      : "Could not connect to the OpenClaw gateway from the website server. Verify the gateway URL/token are correct and publicly reachable; if your agent is local, use a public tunnel (wss/https).";
   }
   if (
     message.startsWith("OPENCLAW_ERROR") ||
