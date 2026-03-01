@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createOpenClawPairingCodeFromRequest } from "@/lib/site-shimeji-openclaw-pairing-store";
 import { sanitizeOpenClawAgentName } from "@/lib/site-shimeji-openclaw-protocol";
+import { verifyOpenClawServerGateway } from "@/lib/site-shimeji-openclaw-server";
 
 export const runtime = "nodejs";
 
@@ -78,6 +79,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    await verifyOpenClawServerGateway({
+      gatewayUrl,
+      gatewayToken,
+      timeoutMs: 9_000,
+    });
 
     const created = await createOpenClawPairingCodeFromRequest({
       requestCode,
@@ -109,6 +115,16 @@ export async function POST(request: NextRequest) {
     }
     if (message.startsWith("OPENCLAW_MISSING_TOKEN")) {
       return NextResponse.json({ error: "OPENCLAW_MISSING_TOKEN" }, { status: 400 });
+    }
+    if (message.startsWith("OPENCLAW_AUTH_FAILED:")) {
+      return NextResponse.json({ error: "OPENCLAW_AUTH_FAILED" }, { status: 400 });
+    }
+    if (
+      message.startsWith("OPENCLAW_CONNECT:") ||
+      message.startsWith("OPENCLAW_TIMEOUT:") ||
+      message.startsWith("OPENCLAW_IDLE_TIMEOUT:")
+    ) {
+      return NextResponse.json({ error: "OPENCLAW_CONNECT" }, { status: 504 });
     }
     return NextResponse.json({ error: "OPENCLAW_PAIRING_ISSUE_FAILED" }, { status: 500 });
   }

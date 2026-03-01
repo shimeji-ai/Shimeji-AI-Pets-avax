@@ -8,6 +8,117 @@ import {
   type OpenClawChatRequestMessage,
 } from "@/lib/site-shimeji-openclaw-protocol";
 
+export async function verifyOpenClawServerGateway(args: {
+  gatewayUrl: string;
+  gatewayToken: string;
+  timeoutMs?: number;
+}): Promise<void> {
+  if (typeof WebSocket !== "function") {
+    throw new Error("OPENCLAW_WEBSOCKET_UNAVAILABLE");
+  }
+
+  const normalizedUrl = normalizeOpenClawGatewayUrl(args.gatewayUrl);
+  const authToken = String(args.gatewayToken || "").trim();
+  if (!authToken) throw new Error("OPENCLAW_MISSING_TOKEN");
+
+  const timeoutMs =
+    typeof args.timeoutMs === "number" && Number.isFinite(args.timeoutMs)
+      ? Math.max(3_000, Math.min(30_000, Math.round(args.timeoutMs)))
+      : 9_000;
+
+  return new Promise((resolve, reject) => {
+    let ws: WebSocket | null = null;
+    let settled = false;
+    let authenticated = false;
+
+    const timeout = setTimeout(() => {
+      fail(new Error(`OPENCLAW_TIMEOUT:${normalizedUrl}`));
+    }, timeoutMs);
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (ws && ws.readyState === ws.OPEN) ws.close(1000, "verified");
+      resolve();
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (ws && ws.readyState === ws.OPEN) ws.close(1011, "error");
+      reject(error);
+    };
+
+    try {
+      ws = new WebSocket(normalizedUrl);
+    } catch {
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
+      return;
+    }
+
+    ws.addEventListener("message", (event) => {
+      let data: any;
+      try {
+        const raw = typeof event.data === "string" ? event.data : "";
+        if (!raw) return;
+        data = JSON.parse(raw);
+      } catch {
+        return;
+      }
+
+      if (data.type === "event" && data.event === "connect.challenge") {
+        ws?.send(
+          JSON.stringify({
+            type: "req",
+            id: nextOpenClawId("connect"),
+            method: "connect",
+            params: {
+              minProtocol: 3,
+              maxProtocol: 3,
+              client: {
+                id: "gateway-client",
+                version: "1.0.0",
+                platform: "server",
+                mode: "pairing-preflight",
+              },
+              role: "operator",
+              scopes: ["operator.read", "operator.write"],
+              auth: { token: authToken },
+            },
+          }),
+        );
+        return;
+      }
+
+      if (data.type === "res" && data.ok === false) {
+        const reason = data.error?.message || data.error?.code || "Authentication failed";
+        fail(new Error(`OPENCLAW_AUTH_FAILED:${reason}`));
+        return;
+      }
+
+      if (data.type === "res" && (data.payload?.type === "hello-ok" || data.ok === true)) {
+        authenticated = true;
+        finish();
+      }
+    });
+
+    ws.addEventListener("error", () => {
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
+    });
+
+    ws.addEventListener("close", () => {
+      if (settled) return;
+      if (authenticated) {
+        finish();
+        return;
+      }
+      fail(new Error(`OPENCLAW_CONNECT:${normalizedUrl}`));
+    });
+  });
+}
+
 export async function sendOpenClawServerChat(args: {
   messages: OpenClawChatRequestMessage[];
   gatewayUrl: string;

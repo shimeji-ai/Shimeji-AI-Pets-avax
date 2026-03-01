@@ -14,7 +14,8 @@ https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue
 - OPENCLAW_GATEWAY_TOKEN
   - Recommended source: `openclaw config get gateway.auth.token`
 - OPENCLAW_GATEWAY_URL
-  - If local/private, the command auto-creates a Cloudflare Tunnel URL
+  - If local/private, the command auto-creates a public tunnel URL
+  - Tunnel priority: Cloudflare (`cloudflared`), then `ssh` + `localhost.run`
 
 ## Command
 ```bash
@@ -43,31 +44,49 @@ is_private_host() {
 
 GATEWAY_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
 if is_private_host "$GATEWAY_HOST"; then
-  if ! command -v cloudflared >/dev/null 2>&1; then
-    echo "Local gateway detected but cloudflared is not installed." >&2
+  mkdir -p "$OPENCLAW_TUNNEL_DIR"
+  LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\1#')"
+  [[ "$LOCAL_HOSTPORT" == *:* ]] || LOCAL_HOSTPORT="$LOCAL_HOSTPORT:80"
+  LOCAL_TUNNEL_TARGET="${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
+  PUBLIC_URL=""
+
+  if command -v cloudflared >/dev/null 2>&1; then
+    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/cloudflared.log"
+    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/cloudflared.pid"
+    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
+      :
+    else
+      nohup cloudflared tunnel --url "$LOCAL_TUNNEL_TARGET" >"$TUNNEL_LOG" 2>&1 &
+      echo $! > "$TUNNEL_PID_FILE"
+    fi
+
+    for _ in $(seq 1 20); do
+      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+trycloudflare.com' "$TUNNEL_LOG" | tail -n 1 || true)"
+      [[ -n "$PUBLIC_URL" ]] && break
+      sleep 1
+    done
+  elif command -v ssh >/dev/null 2>&1; then
+    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/localhost-run.log"
+    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/localhost-run.pid"
+    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
+      :
+    else
+      nohup ssh -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:"$LOCAL_HOSTPORT" nokey@localhost.run >"$TUNNEL_LOG" 2>&1 &
+      echo $! > "$TUNNEL_PID_FILE"
+    fi
+
+    for _ in $(seq 1 30); do
+      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\.localhost\.run' "$TUNNEL_LOG" | tail -n 1 || true)"
+      [[ -n "$PUBLIC_URL" ]] && break
+      sleep 1
+    done
+  else
+    echo "Local gateway detected but neither cloudflared nor ssh is available." >&2
     exit 1
   fi
-  mkdir -p "$OPENCLAW_TUNNEL_DIR"
-  TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/cloudflared.log"
-  TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/cloudflared.pid"
-  LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\1#')"
-  LOCAL_TUNNEL_TARGET="${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
 
-  if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
-    :
-  else
-    nohup cloudflared tunnel --url "$LOCAL_TUNNEL_TARGET" >"$TUNNEL_LOG" 2>&1 &
-    echo $! > "$TUNNEL_PID_FILE"
-  fi
-
-  PUBLIC_URL=""
-  for _ in $(seq 1 20); do
-    PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+trycloudflare.com' "$TUNNEL_LOG" | tail -n 1 || true)"
-    [[ -n "$PUBLIC_URL" ]] && break
-    sleep 1
-  done
   if [[ -z "$PUBLIC_URL" ]]; then
-    echo "Could not create public tunnel URL from cloudflared." >&2
+    echo "Could not create public tunnel URL from cloudflared/localhost.run." >&2
     exit 1
   fi
   OPENCLAW_GATEWAY_URL="$PUBLIC_URL"
