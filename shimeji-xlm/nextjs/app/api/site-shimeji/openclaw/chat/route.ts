@@ -87,6 +87,18 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json({ error: "OPENCLAW_CONNECT" }, { status: 504 });
     }
+    if (message.startsWith("OPENCLAW_ERROR:")) {
+      return NextResponse.json({ error: "OPENCLAW_ERROR" }, { status: 502 });
+    }
+    if (message.startsWith("OPENCLAW_CLOSED:")) {
+      return NextResponse.json({ error: "OPENCLAW_CLOSED" }, { status: 502 });
+    }
+    if (message.startsWith("OPENCLAW_INCOMPLETE_CLOSE:")) {
+      return NextResponse.json({ error: "OPENCLAW_INCOMPLETE_CLOSE" }, { status: 502 });
+    }
+    if (message.startsWith("OPENCLAW_EMPTY_RESPONSE")) {
+      return NextResponse.json({ error: "OPENCLAW_EMPTY_RESPONSE" }, { status: 502 });
+    }
 
     return NextResponse.json({ error: "OPENCLAW_RELAY_FAILED" }, { status: 500 });
   }
