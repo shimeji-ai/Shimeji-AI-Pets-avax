@@ -348,6 +348,16 @@ export function formatSiteShimejiProviderError(
       ? "No se pudo completar el chat por el relay de OpenClaw."
       : "Could not complete chat through the OpenClaw relay.";
   }
+  if (provider === "openclaw") {
+    return isSpanish
+      ? "No se pudo completar la solicitud con OpenClaw. Revisá el pairing activo y la conectividad del gateway."
+      : "Could not complete the OpenClaw request. Check the active pairing and gateway connectivity.";
+  }
+  if (provider === "ollama") {
+    return isSpanish
+      ? "No se pudo completar la solicitud con Ollama. Revisá la URL del servidor y CORS/red."
+      : "Could not complete the Ollama request. Check server URL and CORS/network.";
+  }
   if (provider === "openrouter") {
     return isSpanish
       ? "No se pudo completar la solicitud con OpenRouter. Revisa tu key y modelo."
