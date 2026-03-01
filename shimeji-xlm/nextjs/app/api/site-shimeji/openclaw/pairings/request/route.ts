@@ -17,7 +17,7 @@ function clampInt(input: unknown, fallback: number, min: number, max: number): n
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as RequestPayload;
-    const ttlSeconds = clampInt(body.ttlSeconds, 5 * 60, 60, 30 * 60);
+    const ttlSeconds = clampInt(body.ttlSeconds, 15 * 60, 60, 30 * 60);
     const created = await createOpenClawPairingRequest({ ttlSeconds });
 
     return NextResponse.json({

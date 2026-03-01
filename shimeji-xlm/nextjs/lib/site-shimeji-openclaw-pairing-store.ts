@@ -7,7 +7,7 @@ import {
 } from "@/lib/site-shimeji-openclaw-protocol";
 
 const DEFAULT_PAIRING_TTL_SECONDS = 10 * 60;
-const DEFAULT_PAIRING_REQUEST_TTL_SECONDS = 5 * 60;
+const DEFAULT_PAIRING_REQUEST_TTL_SECONDS = 15 * 60;
 const DEFAULT_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 let ensurePairingTablesPromise: Promise<void> | null = null;

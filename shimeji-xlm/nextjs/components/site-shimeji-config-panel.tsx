@@ -607,7 +607,7 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
       const response = await fetch(pairingRequestEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ttlSeconds: 5 * 60 }),
+        body: JSON.stringify({ ttlSeconds: 15 * 60 }),
       });
       const json = (await response.json().catch(() => null)) as
         | { requestCode?: string; expiresAt?: string; error?: string }
