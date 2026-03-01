@@ -1155,6 +1155,7 @@ export function SiteShimejiMascot() {
                 const relayJson = ((): {
                   reply?: string;
                   error?: string;
+                  errorDetail?: string;
                   sessionExpiresAt?: string;
                 } | null => {
                   if (!relayRaw) return null;
@@ -1162,6 +1163,7 @@ export function SiteShimejiMascot() {
                     return JSON.parse(relayRaw) as {
                       reply?: string;
                       error?: string;
+                      errorDetail?: string;
                       sessionExpiresAt?: string;
                     };
                   } catch {
@@ -1170,12 +1172,21 @@ export function SiteShimejiMascot() {
                 })();
                 const relayErrorCode =
                   typeof relayJson?.error === "string" && relayJson.error.trim()
-                    ? relayJson.error.trim()
+                    ? relayJson.error.trim() === "OPENCLAW_RELAY_FAILED" &&
+                      typeof relayJson?.errorDetail === "string" &&
+                      relayJson.errorDetail.trim().startsWith("OPENCLAW_")
+                      ? relayJson.errorDetail.trim()
+                      : relayJson.error.trim()
                     : !relayResponse.ok
                       ? `OPENCLAW_RELAY_HTTP_${relayResponse.status}`
                       : "OPENCLAW_RELAY_FAILED";
                 const parsedRelayJson = relayJson as
-                  | { reply?: string; error?: string; sessionExpiresAt?: string }
+                  | {
+                      reply?: string;
+                      error?: string;
+                      errorDetail?: string;
+                      sessionExpiresAt?: string;
+                    }
                   | null;
                 if (
                   !relayResponse.ok ||

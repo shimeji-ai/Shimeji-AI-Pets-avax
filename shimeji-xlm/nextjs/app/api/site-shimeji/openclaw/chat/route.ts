@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
     if (message.startsWith("OPENCLAW_MISSING_TOKEN")) {
       return NextResponse.json({ error: "OPENCLAW_MISSING_TOKEN" }, { status: 400 });
     }
+    if (message.startsWith("OPENCLAW_WEBSOCKET_UNAVAILABLE")) {
+      return NextResponse.json({ error: "OPENCLAW_WEBSOCKET_UNAVAILABLE" }, { status: 500 });
+    }
     if (message.startsWith("OPENCLAW_EMPTY_MESSAGE")) {
       return NextResponse.json({ error: "OPENCLAW_EMPTY_MESSAGE" }, { status: 400 });
     }
@@ -100,6 +103,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "OPENCLAW_EMPTY_RESPONSE" }, { status: 502 });
     }
 
-    return NextResponse.json({ error: "OPENCLAW_RELAY_FAILED" }, { status: 500 });
+    return NextResponse.json(
+      { error: "OPENCLAW_RELAY_FAILED", errorDetail: message.slice(0, 240) },
+      { status: 500 },
+    );
   }
 }

@@ -302,6 +302,11 @@ export function formatSiteShimejiProviderError(
       ? "Falta el token de OpenClaw. Configúralo en el panel."
       : "OpenClaw token is missing. Configure it in the panel.";
   }
+  if (message.startsWith("OPENCLAW_WEBSOCKET_UNAVAILABLE")) {
+    return isSpanish
+      ? "El servidor no tiene soporte WebSocket disponible para OpenClaw en este despliegue."
+      : "WebSocket support is unavailable for OpenClaw on this deployment.";
+  }
   if (message.startsWith("OPENCLAW_AUTH_FAILED")) {
     return isSpanish
       ? "Falló la autenticación con OpenClaw."
