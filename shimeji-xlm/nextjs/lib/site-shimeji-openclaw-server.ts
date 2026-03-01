@@ -78,10 +78,10 @@ export async function verifyOpenClawServerGateway(args: {
               minProtocol: 3,
               maxProtocol: 3,
               client: {
-                id: "gateway-client",
+                id: "shimeji-web",
                 version: "1.0.0",
-                platform: "server",
-                mode: "pairing-preflight",
+                platform: "web",
+                mode: "chat-relay",
               },
               role: "operator",
               scopes: ["operator.read", "operator.write"],
