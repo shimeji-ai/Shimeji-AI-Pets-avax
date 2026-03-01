@@ -289,6 +289,7 @@ function ProviderFields() {
   const [pairingCode, setPairingCode] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
   const [pairingInstructionBusy, setPairingInstructionBusy] = useState(false);
+  const [pairingInstructionStatus, setPairingInstructionStatus] = useState("");
   const [pairingStatus, setPairingStatus] = useState("");
 
   const hasPairedSession = Boolean(config.openclawPairedSessionToken.trim());
@@ -296,6 +297,13 @@ function ProviderFields() {
     ? Date.parse(config.openclawPairedSessionExpiresAt)
     : NaN;
   const pairedSessionExpired = Number.isFinite(pairedSessionExpiresAtMs) && pairedSessionExpiresAtMs <= Date.now();
+  const pairingInstructionStatusLower = pairingInstructionStatus.toLowerCase();
+  const pairingInstructionStatusIsError =
+    pairingInstructionStatusLower.includes("error") ||
+    pairingInstructionStatusLower.includes("failed") ||
+    pairingInstructionStatusLower.includes("invalid") ||
+    pairingInstructionStatusLower.includes("could not") ||
+    pairingInstructionStatusLower.includes("no se pudo");
   const pairingStatusLower = pairingStatus.toLowerCase();
   const pairingStatusIsError =
     pairingStatusLower.includes("error") ||
@@ -602,7 +610,7 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
 
   async function copyPairingAgentInstructions() {
     setPairingInstructionBusy(true);
-    setPairingStatus("");
+    setPairingInstructionStatus("");
     try {
       const response = await fetch(pairingRequestEndpoint, {
         method: "POST",
@@ -634,13 +642,13 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
         );
       }
 
-      setPairingStatus(
+      setPairingInstructionStatus(
         isSpanish
           ? `Instrucciones copiadas. El request code vence ${new Date(json.expiresAt).toLocaleString()}.`
           : `Instructions copied. Request code expires ${new Date(json.expiresAt).toLocaleString()}.`,
       );
     } catch (error) {
-      setPairingStatus(
+      setPairingInstructionStatus(
         error instanceof Error
           ? error.message
           : isSpanish
@@ -804,7 +812,7 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
               ? "No necesitás configurar gateway URL/token en esta web. Ese dato queda del lado de tu agente."
               : "You do not configure gateway URL/token on this website. Your agent handles that side."}
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => void copyPairingAgentInstructions()}
@@ -819,6 +827,17 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
                   ? "Copiar instrucciones para agente"
                   : "Copy agent instructions"}
             </button>
+            {pairingInstructionStatus ? (
+              <p
+                className={`inline-flex w-fit max-w-full rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold ${
+                  pairingInstructionStatusIsError
+                    ? "border-red-700 bg-red-300 text-black"
+                    : "border-green-700 bg-green-300 text-black"
+                }`}
+              >
+                {pairingInstructionStatus}
+              </p>
+            ) : null}
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             {isSpanish ? "Referencia manual:" : "Manual reference:"}{" "}
