@@ -1126,13 +1126,14 @@ export function SiteShimejiMascot() {
       let reply = "";
 
       if (providerForRequest === "ollama" || providerForRequest === "openclaw") {
+        const shouldApplyPersonality = providerForRequest !== "openclaw";
         const providerMessages = buildSiteShimejiChatMessages({
           message: text,
           history,
           language,
           characterLabel: selectedCharacter?.label,
-          personalityLabel: selectedPersonality?.label,
-          personalityPrompt: selectedPersonality?.prompt,
+          personalityLabel: shouldApplyPersonality ? selectedPersonality?.label : undefined,
+          personalityPrompt: shouldApplyPersonality ? selectedPersonality?.prompt : undefined,
         });
         reply =
           providerForRequest === "ollama"
