@@ -455,6 +455,17 @@ extract_host() {
   echo "$1" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\\1#'
 }
 
+extract_path() {
+  local value="$1"
+  local without_scheme="\${value#*://}"
+  local path_part="\${without_scheme#*/}"
+  if [[ "$without_scheme" == "$path_part" ]]; then
+    echo "/"
+  else
+    echo "/$path_part"
+  fi
+}
+
 is_private_host() {
   local host="\${1,,}"
   [[ -z "$host" ]] && return 0
@@ -472,6 +483,7 @@ GATEWAY_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
 if is_private_host "$GATEWAY_HOST"; then
   mkdir -p "$OPENCLAW_TUNNEL_DIR"
   LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\\1#')"
+  LOCAL_PATH="$(extract_path "$OPENCLAW_GATEWAY_URL")"
   [[ "$LOCAL_HOSTPORT" == *:* ]] || LOCAL_HOSTPORT="$LOCAL_HOSTPORT:80"
   LOCAL_TUNNEL_TARGET="\${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
   PUBLIC_URL=""
@@ -515,7 +527,11 @@ if is_private_host "$GATEWAY_HOST"; then
     echo "Could not create public tunnel URL from cloudflared/localhost.run." >&2
     exit 1
   fi
-  OPENCLAW_GATEWAY_URL="$PUBLIC_URL"
+  if [[ "$LOCAL_PATH" == "/" ]]; then
+    OPENCLAW_GATEWAY_URL="$PUBLIC_URL"
+  else
+    OPENCLAW_GATEWAY_URL="\${PUBLIC_URL%/}$LOCAL_PATH"
+  fi
 fi
 
 PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"

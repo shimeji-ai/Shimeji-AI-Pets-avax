@@ -20,6 +20,7 @@ The copied instructions already include:
 - hosted URL auto-read from `openclaw config get gateway.url` when available,
 - localhost/private gateway autodetection with automatic tunnel fallback:
   `ssh` + `localhost.run` first, then `cloudflared`.
+- preserves gateway path/query (for gateways using non-root WS paths).
 - explicit HTTP status capture to avoid false "server down" assumptions.
 
 The agent should return only the pairing code.
