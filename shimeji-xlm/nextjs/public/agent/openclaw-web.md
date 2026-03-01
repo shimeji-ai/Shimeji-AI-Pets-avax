@@ -18,7 +18,7 @@ The copied instructions already include:
 - endpoint `/api/site-shimeji/openclaw/pairings/issue`,
 - command to send `gatewayUrl` + `gatewayToken` + `agentName`,
 - localhost/private gateway autodetection with automatic tunnel fallback:
-  `cloudflared` first, then `ssh` + `localhost.run`.
+  `ssh` + `localhost.run` first, then `cloudflared`.
 
 The agent should return only the pairing code.
 

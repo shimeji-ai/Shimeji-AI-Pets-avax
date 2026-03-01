@@ -475,22 +475,7 @@ if is_private_host "$GATEWAY_HOST"; then
   LOCAL_TUNNEL_TARGET="\${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
   PUBLIC_URL=""
 
-  if command -v cloudflared >/dev/null 2>&1; then
-    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/cloudflared.log"
-    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/cloudflared.pid"
-    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
-      :
-    else
-      nohup cloudflared tunnel --url "$LOCAL_TUNNEL_TARGET" >"$TUNNEL_LOG" 2>&1 &
-      echo $! > "$TUNNEL_PID_FILE"
-    fi
-
-    for _ in $(seq 1 20); do
-      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+trycloudflare.com' "$TUNNEL_LOG" | tail -n 1 || true)"
-      [[ -n "$PUBLIC_URL" ]] && break
-      sleep 1
-    done
-  elif command -v ssh >/dev/null 2>&1; then
+  if command -v ssh >/dev/null 2>&1; then
     TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/localhost-run.log"
     TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/localhost-run.pid"
     if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
@@ -502,6 +487,21 @@ if is_private_host "$GATEWAY_HOST"; then
 
     for _ in $(seq 1 30); do
       PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\\.localhost\\.run' "$TUNNEL_LOG" | tail -n 1 || true)"
+      [[ -n "$PUBLIC_URL" ]] && break
+      sleep 1
+    done
+  elif command -v cloudflared >/dev/null 2>&1; then
+    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/cloudflared.log"
+    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/cloudflared.pid"
+    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
+      :
+    else
+      nohup cloudflared tunnel --url "$LOCAL_TUNNEL_TARGET" >"$TUNNEL_LOG" 2>&1 &
+      echo $! > "$TUNNEL_PID_FILE"
+    fi
+
+    for _ in $(seq 1 20); do
+      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+trycloudflare.com' "$TUNNEL_LOG" | tail -n 1 || true)"
       [[ -n "$PUBLIC_URL" ]] && break
       sleep 1
     done
@@ -541,7 +541,7 @@ ${pairingIssueEndpoint}
 - OPENCLAW_GATEWAY_TOKEN (recommended source: \`openclaw config get gateway.auth.token\`)
 - OPENCLAW_GATEWAY_URL
   - if local/private, the command auto-creates a public tunnel
-  - tunnel priority: Cloudflare (\`cloudflared\`), then \`ssh\` + \`localhost.run\` (no extra install on most systems)
+  - tunnel priority: \`ssh\` + \`localhost.run\` first, then Cloudflare (\`cloudflared\`)
 - Optional OPENCLAW_AGENT_NAME (default: web-shimeji-1)
 
 ## Command
