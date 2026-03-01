@@ -169,7 +169,7 @@ export async function sendOpenClawBrowserChat(args: {
           params: {
             minProtocol: 3,
             maxProtocol: 3,
-            client: { id: "gateway-client", version: "1.0.0", platform: "web", mode: "site" },
+            client: { id: "gateway-client", version: "1.0.0", platform: "browser", mode: "backend" },
             role: "operator",
             scopes: ["operator.read", "operator.write"],
             auth: { token: authToken },
