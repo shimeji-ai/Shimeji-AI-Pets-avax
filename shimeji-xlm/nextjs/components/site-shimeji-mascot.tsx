@@ -1150,16 +1150,46 @@ export function SiteShimejiMascot() {
                     messages: providerMessages,
                   }),
                 });
-                const relayJson = (await relayResponse.json().catch(() => null)) as
+                const relayRaw = await relayResponse.text();
+                const relayJson = ((): {
+                  reply?: string;
+                  error?: string;
+                  sessionExpiresAt?: string;
+                } | null => {
+                  if (!relayRaw) return null;
+                  try {
+                    return JSON.parse(relayRaw) as {
+                      reply?: string;
+                      error?: string;
+                      sessionExpiresAt?: string;
+                    };
+                  } catch {
+                    return null;
+                  }
+                })();
+                const relayErrorCode =
+                  typeof relayJson?.error === "string" && relayJson.error.trim()
+                    ? relayJson.error.trim()
+                    : !relayResponse.ok
+                      ? `OPENCLAW_RELAY_HTTP_${relayResponse.status}`
+                      : "OPENCLAW_RELAY_FAILED";
+                const parsedRelayJson = relayJson as
                   | { reply?: string; error?: string; sessionExpiresAt?: string }
                   | null;
-                if (!relayResponse.ok || typeof relayJson?.reply !== "string" || !relayJson.reply.trim()) {
-                  throw new Error(relayJson?.error || "OPENCLAW_RELAY_FAILED");
+                if (
+                  !relayResponse.ok ||
+                  typeof parsedRelayJson?.reply !== "string" ||
+                  !parsedRelayJson.reply.trim()
+                ) {
+                  throw new Error(relayErrorCode);
                 }
-                if (typeof relayJson.sessionExpiresAt === "string" && relayJson.sessionExpiresAt) {
-                  updateConfig({ openclawPairedSessionExpiresAt: relayJson.sessionExpiresAt });
+                if (
+                  typeof parsedRelayJson.sessionExpiresAt === "string" &&
+                  parsedRelayJson.sessionExpiresAt
+                ) {
+                  updateConfig({ openclawPairedSessionExpiresAt: parsedRelayJson.sessionExpiresAt });
                 }
-                return relayJson.reply.trim();
+                return parsedRelayJson.reply.trim();
               })();
       } else {
         const resp = await fetch("/api/shimeji-chat", {

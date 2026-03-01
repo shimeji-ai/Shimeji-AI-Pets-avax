@@ -337,6 +337,12 @@ export function formatSiteShimejiProviderError(
       ? "La sesión de OpenClaw no es válida. Volvé a vincular con un código."
       : "OpenClaw session is invalid. Pair again with a code.";
   }
+  if (message.startsWith("OPENCLAW_RELAY_HTTP_")) {
+    const status = message.slice("OPENCLAW_RELAY_HTTP_".length) || "unknown";
+    return isSpanish
+      ? `El relay de OpenClaw devolvió HTTP ${status}.`
+      : `The OpenClaw relay returned HTTP ${status}.`;
+  }
   if (message.startsWith("OPENCLAW_RELAY_FAILED")) {
     return isSpanish
       ? "No se pudo completar el chat por el relay de OpenClaw."
