@@ -73,10 +73,9 @@ export async function POST(request: NextRequest) {
         gatewayUrl: session.gatewayUrl,
         gatewayToken: session.gatewayToken,
         agentName: session.agentName,
-        // Keep this below maxDuration, but high enough for real remote agent latency.
-        timeoutMs: 45_000,
+        timeoutMs: 28_000,
       }),
-      52_000,
+      34_000,
       "OPENCLAW_ROUTE_TIMEOUT",
     );
 

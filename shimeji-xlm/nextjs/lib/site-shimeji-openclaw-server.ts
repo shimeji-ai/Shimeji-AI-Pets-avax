@@ -151,6 +151,7 @@ export async function sendOpenClawServerChat(args: {
     let sawCompletion = false;
     let responseText = "";
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    let textFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
     const timeout = setTimeout(() => {
       fail(new Error(`OPENCLAW_TIMEOUT:${normalizedUrl}`));
@@ -159,7 +160,7 @@ export async function sendOpenClawServerChat(args: {
     const armIdleTimer = () => {
       if (idleTimer !== null) clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-        if (sawCompletion && responseText) {
+        if (responseText) {
           finish(responseText);
           return;
         }
@@ -179,6 +180,10 @@ export async function sendOpenClawServerChat(args: {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
+      if (textFlushTimer !== null) {
+        clearTimeout(textFlushTimer);
+        textFlushTimer = null;
+      }
       if (ws && ws.readyState === ws.OPEN) ws.close(1000, "done");
       resolve(result);
     };
@@ -191,13 +196,29 @@ export async function sendOpenClawServerChat(args: {
         clearTimeout(idleTimer);
         idleTimer = null;
       }
+      if (textFlushTimer !== null) {
+        clearTimeout(textFlushTimer);
+        textFlushTimer = null;
+      }
       if (ws && ws.readyState === ws.OPEN) ws.close(1011, "error");
       reject(error);
+    };
+
+    const armTextFlushTimer = () => {
+      if (textFlushTimer !== null) clearTimeout(textFlushTimer);
+      textFlushTimer = setTimeout(() => {
+        if (settled || sawCompletion) return;
+        if (responseText) {
+          finish(responseText);
+        }
+      }, 4_000);
     };
 
     const pushText = (nextText: string) => {
       if (!nextText) return;
       responseText = mergeOpenClawStreamText(responseText, nextText);
+      armTextFlushTimer();
+      touchActivity();
     };
 
     try {
@@ -210,7 +231,6 @@ export async function sendOpenClawServerChat(args: {
     ws.addEventListener("open", touchActivity);
 
     ws.addEventListener("message", (event) => {
-      touchActivity();
       let data: any;
       try {
         const raw = typeof event.data === "string" ? event.data : "";
@@ -221,6 +241,7 @@ export async function sendOpenClawServerChat(args: {
       }
 
       if (data.type === "event" && data.event === "connect.challenge") {
+        touchActivity();
         const connectReq = {
           type: "req",
           id: nextOpenClawId("connect"),
@@ -244,12 +265,14 @@ export async function sendOpenClawServerChat(args: {
       }
 
       if (data.type === "res" && !authenticated && data.ok === false) {
+        touchActivity();
         const reason = data.error?.message || data.error?.code || "Authentication failed";
         fail(new Error(`OPENCLAW_AUTH_FAILED:${reason}`));
         return;
       }
 
       if (data.type === "res" && !authenticated && (data.payload?.type === "hello-ok" || data.ok === true)) {
+        touchActivity();
         authenticated = true;
         if (!chatRequestSent) {
           chatRequestSent = true;
@@ -273,6 +296,15 @@ export async function sendOpenClawServerChat(args: {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
+        if (
+          payload.state !== undefined ||
+          payload.status !== undefined ||
+          payload.type !== undefined ||
+          payload.done !== undefined ||
+          payload.errorMessage !== undefined
+        ) {
+          touchActivity();
+        }
         if (payload.state === "error") {
           fail(new Error(`OPENCLAW_ERROR:${payload.errorMessage || "Chat failed"}`));
           return;
@@ -291,9 +323,20 @@ export async function sendOpenClawServerChat(args: {
       }
 
       if (data.type === "res" && authenticated && data.ok === true) {
-        if (data.payload?.runId) return;
+        if (data.payload?.runId) {
+          touchActivity();
+          return;
+        }
         const text = extractOpenClawText(data.payload);
         if (text) pushText(text);
+        if (
+          data.payload?.state !== undefined ||
+          data.payload?.status !== undefined ||
+          data.payload?.type !== undefined ||
+          data.payload?.done !== undefined
+        ) {
+          touchActivity();
+        }
         if (
           data.payload?.state === "final" ||
           data.payload?.status === "completed" ||
@@ -307,6 +350,7 @@ export async function sendOpenClawServerChat(args: {
       }
 
       if (data.type === "res" && authenticated && data.ok === false) {
+        touchActivity();
         const reason = data.error?.message || data.error?.code || "Agent request failed";
         fail(new Error(`OPENCLAW_ERROR:${reason}`));
       }
