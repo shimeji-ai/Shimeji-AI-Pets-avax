@@ -1179,6 +1179,11 @@ export function SiteShimejiMascot() {
                         ? relayJson.errorDetail.trim()
                         : `OPENCLAW_RELAY_DETAIL:${relayJson.errorDetail.trim().slice(0, 120)}`
                       : relayJson.error.trim()
+                    : !relayResponse.ok && relayRaw.trim()
+                      ? `OPENCLAW_RELAY_DETAIL:HTTP ${relayResponse.status} ${relayRaw
+                          .replace(/\s+/g, " ")
+                          .trim()
+                          .slice(0, 120)}`
                     : !relayResponse.ok
                       ? `OPENCLAW_RELAY_HTTP_${relayResponse.status}`
                       : "OPENCLAW_RELAY_FAILED";
@@ -1259,8 +1264,12 @@ export function SiteShimejiMascot() {
         isSpanish,
         providerForRequest,
       );
-      setMessages(prev => [...prev, { role: "assistant", content: fallback }]);
-      void speakReply(fallback);
+      const messageForUser =
+        providerForRequest === "openclaw" && rawErrorMessage
+          ? rawErrorMessage
+          : fallback;
+      setMessages(prev => [...prev, { role: "assistant", content: messageForUser }]);
+      void speakReply(messageForUser);
     } finally {
       setSending(false);
     }
