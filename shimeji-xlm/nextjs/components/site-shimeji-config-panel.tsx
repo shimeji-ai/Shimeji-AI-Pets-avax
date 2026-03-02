@@ -476,13 +476,39 @@ if (!REQUEST_CODE || !REGISTER_URL || !POLL_URL || !RESPOND_URL) {
 }
 
 let GATEWAY_TOKEN;
+let GATEWAY_URL = 'ws://127.0.0.1:18789';
 try {
   const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
   const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
   GATEWAY_TOKEN = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.token;
+  const configuredUrl = cfg && cfg.gateway && cfg.gateway.url;
+  if (typeof configuredUrl === 'string' && configuredUrl.trim()) {
+    GATEWAY_URL = configuredUrl.trim();
+  }
   if (!GATEWAY_TOKEN) throw new Error('gateway.auth.token not found');
 } catch (e) {
   process.stderr.write('Cannot read gateway token: ' + e.message + '\\n');
+  process.exit(1);
+}
+
+function normalizeGatewayUrl(value) {
+  const input = String(value || '').trim();
+  const withScheme = /^[a-z]+:\/\//i.test(input) ? input : ('ws://' + input);
+  let u;
+  try { u = new URL(withScheme); }
+  catch (_) { throw new Error('Invalid gateway.url: ' + input); }
+  if (u.protocol === 'http:') u.protocol = 'ws:';
+  if (u.protocol === 'https:') u.protocol = 'wss:';
+  if (u.protocol !== 'ws:' && u.protocol !== 'wss:') {
+    throw new Error('Invalid gateway.url protocol: ' + input);
+  }
+  return u.toString();
+}
+
+try {
+  GATEWAY_URL = normalizeGatewayUrl(GATEWAY_URL);
+} catch (e) {
+  process.stderr.write(String(e && e.message ? e.message : e) + '\\n');
   process.exit(1);
 }
 
@@ -556,6 +582,9 @@ function relayChat(messages, agentName) {
     let settled = false, authed = false, chatSent = false, responseText = '', sawDone = false;
     let idleTimer = null, globalTimer = null, reqN = 0;
     const nextId = function(p) { return p + '-' + Date.now() + '-' + (++reqN); };
+    const relayError = function(msg) {
+      return '__OPENCLAW_ERROR__:' + String(msg || 'unknown').slice(0, 220);
+    };
 
     function done(text) {
       if (settled) return;
@@ -568,15 +597,15 @@ function relayChat(messages, agentName) {
 
     function arm() {
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(function() { done(responseText); }, 20000);
+      idleTimer = setTimeout(function() { done(responseText || relayError('IDLE_TIMEOUT')); }, 20000);
     }
 
-    globalTimer = setTimeout(function() { done(responseText); }, 70000);
+    globalTimer = setTimeout(function() { done(responseText || relayError('GLOBAL_TIMEOUT')); }, 70000);
 
-    const ws = new WebSocket('ws://127.0.0.1:18789');
+    const ws = new WebSocket(GATEWAY_URL);
     ws.onopen = function() { arm(); };
-    ws.onerror = function() { done(responseText || '(ws error)'); };
-    ws.onclose = function() { if (!settled) done(responseText || '(ws closed)'); };
+    ws.onerror = function() { done(responseText || relayError('WS_ERROR')); };
+    ws.onclose = function() { if (!settled) done(responseText || relayError('WS_CLOSED')); };
     ws.onmessage = function(ev) {
       let d;
       try { d = JSON.parse(ev.data); } catch (_) { return; }
@@ -591,7 +620,11 @@ function relayChat(messages, agentName) {
         }}));
         return;
       }
-      if (d.type === 'res' && !authed && d.ok === false) { done(responseText || '(auth failed)'); return; }
+      if (d.type === 'res' && !authed && d.ok === false) {
+        const authErr = (d.error && (d.error.message || d.error.code)) || 'AUTH_FAILED';
+        done(responseText || relayError('AUTH_FAILED:' + authErr));
+        return;
+      }
       if (d.type === 'res' && !authed && (d.ok === true || (d.payload && d.payload.type === 'hello-ok'))) {
         arm(); authed = true;
         if (!chatSent) {
@@ -607,7 +640,11 @@ function relayChat(messages, agentName) {
         const t = extractText(p);
         if (t) responseText = mergeText(responseText, t);
         if (p.state !== undefined || p.status !== undefined || p.done !== undefined) arm();
-        if (p.state === 'error') { done(responseText || '(agent error)'); return; }
+        if (p.state === 'error') {
+          const agentErr = p.errorMessage || p.error || 'AGENT_ERROR';
+          done(responseText || relayError('AGENT_ERROR:' + agentErr));
+          return;
+        }
         if (p.state === 'final' || p.status === 'completed' || p.done === true) {
           sawDone = true; done(responseText || t || '(no response)');
         }
@@ -622,7 +659,10 @@ function relayChat(messages, agentName) {
         }
         return;
       }
-      if (d.type === 'res' && authed && d.ok === false) { done(responseText || '(request failed)'); }
+      if (d.type === 'res' && authed && d.ok === false) {
+        const reqErr = (d.error && (d.error.message || d.error.code)) || 'REQUEST_FAILED';
+        done(responseText || relayError('REQUEST_FAILED:' + reqErr));
+      }
     };
     arm();
   });
@@ -633,7 +673,7 @@ function detectAgentName() {
     let settled = false;
     const timer = setTimeout(function() { if (!settled) { settled = true; resolve('main'); } }, 5000);
     let ws2;
-    try { ws2 = new WebSocket('ws://127.0.0.1:18789'); } catch(_) { clearTimeout(timer); resolve('main'); return; }
+    try { ws2 = new WebSocket(GATEWAY_URL); } catch(_) { clearTimeout(timer); resolve('main'); return; }
     let authed2 = false;
     ws2.onerror = function() { if (!settled) { settled = true; clearTimeout(timer); resolve('main'); } };
     ws2.onclose = function() { if (!settled) { settled = true; clearTimeout(timer); resolve('main'); } };

@@ -21,6 +21,30 @@ type ChatPayload = {
   messages?: unknown;
 };
 
+function extractRelayAgentError(reply: string): string | null {
+  const trimmed = String(reply || "").trim();
+  if (!trimmed) return "EMPTY_RESPONSE";
+
+  if (trimmed.startsWith("__OPENCLAW_ERROR__:")) {
+    const detail = trimmed.slice("__OPENCLAW_ERROR__:".length).trim();
+    return detail || "RELAY_AGENT_ERROR";
+  }
+
+  const lowered = trimmed.toLowerCase();
+  if (
+    lowered === "(request failed)" ||
+    lowered === "(auth failed)" ||
+    lowered === "(ws error)" ||
+    lowered === "(ws closed)" ||
+    lowered === "(agent error)" ||
+    lowered === "(no response)"
+  ) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorCode: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(errorCode)), timeoutMs);
@@ -120,6 +144,16 @@ export async function POST(request: NextRequest) {
     if (!relayReply) {
       return NextResponse.json({ error: "OPENCLAW_RELAY_TIMEOUT" }, { status: 504 });
     }
+    const relayAgentError = extractRelayAgentError(relayReply);
+    if (relayAgentError) {
+      return NextResponse.json(
+        {
+          error: "OPENCLAW_ERROR",
+          errorDetail: `RELAY_AGENT:${relayAgentError}`.slice(0, 240),
+        },
+        { status: 502 },
+      );
+    }
 
     return NextResponse.json(
       {
@@ -163,7 +197,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "OPENCLAW_RELAY_TIMEOUT" }, { status: 504 });
     }
     if (message.startsWith("OPENCLAW_ERROR:")) {
-      return NextResponse.json({ error: "OPENCLAW_ERROR" }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: "OPENCLAW_ERROR",
+          errorDetail: message.slice("OPENCLAW_ERROR:".length).slice(0, 220),
+        },
+        { status: 502 },
+      );
     }
     if (message.startsWith("OPENCLAW_CLOSED:")) {
       return NextResponse.json({ error: "OPENCLAW_CLOSED" }, { status: 502 });

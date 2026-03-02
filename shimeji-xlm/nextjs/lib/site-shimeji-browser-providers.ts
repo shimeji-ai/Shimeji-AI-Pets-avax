@@ -369,6 +369,11 @@ export function formatSiteShimejiProviderError(
       ? "No se pudo completar el chat por el relay de OpenClaw."
       : "Could not complete chat through the OpenClaw relay.";
   }
+  if (message.startsWith("OPENCLAW_RELAY_TIMEOUT")) {
+    return isSpanish
+      ? "El relay de OpenClaw agotó el tiempo de espera."
+      : "The OpenClaw relay timed out.";
+  }
   if (provider === "openclaw") {
     return isSpanish
       ? "No se pudo completar la solicitud con OpenClaw. Revisá el pairing activo y la conectividad del gateway."
