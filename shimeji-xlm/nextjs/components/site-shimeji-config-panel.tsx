@@ -418,6 +418,20 @@ function ProviderFields() {
               : "Invalid pairing code. Check it and try again.",
           );
         }
+        if (err === "OPENCLAW_RELAY_SCOPE_REQUIRED") {
+          throw new Error(
+            isSpanish
+              ? "El token del gateway no tiene permiso operator.write. Configurá un token con ese scope y generá un nuevo pairing code."
+              : "Gateway token is missing operator.write scope. Configure a token with that scope and generate a new pairing code.",
+          );
+        }
+        if (err === "OPENCLAW_RELAY_UNAVAILABLE") {
+          throw new Error(
+            isSpanish
+              ? "El relay del agente no respondió durante la verificación inicial. Reintentá generar el pairing code con el agente online."
+              : "The agent relay did not respond during initial verification. Retry generating the pairing code with the agent online.",
+          );
+        }
         throw new Error(
           isSpanish
             ? "No se pudo completar el pairing ahora."

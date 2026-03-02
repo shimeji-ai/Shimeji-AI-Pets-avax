@@ -11,7 +11,13 @@ const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 let ensureRelayTablesPromise: Promise<void> | null = null;
 
 export type RelayClaimResult =
-  | { ok: true; sessionToken: string; sessionExpiresAt: string; agentName: string }
+  | {
+      ok: true;
+      sessionToken: string;
+      sessionExpiresAt: string;
+      agentName: string;
+      relayTokenHash: string;
+    }
   | { ok: false; reason: "invalid_code" | "expired_code" | "max_claims_reached" };
 
 export type ResolveRelaySessionResult =
@@ -268,6 +274,7 @@ export async function claimRelayCode(args: {
     sessionToken,
     sessionExpiresAt: toIso(expiresAtMs),
     agentName,
+    relayTokenHash: relayCode.relayTokenHash,
   };
 }
 
