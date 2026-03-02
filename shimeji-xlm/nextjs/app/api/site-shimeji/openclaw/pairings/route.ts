@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     await verifyOpenClawServerGateway({
       gatewayUrl,
       gatewayToken,
-      timeoutMs: 9_000,
+      timeoutMs: 15_000,
     });
 
     const created = await createOpenClawPairingCode({
@@ -164,7 +164,10 @@ export async function POST(request: NextRequest) {
       message.startsWith("OPENCLAW_TIMEOUT:") ||
       message.startsWith("OPENCLAW_IDLE_TIMEOUT:")
     ) {
-      return NextResponse.json({ error: "OPENCLAW_CONNECT" }, { status: 504 });
+      return NextResponse.json(
+        { error: "OPENCLAW_CONNECT", errorDetail: message.slice(0, 240) },
+        { status: 504 },
+      );
     }
     return NextResponse.json({ error: "OPENCLAW_PAIRING_CREATE_FAILED" }, { status: 500 });
   }

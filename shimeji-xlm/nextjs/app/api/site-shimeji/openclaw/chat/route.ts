@@ -73,9 +73,10 @@ export async function POST(request: NextRequest) {
         gatewayUrl: session.gatewayUrl,
         gatewayToken: session.gatewayToken,
         agentName: session.agentName,
-        timeoutMs: 4_500,
+        // Keep this below maxDuration, but high enough for real remote agent latency.
+        timeoutMs: 45_000,
       }),
-      6_500,
+      52_000,
       "OPENCLAW_ROUTE_TIMEOUT",
     );
 
@@ -116,7 +117,10 @@ export async function POST(request: NextRequest) {
       message.startsWith("OPENCLAW_ROUTE_TIMEOUT") ||
       message.startsWith("OPENCLAW_SESSION_TIMEOUT")
     ) {
-      return NextResponse.json({ error: "OPENCLAW_CONNECT" }, { status: 504 });
+      return NextResponse.json(
+        { error: "OPENCLAW_CONNECT", errorDetail: message.slice(0, 240) },
+        { status: 504 },
+      );
     }
     if (message.startsWith("OPENCLAW_ERROR:")) {
       return NextResponse.json({ error: "OPENCLAW_ERROR" }, { status: 502 });

@@ -312,6 +312,16 @@ export function formatSiteShimejiProviderError(
       ? "Falló la autenticación con OpenClaw."
       : "OpenClaw authentication failed.";
   }
+  if (message.startsWith("OPENCLAW_TIMEOUT")) {
+    return isSpanish
+      ? "OpenClaw agotó el tiempo de espera al responder."
+      : "OpenClaw timed out while responding.";
+  }
+  if (message.startsWith("OPENCLAW_IDLE_TIMEOUT")) {
+    return isSpanish
+      ? "OpenClaw abrió conexión pero no devolvió actividad suficiente."
+      : "OpenClaw connected but did not return enough activity.";
+  }
   if (message.startsWith("OPENCLAW_CONNECT")) {
     return isSpanish
       ? "No se pudo conectar al gateway de OpenClaw desde el servidor del sitio. Verificá que la URL/token del gateway sean correctos y públicos; si el agente es local, usá un túnel público (wss/https)."

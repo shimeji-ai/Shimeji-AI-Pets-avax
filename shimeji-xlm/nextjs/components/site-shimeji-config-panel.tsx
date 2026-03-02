@@ -452,125 +452,41 @@ function ProviderFields() {
   }
 
   function pairingCurlCommand(requestCode: string) {
-    return `REQUEST_CODE="${requestCode}"
+    return `set -euo pipefail
+
+REQUEST_CODE="${requestCode}"
 OPENCLAW_AGENT_NAME="\${OPENCLAW_AGENT_NAME:-web-shimeji-1}"
 OPENCLAW_GATEWAY_URL="\${OPENCLAW_GATEWAY_URL:-\$(openclaw config get gateway.url 2>/dev/null || true)}"
-OPENCLAW_GATEWAY_TOKEN="\${OPENCLAW_GATEWAY_TOKEN:-\$(openclaw config get gateway.auth.token)}"
-OPENCLAW_TUNNEL_DIR="\${OPENCLAW_TUNNEL_DIR:-/tmp/openclaw-pairing}"
-OPENCLAW_LOCAL_GATEWAY_HOSTPORT="\${OPENCLAW_LOCAL_GATEWAY_HOSTPORT:-127.0.0.1:18789}"
-OPENCLAW_LOCAL_GATEWAY_PATH="\${OPENCLAW_LOCAL_GATEWAY_PATH:-/}"
-
-extract_host() {
-  echo "$1" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\\1#'
-}
-
-extract_path() {
-  local value="$1"
-  local without_scheme="\${value#*://}"
-  local path_part="\${without_scheme#*/}"
-  if [[ "$without_scheme" == "$path_part" ]]; then
-    echo "/"
-  else
-    echo "/$path_part"
-  fi
-}
-
-is_private_host() {
-  local host="\${1,,}"
-  [[ -z "$host" ]] && return 0
-  [[ "$host" == "localhost" || "$host" == "host.docker.internal" || "$host" == *.local ]] && return 0
-  [[ "$host" == "::1" || "$host" == fe80:* || "$host" == fc* || "$host" == fd* ]] && return 0
-  [[ "$host" =~ ^127\\. ]] && return 0
-  [[ "$host" =~ ^10\\. ]] && return 0
-  [[ "$host" =~ ^169\\.254\\. ]] && return 0
-  [[ "$host" =~ ^192\\.168\\. ]] && return 0
-  [[ "$host" =~ ^172\\.(1[6-9]|2[0-9]|3[0-1])\\. ]] && return 0
-  return 1
-}
-
-NEED_TUNNEL="0"
-LOCAL_HOSTPORT=""
-LOCAL_PATH="$OPENCLAW_LOCAL_GATEWAY_PATH"
+OPENCLAW_GATEWAY_TOKEN="\${OPENCLAW_GATEWAY_TOKEN:-\$(openclaw config get gateway.auth.token 2>/dev/null || true)}"
 
 if [[ -z "$OPENCLAW_GATEWAY_URL" ]]; then
-  NEED_TUNNEL="1"
-  LOCAL_HOSTPORT="$OPENCLAW_LOCAL_GATEWAY_HOSTPORT"
-  [[ "$LOCAL_PATH" == /* ]] || LOCAL_PATH="/$LOCAL_PATH"
-else
-  GATEWAY_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
-  if is_private_host "$GATEWAY_HOST"; then
-    NEED_TUNNEL="1"
-    LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\\1#')"
-    LOCAL_PATH="$(extract_path "$OPENCLAW_GATEWAY_URL")"
-  fi
-fi
-
-if [[ "$NEED_TUNNEL" == "1" ]]; then
-  mkdir -p "$OPENCLAW_TUNNEL_DIR"
-  [[ "$LOCAL_HOSTPORT" == *:* ]] || LOCAL_HOSTPORT="$LOCAL_HOSTPORT:80"
-  LOCAL_TUNNEL_TARGET="\${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
-  PUBLIC_URL=""
-
-  if command -v ssh >/dev/null 2>&1; then
-    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/localhost-run.log"
-    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/localhost-run.pid"
-    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
-      :
-    else
-      nohup ssh -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:"$LOCAL_HOSTPORT" nokey@localhost.run >"$TUNNEL_LOG" 2>&1 &
-      echo $! > "$TUNNEL_PID_FILE"
-    fi
-
-    for _ in $(seq 1 30); do
-      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+\\.localhost\\.run' "$TUNNEL_LOG" | tail -n 1 || true)"
-      [[ -n "$PUBLIC_URL" ]] && break
-      sleep 1
-    done
-  elif command -v cloudflared >/dev/null 2>&1; then
-    TUNNEL_LOG="$OPENCLAW_TUNNEL_DIR/cloudflared.log"
-    TUNNEL_PID_FILE="$OPENCLAW_TUNNEL_DIR/cloudflared.pid"
-    if [[ -f "$TUNNEL_PID_FILE" ]] && kill -0 "$(cat "$TUNNEL_PID_FILE")" 2>/dev/null; then
-      :
-    else
-      nohup cloudflared tunnel --url "$LOCAL_TUNNEL_TARGET" >"$TUNNEL_LOG" 2>&1 &
-      echo $! > "$TUNNEL_PID_FILE"
-    fi
-
-    for _ in $(seq 1 20); do
-      PUBLIC_URL="$(grep -Eo 'https://[A-Za-z0-9.-]+trycloudflare.com' "$TUNNEL_LOG" | tail -n 1 || true)"
-      [[ -n "$PUBLIC_URL" ]] && break
-      sleep 1
-    done
-  else
-    echo "Local gateway detected but neither cloudflared nor ssh is available." >&2
-    exit 1
-  fi
-
-  if [[ -z "$PUBLIC_URL" ]]; then
-    echo "Could not create public tunnel URL from cloudflared/localhost.run." >&2
-    exit 1
-  fi
-  if [[ "$LOCAL_PATH" == "/" ]]; then
-    OPENCLAW_GATEWAY_URL="$PUBLIC_URL"
-  else
-    OPENCLAW_GATEWAY_URL="\${PUBLIC_URL%/}$LOCAL_PATH"
-  fi
-fi
-
-if [[ -z "$OPENCLAW_GATEWAY_URL" ]]; then
-  echo "Missing OPENCLAW_GATEWAY_URL and no tunnel URL was generated." >&2
+  echo "Missing OPENCLAW_GATEWAY_URL. Set a public gateway URL first." >&2
   exit 1
 fi
+if [[ -z "$OPENCLAW_GATEWAY_TOKEN" ]]; then
+  echo "Missing OPENCLAW_GATEWAY_TOKEN." >&2
+  exit 1
+fi
+if [[ "$OPENCLAW_GATEWAY_URL" == http://* ]]; then
+  OPENCLAW_GATEWAY_URL="ws://\${OPENCLAW_GATEWAY_URL#http://}"
+fi
+if [[ "$OPENCLAW_GATEWAY_URL" == https://* ]]; then
+  OPENCLAW_GATEWAY_URL="wss://\${OPENCLAW_GATEWAY_URL#https://}"
+fi
 
-FINAL_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
-if is_private_host "$FINAL_HOST"; then
-  echo "Gateway URL must be public for web pairing: $OPENCLAW_GATEWAY_URL" >&2
+FINAL_HOST="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\\1#')"
+if [[ -z "$FINAL_HOST" ]]; then
+  echo "Invalid OPENCLAW_GATEWAY_URL." >&2
+  exit 1
+fi
+if [[ "$FINAL_HOST" == "localhost" || "$FINAL_HOST" == "host.docker.internal" || "$FINAL_HOST" == *.local ]]; then
+  echo "Gateway URL must be public (not localhost/private)." >&2
   exit 1
 fi
 
 PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"
 RESPONSE="$(
-  curl -sS --connect-timeout 8 --max-time 25 --retry 1 --retry-delay 1 \\
+  curl -sS --connect-timeout 8 --max-time 35 --retry 1 --retry-delay 1 \\
     -w '\\nHTTP_STATUS:%{http_code}\\n' \\
     -X POST ${pairingIssueEndpoint} \\
     -H "Content-Type: application/json" \\
@@ -605,9 +521,8 @@ ${pairingIssueEndpoint}
 - OPENCLAW_GATEWAY_TOKEN (recommended source: \`openclaw config get gateway.auth.token\`)
 - OPENCLAW_GATEWAY_URL
   - must be public/reachable from internet (\`wss://...\` or tunnel URL)
-  - hosted/online OpenClaw: set public URL (or let command read \`openclaw config get gateway.url\`)
-  - local OpenClaw: if URL is missing/private, command auto-creates public tunnel from \`OPENCLAW_LOCAL_GATEWAY_HOSTPORT\` (default \`127.0.0.1:18789\`)
-  - tunnel priority: \`ssh\` + \`localhost.run\` first, then Cloudflare (\`cloudflared\`)
+  - no localhost/private URLs are accepted
+  - local OpenClaw must expose a public tunnel URL first
 - Optional OPENCLAW_AGENT_NAME (default: web-shimeji-1)
 
 ## Command
@@ -1417,11 +1332,11 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                 <p className="mt-1 text-xs leading-relaxed text-black/85">
                   {isSpanish
                     ? config.provider === "openclaw"
-                      ? "En modo pairing, este navegador guarda solo un token de sesión temporal y el relay del sitio usa tu gateway remoto. Este shimeji web no tiene acceso a WSL ni a tu terminal local."
-                      : "Las keys y tokens se guardan solo en tu navegador (localStorage). Este shimeji web no tiene acceso a WSL ni a tu terminal local."
+                      ? "En modo pairing, este navegador guarda solo un token de sesión temporal y el relay del sitio usa tu gateway remoto."
+                      : "Las keys y tokens se guardan solo en tu navegador (localStorage)."
                     : config.provider === "openclaw"
-                      ? "In pairing mode, this browser stores only a temporary session token while the site relay uses your remote gateway. This website shimeji has no WSL or local terminal access."
-                      : "Keys and tokens are stored only in your browser (localStorage). This website shimeji has no WSL or local terminal access."}
+                      ? "In pairing mode, this browser stores only a temporary session token while the site relay uses your remote gateway."
+                      : "Keys and tokens are stored only in your browser (localStorage)."}
                 </p>
               </div>
 

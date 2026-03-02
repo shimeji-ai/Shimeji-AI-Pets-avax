@@ -1172,12 +1172,12 @@ export function SiteShimejiMascot() {
                 })();
                 const relayErrorCode =
                   typeof relayJson?.error === "string" && relayJson.error.trim()
-                    ? relayJson.error.trim() === "OPENCLAW_RELAY_FAILED" &&
-                      typeof relayJson?.errorDetail === "string" &&
-                      relayJson.errorDetail.trim()
+                    ? typeof relayJson?.errorDetail === "string" && relayJson.errorDetail.trim()
                       ? relayJson.errorDetail.trim().startsWith("OPENCLAW_")
                         ? relayJson.errorDetail.trim()
-                        : `OPENCLAW_RELAY_DETAIL:${relayJson.errorDetail.trim().slice(0, 120)}`
+                        : `OPENCLAW_RELAY_DETAIL:${relayJson.error.trim()}:${relayJson.errorDetail
+                            .trim()
+                            .slice(0, 120)}`
                       : relayJson.error.trim()
                     : !relayResponse.ok && relayRaw.trim()
                       ? `OPENCLAW_RELAY_DETAIL:HTTP ${relayResponse.status} ${relayRaw
