@@ -9,6 +9,7 @@ import {
 import { sendOpenClawServerChat } from "@/lib/site-shimeji-openclaw-server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type ChatPayload = {
   sessionToken?: unknown;
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
       gatewayUrl: session.gatewayUrl,
       gatewayToken: session.gatewayToken,
       agentName: session.agentName,
+      timeoutMs: 45_000,
     });
 
     return NextResponse.json(
