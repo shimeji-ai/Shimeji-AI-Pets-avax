@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       gatewayUrl: session.gatewayUrl,
       gatewayToken: session.gatewayToken,
       agentName: session.agentName,
-      timeoutMs: 45_000,
+      timeoutMs: 8_500,
     });
 
     return NextResponse.json(
