@@ -14,9 +14,9 @@ https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue
 - OPENCLAW_GATEWAY_TOKEN
   - Recommended source: `openclaw config get gateway.auth.token`
 - OPENCLAW_GATEWAY_URL
-  - Hosted/online OpenClaw: set a public `wss://...` URL (or let command read `openclaw config get gateway.url`)
-  - Local OpenClaw fallback default: `ws://127.0.0.1:18789`
-  - If local/private, the command auto-creates a public tunnel URL
+  - Must be public/reachable from internet (`wss://...` or tunnel URL)
+  - Hosted/online OpenClaw: set public URL (or let command read `openclaw config get gateway.url`)
+  - Local OpenClaw: if URL is missing/private, command auto-creates tunnel from `OPENCLAW_LOCAL_GATEWAY_HOSTPORT` (default `127.0.0.1:18789`)
   - Tunnel priority: `ssh` + `localhost.run` first, then Cloudflare (`cloudflared`)
 
 ## Command
@@ -24,9 +24,10 @@ https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue
 REQUEST_CODE="PASTE_REQUEST_CODE_HERE"
 OPENCLAW_AGENT_NAME="${OPENCLAW_AGENT_NAME:-web-shimeji-1}"
 OPENCLAW_GATEWAY_URL="${OPENCLAW_GATEWAY_URL:-$(openclaw config get gateway.url 2>/dev/null || true)}"
-OPENCLAW_GATEWAY_URL="${OPENCLAW_GATEWAY_URL:-ws://127.0.0.1:18789}"
 OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(openclaw config get gateway.auth.token)}"
 OPENCLAW_TUNNEL_DIR="${OPENCLAW_TUNNEL_DIR:-/tmp/openclaw-pairing}"
+OPENCLAW_LOCAL_GATEWAY_HOSTPORT="${OPENCLAW_LOCAL_GATEWAY_HOSTPORT:-127.0.0.1:18789}"
+OPENCLAW_LOCAL_GATEWAY_PATH="${OPENCLAW_LOCAL_GATEWAY_PATH:-/}"
 
 extract_host() {
   echo "$1" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#'
@@ -56,11 +57,25 @@ is_private_host() {
   return 1
 }
 
-GATEWAY_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
-if is_private_host "$GATEWAY_HOST"; then
+NEED_TUNNEL="0"
+LOCAL_HOSTPORT=""
+LOCAL_PATH="$OPENCLAW_LOCAL_GATEWAY_PATH"
+
+if [[ -z "$OPENCLAW_GATEWAY_URL" ]]; then
+  NEED_TUNNEL="1"
+  LOCAL_HOSTPORT="$OPENCLAW_LOCAL_GATEWAY_HOSTPORT"
+  [[ "$LOCAL_PATH" == /* ]] || LOCAL_PATH="/$LOCAL_PATH"
+else
+  GATEWAY_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
+  if is_private_host "$GATEWAY_HOST"; then
+    NEED_TUNNEL="1"
+    LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\1#')"
+    LOCAL_PATH="$(extract_path "$OPENCLAW_GATEWAY_URL")"
+  fi
+fi
+
+if [[ "$NEED_TUNNEL" == "1" ]]; then
   mkdir -p "$OPENCLAW_TUNNEL_DIR"
-  LOCAL_HOSTPORT="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/]+).*$#\1#')"
-  LOCAL_PATH="$(extract_path "$OPENCLAW_GATEWAY_URL")"
   [[ "$LOCAL_HOSTPORT" == *:* ]] || LOCAL_HOSTPORT="$LOCAL_HOSTPORT:80"
   LOCAL_TUNNEL_TARGET="${OPENCLAW_LOCAL_TUNNEL_TARGET:-http://$LOCAL_HOSTPORT}"
   PUBLIC_URL=""
@@ -109,6 +124,17 @@ if is_private_host "$GATEWAY_HOST"; then
   else
     OPENCLAW_GATEWAY_URL="${PUBLIC_URL%/}$LOCAL_PATH"
   fi
+fi
+
+if [[ -z "$OPENCLAW_GATEWAY_URL" ]]; then
+  echo "Missing OPENCLAW_GATEWAY_URL and no tunnel URL was generated." >&2
+  exit 1
+fi
+
+FINAL_HOST="$(extract_host "$OPENCLAW_GATEWAY_URL")"
+if is_private_host "$FINAL_HOST"; then
+  echo "Gateway URL must be public for web pairing: $OPENCLAW_GATEWAY_URL" >&2
+  exit 1
 fi
 
 PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"
