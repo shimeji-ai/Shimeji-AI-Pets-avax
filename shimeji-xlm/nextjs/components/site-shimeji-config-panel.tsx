@@ -291,6 +291,8 @@ function ProviderFields() {
   const [pairingInstructionBusy, setPairingInstructionBusy] = useState(false);
   const [pairingInstructionStatus, setPairingInstructionStatus] = useState("");
   const [pairingStatus, setPairingStatus] = useState("");
+  const [openclawAgentNameEnabled, setOpenclawAgentNameEnabled] = useState(false);
+  const [openclawCustomAgentName, setOpenclawCustomAgentName] = useState("main");
 
   const hasPairedSession = Boolean(config.openclawPairedSessionToken.trim());
   const pairedSessionExpiresAtMs = config.openclawPairedSessionExpiresAt
@@ -626,8 +628,39 @@ function relayChat(messages, agentName) {
   });
 }
 
+function detectAgentName() {
+  return new Promise(function(resolve) {
+    let settled = false;
+    const timer = setTimeout(function() { if (!settled) { settled = true; resolve('main'); } }, 5000);
+    let ws2;
+    try { ws2 = new WebSocket('ws://127.0.0.1:18789'); } catch(_) { clearTimeout(timer); resolve('main'); return; }
+    let authed2 = false;
+    ws2.onerror = function() { if (!settled) { settled = true; clearTimeout(timer); resolve('main'); } };
+    ws2.onclose = function() { if (!settled) { settled = true; clearTimeout(timer); resolve('main'); } };
+    ws2.onmessage = function(ev) {
+      let d2;
+      try { d2 = JSON.parse(ev.data); } catch(_) { return; }
+      if (d2.type === 'event' && d2.event === 'connect.challenge') {
+        ws2.send(JSON.stringify({ type: 'req', id: 'dc', method: 'connect', params: {
+          minProtocol: 3, maxProtocol: 3,
+          client: { id: 'gateway-client', version: '1.0.0', platform: 'server', mode: 'backend' },
+          role: 'operator', scopes: ['operator.read', 'operator.write'],
+          auth: { token: GATEWAY_TOKEN },
+        }}));
+      } else if (!authed2 && d2.type === 'res' && d2.ok === true && d2.payload && d2.payload.type === 'hello-ok') {
+        authed2 = true;
+        ws2.send(JSON.stringify({ type: 'req', id: 'dal', method: 'agents.list', params: {} }));
+      } else if (d2.id === 'dal') {
+        const name = (d2.payload && d2.payload.defaultId) || 'main';
+        if (!settled) { settled = true; clearTimeout(timer); try { ws2.close(1000); } catch(_) {} resolve(name); }
+      }
+    };
+  });
+}
+
 async function main() {
-  const reg = await post(REGISTER_URL, { requestCode: REQUEST_CODE, agentName: AGENT_NAME || 'main' });
+  const agentName = AGENT_NAME || await detectAgentName();
+  const reg = await post(REGISTER_URL, { requestCode: REQUEST_CODE, agentName: agentName });
   if (!reg.body || !reg.body.pairingCode || !reg.body.relayToken) {
     process.stderr.write('Registration failed: ' + JSON.stringify(reg.body) + '\\n');
     process.exit(1);
@@ -642,8 +675,8 @@ async function main() {
       if (!poll.body || !poll.body.jobId) continue;
       const jobId = poll.body.jobId;
       const messages = poll.body.messages || [];
-      const agentName = poll.body.agentName || AGENT_NAME || 'main';
-      const response = await relayChat(messages, agentName);
+      const jobAgentName = poll.body.agentName || agentName;
+      const response = await relayChat(messages, jobAgentName);
       await post(RESPOND_URL, { relayToken: relayToken, jobId: jobId, response: response });
     } catch (e) {
       process.stderr.write('Relay error: ' + e.message + '\\n');
@@ -657,12 +690,15 @@ main().catch(function(e) {
 });`;
   }
 
-  function pairingMarkdownInstructions(args: { requestCode: string; requestExpiresAt: string }) {
-    const { requestCode, requestExpiresAt } = args;
+  function pairingMarkdownInstructions(args: { requestCode: string; requestExpiresAt: string; customAgentName?: string }) {
+    const { requestCode, requestExpiresAt, customAgentName } = args;
     const nodeScript = relayNodeScript();
+    const agentNameLine = customAgentName?.trim()
+      ? `AGENT_NAME="${customAgentName.trim()}"  # override: custom agent name`
+      : `AGENT_NAME="\${OPENCLAW_AGENT_NAME:-}"  # empty = auto-detect from gateway`;
     const bashScript = `set -euo pipefail
 REQUEST_CODE="${requestCode}"
-AGENT_NAME="\${OPENCLAW_AGENT_NAME:-main}"
+${agentNameLine}
 RELAY_LOG="$(mktemp /tmp/openclaw-relay-XXXXXX.log)"
 RELAY_SCRIPT="$(mktemp /tmp/openclaw-relay-XXXXXX.cjs)"
 cat > "$RELAY_SCRIPT" << 'RELAY_EOF'
@@ -734,6 +770,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
       const instructions = pairingMarkdownInstructions({
         requestCode: json.requestCode,
         requestExpiresAt: json.expiresAt,
+        customAgentName: openclawAgentNameEnabled ? openclawCustomAgentName : undefined,
       });
       const copied = await copyToClipboard(instructions);
       if (!copied) {
@@ -914,6 +951,33 @@ Do not print the relay token or gateway token in your final reply. Return only t
               ? "Tu gateway conecta hacia afuera — no necesitás URL pública ni instalar nada extra."
               : "Your gateway connects outward — no public URL or extra install needed."}
           </p>
+          <div className="mt-3">
+            <label className="flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={openclawAgentNameEnabled}
+                onChange={(e) => setOpenclawAgentNameEnabled(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[var(--brand-accent)]"
+              />
+              <span className="text-[11px] text-muted-foreground">
+                {isSpanish ? "Nombre de agente personalizado" : "Custom agent name"}
+              </span>
+            </label>
+            <input
+              type="text"
+              disabled={!openclawAgentNameEnabled}
+              value={openclawAgentNameEnabled ? openclawCustomAgentName : ""}
+              placeholder={openclawAgentNameEnabled
+                ? (isSpanish ? "ej: main" : "e.g. main")
+                : (isSpanish ? "Auto-detectar desde gateway" : "Auto-detect from gateway")}
+              onChange={(e) =>
+                setOpenclawCustomAgentName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 48))
+              }
+              className={`mt-1.5 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-1.5 text-[11px] text-foreground outline-none focus:border-[var(--brand-accent)] ${
+                !openclawAgentNameEnabled ? "cursor-not-allowed opacity-40" : ""
+              }`}
+            />
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
