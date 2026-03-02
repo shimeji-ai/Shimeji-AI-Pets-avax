@@ -273,7 +273,12 @@ export async function sendOpenClawServerChat(args: {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
+        if (payload.state === "error") {
+          fail(new Error(`OPENCLAW_ERROR:${payload.errorMessage || "Chat failed"}`));
+          return;
+        }
         if (
+          payload.state === "final" ||
           payload.status === "completed" ||
           payload.status === "done" ||
           payload.type === "done" ||
@@ -290,6 +295,7 @@ export async function sendOpenClawServerChat(args: {
         const text = extractOpenClawText(data.payload);
         if (text) pushText(text);
         if (
+          data.payload?.state === "final" ||
           data.payload?.status === "completed" ||
           data.payload?.status === "done" ||
           data.payload?.done
