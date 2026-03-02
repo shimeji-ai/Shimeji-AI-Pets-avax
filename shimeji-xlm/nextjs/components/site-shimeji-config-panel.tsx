@@ -480,12 +480,28 @@ let GATEWAY_URL = 'ws://127.0.0.1:18789';
 try {
   const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
   const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-  GATEWAY_TOKEN = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.token;
+  const envToken = typeof process.env.OPENCLAW_GATEWAY_TOKEN === 'string'
+    ? process.env.OPENCLAW_GATEWAY_TOKEN.trim()
+    : '';
+  const cfgToken = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.token;
+  const cfgOperatorToken = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.operatorToken;
+  const cfgWriteToken = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.writeToken;
+  const cfgAdminToken = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.adminToken;
+  const cfgTopToken = cfg && cfg.gateway && cfg.gateway.token;
+  GATEWAY_TOKEN =
+    envToken ||
+    cfgOperatorToken ||
+    cfgWriteToken ||
+    cfgAdminToken ||
+    cfgToken ||
+    cfgTopToken;
   const configuredUrl = cfg && cfg.gateway && cfg.gateway.url;
   if (typeof configuredUrl === 'string' && configuredUrl.trim()) {
     GATEWAY_URL = configuredUrl.trim();
   }
-  if (!GATEWAY_TOKEN) throw new Error('gateway.auth.token not found');
+  if (!GATEWAY_TOKEN) {
+    throw new Error('gateway token not found (set OPENCLAW_GATEWAY_TOKEN or gateway.auth.token)');
+  }
 } catch (e) {
   process.stderr.write('Cannot read gateway token: ' + e.message + '\\n');
   process.exit(1);
@@ -573,6 +589,96 @@ function mergeText(cur, next) {
     if (cur.slice(-i) === next.slice(0, i)) return cur + next.slice(i);
   }
   return cur + next;
+}
+
+function hasMissingWriteScope(msg) {
+  const s = String(msg || '').toLowerCase();
+  return s.includes('missing scope') && s.includes('operator.write');
+}
+
+function assertOperatorWrite(agentName) {
+  return new Promise(function(resolve, reject) {
+    let settled = false, authed = false, probeSent = false, reqN = 0;
+    const nextId = function(p) { return p + '-' + Date.now() + '-' + (++reqN); };
+    let ws;
+    const timer = setTimeout(function() { fail('PRECHECK_TIMEOUT'); }, 12000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      try { if (ws) ws.close(1000); } catch (_) {}
+    }
+
+    function ok() {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve();
+    }
+
+    function fail(msg) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(String(msg || 'PRECHECK_FAILED').slice(0, 240)));
+    }
+
+    try { ws = new WebSocket(GATEWAY_URL); } catch (_) { fail('WS_CONNECT_FAILED'); return; }
+    ws.onerror = function() { fail('WS_ERROR'); };
+    ws.onclose = function(ev) { if (!settled) fail('WS_CLOSED:' + (ev && ev.code ? ev.code : 'unknown')); };
+    ws.onmessage = function(ev) {
+      let d;
+      try { d = JSON.parse(ev.data); } catch (_) { return; }
+
+      if (d.type === 'event' && d.event === 'connect.challenge') {
+        ws.send(JSON.stringify({ type: 'req', id: nextId('c'), method: 'connect', params: {
+          minProtocol: 3, maxProtocol: 3,
+          client: { id: 'gateway-client', version: '1.0.0', platform: 'server', mode: 'backend' },
+          role: 'operator', scopes: ['operator.read', 'operator.write'],
+          auth: { token: GATEWAY_TOKEN },
+        }}));
+        return;
+      }
+
+      if (d.type === 'res' && !authed && d.ok === false) {
+        const reason = (d.error && (d.error.message || d.error.code)) || 'AUTH_FAILED';
+        fail('AUTH_FAILED:' + reason);
+        return;
+      }
+
+      if (d.type === 'res' && !authed && (d.ok === true || (d.payload && d.payload.type === 'hello-ok'))) {
+        authed = true;
+        const grantedScopes = Array.isArray(d.payload && d.payload.scopes) ? d.payload.scopes.map(function(x) {
+          return String(x || '').toLowerCase();
+        }) : [];
+        if (grantedScopes.length && grantedScopes.indexOf('operator.write') === -1) {
+          fail('REQUEST_FAILED:missing scope: operator.write');
+          return;
+        }
+
+        probeSent = true;
+        ws.send(JSON.stringify({ type: 'req', id: nextId('scope'), method: 'chat.send', params: {
+          sessionKey: buildSessionKey(agentName),
+          message: '[shimeji relay preflight]',
+          idempotencyKey: nextId('idem'),
+        }}));
+        return;
+      }
+
+      if (authed && probeSent && d.type === 'res' && d.ok === false) {
+        const reason = (d.error && (d.error.message || d.error.code)) || 'REQUEST_FAILED';
+        if (hasMissingWriteScope(reason)) {
+          fail('REQUEST_FAILED:missing scope: operator.write');
+          return;
+        }
+        fail('REQUEST_FAILED:' + reason);
+        return;
+      }
+
+      if (authed && probeSent && ((d.type === 'res' && d.ok === true) || d.type === 'event')) {
+        ok();
+      }
+    };
+  });
 }
 
 function relayChat(messages, agentName) {
@@ -700,6 +806,18 @@ function detectAgentName() {
 
 async function main() {
   const agentName = AGENT_NAME || await detectAgentName();
+  try {
+    await assertOperatorWrite(agentName);
+  } catch (e) {
+    const msg = String(e && e.message ? e.message : e);
+    if (hasMissingWriteScope(msg)) {
+      process.stderr.write('Gateway token is missing required scope operator.write. Set OPENCLAW_GATEWAY_TOKEN (with operator.write) and rerun.\\n');
+    } else {
+      process.stderr.write('Gateway precheck failed: ' + msg + '\\n');
+    }
+    process.exit(1);
+  }
+
   const reg = await post(REGISTER_URL, { requestCode: REQUEST_CODE, agentName: agentName });
   if (!reg.body || !reg.body.pairingCode || !reg.body.relayToken) {
     process.stderr.write('Registration failed: ' + JSON.stringify(reg.body) + '\\n');
@@ -760,6 +878,10 @@ Run the script below in your shell. It will print a pairing code. Return ONLY th
 
 ## How it works
 Your local OpenClaw gateway connects outward to the relay server — no public URL needed. No openclaw CLI required. Config is read automatically from \`~/.openclaw/openclaw.json\`.
+
+## Requirement
+The gateway token must allow \`operator.write\` (chat/send permission).
+If needed, set \`OPENCLAW_GATEWAY_TOKEN\` to a token with that scope before running.
 
 ## One-time request code
 ${requestCode}

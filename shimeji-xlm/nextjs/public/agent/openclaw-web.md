@@ -11,9 +11,9 @@ Goal: connect any OpenClaw agent to `https://www.shimeji.dev/` using a one-time 
 6. Paste it and click `Pair`.
 
 ## Important
-- Pairing requires a **public** OpenClaw gateway URL (`wss://...` / `https://...`).
-- `localhost`/private URLs are not accepted by web pairing.
-- Local OpenClaw must expose a public tunnel URL first.
+- Pairing uses relay mode: no public gateway URL or tunnel is required.
+- The agent runs a local relay daemon that connects outward to the website.
+- Gateway token must include `operator.write` scope.
 
 ## Security model
 - `requestCode`: one-time + short-lived.

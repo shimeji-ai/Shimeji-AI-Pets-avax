@@ -12,15 +12,15 @@ No tunnel required. The script reads your local config automatically.
 - Optional `OPENCLAW_AGENT_NAME` (default: `main`)
 
 ## What the script does
-1. Reads `~/.openclaw/openclaw.json` to get your gateway token (no CLI needed)
+1. Reads token from `OPENCLAW_GATEWAY_TOKEN` env or `~/.openclaw/openclaw.json`
 2. Registers with the relay server using the request code → gets a pairing code + relay token
 3. Prints the pairing code to stdout
-4. Starts a background daemon that long-polls the relay server for chat jobs and forwards them to your local gateway at `ws://127.0.0.1:18789`
+4. Starts a background daemon that long-polls the relay server for chat jobs and forwards them to your local gateway
 
 ## Requirements
 - Node.js 21+ (uses built-in `WebSocket` global)
-- `~/.openclaw/openclaw.json` with `gateway.auth.token` set
-- Local OpenClaw gateway running at `ws://127.0.0.1:18789`
+- Local OpenClaw gateway running (`gateway.url` from config is used; defaults to `ws://127.0.0.1:18789`)
+- Gateway token with `operator.write` scope (required for `chat.send`)
 
 ## Script (copy from the web UI "Copy agent instructions" button)
 The web UI generates a personalized script with the request code and relay URLs embedded.

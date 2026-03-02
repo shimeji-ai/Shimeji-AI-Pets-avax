@@ -360,6 +360,12 @@ export function formatSiteShimejiProviderError(
   }
   if (message.startsWith("OPENCLAW_RELAY_DETAIL:")) {
     const detail = message.slice("OPENCLAW_RELAY_DETAIL:".length).trim() || "unknown";
+    const normalized = detail.toLowerCase();
+    if (normalized.includes("missing scope") && normalized.includes("operator.write")) {
+      return isSpanish
+        ? "El token del gateway no tiene permiso operator.write. Configurá un token con ese scope y volvé a hacer pairing."
+        : "Gateway token is missing operator.write scope. Configure a token with that scope and pair again.";
+    }
     return isSpanish
       ? `El relay de OpenClaw falló: ${detail}`
       : `The OpenClaw relay failed: ${detail}`;
