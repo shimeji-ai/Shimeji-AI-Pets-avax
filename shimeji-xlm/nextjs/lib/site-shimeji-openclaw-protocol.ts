@@ -50,6 +50,8 @@ export function extractOpenClawText(payload: unknown): string {
   if (Array.isArray(value.content)) {
     return value.content.map((c: any) => c?.text || c?.content || c?.value || "").join("");
   }
+  // agent stream events: {stream:"assistant", data:{text:"...", delta:"..."}}
+  if (value.data && typeof value.data.text === "string") return value.data.text;
   return "";
 }
 

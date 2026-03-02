@@ -296,7 +296,10 @@ export async function sendOpenClawServerChat(args: {
         const payload = data.payload || {};
         const text = extractOpenClawText(payload);
         if (text) pushText(text);
+        // Always touch activity for agent-related events so slow LLMs don't hit the idle timeout
         if (
+          data.event === "agent" ||
+          data.event === "chat" ||
           payload.state !== undefined ||
           payload.status !== undefined ||
           payload.type !== undefined ||

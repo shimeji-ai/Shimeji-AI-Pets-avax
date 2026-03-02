@@ -455,7 +455,7 @@ function ProviderFields() {
     return `set -euo pipefail
 
 REQUEST_CODE="${requestCode}"
-OPENCLAW_AGENT_NAME="\${OPENCLAW_AGENT_NAME:-web-shimeji-1}"
+OPENCLAW_AGENT_NAME="\${OPENCLAW_AGENT_NAME:-main}"
 OPENCLAW_GATEWAY_URL="\${OPENCLAW_GATEWAY_URL:-\$(openclaw config get gateway.url 2>/dev/null || true)}"
 OPENCLAW_GATEWAY_TOKEN="\${OPENCLAW_GATEWAY_TOKEN:-\$(openclaw config get gateway.auth.token 2>/dev/null || true)}"
 
@@ -523,7 +523,7 @@ ${pairingIssueEndpoint}
   - must be public/reachable from internet (\`wss://...\` or tunnel URL)
   - no localhost/private URLs are accepted
   - local OpenClaw must expose a public tunnel URL first
-- Optional OPENCLAW_AGENT_NAME (default: web-shimeji-1)
+- Optional OPENCLAW_AGENT_NAME (default: main — use your actual agent ID from \`openclaw agents list\`)
 
 ## Command
 \`\`\`bash
