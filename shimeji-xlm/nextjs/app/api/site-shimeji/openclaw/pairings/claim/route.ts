@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { claimOpenClawPairingCode } from "@/lib/site-shimeji-openclaw-pairing-store";
+import { claimRelayCode } from "@/lib/site-shimeji-openclaw-relay-store";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "OPENCLAW_PAIRING_CODE_EXPIRED" }, { status: 410 });
       }
       if (result.reason === "max_claims_reached") {
+        return NextResponse.json({ error: "OPENCLAW_PAIRING_CODE_USED" }, { status: 409 });
+      }
+
+      // Not found in direct pairing codes — try relay codes
+      const relayResult = await claimRelayCode({ code, sessionTtlSeconds });
+      if (relayResult.ok) {
+        return NextResponse.json({
+          sessionToken: relayResult.sessionToken,
+          sessionExpiresAt: relayResult.sessionExpiresAt,
+          agentName: relayResult.agentName,
+        });
+      }
+      if (relayResult.reason === "expired_code") {
+        return NextResponse.json({ error: "OPENCLAW_PAIRING_CODE_EXPIRED" }, { status: 410 });
+      }
+      if (relayResult.reason === "max_claims_reached") {
         return NextResponse.json({ error: "OPENCLAW_PAIRING_CODE_USED" }, { status: 409 });
       }
       return NextResponse.json({ error: "OPENCLAW_PAIRING_INVALID_CODE" }, { status: 404 });

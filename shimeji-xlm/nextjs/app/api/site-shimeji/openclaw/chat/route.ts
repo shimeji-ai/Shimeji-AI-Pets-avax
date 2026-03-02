@@ -3,6 +3,11 @@ import {
   resolveOpenClawPairingSession,
 } from "@/lib/site-shimeji-openclaw-pairing-store";
 import {
+  resolveOpenClawRelayWebSession,
+  createRelayJob,
+  pollRelayJobResponse,
+} from "@/lib/site-shimeji-openclaw-relay-store";
+import {
   coerceOpenClawChatMessages,
   type OpenClawChatRequestMessage,
 } from "@/lib/site-shimeji-openclaw-protocol";
@@ -60,36 +65,69 @@ export async function POST(request: NextRequest) {
       3_500,
       "OPENCLAW_SESSION_TIMEOUT",
     );
-    if (!session.ok) {
-      if (session.reason === "expired_session") {
+
+    if (session.ok) {
+      const reply = await withTimeout(
+        sendOpenClawServerChat({
+          messages,
+          gatewayUrl: session.gatewayUrl,
+          gatewayToken: session.gatewayToken,
+          agentName: session.agentName,
+          timeoutMs: 28_000,
+        }),
+        34_000,
+        "OPENCLAW_ROUTE_TIMEOUT",
+      );
+
+      return NextResponse.json(
+        {
+          reply,
+          agentName: session.agentName,
+          sessionExpiresAt: session.sessionExpiresAt,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    if (session.reason === "expired_session") {
+      return NextResponse.json({ error: "OPENCLAW_PAIRING_EXPIRED" }, { status: 410 });
+    }
+
+    // Direct session not found — try relay session
+    const relaySession = await withTimeout(
+      resolveOpenClawRelayWebSession(sessionToken),
+      3_500,
+      "OPENCLAW_SESSION_TIMEOUT",
+    );
+    if (!relaySession.ok) {
+      if (relaySession.reason === "expired_session") {
         return NextResponse.json({ error: "OPENCLAW_PAIRING_EXPIRED" }, { status: 410 });
       }
       return NextResponse.json({ error: "OPENCLAW_PAIRING_INVALID" }, { status: 401 });
     }
 
-    const reply = await withTimeout(
-      sendOpenClawServerChat({
-        messages,
-        gatewayUrl: session.gatewayUrl,
-        gatewayToken: session.gatewayToken,
-        agentName: session.agentName,
-        timeoutMs: 28_000,
-      }),
+    const { jobId } = await createRelayJob({
+      relayTokenHash: relaySession.relayTokenHash,
+      messages,
+      agentName: relaySession.agentName,
+    });
+
+    const relayReply = await withTimeout(
+      pollRelayJobResponse({ jobId, pollMs: 28_000 }),
       34_000,
-      "OPENCLAW_ROUTE_TIMEOUT",
+      "OPENCLAW_RELAY_TIMEOUT",
     );
+    if (!relayReply) {
+      return NextResponse.json({ error: "OPENCLAW_RELAY_TIMEOUT" }, { status: 504 });
+    }
 
     return NextResponse.json(
       {
-        reply,
-        agentName: session.agentName,
-        sessionExpiresAt: session.sessionExpiresAt,
+        reply: relayReply,
+        agentName: relaySession.agentName,
+        sessionExpiresAt: relaySession.sessionExpiresAt,
       },
-      {
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "OPENCLAW_RELAY_FAILED";
@@ -120,6 +158,9 @@ export async function POST(request: NextRequest) {
         { error: "OPENCLAW_CONNECT", errorDetail: message.slice(0, 240) },
         { status: 504 },
       );
+    }
+    if (message.startsWith("OPENCLAW_RELAY_TIMEOUT")) {
+      return NextResponse.json({ error: "OPENCLAW_RELAY_TIMEOUT" }, { status: 504 });
     }
     if (message.startsWith("OPENCLAW_ERROR:")) {
       return NextResponse.json({ error: "OPENCLAW_ERROR" }, { status: 502 });

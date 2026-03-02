@@ -313,14 +313,22 @@ function ProviderFields() {
     pairingStatusLower.includes("vencio") ||
     pairingStatusLower.includes("could not") ||
     pairingStatusLower.includes("no se pudo");
-  const pairingIssueEndpoint =
-    typeof window === "undefined"
-      ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue"
-      : `${window.location.origin}/api/site-shimeji/openclaw/pairings/issue`;
   const pairingRequestEndpoint =
     typeof window === "undefined"
-      ? "https://YOUR_SITE/api/site-shimeji/openclaw/pairings/request"
+      ? "https://shimeji.dev/api/site-shimeji/openclaw/pairings/request"
       : `${window.location.origin}/api/site-shimeji/openclaw/pairings/request`;
+  const relayRegisterUrl =
+    typeof window === "undefined"
+      ? "https://shimeji.dev/api/site-shimeji/openclaw/relay/register"
+      : `${window.location.origin}/api/site-shimeji/openclaw/relay/register`;
+  const relayPollUrl =
+    typeof window === "undefined"
+      ? "https://shimeji.dev/api/site-shimeji/openclaw/relay/poll"
+      : `${window.location.origin}/api/site-shimeji/openclaw/relay/poll`;
+  const relayRespondUrl =
+    typeof window === "undefined"
+      ? "https://shimeji.dev/api/site-shimeji/openclaw/relay/respond"
+      : `${window.location.origin}/api/site-shimeji/openclaw/relay/respond`;
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
     if (kind === "openrouter") {
@@ -451,90 +459,243 @@ function ProviderFields() {
     );
   }
 
-  function pairingCurlCommand(requestCode: string) {
-    return `set -euo pipefail
+  function relayNodeScript(): string {
+    return `'use strict';
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const https = require('https');
+const http = require('http');
 
-REQUEST_CODE="${requestCode}"
-OPENCLAW_AGENT_NAME="\${OPENCLAW_AGENT_NAME:-main}"
-OPENCLAW_GATEWAY_URL="\${OPENCLAW_GATEWAY_URL:-\$(openclaw config get gateway.url 2>/dev/null || true)}"
-OPENCLAW_GATEWAY_TOKEN="\${OPENCLAW_GATEWAY_TOKEN:-\$(openclaw config get gateway.auth.token 2>/dev/null || true)}"
+const [,, REQUEST_CODE, AGENT_NAME, REGISTER_URL, POLL_URL, RESPOND_URL] = process.argv;
+if (!REQUEST_CODE || !REGISTER_URL || !POLL_URL || !RESPOND_URL) {
+  process.stderr.write('Missing args\\n');
+  process.exit(1);
+}
 
-if [[ -z "$OPENCLAW_GATEWAY_URL" ]]; then
-  echo "Missing OPENCLAW_GATEWAY_URL. Set a public gateway URL first." >&2
-  exit 1
-fi
-if [[ -z "$OPENCLAW_GATEWAY_TOKEN" ]]; then
-  echo "Missing OPENCLAW_GATEWAY_TOKEN." >&2
-  exit 1
-fi
-if [[ "$OPENCLAW_GATEWAY_URL" == http://* ]]; then
-  OPENCLAW_GATEWAY_URL="ws://\${OPENCLAW_GATEWAY_URL#http://}"
-fi
-if [[ "$OPENCLAW_GATEWAY_URL" == https://* ]]; then
-  OPENCLAW_GATEWAY_URL="wss://\${OPENCLAW_GATEWAY_URL#https://}"
-fi
+let GATEWAY_TOKEN;
+try {
+  const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  GATEWAY_TOKEN = cfg && cfg.gateway && cfg.gateway.auth && cfg.gateway.auth.token;
+  if (!GATEWAY_TOKEN) throw new Error('gateway.auth.token not found');
+} catch (e) {
+  process.stderr.write('Cannot read gateway token: ' + e.message + '\\n');
+  process.exit(1);
+}
 
-FINAL_HOST="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\\1#')"
-if [[ -z "$FINAL_HOST" ]]; then
-  echo "Invalid OPENCLAW_GATEWAY_URL." >&2
-  exit 1
-fi
-if [[ "$FINAL_HOST" == "localhost" || "$FINAL_HOST" == "host.docker.internal" || "$FINAL_HOST" == *.local ]]; then
-  echo "Gateway URL must be public (not localhost/private)." >&2
-  exit 1
-fi
+function post(url, body) {
+  return new Promise(function(resolve, reject) {
+    const parsed = new URL(url);
+    const mod = parsed.protocol === 'https:' ? https : http;
+    const data = JSON.stringify(body);
+    const opts = {
+      hostname: parsed.hostname,
+      port: parseInt(parsed.port || (parsed.protocol === 'https:' ? '443' : '80')),
+      path: parsed.pathname + parsed.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+    };
+    const req = mod.request(opts, function(res) {
+      let raw = '';
+      res.on('data', function(c) { raw += c; });
+      res.on('end', function() {
+        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
+        catch (_) { resolve({ status: res.statusCode, body: raw }); }
+      });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
 
-PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"
-RESPONSE="$(
-  curl -sS --connect-timeout 8 --max-time 35 --retry 1 --retry-delay 1 \\
-    -w '\\nHTTP_STATUS:%{http_code}\\n' \\
-    -X POST ${pairingIssueEndpoint} \\
-    -H "Content-Type: application/json" \\
-    -d "$PAYLOAD"
-)"
-BODY="$(printf '%s' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
-STATUS="$(printf '%s' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)"
+function buildSessionKey(agentName) {
+  const raw = String(agentName || 'main').toLowerCase();
+  const safe = raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'main';
+  return 'agent:' + safe + ':main';
+}
 
-if [[ "$STATUS" != "200" ]]; then
-  echo "pairing issue failed (status=$STATUS): $BODY" >&2
-  exit 1
-fi
+function getLastUserMsg(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') return messages[i].content || '';
+  }
+  return '';
+}
 
-echo "$BODY"`;
+function extractText(p) {
+  if (!p) return '';
+  if (typeof p.content === 'string') return p.content;
+  if (typeof p.text === 'string') return p.text;
+  if (p.delta) {
+    if (typeof p.delta.content === 'string') return p.delta.content;
+    if (typeof p.delta.text === 'string') return p.delta.text;
+  }
+  if (p.data && typeof p.data.text === 'string') return p.data.text;
+  return '';
+}
+
+function mergeText(cur, next) {
+  if (!next) return cur;
+  if (!cur) return next;
+  if (next === cur || cur.startsWith(next)) return cur;
+  if (next.startsWith(cur)) return next;
+  const max = Math.min(cur.length, next.length);
+  for (let i = max; i > 0; i--) {
+    if (cur.slice(-i) === next.slice(0, i)) return cur + next.slice(i);
+  }
+  return cur + next;
+}
+
+function relayChat(messages, agentName) {
+  return new Promise(function(resolve) {
+    const sessionKey = buildSessionKey(agentName);
+    const msgText = getLastUserMsg(messages);
+    let settled = false, authed = false, chatSent = false, responseText = '', sawDone = false;
+    let idleTimer = null, globalTimer = null, reqN = 0;
+    const nextId = function(p) { return p + '-' + Date.now() + '-' + (++reqN); };
+
+    function done(text) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(idleTimer);
+      clearTimeout(globalTimer);
+      try { ws.close(1000); } catch (_) {}
+      resolve(text || '(no response)');
+    }
+
+    function arm() {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(function() { done(responseText); }, 20000);
+    }
+
+    globalTimer = setTimeout(function() { done(responseText); }, 70000);
+
+    const ws = new WebSocket('ws://127.0.0.1:18789');
+    ws.onopen = function() { arm(); };
+    ws.onerror = function() { done(responseText || '(ws error)'); };
+    ws.onclose = function() { if (!settled) done(responseText || '(ws closed)'); };
+    ws.onmessage = function(ev) {
+      let d;
+      try { d = JSON.parse(ev.data); } catch (_) { return; }
+
+      if (d.type === 'event' && d.event === 'connect.challenge') {
+        arm();
+        ws.send(JSON.stringify({ type: 'req', id: nextId('c'), method: 'connect', params: {
+          minProtocol: 3, maxProtocol: 3,
+          client: { id: 'gateway-client', version: '1.0.0', platform: 'server', mode: 'backend' },
+          role: 'operator', scopes: ['operator.read', 'operator.write'],
+          auth: { token: GATEWAY_TOKEN },
+        }}));
+        return;
+      }
+      if (d.type === 'res' && !authed && d.ok === false) { done(responseText || '(auth failed)'); return; }
+      if (d.type === 'res' && !authed && (d.ok === true || (d.payload && d.payload.type === 'hello-ok'))) {
+        arm(); authed = true;
+        if (!chatSent) {
+          chatSent = true;
+          ws.send(JSON.stringify({ type: 'req', id: nextId('chat'), method: 'chat.send', params: {
+            sessionKey: sessionKey, message: msgText, idempotencyKey: nextId('idem'),
+          }}));
+        }
+        return;
+      }
+      if (d.type === 'event') {
+        const p = d.payload || {};
+        const t = extractText(p);
+        if (t) responseText = mergeText(responseText, t);
+        if (p.state !== undefined || p.status !== undefined || p.done !== undefined) arm();
+        if (p.state === 'error') { done(responseText || '(agent error)'); return; }
+        if (p.state === 'final' || p.status === 'completed' || p.done === true) {
+          sawDone = true; done(responseText || t || '(no response)');
+        }
+        return;
+      }
+      if (d.type === 'res' && authed && d.ok === true) {
+        if (d.payload && d.payload.runId) { arm(); return; }
+        const t = extractText(d.payload);
+        if (t) responseText = mergeText(responseText, t);
+        if (d.payload && (d.payload.state === 'final' || d.payload.status === 'completed' || d.payload.done)) {
+          sawDone = true; done(responseText || t || '(no response)');
+        }
+        return;
+      }
+      if (d.type === 'res' && authed && d.ok === false) { done(responseText || '(request failed)'); }
+    };
+    arm();
+  });
+}
+
+async function main() {
+  const reg = await post(REGISTER_URL, { requestCode: REQUEST_CODE, agentName: AGENT_NAME || 'main' });
+  if (!reg.body || !reg.body.pairingCode || !reg.body.relayToken) {
+    process.stderr.write('Registration failed: ' + JSON.stringify(reg.body) + '\\n');
+    process.exit(1);
+  }
+  const pairingCode = reg.body.pairingCode;
+  const relayToken = reg.body.relayToken;
+  process.stdout.write(pairingCode + '\\n');
+
+  while (true) {
+    try {
+      const poll = await post(POLL_URL, { relayToken: relayToken });
+      if (!poll.body || !poll.body.jobId) continue;
+      const jobId = poll.body.jobId;
+      const messages = poll.body.messages || [];
+      const agentName = poll.body.agentName || AGENT_NAME || 'main';
+      const response = await relayChat(messages, agentName);
+      await post(RESPOND_URL, { relayToken: relayToken, jobId: jobId, response: response });
+    } catch (e) {
+      process.stderr.write('Relay error: ' + e.message + '\\n');
+    }
+  }
+}
+
+main().catch(function(e) {
+  process.stderr.write('Fatal: ' + e.message + '\\n');
+  process.exit(1);
+});`;
   }
 
   function pairingMarkdownInstructions(args: { requestCode: string; requestExpiresAt: string }) {
     const { requestCode, requestExpiresAt } = args;
-    return `# Task: generate pairing code for web user
+    const nodeScript = relayNodeScript();
+    const bashScript = `set -euo pipefail
+REQUEST_CODE="${requestCode}"
+AGENT_NAME="\${OPENCLAW_AGENT_NAME:-main}"
+RELAY_LOG="$(mktemp /tmp/openclaw-relay-XXXXXX.log)"
+RELAY_SCRIPT="$(mktemp /tmp/openclaw-relay-XXXXXX.cjs)"
+cat > "$RELAY_SCRIPT" << 'RELAY_EOF'
+${nodeScript}
+RELAY_EOF
+nohup node "$RELAY_SCRIPT" "$REQUEST_CODE" "$AGENT_NAME" "${relayRegisterUrl}" "${relayPollUrl}" "${relayRespondUrl}" > "$RELAY_LOG" 2>&1 &
+disown
+CODE=""
+for i in $(seq 1 30); do
+  CODE="$(grep -m1 -E '^[A-Z0-9]{6,12}$' "$RELAY_LOG" 2>/dev/null || true)"
+  [ -n "$CODE" ] && break
+  sleep 1
+done
+[ -n "$CODE" ] || { echo "ERROR: No pairing code received. Check $RELAY_LOG" >&2; exit 1; }
+echo "$CODE"`;
+    return `# Task: Generate pairing code for web user (relay mode)
 
-Return ONLY the pairing code text (example: Q7M4K9P2). Do not add explanations.
+Run the script below in your shell. It will print a pairing code. Return ONLY that code to the user (example: \`Q7M4K9P2\`). Do not add explanations.
+
+## How it works
+Your local OpenClaw gateway connects outward to the relay server — no public URL needed. No openclaw CLI required. Config is read automatically from \`~/.openclaw/openclaw.json\`.
 
 ## One-time request code
 ${requestCode}
-Expires at: ${requestExpiresAt}
+Expires: ${requestExpiresAt}
 
-## Endpoint
-${pairingIssueEndpoint}
-
-## Required values
-- requestCode (one-time): ${requestCode}
-- OPENCLAW_GATEWAY_TOKEN (recommended source: \`openclaw config get gateway.auth.token\`)
-- OPENCLAW_GATEWAY_URL
-  - must be public/reachable from internet (\`wss://...\` or tunnel URL)
-  - no localhost/private URLs are accepted
-  - local OpenClaw must expose a public tunnel URL first
-- Optional OPENCLAW_AGENT_NAME (default: main — use your actual agent ID from \`openclaw agents list\`)
-
-## Command
+## Script
 \`\`\`bash
-${pairingCurlCommand(requestCode)}
+${bashScript}
 \`\`\`
 
-## Output rule
-From the JSON response, extract \`pairingCode\` and print only that value.
-
 ## Security rule
-Do not print gateway token or URL in your final reply. Return only the pairing code.`;
+Do not print the relay token or gateway token in your final reply. Return only the pairing code.`;
   }
 
   async function copyToClipboard(value: string): Promise<boolean> {
@@ -739,8 +900,8 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
             </li>
             <li>
               {isSpanish
-                ? "El agente crea un código de pairing de un solo uso (vence rápido)."
-                : "The agent creates a one-time pairing code (short expiry)."}
+                ? "El agente ejecuta el script: lee tu config local e imprime un código."
+                : "The agent runs the script: it reads your local config and prints a code."}
             </li>
             <li>
               {isSpanish
@@ -750,8 +911,8 @@ Do not print gateway token or URL in your final reply. Return only the pairing c
           </ol>
           <p className="mt-2">
             {isSpanish
-              ? "No necesitás configurar gateway URL/token en esta web. Ese dato queda del lado de tu agente."
-              : "You do not configure gateway URL/token on this website. Your agent handles that side."}
+              ? "Tu gateway conecta hacia afuera — no necesitás URL pública ni instalar nada extra."
+              : "Your gateway connects outward — no public URL or extra install needed."}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button

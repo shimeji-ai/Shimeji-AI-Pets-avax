@@ -1,58 +1,33 @@
-# Task: Generate OpenClaw pairing code for web user
+# Task: Generate OpenClaw pairing code for web user (relay mode)
 
 Return ONLY the pairing code (example: `Q7M4K9P2`).
 Do not ask questions. Do not add explanations.
 
+## How it works
+Your local OpenClaw gateway connects **outward** to the relay server — no public URL needed.
+No tunnel required. The script reads your local config automatically.
+
 ## Input from user
-- `REQUEST_CODE` (one-time code shown in web config)
-- Optional `OPENCLAW_AGENT_NAME` (default: `web-shimeji-1`)
+- `REQUEST_CODE` (one-time code shown in web config, e.g. `AB3X7K2M`)
+- Optional `OPENCLAW_AGENT_NAME` (default: `main`)
 
-## Required local values
-- `OPENCLAW_GATEWAY_URL`:
-  - Must be a **public** internet URL (`wss://...` or `https://...`)
-  - `localhost`/private URLs are rejected
-  - If running locally, create a tunnel first and use that public URL
-- `OPENCLAW_GATEWAY_TOKEN`:
-  - Recommended source: `openclaw config get gateway.auth.token`
+## What the script does
+1. Reads `~/.openclaw/openclaw.json` to get your gateway token (no CLI needed)
+2. Registers with the relay server using the request code → gets a pairing code + relay token
+3. Prints the pairing code to stdout
+4. Starts a background daemon that long-polls the relay server for chat jobs and forwards them to your local gateway at `ws://127.0.0.1:18789`
 
-## Endpoint
-`https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue`
+## Requirements
+- Node.js 21+ (uses built-in `WebSocket` global)
+- `~/.openclaw/openclaw.json` with `gateway.auth.token` set
+- Local OpenClaw gateway running at `ws://127.0.0.1:18789`
 
-## Command
-```bash
-set -euo pipefail
-
-REQUEST_CODE="PASTE_REQUEST_CODE_HERE"
-OPENCLAW_AGENT_NAME="${OPENCLAW_AGENT_NAME:-web-shimeji-1}"
-OPENCLAW_GATEWAY_URL="${OPENCLAW_GATEWAY_URL:-$(openclaw config get gateway.url 2>/dev/null || true)}"
-OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-$(openclaw config get gateway.auth.token 2>/dev/null || true)}"
-
-[[ -n "$OPENCLAW_GATEWAY_URL" ]] || { echo "Missing OPENCLAW_GATEWAY_URL" >&2; exit 1; }
-[[ -n "$OPENCLAW_GATEWAY_TOKEN" ]] || { echo "Missing OPENCLAW_GATEWAY_TOKEN" >&2; exit 1; }
-
-[[ "$OPENCLAW_GATEWAY_URL" == http://* ]] && OPENCLAW_GATEWAY_URL="ws://${OPENCLAW_GATEWAY_URL#http://}"
-[[ "$OPENCLAW_GATEWAY_URL" == https://* ]] && OPENCLAW_GATEWAY_URL="wss://${OPENCLAW_GATEWAY_URL#https://}"
-
-HOST="$(echo "$OPENCLAW_GATEWAY_URL" | sed -E 's#^[a-zA-Z]+://([^/:]+).*#\1#')"
-[[ -n "$HOST" ]] || { echo "Invalid OPENCLAW_GATEWAY_URL" >&2; exit 1; }
-[[ "$HOST" != "localhost" && "$HOST" != "host.docker.internal" && "$HOST" != *.local ]] || {
-  echo "Gateway URL must be public (not localhost/private)" >&2; exit 1;
-}
-
-PAYLOAD="$(printf '{"requestCode":"%s","gatewayUrl":"%s","gatewayToken":"%s","agentName":"%s"}' "$REQUEST_CODE" "$OPENCLAW_GATEWAY_URL" "$OPENCLAW_GATEWAY_TOKEN" "$OPENCLAW_AGENT_NAME")"
-RESPONSE="$({ curl -sS --connect-timeout 8 --max-time 35 -w '\nHTTP_STATUS:%{http_code}\n' \
-  -X POST https://YOUR_SITE/api/site-shimeji/openclaw/pairings/issue \
-  -H 'Content-Type: application/json' \
-  -d "$PAYLOAD"; } || true)"
-
-BODY="$(printf '%s' "$RESPONSE" | sed '/^HTTP_STATUS:/d')"
-STATUS="$(printf '%s' "$RESPONSE" | sed -n 's/^HTTP_STATUS://p' | tail -n 1)"
-[[ "$STATUS" == "200" ]] || { echo "pairing issue failed (status=${STATUS:-000}): $BODY" >&2; exit 1; }
-
-echo "$BODY" | sed -n 's/.*"pairingCode"[[:space:]]*:[[:space:]]*"\([^"]\+\)".*/\1/p'
-```
+## Script (copy from the web UI "Copy agent instructions" button)
+The web UI generates a personalized script with the request code and relay URLs embedded.
+Use the **Copy agent instructions** button in the OpenClaw section of the settings panel.
 
 ## Security
-- `requestCode` is one-time, short-lived.
-- `pairingCode` is one-time, short-lived.
-- Never print token/URL in final reply.
+- `requestCode` is one-time, short-lived (15 min).
+- `pairingCode` is one-time, short-lived (10 min).
+- `relayToken` authenticates the daemon to the relay server; never printed to stdout.
+- Gateway token never leaves your machine.
