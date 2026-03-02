@@ -16,6 +16,22 @@ type ChatPayload = {
   messages?: unknown;
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorCode: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(errorCode)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 function sanitizeSessionToken(input: unknown): string {
   if (typeof input !== "string") return "";
   return input.trim().slice(0, 2048);
@@ -39,7 +55,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "OPENCLAW_EMPTY_MESSAGE" }, { status: 400 });
     }
 
-    const session = await resolveOpenClawPairingSession(sessionToken);
+    const session = await withTimeout(
+      resolveOpenClawPairingSession(sessionToken),
+      3_500,
+      "OPENCLAW_SESSION_TIMEOUT",
+    );
     if (!session.ok) {
       if (session.reason === "expired_session") {
         return NextResponse.json({ error: "OPENCLAW_PAIRING_EXPIRED" }, { status: 410 });
@@ -47,13 +67,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "OPENCLAW_PAIRING_INVALID" }, { status: 401 });
     }
 
-    const reply = await sendOpenClawServerChat({
-      messages,
-      gatewayUrl: session.gatewayUrl,
-      gatewayToken: session.gatewayToken,
-      agentName: session.agentName,
-      timeoutMs: 8_500,
-    });
+    const reply = await withTimeout(
+      sendOpenClawServerChat({
+        messages,
+        gatewayUrl: session.gatewayUrl,
+        gatewayToken: session.gatewayToken,
+        agentName: session.agentName,
+        timeoutMs: 4_500,
+      }),
+      6_500,
+      "OPENCLAW_ROUTE_TIMEOUT",
+    );
 
     return NextResponse.json(
       {
@@ -88,7 +112,9 @@ export async function POST(request: NextRequest) {
     if (
       message.startsWith("OPENCLAW_CONNECT:") ||
       message.startsWith("OPENCLAW_TIMEOUT:") ||
-      message.startsWith("OPENCLAW_IDLE_TIMEOUT:")
+      message.startsWith("OPENCLAW_IDLE_TIMEOUT:") ||
+      message.startsWith("OPENCLAW_ROUTE_TIMEOUT") ||
+      message.startsWith("OPENCLAW_SESSION_TIMEOUT")
     ) {
       return NextResponse.json({ error: "OPENCLAW_CONNECT" }, { status: 504 });
     }
