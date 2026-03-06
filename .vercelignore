@@ -2,16 +2,13 @@ dist/
 **/.next/
 **/node_modules/
 
-# Only shimeji-xlm/nextjs is the Vercel app — exclude everything else
+# Exclude only repo-root utility folders; keep shimeji-avax/nextjs assets intact
 # runtime-core/ must NOT be excluded: the site shimeji catalog API reads
 # character sprites and personality files from ../../runtime-core at runtime
 desktop/
 chrome-extension/
 firefox-extension/
 animation-reference/
-scripts/
+/scripts/
 legacy/
 shimeji-eth/
-shimeji-xlm/soroban/
-shimeji-xlm/node_modules/
-shimeji-xlm/scripts/
