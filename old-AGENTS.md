@@ -8,12 +8,11 @@
 | `firefox-extension/` | Firefox browser runtime |
 | `desktop/` | Electron runtime |
 | `runtime-core/` | Canonical shared runtime content (characters, personalities, shared assets) |
-| `shimeji-eth/` | Ethereum app/contracts |
-| `shimeji-xlm/` | Stellar app/contracts (any Stellar wallet supported) |
+| `shimeji-avax/` | Avalanche app/contracts |
 | `animation-reference/` | Sprite reference for supported animation sets |
 | `legacy/` | Local-only archive, ignored by git |
 
-For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` first.
+For work inside `shimeji-avax/`, read its local instructions first when present.
 
 ## Runtime Core
 
@@ -24,15 +23,14 @@ For work inside `shimeji-eth/` or `shimeji-xlm/`, read their local `AGENTS.md` f
 - Do not hand-edit `desktop/renderer/{characters,personalities,assets}` or extension copies unless you are debugging; they are generated mirrors.
 - Sync core into all runtimes with `npm run sync-runtime-core` (legacy alias: `npm run sync-personalities`).
 - Use `./build.sh` from the repo root to sync and build artifacts: `./build.sh chrome` (Chrome zip), `./build.sh firefox` (Firefox zip), `./build.sh windows|macos|linux` (desktop), or `./build.sh all` (everything).
-  The script syncs runtime-core first, then copies the zipped Chrome/Firefox artifacts into `shimeji-eth/packages/nextjs/public` so release assets stay current.
+  The script syncs runtime-core first before building the requested artifacts.
 
-## shimeji-xlm Notes
+## shimeji-avax Notes
 
-- `./shimeji-xlm/launch.sh` is the canonical entrypoint (chain + deploy + frontend).
+- `./shimeji-avax/launch.sh` is the canonical interactive entrypoint for chain + deploy + frontend.
 - Core scripts: `scripts/chain.sh`, `scripts/deploy.sh`, `scripts/start.sh`, `scripts/vercel-env-sync.sh`.
-- The auction lives on `/auction` (the homepage is now a separate landing/customizer experience).
-- Wallet integration uses `@creit.tech/stellar-wallets-kit` with `allowAllModules()` — supports Freighter, Lobstr, and any Stellar-compatible wallet.
-- When changing deploy flow, keep docs aligned: `shimeji-xlm/README.md`, `nextjs/README.md`, `soroban/README.md`, `AGENTS.md`.
+- Contracts live under `shimeji-avax/foundry/` and the frontend under `shimeji-avax/nextjs/`.
+- When changing deploy flow, keep docs aligned: `shimeji-avax/README.md`, `shimeji-avax/foundry/README.md`, `shimeji-avax/nextjs/README.md`.
 
 ## Token-Efficient Workflow
 

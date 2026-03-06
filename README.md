@@ -1,33 +1,32 @@
 # Shimeji AI Pets 🐱🐰
 
-Animated desktop pets with AI chat and NFT marketplace on Stellar.
+Animated desktop pets with AI chat plus an Avalanche marketplace stack.
 
 ## Integrations
 
-The Stellar marketplace stack integrates with two external protocols:
+The Avalanche marketplace stack integrates with:
 
-- **[Reflector Network](https://reflector.network)** — Decentralized price oracle for the Stellar network. Used in the marketplace contract to accept both XLM and USDC as payment for any listing, converting prices on-chain at the current market rate so sellers only need to set one price.
-
-- **[Trustless Work](https://www.trustlesswork.com)** — Escrow-as-a-service protocol. Used in the auction and marketplace contracts to hold buyer funds in a trustless escrow during commission orders and NFT auctions, releasing to the seller only on delivery confirmation.
+- **[Chainlink](https://chain.link/)** — AVAX/USD price feed support for cross-currency marketplace and auction flows.
+- **[Trustless Work](https://www.trustlesswork.com)** — Escrow-as-a-service protocol used by auction and marketplace commission flows.
 
 ## Structure
 
 | Directory | Description |
 |---|---|
-| [shimeji-xlm](./shimeji-xlm/README.md) | Next.js marketplace dapp + Soroban smart contracts |
+| [shimeji-avax](./shimeji-avax/README.md) | Next.js marketplace dapp + Foundry smart contracts |
 | [chrome-extension](./chrome-extension/) | Browser runtime and chat UI |
 | [firefox-extension](./firefox-extension/) | Firefox browser runtime and chat UI |
 | [desktop](./desktop/) | Electron desktop app |
 | [runtime-core](./runtime-core/) | Canonical shared runtime content (characters, personalities, shared assets) |
 | [animation-reference](./animation-reference/README.md) | Sprite standards for extension/desktop |
 
-## Quick Start (Stellar)
+## Quick Start (Avalanche)
 
 ```bash
-./shimeji-xlm/launch.sh
+./shimeji-avax/launch.sh
 ```
 
-Unified launcher for local, testnet, and mainnet deployment.
+Unified launcher for local, Fuji, and mainnet deployment.
 
 ## Quick Start (Runtimes)
 

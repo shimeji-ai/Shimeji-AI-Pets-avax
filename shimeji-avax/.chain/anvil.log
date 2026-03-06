@@ -1,0 +1,486 @@
+
+
+                             _   _
+                            (_) | |
+      __ _   _ __   __   __  _  | |
+     / _` | | '_ \  \ \ / / | | | |
+    | (_| | | | | |  \ V /  | | | |
+     \__,_| |_| |_|   \_/   |_| |_|
+
+    1.5.1-stable (b0a9dd9ced 2025-12-22T11:39:01.425730780Z)
+    https://github.com/foundry-rs/foundry
+
+Available Accounts
+==================
+
+(0) 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (1000000.000000000000000000 ETH)
+(1) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (1000000.000000000000000000 ETH)
+(2) 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (1000000.000000000000000000 ETH)
+(3) 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (1000000.000000000000000000 ETH)
+(4) 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (1000000.000000000000000000 ETH)
+(5) 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (1000000.000000000000000000 ETH)
+(6) 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (1000000.000000000000000000 ETH)
+(7) 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (1000000.000000000000000000 ETH)
+(8) 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (1000000.000000000000000000 ETH)
+(9) 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (1000000.000000000000000000 ETH)
+
+Private Keys
+==================
+
+(0) 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+(1) 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+(2) 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+(3) 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+(4) 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+(5) 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+(6) 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+(7) 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+(8) 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+(9) 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+
+Wallet
+==================
+Mnemonic:          test test test test test test test test test test test junk
+Derivation path:   m/44'/60'/0'/0/
+
+
+Chain ID
+==================
+
+43112
+
+Base Fee
+==================
+
+1000000000
+
+Gas Limit
+==================
+
+30000000
+
+Genesis Timestamp
+==================
+
+1772822325
+
+Genesis Number
+==================
+
+0
+
+Listening on 127.0.0.1:8545
+eth_blockNumber
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+
+    Transaction: 0x0b7eee792add372dbaad3075dc51024042fa4c04991998f84e58331f1d215e91
+    Contract created: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+    Gas used: 579353
+
+    Block Number: 1
+    Block Hash: 0xbe4018a64ab8fbd1841010319423f238fb91077e387b48b7b596726a48d0953c
+    Block Time: "Fri, 6 Mar 2026 18:38:47 +0000"
+
+eth_blockNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0xfd6597f7cc5b4690046f296ee134e93d49926fa1751c5191c98a19b3726aab7b
+    Contract created: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+    Gas used: 246617
+
+    Block Number: 2
+    Block Hash: 0x30b3ea92577efe08d03bc4f7a63df5cadf2b8122cfc4ffbc2eba7893d1994bd2
+    Block Time: "Fri, 6 Mar 2026 18:38:49 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x79c162dd8c855761c26b8cbb59cdf487d5ebb4ed841c63ce7f7c677295073f69
+    Contract created: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+    Gas used: 1545809
+
+    Block Number: 3
+    Block Hash: 0x61421753bc421135b4954ad219f688304677cc5d752d730dc82a0e255da2ebd8
+    Block Time: "Fri, 6 Mar 2026 18:38:51 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0xcf926f1313fdec4182d67f8a7666f3d97988332feca9767b57a30304ec1d46ae
+    Contract created: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+    Gas used: 1840227
+
+    Block Number: 4
+    Block Hash: 0x9a3b68760c4a8180272e60b890554fbe77e7f250a257f751209af5cc830451e9
+    Block Time: "Fri, 6 Mar 2026 18:38:53 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x27e2d48b6df142042665fe5881beabf2bb5416b245dd206e2952a4cac07f81d7
+    Contract created: 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+    Gas used: 5212698
+
+    Block Number: 5
+    Block Hash: 0xd18a6c6565c1bca4c0640f4a9eed7d7787cdc91e0785fb1b4ba9607fbc30c76a
+    Block Time: "Fri, 6 Mar 2026 18:38:55 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x95295f58ef02120c1091fa87858cb478d187080a1aaf358646bdce461ef76491
+    Contract created: 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
+    Gas used: 1141029
+
+    Block Number: 6
+    Block Hash: 0x45b635c7f3eeb259b25a0b013fb4a16ec06aee60a01dfbbd94ffa056e69530af
+    Block Time: "Fri, 6 Mar 2026 18:38:57 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_estimateGas
+eth_feeHistory
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x4b170c8ea4b9523c8d7568b1f5d6a06c7e1b13ab87b3f956f2d3f7888e2aaae6
+    Contract created: 0x0165878A594ca255338adfa4d48449f69242Eb8F
+    Gas used: 345579
+
+    Block Number: 7
+    Block Hash: 0x99b08a8fadb8adcbb79688fbe5c04b141ae073c0a1d20684352bc19744ba544f
+    Block Time: "Fri, 6 Mar 2026 18:38:59 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_feeHistory
+eth_estimateGas
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x61cfb2b455b2d894cb8530d7ada8a6f0ca99718528313ea5d1799cf76f0a1053
+    Gas used: 70242
+
+    Block Number: 8
+    Block Hash: 0x6781a06df47b2c4962dcf05598dd13d3b8d7ec338468bc474833cceaa2490e28
+    Block Time: "Fri, 6 Mar 2026 18:39:01 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_feeHistory
+eth_estimateGas
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x3e92e1cf27d0e1134fef7310174427620391e96c616438c93c33c59faf415576
+    Gas used: 53142
+
+    Block Number: 9
+    Block Hash: 0x96044422e22d7888982f1bb97f051438266362b3d092b6e06725bf215959e280
+    Block Time: "Fri, 6 Mar 2026 18:39:03 +0000"
+
+eth_getTransactionReceipt
+eth_chainId
+eth_getTransactionCount
+eth_feeHistory
+eth_estimateGas
+eth_sendRawTransaction
+eth_getTransactionReceipt
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_getBlockByNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+eth_getTransactionReceipt
+eth_blockNumber
+
+    Transaction: 0x55506ba93ad8073863346e96d8d2e6f4933297845092425ae6170d1612c3dee3
+    Gas used: 53130
+
+    Block Number: 10
+    Block Hash: 0x47a3bb4e77898913660b76f59e10a25caab4e1c3dc1d61427b513462f34cf002
+    Block Time: "Fri, 6 Mar 2026 18:39:05 +0000"
+
+eth_getTransactionReceipt
+
+    Block Number: 11
+    Block Hash: 0xed8aa76c0634a49a3b68f2238e1a0a07845753ade527c7e553ede731be7167a2
+    Block Time: "Fri, 6 Mar 2026 18:39:07 +0000"
+
+
+    Block Number: 12
+    Block Hash: 0x2e64c7df631df201e103c9667335f58f3db3b84e9b139e64ea9d0e31fe4da533
+    Block Time: "Fri, 6 Mar 2026 18:39:09 +0000"
+
+
+    Block Number: 13
+    Block Hash: 0x5af4a19c252dfb9c934f4d8724bfde0b2f72e70d1ccd4df92013444969e4a667
+    Block Time: "Fri, 6 Mar 2026 18:39:11 +0000"
+
+
+    Block Number: 14
+    Block Hash: 0xf8621a8ecfb024515e78f02331d51935f5f0abbe9bcda055314f61214f520a22
+    Block Time: "Fri, 6 Mar 2026 18:39:15 +0000"
+
+
+    Block Number: 15
+    Block Hash: 0x761a60ac3f315468e51fa3d101e75a453e730c0c4aaf4af07fc2d3f7eb49b883
+    Block Time: "Fri, 6 Mar 2026 18:39:17 +0000"
+
+
+    Block Number: 16
+    Block Hash: 0x80239ef944b337044a4ac3c2451bb570c40bfc243e51377bf31b0c4bcfc99461
+    Block Time: "Fri, 6 Mar 2026 18:39:19 +0000"
+
+
+    Block Number: 17
+    Block Hash: 0x60dae18ee9f5e4fbd4313c4accfb1030cb1956b974db5f17f554374a030221f5
+    Block Time: "Fri, 6 Mar 2026 18:39:21 +0000"
+
+
+    Block Number: 18
+    Block Hash: 0x15379d7aad7884bcb9146d1fea67dad05556506ed0b929b7986378e0879b4246
+    Block Time: "Fri, 6 Mar 2026 18:39:23 +0000"
+
+
+    Block Number: 19
+    Block Hash: 0x6fb6711764f31b09c5d981eb4624e515fa714a6d75c15b1547ab74079743495c
+    Block Time: "Fri, 6 Mar 2026 18:39:25 +0000"
+
+
+    Block Number: 20
+    Block Hash: 0xee0194b3a1dfd82bed945fca9336030e8d8af7e91e0a9648dd112f26a7f1c632
+    Block Time: "Fri, 6 Mar 2026 18:39:27 +0000"
+
+
+    Block Number: 21
+    Block Hash: 0x87651f319b0abc33f835b4a8858065b08a9600b663cb0369766503e86b38d957
+    Block Time: "Fri, 6 Mar 2026 18:39:29 +0000"
+
+
+    Block Number: 22
+    Block Hash: 0x66f8ad43fd168ecfd3c57493e62230c09eabd29429ae15aeba39206e0038fa99
+    Block Time: "Fri, 6 Mar 2026 18:39:31 +0000"
+
+
+    Block Number: 23
+    Block Hash: 0x5f7054e956d3e052367600927645e951966c0887588a8b57c8b15dffc03f423e
+    Block Time: "Fri, 6 Mar 2026 18:39:33 +0000"
+
+
+    Block Number: 24
+    Block Hash: 0x571ea7417e249af34dca6cd5960c050d3d6dddd3c3e6d135e2b484a6e8a61306
+    Block Time: "Fri, 6 Mar 2026 18:39:35 +0000"
+
+
+    Block Number: 25
+    Block Hash: 0xa07c746f491bfb73e4534e0333dbd6a16f58e93cb30de7aaf7c975fa5f9aa748
+    Block Time: "Fri, 6 Mar 2026 18:39:37 +0000"
+
+
+    Block Number: 26
+    Block Hash: 0xef4b009819ada21d2c2506df37ae5fc415b2f1a2b343c7deef8737d4921fa420
+    Block Time: "Fri, 6 Mar 2026 18:39:39 +0000"
+
+
+    Block Number: 27
+    Block Hash: 0xb3a1efa14a722b72b2141f71727e193b91920011ed116a4354b46f2de352634c
+    Block Time: "Fri, 6 Mar 2026 18:39:41 +0000"
+
