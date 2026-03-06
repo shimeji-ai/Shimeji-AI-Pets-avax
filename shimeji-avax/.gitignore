@@ -2,3 +2,4 @@ foundry/.env
 .env
 secret.txt
 .deploy-env/
+.vercel

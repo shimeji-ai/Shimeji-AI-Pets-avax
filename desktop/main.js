@@ -407,8 +407,8 @@ function getBrowserChoiceDialogText(locale = 'en', context = 'external-link') {
         ? 'Elegí dónde abrir "Conseguí tu Shimeji NFT".'
         : 'Choose where to open "Get your Shimeji NFT".',
       detail: isEs
-        ? 'Para usar wallets como Freighter, lo ideal es tu navegador habitual con la extensión ya instalada.'
-        : 'For wallets like Freighter, it is best to use your usual browser with the extension already installed.',
+        ? 'Para usar wallets EVM, lo ideal es tu navegador habitual con la extensión ya instalada.'
+        : 'For EVM wallets, it is best to use your usual browser with the extension already installed.',
       buttons
     };
   }

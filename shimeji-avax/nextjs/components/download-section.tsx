@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 const WIN_RELEASE_URL =
-  "https://github.com/shimeji-ai/Shimeji-AI-Pets-avax/releases/latest/download/shimeji-desktop-windows-portable.exe";
+  "https://github.com/shimeji-ai/Shimeji-AI-Pets-avax/releases/latest/download/shimeji-desktop-windows-portable.zip";
 const LINUX_RELEASE_URL =
   "https://github.com/shimeji-ai/Shimeji-AI-Pets-avax/releases/latest/download/shimeji-desktop-linux.AppImage";
 const MAC_RELEASE_URL =
@@ -81,13 +81,13 @@ export function DownloadSection() {
                 </p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Versión .exe portable (sin instalador). Descargá y ejecutá el archivo. Si Windows pregunta por seguridad, permite la ejecución."
-                    : "Portable .exe build (no installer needed). Download and run the file. If Windows shows a security prompt, allow execution."}
+                    ? "Versión portable en .zip (sin instalador). Descargá, descomprimí y ejecutá Shimeji Desktop.exe. Si Windows pregunta por seguridad, permite la ejecución."
+                    : "Portable .zip build (no installer needed). Download, extract, and run Shimeji Desktop.exe. If Windows shows a security prompt, allow execution."}
                 </div>
                 <div className="mt-3">
                   <Button asChild className="neural-button w-full">
                     <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                      {isSpanish ? "Descargar .exe portable" : "Download Portable .exe"}
+                      {isSpanish ? "Descargar Windows (.zip)" : "Download Windows (.zip)"}
                     </a>
                   </Button>
                 </div>

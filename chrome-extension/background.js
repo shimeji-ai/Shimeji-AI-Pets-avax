@@ -1,7 +1,7 @@
 /**
  * background.js - Extension service worker
  *
- * Handles Stellar wallet connection and message routing.
+ * Handles EVM wallet connection and message routing.
  *
  * ARCHITECTURE NOTE:
  * The dapp (dapp.html/dapp.js) is hosted on Vercel, not in the extension.
@@ -481,7 +481,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   const dappAllowedOrigins = [
-    'https://chrome-extension-stellar-shimeji-fa.vercel.app/',
+    'https://shimeji-avax.vercel.app/',
     'https://shimeji.dev/',
     'https://www.shimeji.dev/',
     'http://localhost:3000/'

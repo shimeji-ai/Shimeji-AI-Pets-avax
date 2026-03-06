@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (goToDappButton) {
     goToDappButton.addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://chrome-extension-stellar-shimeji-fa.vercel.app/' });
+      chrome.tabs.create({ url: 'https://shimeji-avax.vercel.app/my-profile' });
     });
   }
 });
