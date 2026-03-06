@@ -16,14 +16,14 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("neural");
+  const [theme, setThemeState] = useState<Theme>("kawaii");
 
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme") as Theme | null;
     const resolved =
       current && THEMES.includes(current)
         ? current
-        : "neural";
+        : "kawaii";
     setThemeState(resolved);
   }, []);
 

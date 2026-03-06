@@ -68,13 +68,12 @@ export default function RootLayout({
   const themeScript = `
     (function() {
       var themes = ['neural', 'pink', 'kawaii', 'pastel'];
-      var lastTheme = null;
-      try { lastTheme = sessionStorage.getItem('shimeji-theme-last'); } catch(e) {}
-      var pool = themes;
-      if (lastTheme && themes.indexOf(lastTheme) !== -1 && themes.length > 1) {
-        pool = themes.filter(function(candidate) { return candidate !== lastTheme; });
+      var theme = 'kawaii';
+      var savedTheme = null;
+      try { savedTheme = sessionStorage.getItem('shimeji-theme-last'); } catch(e) {}
+      if (savedTheme && themes.indexOf(savedTheme) !== -1) {
+        theme = savedTheme;
       }
-      var theme = pool[Math.floor(Math.random() * pool.length)];
       try { sessionStorage.setItem('shimeji-theme-last', theme); } catch(e) {}
       document.documentElement.setAttribute('data-theme', theme);
       if (document.body) {

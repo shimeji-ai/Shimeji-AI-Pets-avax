@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy, Droplets, LogOut, Menu, Settings, UserRound, X } from "lucide-react";
+import { Check, Copy, Droplets, LogOut, Palette, Menu, Settings, UserRound, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,6 +11,7 @@ import { useLanguage } from "./language-provider";
 import { ConnectWalletButton } from "./connect-wallet-button";
 import { useWalletSession } from "./wallet-provider";
 import { LanguageSwitcher } from "./language-switcher";
+import { useTheme, type Theme } from "./theme-provider";
 import { formatTokenAmount, resolveMediaUrl } from "@/components/marketplace-hub-shared";
 import { erc20Abi, getPublicClient, SHIMEJI_NETWORK, USDC_ADDRESS } from "@/lib/contracts";
 
@@ -19,6 +20,13 @@ const NAV_LINKS = [
   { href: "/download", pathMatch: "/download", labelEn: "Download", labelEs: "Descarga" },
   { href: "/help", pathMatch: "/help", labelEn: "Help", labelEs: "Ayuda" },
 ] as const;
+
+const THEME_META: { key: Theme; labelEn: string; labelEs: string }[] = [
+  { key: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii" },
+  { key: "pastel", labelEn: "Pastel", labelEs: "Pastel" },
+  { key: "pink", labelEn: "Pink", labelEs: "Rosa" },
+  { key: "neural", labelEn: "Neural", labelEs: "Neural" },
+];
 
 type WalletBalances = {
   avax: string;
@@ -35,6 +43,7 @@ function formatBalanceDisplay(value: bigint, decimals: number, maxFractionDigits
 
 export function Header() {
   const { isSpanish } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const { publicKey, isConnected, disconnect } = useWalletSession();
   const pathname = usePathname();
   const headerRef = useRef<HTMLDivElement>(null);
@@ -193,7 +202,7 @@ export function Header() {
 
   const profileTitle = walletProfileDisplayName || t("My profile", "Mi perfil");
   const profileHref = publicKey ? `/marketplace/artist/${encodeURIComponent(publicKey)}` : "/settings";
-  const menuActionClass = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5";
+  const menuActionClass = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/60";
 
   return (
     <header ref={headerRef} className="fixed left-4 right-4 top-4 z-50">
@@ -240,8 +249,8 @@ export function Header() {
                 </button>
 
                 {isProfileMenuOpen ? (
-                  <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-border bg-[rgba(8,12,18,0.96)] p-3 shadow-2xl backdrop-blur">
-                    <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-white/5 p-3">
+                  <div className="header-profile-menu config-contrast-panel absolute right-0 top-12 z-50 w-72 rounded-2xl border border-border bg-background/95 p-3 shadow-2xl backdrop-blur">
+                    <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3">
                       {walletProfileAvatarUrl ? (
                         <img src={walletProfileAvatarUrl} alt={profileTitle} className="h-11 w-11 rounded-full object-cover" />
                       ) : (
@@ -267,14 +276,32 @@ export function Header() {
                     </div>
 
                     <div className="mb-3 grid grid-cols-2 gap-2">
-                      <div className="rounded-xl border border-border bg-white/5 p-3">
+                      <div className="rounded-xl border border-border bg-card/60 p-3">
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">AVAX</p>
                         <p className="mt-1 text-sm font-semibold text-foreground">{walletBalances.avax}</p>
                       </div>
-                      <div className="rounded-xl border border-border bg-white/5 p-3">
+                      <div className="rounded-xl border border-border bg-card/60 p-3">
                         <p className="text-[11px] uppercase tracking-wide text-muted-foreground">USDC</p>
                         <p className="mt-1 text-sm font-semibold text-foreground">{walletBalances.usdc}</p>
                       </div>
+                    </div>
+
+                    <div className="mb-3 rounded-xl border border-border bg-card/60 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Palette className="h-3.5 w-3.5" />
+                        <span>{t("Theme", "Tema")}</span>
+                      </div>
+                      <select
+                        value={theme}
+                        onChange={(event) => setTheme(event.target.value as Theme)}
+                        className="w-full rounded-lg border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none"
+                      >
+                        {THEME_META.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {isSpanish ? entry.labelEs : entry.labelEn}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1">
@@ -312,7 +339,7 @@ export function Header() {
         </div>
 
         {isMenuOpen ? (
-          <div className="border-t border-white/10 px-6 py-4 md:hidden">
+          <div className="config-contrast-panel border-t border-white/10 px-6 py-4 md:hidden">
             <div className="mb-4 space-y-2">
               {NAV_LINKS.map((link) => (
                 <Link key={link.href} href={link.href} className="block rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5">
@@ -325,7 +352,7 @@ export function Header() {
               <ConnectWalletButton />
             ) : (
               <div className="space-y-2">
-                <div className="rounded-xl border border-border bg-white/5 p-3">
+                <div className="rounded-xl border border-border bg-card/60 p-3">
                   <p className="text-sm font-semibold text-foreground">{profileTitle}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <p className="truncate text-xs text-muted-foreground">{publicKey}</p>
@@ -349,6 +376,23 @@ export function Header() {
                       <p className="text-foreground">{walletBalances.usdc}</p>
                     </div>
                   </div>
+                </div>
+                <div className="rounded-xl border border-border bg-card/60 p-3">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Palette className="h-3.5 w-3.5" />
+                    <span>{t("Theme", "Tema")}</span>
+                  </div>
+                  <select
+                    value={theme}
+                    onChange={(event) => setTheme(event.target.value as Theme)}
+                    className="w-full rounded-lg border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none"
+                  >
+                    {THEME_META.map((entry) => (
+                      <option key={entry.key} value={entry.key}>
+                        {isSpanish ? entry.labelEs : entry.labelEn}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <Link href={profileHref} className={menuActionClass}>
                   <UserRound className="h-4 w-4" />
