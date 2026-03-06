@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Droplets, LogOut, Menu, Settings, UserRound, X } from "lucide-react";
+import { Check, Copy, Droplets, LogOut, Menu, Settings, UserRound, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -25,9 +25,12 @@ type WalletBalances = {
   usdc: string;
 };
 
-function shortenAddress(value: string | null) {
-  if (!value) return "";
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+function formatBalanceDisplay(value: bigint, decimals: number, maxFractionDigits: number) {
+  const raw = formatTokenAmount(value, decimals);
+  if (raw === "-" || !raw.includes(".")) return raw;
+  const [whole, fraction = ""] = raw.split(".");
+  const trimmed = fraction.slice(0, maxFractionDigits).replace(/0+$/, "");
+  return trimmed ? `${whole}.${trimmed}` : whole;
 }
 
 export function Header() {
@@ -43,6 +46,7 @@ export function Header() {
   const [walletProfileDisplayName, setWalletProfileDisplayName] = useState("");
   const [walletProfileAvatarUrl, setWalletProfileAvatarUrl] = useState<string | null>(null);
   const [walletBalances, setWalletBalances] = useState<WalletBalances>({ avax: "-", usdc: "-" });
+  const [copiedAddress, setCopiedAddress] = useState(false);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
   const isLocalNetwork = SHIMEJI_NETWORK === "local";
@@ -117,12 +121,12 @@ export function Header() {
                 functionName: "balanceOf",
                 args: [address],
               })
-            : Promise.resolve(0n),
+            : Promise.resolve(BigInt(0)),
         ]);
         if (cancelled) return;
         setWalletBalances({
-          avax: formatTokenAmount(avaxBalance, 18),
-          usdc: formatTokenAmount(usdcBalance as bigint, 6),
+          avax: formatBalanceDisplay(avaxBalance, 18, 5),
+          usdc: formatBalanceDisplay(usdcBalance as bigint, 6, 3),
         });
       } catch {
         if (cancelled) return;
@@ -153,12 +157,23 @@ export function Header() {
             functionName: "balanceOf",
             args: [address],
           })
-        : Promise.resolve(0n),
+        : Promise.resolve(BigInt(0)),
     ]);
     setWalletBalances({
-      avax: formatTokenAmount(avaxBalance, 18),
-      usdc: formatTokenAmount(usdcBalance as bigint, 6),
+      avax: formatBalanceDisplay(avaxBalance, 18, 5),
+      usdc: formatBalanceDisplay(usdcBalance as bigint, 6, 3),
     });
+  };
+
+  const handleCopyAddress = async () => {
+    if (!publicKey) return;
+    try {
+      await navigator.clipboard.writeText(publicKey);
+      setCopiedAddress(true);
+      window.setTimeout(() => setCopiedAddress(false), 1400);
+    } catch {
+      setCopiedAddress(false);
+    }
   };
 
   const handleFaucet = async () => {
@@ -176,7 +191,6 @@ export function Header() {
     }
   };
 
-  const walletLabel = shortenAddress(publicKey);
   const profileTitle = walletProfileDisplayName || t("My profile", "Mi perfil");
   const profileHref = publicKey ? `/marketplace/artist/${encodeURIComponent(publicKey)}` : "/settings";
   const menuActionClass = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5";
@@ -215,7 +229,7 @@ export function Header() {
               <ConnectWalletButton />
             ) : (
               <div className="relative">
-                <button type="button" onClick={() => setIsProfileMenuOpen((current) => !current)} className="flex items-center gap-2 rounded-full border border-border bg-white/5 px-2 py-1.5 text-left hover:bg-white/10">
+                <button type="button" onClick={() => setIsProfileMenuOpen((current) => !current)} className="flex cursor-pointer items-center gap-2 rounded-full border border-border bg-white/5 px-2 py-1.5 text-left hover:bg-white/10">
                   {walletProfileAvatarUrl ? (
                     <img src={walletProfileAvatarUrl} alt={profileTitle} className="h-8 w-8 rounded-full object-cover" />
                   ) : (
@@ -223,10 +237,6 @@ export function Header() {
                       <UserRound className="h-4 w-4" />
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{profileTitle}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{walletLabel}</p>
-                  </div>
                 </button>
 
                 {isProfileMenuOpen ? (
@@ -241,7 +251,18 @@ export function Header() {
                       )}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">{profileTitle}</p>
-                        <p className="truncate text-xs text-muted-foreground">{publicKey}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <p className="truncate text-xs text-muted-foreground">{publicKey}</p>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyAddress()}
+                            aria-label={t("Copy address", "Copiar dirección")}
+                            title={t("Copy address", "Copiar dirección")}
+                            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-white/5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                          >
+                            {copiedAddress ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -306,7 +327,18 @@ export function Header() {
               <div className="space-y-2">
                 <div className="rounded-xl border border-border bg-white/5 p-3">
                   <p className="text-sm font-semibold text-foreground">{profileTitle}</p>
-                  <p className="text-xs text-muted-foreground">{walletLabel}</p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="truncate text-xs text-muted-foreground">{publicKey}</p>
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyAddress()}
+                      aria-label={t("Copy address", "Copiar dirección")}
+                      title={t("Copy address", "Copiar dirección")}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-white/5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                    >
+                      {copiedAddress ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                     <div>
                       <p className="text-[11px] uppercase text-muted-foreground">AVAX</p>

@@ -196,10 +196,10 @@ seed_fuji_sample_data() {
   local marketplace_address="$5"
 
   local sale_token_uri="${FUJI_SAMPLE_SALE_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/bunny-hero.png}"
-  local auction_token_uri="${FUJI_SAMPLE_AUCTION_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/mascota-shimeji-2.png}"
+  local auction_token_uri="${FUJI_SAMPLE_AUCTION_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/runtime-core/characters/penguin/stand-neutral.png}"
   local swap_token_uri="${FUJI_SAMPLE_SWAP_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/logo.png}"
   local commission_listing_uri="${FUJI_SAMPLE_COMMISSION_LISTING_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/egg-sit.png}"
-  local commission_order_uri="${FUJI_SAMPLE_COMMISSION_ORDER_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/placeholder-logo.png}"
+  local commission_order_uri="${FUJI_SAMPLE_COMMISSION_ORDER_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/egg-sit.png}"
   local sample_reference_url="${FUJI_SAMPLE_REFERENCE_URL:-https://www.shimeji.dev/mascota-shimeji-2.png}"
 
   local sale_price_wei auction_start_price_wei commission_listing_price_wei commission_order_price_wei

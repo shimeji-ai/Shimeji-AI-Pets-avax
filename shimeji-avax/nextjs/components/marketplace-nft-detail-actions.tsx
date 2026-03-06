@@ -18,7 +18,8 @@ import {
 import { buildBidUsdcTx, buildBidAvaxTx } from "@/lib/auction";
 import type { MarketplaceMyStudioResponse, MyStudioNftItem } from "@/lib/marketplace-hub-types";
 
-const TOKEN_SCALE = BigInt(10_000_000);
+const AVAX_DECIMALS = 18;
+const USDC_DECIMALS = 6;
 const MIN_AUCTION_INCREMENT_BPS = BigInt(500); // 5%
 const BIGINT_ZERO = BigInt(0);
 const BIGINT_ONE = BigInt(1);
@@ -76,13 +77,21 @@ type Props = {
   openSwapListingsOfferingThis: SwapListingActionData[];
 };
 
+function decimalsForCurrency(currency: "AVAX" | "USDC") {
+  return currency === "USDC" ? USDC_DECIMALS : AVAX_DECIMALS;
+}
+
+function scaleForDecimals(decimals: number) {
+  return BigInt(`1${"0".repeat(Math.max(0, decimals))}`);
+}
+
 function walletShort(value: string | null | undefined) {
   if (!value) return "-";
   if (value.length < 12) return value;
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
-function formatTokenAmount(rawUnits: string | bigint | null | undefined) {
+function formatTokenAmount(rawUnits: string | bigint | null | undefined, currency: "AVAX" | "USDC") {
   if (rawUnits === null || rawUnits === undefined) return "-";
   const parsed =
     typeof rawUnits === "bigint"
@@ -91,22 +100,27 @@ function formatTokenAmount(rawUnits: string | bigint | null | undefined) {
         ? BigInt(rawUnits)
         : null;
   if (parsed === null) return "-";
+  const decimals = decimalsForCurrency(currency);
+  const scale = scaleForDecimals(decimals);
   const sign = parsed < BIGINT_ZERO ? "-" : "";
   const abs = parsed < BIGINT_ZERO ? -parsed : parsed;
-  const whole = abs / TOKEN_SCALE;
-  const frac = (abs % TOKEN_SCALE).toString().padStart(7, "0").replace(/0+$/, "");
+  const whole = abs / scale;
+  const frac = (abs % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
   return `${sign}${whole.toString()}${frac ? `.${frac}` : ""}`;
 }
 
-function parseAmountToUnits(value: string, invalidFormatMessage = "Invalid amount format"): bigint {
+function parseAmountToUnits(value: string, currency: "AVAX" | "USDC", invalidFormatMessage = "Invalid amount format"): bigint {
+  const decimals = decimalsForCurrency(currency);
   const trimmed = value.trim();
   if (!trimmed) return BIGINT_ZERO;
-  if (!/^\d+(\.\d{0,7})?$/.test(trimmed)) {
+  const re = new RegExp(`^\\d+(\\.\\d{0,${decimals}})?$`);
+  if (!re.test(trimmed)) {
     throw new Error(invalidFormatMessage);
   }
   const [whole, fraction = ""] = trimmed.split(".");
-  const fracPadded = (fraction + "0000000").slice(0, 7);
-  return BigInt(whole) * TOKEN_SCALE + BigInt(fracPadded);
+  const fracPadded = (fraction + "0".repeat(decimals)).slice(0, decimals);
+  const scale = scaleForDecimals(decimals);
+  return BigInt(whole) * scale + BigInt(fracPadded);
 }
 
 function parseBigIntSafe(raw: string | null | undefined): bigint {
@@ -142,6 +156,8 @@ export function MarketplaceNftDetailActions({
 
   const [auctionBidAmount, setAuctionBidAmount] = useState("");
   const [auctionBidCurrency, setAuctionBidCurrency] = useState<"AVAX" | "USDC">("USDC");
+  const [listingBuyCurrency, setListingBuyCurrency] = useState<"AVAX" | "USDC">("AVAX");
+  const [commissionBuyCurrency, setCommissionBuyCurrency] = useState<"AVAX" | "USDC">("AVAX");
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
   useEffect(() => {
@@ -209,10 +225,17 @@ export function MarketplaceNftDetailActions({
     if (!activeAuction) return;
     const next =
       auctionBidCurrency === "AVAX"
-        ? formatTokenAmount(suggestedAuctionBids.avax)
-        : formatTokenAmount(suggestedAuctionBids.usdc);
+        ? formatTokenAmount(suggestedAuctionBids.avax, "AVAX")
+        : formatTokenAmount(suggestedAuctionBids.usdc, "USDC");
     setAuctionBidAmount((prev) => (prev.trim() ? prev : next === "-" ? "" : next));
   }, [activeAuction, auctionBidCurrency, suggestedAuctionBids.avax, suggestedAuctionBids.usdc]);
+
+  useEffect(() => {
+    if (!activeListing) return;
+    const nextCurrency = activeListing.currency === "Usdc" ? "USDC" : "AVAX";
+    setListingBuyCurrency(nextCurrency);
+    setCommissionBuyCurrency(nextCurrency);
+  }, [activeListing?.listingId]);
 
   async function ensureConnectedAddress() {
     if (publicKey && isConnected) return publicKey;
@@ -312,7 +335,7 @@ export function MarketplaceNftDetailActions({
     setBusyAction(`bid:${currency}`);
     setMessage("");
     try {
-      const amount = parseAmountToUnits(rawAmount, t("Invalid amount format", "Formato de monto inválido"));
+      const amount = parseAmountToUnits(rawAmount, currency, t("Invalid amount format", "Formato de monto inválido"));
       if (amount <= BIGINT_ZERO) {
         throw new Error(t("Enter a valid bid amount.", "Ingresá un monto de oferta válido."));
       }
@@ -393,7 +416,7 @@ export function MarketplaceNftDetailActions({
                   {activeListing.currency === "Usdc" ? t("Price USDC", "Precio USDC") : t("Price AVAX", "Precio AVAX")}
                 </p>
                 <p className="text-sm font-medium text-foreground">
-                  {formatTokenAmount(activeListing.price)} {activeListing.currency === "Usdc" ? "USDC" : "AVAX"}
+                  {formatTokenAmount(activeListing.price, activeListing.currency === "Usdc" ? "USDC" : "AVAX")} {activeListing.currency === "Usdc" ? "USDC" : "AVAX"}
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-white/5 p-3">
@@ -417,26 +440,25 @@ export function MarketplaceNftDetailActions({
                   </Button>
                 ) : (
                   <>
+                    <select
+                      className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                      value={listingBuyCurrency}
+                      onChange={(event) => setListingBuyCurrency(event.target.value as "AVAX" | "USDC")}
+                    >
+                      <option value="AVAX">AVAX</option>
+                      <option value="USDC">USDC</option>
+                    </select>
                     <Button
                       type="button"
                       size="sm"
                       className="bg-emerald-500 text-black hover:bg-emerald-400"
-                      onClick={() => void submitRegularBuy("AVAX")}
-                      disabled={busyAction === "buy:AVAX"}
+                      onClick={() => void submitRegularBuy(listingBuyCurrency)}
+                      disabled={busyAction === `buy:${listingBuyCurrency}`}
                     >
-                      {busyAction === "buy:AVAX" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {t("Buy with AVAX", "Comprar con AVAX")}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="border-border bg-white/5 text-foreground hover:bg-white/10"
-                      onClick={() => void submitRegularBuy("USDC")}
-                      disabled={busyAction === "buy:USDC"}
-                    >
-                      {busyAction === "buy:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {t("Buy with USDC", "Comprar con USDC")}
+                      {busyAction === `buy:${listingBuyCurrency}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {listingBuyCurrency === "AVAX"
+                        ? t("Buy with AVAX", "Comprar con AVAX")
+                        : t("Buy with USDC", "Comprar con USDC")}
                     </Button>
                   </>
                 )}
@@ -559,26 +581,25 @@ export function MarketplaceNftDetailActions({
                     </Button>
                   ) : (
                     <>
+                      <select
+                        className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                        value={commissionBuyCurrency}
+                        onChange={(event) => setCommissionBuyCurrency(event.target.value as "AVAX" | "USDC")}
+                      >
+                        <option value="AVAX">AVAX</option>
+                        <option value="USDC">USDC</option>
+                      </select>
                       <Button
                         type="button"
                         size="sm"
                         className="bg-fuchsia-400 text-fuchsia-950 hover:bg-fuchsia-300"
-                        onClick={() => void submitCommissionBuy("AVAX")}
-                        disabled={busyAction === "buy-commission:AVAX"}
+                        onClick={() => void submitCommissionBuy(commissionBuyCurrency)}
+                        disabled={busyAction === `buy-commission:${commissionBuyCurrency}`}
                       >
-                        {busyAction === "buy-commission:AVAX" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {t("Buy commission (AVAX)", "Comprar comisión (AVAX)")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="border-fuchsia-300/30 bg-fuchsia-500/10 text-foreground hover:bg-fuchsia-500/20"
-                        onClick={() => void submitCommissionBuy("USDC")}
-                        disabled={busyAction === "buy-commission:USDC"}
-                      >
-                        {busyAction === "buy-commission:USDC" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                        {t("Buy commission (USDC)", "Comprar comisión (USDC)")}
+                        {busyAction === `buy-commission:${commissionBuyCurrency}` ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {commissionBuyCurrency === "AVAX"
+                          ? t("Buy commission (AVAX)", "Comprar comisión (AVAX)")
+                          : t("Buy commission (USDC)", "Comprar comisión (USDC)")}
                       </Button>
                     </>
                   )}
@@ -606,7 +627,7 @@ export function MarketplaceNftDetailActions({
                 <p className="text-xs text-muted-foreground">{t("Current highest", "Oferta más alta")}</p>
                 <p className="text-sm font-medium text-foreground">
                   {activeAuction.highestBid
-                    ? `${formatTokenAmount(activeAuction.highestBid.amount)} ${activeAuction.highestBid.currency === "Usdc" ? "USDC" : "AVAX"}`
+                    ? `${formatTokenAmount(activeAuction.highestBid.amount, activeAuction.highestBid.currency === "Usdc" ? "USDC" : "AVAX")} ${activeAuction.highestBid.currency === "Usdc" ? "USDC" : "AVAX"}`
                     : t("No bids yet", "Todavía no hay ofertas")}
                 </p>
               </div>
@@ -614,7 +635,7 @@ export function MarketplaceNftDetailActions({
                 <p className="text-xs text-muted-foreground">{t("Suggested min AVAX", "Mínimo sugerido AVAX")}</p>
                 <p className="text-sm font-medium text-foreground">
                   {suggestedAuctionBids.avax !== null
-                    ? `${formatTokenAmount(suggestedAuctionBids.avax)} AVAX`
+                    ? `${formatTokenAmount(suggestedAuctionBids.avax, "AVAX")} AVAX`
                     : "-"}
                 </p>
               </div>
@@ -622,7 +643,7 @@ export function MarketplaceNftDetailActions({
                 <p className="text-xs text-muted-foreground">{t("Suggested min USDC", "Mínimo sugerido USDC")}</p>
                 <p className="text-sm font-medium text-foreground">
                   {suggestedAuctionBids.usdc !== null
-                    ? `${formatTokenAmount(suggestedAuctionBids.usdc)} USDC`
+                    ? `${formatTokenAmount(suggestedAuctionBids.usdc, "USDC")} USDC`
                     : "-"}
                 </p>
               </div>
@@ -639,8 +660,8 @@ export function MarketplaceNftDetailActions({
                     setAuctionBidCurrency(nextCurrency);
                     const next =
                       nextCurrency === "AVAX"
-                        ? formatTokenAmount(suggestedAuctionBids.avax)
-                        : formatTokenAmount(suggestedAuctionBids.usdc);
+                        ? formatTokenAmount(suggestedAuctionBids.avax, "AVAX")
+                        : formatTokenAmount(suggestedAuctionBids.usdc, "USDC");
                     setAuctionBidAmount(next === "-" ? "" : next);
                   }}
                 >
@@ -654,8 +675,8 @@ export function MarketplaceNftDetailActions({
                   inputMode="decimal"
                   placeholder={
                     auctionBidCurrency === "AVAX"
-                      ? formatTokenAmount(suggestedAuctionBids.avax)
-                      : formatTokenAmount(suggestedAuctionBids.usdc)
+                      ? formatTokenAmount(suggestedAuctionBids.avax, "AVAX")
+                      : formatTokenAmount(suggestedAuctionBids.usdc, "USDC")
                   }
                 />
                 <Button
@@ -679,7 +700,7 @@ export function MarketplaceNftDetailActions({
                     void submitAuctionBid(
                       "AVAX",
                       suggestedAuctionBids.avax !== null
-                        ? formatTokenAmount(suggestedAuctionBids.avax)
+                        ? formatTokenAmount(suggestedAuctionBids.avax, "AVAX")
                         : "",
                     )
                   }
@@ -697,7 +718,7 @@ export function MarketplaceNftDetailActions({
                     void submitAuctionBid(
                       "USDC",
                       suggestedAuctionBids.usdc !== null
-                        ? formatTokenAmount(suggestedAuctionBids.usdc)
+                        ? formatTokenAmount(suggestedAuctionBids.usdc, "USDC")
                         : "",
                     )
                   }
@@ -723,7 +744,7 @@ export function MarketplaceNftDetailActions({
                         <p className="text-muted-foreground">{bid.currency === "Usdc" ? "USDC" : "AVAX"}</p>
                       </div>
                       <p className="shrink-0 font-medium text-foreground">
-                        {formatTokenAmount(bid.amount)} {bid.currency === "Usdc" ? "USDC" : "AVAX"}
+                        {formatTokenAmount(bid.amount, bid.currency === "Usdc" ? "USDC" : "AVAX")} {bid.currency === "Usdc" ? "USDC" : "AVAX"}
                       </p>
                     </div>
                   ))
