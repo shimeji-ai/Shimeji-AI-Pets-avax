@@ -1721,7 +1721,8 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                 </span>
                 <select
                   value={config.provider}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    console.log("Provider selected:", event.target.value);
                     updateConfig({
                       provider: event.target.value as
                         | "site"
@@ -1729,8 +1730,8 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
                         | "ollama"
                         | "openclaw"
                         | "bitte",
-                    })
-                  }
+                    });
+                  }}
                   className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
                 >
                   <option value="site">{isSpanish ? "Créditos del sitio (gratis)" : "Site credits (free)"}</option>
