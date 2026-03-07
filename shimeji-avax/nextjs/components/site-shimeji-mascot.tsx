@@ -1577,6 +1577,8 @@ export function SiteShimejiMascot() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
+                  console.log("Settings button clicked, openConfig:", openConfig);
                   openConfig();
                 }}
                 title={isSpanish ? "Abrir configuración del shimeji" : "Open shimeji settings"}

@@ -332,6 +332,9 @@ export function Header() {
 
           <div className="flex items-center gap-2 md:hidden">
             <LanguageSwitcher />
+            <Link href="/settings" aria-label={t("Shimeji settings", "Configuración del shimeji")} title={t("Shimeji settings", "Configuración del shimeji")} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-foreground/8 text-foreground transition-colors hover:bg-foreground/15">
+              <Settings className="h-5 w-5" />
+            </Link>
             <button type="button" aria-label={isMenuOpen ? t("Close menu", "Cerrar menú") : t("Open menu", "Abrir menú")} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-foreground/8 text-foreground transition-colors hover:bg-foreground/15" onClick={() => setIsMenuOpen((current) => !current)}>
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -346,6 +349,10 @@ export function Header() {
                   {isSpanish ? link.labelEs : link.labelEn}
                 </Link>
               ))}
+              <Link href="/settings" className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground hover:bg-white/5">
+                <Settings className="h-4 w-4" />
+                <span>{t("Settings", "Configuración")}</span>
+              </Link>
             </div>
 
             {!isConnected || !publicKey ? (
