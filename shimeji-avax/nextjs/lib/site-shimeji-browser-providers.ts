@@ -455,50 +455,6 @@ export async function sendBitteBrowserChat(args: {
   messages: ChatRequestMessage[];
   bitteApiKey: string;
   bitteAgentId: string;
-}): Promise<string> {
-  const apiKey = args.bitteApiKey.trim();
-  const agentId = args.bitteAgentId.trim();
-  if (!apiKey) throw new Error("BITTE_MISSING_API_KEY");
-  if (!agentId) throw new Error("BITTE_MISSING_AGENT_ID");
-
-  const response = await fetch("https://api.bitte.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: agentId,
-      messages: args.messages,
-      stream: false,
-    }),
-  }).catch(() => {
-    throw new Error("BITTE_CONNECT");
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    if (response.status === 401) {
-      throw new Error("BITTE_UNAUTHORIZED");
-    }
-    if (response.status === 404) {
-      throw new Error("BITTE_AGENT_NOT_FOUND");
-    }
-    throw new Error(`BITTE_HTTP:${response.status}`);
-  }
-
-  const data = (await response.json().catch(() => null)) as
-    | { choices?: { message?: { content?: string } }[] }
-    | null;
-  const reply = data?.choices?.[0]?.message?.content?.trim();
-  if (!reply) throw new Error("BITTE_EMPTY_RESPONSE");
-  return reply;
-}
-
-export async function sendBitteBrowserChat(args: {
-  messages: ChatRequestMessage[];
-  bitteApiKey: string;
-  bitteAgentId: string;
   walletAddress?: string;
   chainId?: number;
 }): Promise<string> {
