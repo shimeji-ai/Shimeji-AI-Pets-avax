@@ -1128,7 +1128,8 @@ export function SiteShimejiMascot() {
         .map((m) => ({ role: m.role, content: m.content }));
       let reply = "";
 
-      if (providerForRequest === "bitte") {
+      if (providerForRequest === "bitte" && config.bitteApiKey.trim() && config.bitteAgentId.trim()) {
+        // Usar API key propia del usuario
         const providerMessages = buildSiteShimejiChatMessages({
           message: text,
           history,
@@ -1142,6 +1143,27 @@ export function SiteShimejiMascot() {
           bitteApiKey: config.bitteApiKey,
           bitteAgentId: config.bitteAgentId,
         });
+      } else if (providerForRequest === "bitte") {
+        // Usar créditos del sitio (fallback a site credits)
+        const resp = await fetch("/api/shimeji-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            history,
+            lang: language,
+            provider: "site",
+            character: config.character,
+            personality: config.personality,
+          }),
+        });
+        const json = await resp.json().catch(() => null);
+        reply = json?.reply;
+        if (!resp.ok || typeof reply !== "string" || !reply.trim()) {
+          const errorCode = typeof json?.error === "string" ? json.error : "bad-response";
+          throw new Error(errorCode);
+        }
+        incrementFreeSiteMessagesUsed();
       } else if (providerForRequest === "ollama" || providerForRequest === "openclaw") {
         const shouldApplyPersonality = providerForRequest !== "openclaw";
         const providerMessages = buildSiteShimejiChatMessages({

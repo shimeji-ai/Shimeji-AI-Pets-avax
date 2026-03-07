@@ -388,7 +388,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
 }
 
 function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: number | null): boolean {
-  if (config.provider === "site") {
+  if (config.provider === "site" || config.provider === "bitte") {
     return freeSiteMessagesRemaining === null || freeSiteMessagesRemaining > 0;
   }
   if (config.provider === "openrouter") {
@@ -396,9 +396,6 @@ function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: nu
   }
   if (config.provider === "ollama") {
     return Boolean(config.ollamaUrl.trim() && config.ollamaModel.trim());
-  }
-  if (config.provider === "bitte") {
-    return Boolean(config.bitteApiKey.trim() && config.bitteAgentId.trim());
   }
   const pairedToken = config.openclawPairedSessionToken.trim();
   if (!pairedToken) return false;

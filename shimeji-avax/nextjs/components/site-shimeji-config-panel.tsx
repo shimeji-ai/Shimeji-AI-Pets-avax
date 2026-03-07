@@ -1281,41 +1281,66 @@ Do not print the relay token or gateway token in your final reply. Return only t
   if (config.provider === "bitte") {
     return (
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="https://www.bitte.ai/"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
-          >
-            {isSpanish ? "Conseguir API key de Bitte" : "Get Bitte API key"}
-          </a>
+        <div className="rounded-2xl border border-green-700 bg-green-300 p-3 text-sm text-black">
+          <p className="font-semibold">
+            {isSpanish ? "Créditos gratis disponibles" : "Free credits available"}
+          </p>
+          <p className="mt-1 text-xs text-black/80">
+            {isSpanish
+              ? `Usados: ${freeSiteMessagesUsed}. Restantes: ${freeSiteMessagesRemaining ?? 0}.`
+              : `Used: ${freeSiteMessagesUsed}. Remaining: ${freeSiteMessagesRemaining ?? 0}.`}
+          </p>
+          <p className="mt-2 text-xs text-black/80">
+            {isSpanish
+              ? "Podés usar Bitte AI con los créditos del sitio. Cuando se terminen, configurá tu propia API key de Bitte para seguir chateando."
+              : "You can use Bitte AI with site credits. When they run out, configure your own Bitte API key to keep chatting."}
+          </p>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Bitte API Key
-          </span>
-          <input
-            type="password"
-            value={config.bitteApiKey}
-            onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
-            placeholder="bitte-..."
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-            autoComplete="off"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isSpanish ? "Agent ID" : "Agent ID"}
-          </span>
-          <input
-            type="text"
-            value={config.bitteAgentId}
-            onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
-            placeholder={isSpanish ? "tu-agente-id" : "your-agent-id"}
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-          />
-        </label>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {isSpanish ? "Configuración opcional (para cuando se acaben los créditos)" : "Optional configuration (for when credits run out)"}
+          </p>
+
+          <div className="flex flex-wrap gap-2 mb-3">
+            <a
+              href="https://www.bitte.ai/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+            >
+              {isSpanish ? "Conseguir API key de Bitte" : "Get Bitte API key"}
+            </a>
+          </div>
+
+          <label className="block mb-3">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Bitte API Key
+            </span>
+            <input
+              type="password"
+              value={config.bitteApiKey}
+              onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
+              placeholder="bitte-..."
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              autoComplete="off"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {isSpanish ? "Agent ID" : "Agent ID"}
+            </span>
+            <input
+              type="text"
+              value={config.bitteAgentId}
+              onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
+              placeholder={isSpanish ? "tu-agente-id" : "your-agent-id"}
+              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            />
+          </label>
+        </div>
+
         <p className="text-xs text-muted-foreground">
           {isSpanish
             ? "Bitte AI permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
