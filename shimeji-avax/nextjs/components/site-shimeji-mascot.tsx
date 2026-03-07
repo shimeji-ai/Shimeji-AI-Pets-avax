@@ -16,6 +16,7 @@ import { getSiteShimejiPersonalityDisplayLabel } from "@/lib/site-shimeji-person
 import {
   formatSiteShimejiProviderError,
   sendOllamaBrowserChat,
+  sendBitteBrowserChat,
 } from "@/lib/site-shimeji-browser-providers";
 import {
   SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
@@ -693,7 +694,9 @@ export function SiteShimejiMascot() {
         ? "OpenRouter"
         : config.provider === "ollama"
           ? "Ollama"
-          : "OpenClaw";
+          : config.provider === "bitte"
+            ? "Bitte AI"
+            : "OpenClaw";
   const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
   const canAutoFallbackToSiteCredits =
     config.provider === "openrouter" &&
@@ -1125,7 +1128,21 @@ export function SiteShimejiMascot() {
         .map((m) => ({ role: m.role, content: m.content }));
       let reply = "";
 
-      if (providerForRequest === "ollama" || providerForRequest === "openclaw") {
+      if (providerForRequest === "bitte") {
+        const providerMessages = buildSiteShimejiChatMessages({
+          message: text,
+          history,
+          language,
+          characterLabel: selectedCharacter?.label,
+          personalityLabel: selectedPersonality?.label,
+          personalityPrompt: selectedPersonality?.prompt,
+        });
+        reply = await sendBitteBrowserChat({
+          messages: providerMessages,
+          bitteApiKey: config.bitteApiKey,
+          bitteAgentId: config.bitteAgentId,
+        });
+      } else if (providerForRequest === "ollama" || providerForRequest === "openclaw") {
         const shouldApplyPersonality = providerForRequest !== "openclaw";
         const providerMessages = buildSiteShimejiChatMessages({
           message: text,

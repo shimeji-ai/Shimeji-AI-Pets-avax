@@ -270,7 +270,7 @@ export async function sendOpenClawBrowserChat(args: {
 export function formatSiteShimejiProviderError(
   error: unknown,
   isSpanish: boolean,
-  provider: "site" | "openrouter" | "ollama" | "openclaw",
+  provider: "site" | "openrouter" | "ollama" | "openclaw" | "bitte",
 ): string {
   const message = String((error as Error)?.message || "UNKNOWN_ERROR");
 
@@ -380,6 +380,52 @@ export function formatSiteShimejiProviderError(
       ? "El relay de OpenClaw agotó el tiempo de espera."
       : "The OpenClaw relay timed out.";
   }
+  if (message.startsWith("BITTE_MISSING_API_KEY")) {
+    return isSpanish
+      ? "Falta la API key de Bitte. Configúrala en el panel de configuración."
+      : "Bitte API key is missing. Configure it in the settings panel.";
+  }
+  if (message.startsWith("BITTE_MISSING_AGENT_ID")) {
+    return isSpanish
+      ? "Falta el Agent ID de Bitte. Configúralo en el panel de configuración."
+      : "Bitte Agent ID is missing. Configure it in the settings panel.";
+  }
+  if (message.startsWith("BITTE_EMPTY_MESSAGE")) {
+    return isSpanish
+      ? "El mensaje está vacío."
+      : "The message is empty.";
+  }
+  if (message.startsWith("BITTE_CONNECT")) {
+    return isSpanish
+      ? "No se pudo conectar a Bitte AI. Verificá tu conexión."
+      : "Could not connect to Bitte AI. Check your connection.";
+  }
+  if (message.startsWith("BITTE_AUTH_FAILED")) {
+    return isSpanish
+      ? "Falló la autenticación con Bitte. Revisá tu API key."
+      : "Bitte authentication failed. Check your API key.";
+  }
+  if (message.startsWith("BITTE_AGENT_NOT_FOUND")) {
+    return isSpanish
+      ? "El agente de Bitte no fue encontrado. Revisá el Agent ID."
+      : "Bitte agent not found. Check the Agent ID.";
+  }
+  if (message.startsWith("BITTE_HTTP:")) {
+    const status = message.slice("BITTE_HTTP:".length) || "unknown";
+    return isSpanish
+      ? `Bitte AI devolvió error HTTP ${status}.`
+      : `Bitte AI returned HTTP error ${status}.`;
+  }
+  if (message.startsWith("BITTE_EMPTY_RESPONSE")) {
+    return isSpanish
+      ? "Bitte AI no devolvió respuesta."
+      : "Bitte AI returned no response.";
+  }
+  if (provider === "bitte") {
+    return isSpanish
+      ? "No se pudo completar la solicitud con Bitte AI. Revisá tu API key y Agent ID."
+      : "Could not complete the Bitte AI request. Check your API key and Agent ID.";
+  }
   if (provider === "openclaw") {
     return isSpanish
       ? "No se pudo completar la solicitud con OpenClaw. Revisá el pairing activo y la conectividad del gateway."
@@ -405,4 +451,107 @@ export function formatSiteShimejiProviderError(
     : "I couldn't respond using the configured provider.";
 }
 
-export type SiteShimejiClientHistoryMessage = SiteShimejiChatMessage;
+export async function sendBitteBrowserChat(args: {
+  messages: ChatRequestMessage[];
+  bitteApiKey: string;
+  bitteAgentId: string;
+}): Promise<string> {
+  const apiKey = args.bitteApiKey.trim();
+  const agentId = args.bitteAgentId.trim();
+  if (!apiKey) throw new Error("BITTE_MISSING_API_KEY");
+  if (!agentId) throw new Error("BITTE_MISSING_AGENT_ID");
+
+  const response = await fetch("https://api.bitte.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: agentId,
+      messages: args.messages,
+      stream: false,
+    }),
+  }).catch(() => {
+    throw new Error("BITTE_CONNECT");
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    if (response.status === 401) {
+      throw new Error("BITTE_UNAUTHORIZED");
+    }
+    if (response.status === 404) {
+      throw new Error("BITTE_AGENT_NOT_FOUND");
+    }
+    throw new Error(`BITTE_HTTP:${response.status}`);
+  }
+
+  const data = (await response.json().catch(() => null)) as
+    | { choices?: { message?: { content?: string } }[] }
+    | null;
+  const reply = data?.choices?.[0]?.message?.content?.trim();
+  if (!reply) throw new Error("BITTE_EMPTY_RESPONSE");
+  return reply;
+}
+
+export async function sendBitteBrowserChat(args: {
+  messages: ChatRequestMessage[];
+  bitteApiKey: string;
+  bitteAgentId: string;
+  walletAddress?: string;
+  chainId?: number;
+}): Promise<string> {
+  const apiKey = args.bitteApiKey.trim();
+  const agentId = args.bitteAgentId.trim();
+  
+  if (!apiKey) throw new Error("BITTE_MISSING_API_KEY");
+  if (!agentId) throw new Error("BITTE_MISSING_AGENT_ID");
+
+  const lastMessage = args.messages[args.messages.length - 1];
+  if (!lastMessage || lastMessage.role !== "user") {
+    throw new Error("BITTE_EMPTY_MESSAGE");
+  }
+
+  // Build conversation history for Bitte
+  const conversation = args.messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const response = await fetch("https://api.bitte.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: agentId,
+      messages: conversation,
+      wallet_address: args.walletAddress,
+      chain_id: args.chainId,
+    }),
+  }).catch(() => {
+    throw new Error("BITTE_CONNECT");
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    if (response.status === 401) {
+      throw new Error("BITTE_AUTH_FAILED");
+    }
+    if (response.status === 404) {
+      throw new Error("BITTE_AGENT_NOT_FOUND");
+    }
+    throw new Error(`BITTE_HTTP:${response.status}`);
+  }
+
+  const data = (await response.json().catch(() => null)) as
+    | { choices?: Array<{ message?: { content?: string } }> }
+    | null;
+  
+  const reply = data?.choices?.[0]?.message?.content?.trim();
+  if (!reply) throw new Error("BITTE_EMPTY_RESPONSE");
+  
+  return reply;
+}

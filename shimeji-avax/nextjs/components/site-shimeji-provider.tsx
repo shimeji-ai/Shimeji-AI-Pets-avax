@@ -17,7 +17,7 @@ import {
   SITE_SHIMEJI_CHAT_THEMES,
 } from "@/lib/site-shimeji-chat-ui";
 
-export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw";
+export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw" | "bitte";
 export type SiteShimejiOpenClawMode = "paired";
 export type SiteShimejiSoundInputProviderKind = "off" | "browser";
 export type SiteShimejiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
@@ -57,6 +57,8 @@ export type SiteShimejiConfig = {
   openclawPairedSessionToken: string;
   openclawPairedSessionExpiresAt: string;
   openclawPairedAgentName: string;
+  bitteApiKey: string;
+  bitteAgentId: string;
   soundInputProvider: SiteShimejiSoundInputProviderKind;
   soundInputAutoSend: boolean;
   soundOutputProvider: SiteShimejiSoundOutputProviderKind;
@@ -118,6 +120,8 @@ const DEFAULT_CONFIG: SiteShimejiConfig = {
   openclawPairedSessionToken: "",
   openclawPairedSessionExpiresAt: "",
   openclawPairedAgentName: "",
+  bitteApiKey: "",
+  bitteAgentId: "",
   soundInputProvider: "off",
   soundInputAutoSend: false,
   soundOutputProvider: "off",
@@ -392,6 +396,9 @@ function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: nu
   }
   if (config.provider === "ollama") {
     return Boolean(config.ollamaUrl.trim() && config.ollamaModel.trim());
+  }
+  if (config.provider === "bitte") {
+    return Boolean(config.bitteApiKey.trim() && config.bitteAgentId.trim());
   }
   const pairedToken = config.openclawPairedSessionToken.trim();
   if (!pairedToken) return false;
