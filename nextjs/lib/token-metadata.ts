@@ -41,6 +41,52 @@ export function buildMediaProxyUrl(raw: string | null | undefined): string | nul
   return `/api/ipfs?uri=${encodeURIComponent(`ipfs://${ipfsPath}`)}`;
 }
 
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractImageRaw(data: Record<string, unknown>): string | null {
+  const direct =
+    readString(data.image) ||
+    readString(data.image_url) ||
+    readString(data.imageUrl) ||
+    readString(data.cover) ||
+    readString(data.coverUri) ||
+    readString(data.animation_url) ||
+    readString(data.animationUrl);
+  if (direct) return direct;
+
+  const properties =
+    data.properties && typeof data.properties === "object" && !Array.isArray(data.properties)
+      ? (data.properties as Record<string, unknown>)
+      : null;
+  const files = Array.isArray(properties?.files) ? properties?.files : null;
+  if (!files) return null;
+
+  const coverFile = files.find((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const record = entry as Record<string, unknown>;
+    return readString(record.role)?.toLowerCase() === "cover";
+  });
+  if (coverFile && typeof coverFile === "object" && !Array.isArray(coverFile)) {
+    const record = coverFile as Record<string, unknown>;
+    return readString(record.uri) || readString(record.url) || readString(record.href);
+  }
+
+  const firstImageLike = files.find((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const record = entry as Record<string, unknown>;
+    const type = readString(record.type)?.toLowerCase() || "";
+    return type.startsWith("image/");
+  });
+  if (firstImageLike && typeof firstImageLike === "object" && !Array.isArray(firstImageLike)) {
+    const record = firstImageLike as Record<string, unknown>;
+    return readString(record.uri) || readString(record.url) || readString(record.href);
+  }
+
+  return null;
+}
+
 export function resolveMediaUrl(raw: string | null | undefined): string | null {
   const value = String(raw || "").trim();
   if (!value) return null;
@@ -98,12 +144,7 @@ export async function fetchTokenMetadataPreview(tokenUri: string): Promise<Token
         metadataUrl: buildMediaProxyUrl(resolvedTokenUri),
       };
     }
-    const imageRaw =
-      typeof data.image === "string"
-        ? data.image
-        : typeof data.image_url === "string"
-          ? data.image_url
-          : null;
+    const imageRaw = extractImageRaw(data);
 
     return {
       name: typeof data.name === "string" ? data.name : null,

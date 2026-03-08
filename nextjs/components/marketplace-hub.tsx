@@ -214,7 +214,10 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
 
     let cancelled = false;
     for (const tokenUri of tokenUris) {
-      if (tokenPreviews[tokenUri] || tokenPreviewInflightRef.current.has(tokenUri)) continue;
+      const existingPreview = tokenPreviews[tokenUri];
+      if ((existingPreview?.imageUrl || existingPreview?.name) || tokenPreviewInflightRef.current.has(tokenUri)) {
+        continue;
+      }
       tokenPreviewInflightRef.current.add(tokenUri);
       void (async () => {
         let nextPreview: TokenPreview = { imageUrl: null, name: null };
@@ -242,7 +245,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           nextPreview = { imageUrl: null, name: null };
         } finally {
           tokenPreviewInflightRef.current.delete(tokenUri);
-          if (!cancelled) {
+          if (!cancelled && (nextPreview.imageUrl || nextPreview.name)) {
             setTokenPreviews((prev) =>
               prev[tokenUri] ? prev : { ...prev, [tokenUri]: nextPreview },
             );
