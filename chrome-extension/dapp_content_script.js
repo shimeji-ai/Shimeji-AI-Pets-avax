@@ -16,9 +16,9 @@
 console.log("[DApp Content Script] Loaded and ready.");
 
 const ALLOWED_ORIGINS = new Set([
-  "https://shimeji-avax.vercel.app",
-  "https://shimeji.dev",
-  "https://www.shimeji.dev",
+  "https://mochi.vercel.app",
+  "https://mochi.dev",
+  "https://www.mochi.dev",
   "http://localhost:3000"
 ]);
 
@@ -43,7 +43,7 @@ function isAllowedOrigin(origin) {
 }
 
 function getTargetOrigin() {
-  return ALLOWED_ORIGINS.has(window.location.origin) ? window.location.origin : "https://shimeji-avax.vercel.app";
+  return ALLOWED_ORIGINS.has(window.location.origin) ? window.location.origin : "https://mochi.vercel.app";
 }
 
 // Listen for messages from the web page (dapp.js)

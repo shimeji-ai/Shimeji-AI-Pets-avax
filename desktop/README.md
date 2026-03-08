@@ -1,5 +1,5 @@
-# Shimeji Desktop
-The Electron runtime for Shimeji AI Pets. It powers the native window, settings UI, chat overlay, and local providers (OpenRouter/Ollama/OpenClaw).
+# Mochi Desktop
+The Electron runtime for Mochi. It powers the native window, settings UI, chat overlay, and local providers (OpenRouter/Ollama/OpenClaw).
 
 ## Build
 1. `cd desktop`
@@ -21,7 +21,7 @@ These packages make the Windows and macOS pipelines work reliably on Linux hosts
 
 When the run finishes, confirm the artifacts and log files under `desktop/dist/` before continuing.
 
-Set `SHIMEJI_BUILD_TARGET` (`all`, `windows`, `macos`, or `linux`) or pass the desired key (`./scripts/build.sh linux`) to run a specific workflow without the prompt.
+Set `MOCHI_BUILD_TARGET` (`all`, `windows`, `macos`, or `linux`) or pass the desired key (`./scripts/build.sh linux`) to run a specific workflow without the prompt.
 
 ## Release
 Use `./scripts/publish_release_assets.sh` from the repository root to upload the Windows portable exe, Linux AppImage, and extension zips to GitHub Releases. Make sure `gh` is authenticated first.
@@ -33,4 +33,4 @@ Use `./scripts/publish_release_assets.sh` from the repository root to upload the
 ## Notes
 - Canonical shared assets now live in `../runtime-core/`; run `npm run sync-runtime-core` (or use `./build.sh ...`) to refresh `renderer/{characters,personalities,assets}` before building.
 - Desktop binaries should never be committed to git; the release script handles uploads.
-- Use the new **Start Shimeji on system login** toggle in settings to keep the desktop client running automatically across Windows, macOS, and Linux logins.
+- Use the new **Start Mochi on system login** toggle in settings to keep the desktop client running automatically across Windows, macOS, and Linux logins.

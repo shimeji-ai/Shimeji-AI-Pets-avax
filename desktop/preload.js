@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
-contextBridge.exposeInMainWorld('shimejiApi', {
+contextBridge.exposeInMainWorld('mochiApi', {
   // Clipboard (native Electron)
   clipboardReadText: () => clipboard.readText(),
   clipboardWriteText: (text) => clipboard.writeText(String(text || '')),
@@ -22,9 +22,9 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   getPersonalities: () => ipcRenderer.invoke('get-personalities'),
 
   // Conversation history
-  getConversation: (shimejiId) => ipcRenderer.invoke('get-conversation', shimejiId),
-  saveConversation: (shimejiId, messages) => ipcRenderer.send('save-conversation', shimejiId, messages),
-  clearConversation: (shimejiId) => ipcRenderer.send('clear-conversation', shimejiId),
+  getConversation: (mochiId) => ipcRenderer.invoke('get-conversation', mochiId),
+  saveConversation: (mochiId, messages) => ipcRenderer.send('save-conversation', mochiId, messages),
+  clearConversation: (mochiId) => ipcRenderer.send('clear-conversation', mochiId),
 
   // AI streaming
   aiChatStream: (params) => ipcRenderer.invoke('ai-chat-stream', params),
@@ -58,11 +58,11 @@ contextBridge.exposeInMainWorld('shimejiApi', {
   openUrlWithBrowserChoice: (payload) => ipcRenderer.invoke('open-url-with-browser-choice', payload),
   createDesktopShortcut: () => ipcRenderer.invoke('create-desktop-shortcut'),
 
-  // Call back shimejis from off-screen
-  onCallBack: (handler) => ipcRenderer.on('call-back-shimeji', (_, data) => handler(data)),
+  // Call back mochis from off-screen
+  onCallBack: (handler) => ipcRenderer.on('call-back-mochi', (_, data) => handler(data)),
 
-  // Dismiss shimejis (send off-screen)
-  onDismiss: (handler) => ipcRenderer.on('dismiss-shimeji', (_, data) => handler(data)),
+  // Dismiss mochis (send off-screen)
+  onDismiss: (handler) => ipcRenderer.on('dismiss-mochi', (_, data) => handler(data)),
 
   // Mouse events control for click-through overlay
   setIgnoreMouseEvents: (ignore) => ipcRenderer.send('set-ignore-mouse-events', ignore),

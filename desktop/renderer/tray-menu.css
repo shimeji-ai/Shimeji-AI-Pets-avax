@@ -91,7 +91,7 @@ body {
   cursor: not-allowed;
 }
 
-.tray-shimeji-list {
+.tray-mochi-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -101,21 +101,21 @@ body {
   padding-right: 4px;
 }
 
-.tray-shimeji-list::-webkit-scrollbar {
+.tray-mochi-list::-webkit-scrollbar {
   width: 6px;
 }
 
-.tray-shimeji-list::-webkit-scrollbar-track {
+.tray-mochi-list::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 3px;
 }
 
-.tray-shimeji-list::-webkit-scrollbar-thumb {
+.tray-mochi-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 3px;
 }
 
-.tray-shimeji-row {
+.tray-mochi-row {
   display: grid;
   grid-template-columns: 48px 1fr auto;
   gap: 8px;
@@ -126,7 +126,7 @@ body {
   overflow: hidden;
 }
 
-.shimeji-sprite {
+.mochi-sprite {
   width: 40px;
   height: 40px;
   border-radius: 8px;
@@ -134,18 +134,18 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.shimeji-meta {
+.mochi-meta {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.shimeji-label {
+.mochi-label {
   font-weight: 600;
   font-size: 13px;
 }
 
-.shimeji-type {
+.mochi-type {
   display: inline-block;
   font-size: 11px;
   letter-spacing: 0.4px;
@@ -156,13 +156,13 @@ body {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.shimeji-actions {
+.mochi-actions {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.shimeji-actions button {
+.mochi-actions button {
   border: none;
   padding: 4px 10px;
   border-radius: 8px;
@@ -174,17 +174,17 @@ body {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
-.shimeji-actions button.call {
+.mochi-actions button.call {
   background: rgba(110, 231, 183, 0.2);
   color: #6ee7b7;
 }
 
-.shimeji-actions button.dismiss {
+.mochi-actions button.dismiss {
   background: rgba(248, 113, 113, 0.2);
   color: #f87171;
 }
 
-.shimeji-actions button:active {
+.mochi-actions button:active {
   transform: translateY(1px);
 }
 

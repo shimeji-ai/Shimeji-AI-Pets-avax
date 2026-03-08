@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Shimeji Desktop Config</title>
+  <title>Mochi Desktop Config</title>
   <link rel="stylesheet" type="text/css" href="popup.css">
   <link rel="stylesheet" type="text/css" href="settings.css">
   <style>
@@ -29,7 +29,7 @@
 </head>
 <body>
   <header class="popup-header">
-    <span class="logo">Shimeji Desktop</span>
+    <span class="logo">Mochi Desktop</span>
     <div class="popup-subtitle" id="popup-subtitle">Your AI mascot orchestrator</div>
     <div class="popup-stats" id="popup-stats"></div>
   </header>
@@ -37,16 +37,16 @@
   <section class="controls-section">
     <div class="control-group shortcuts-highlighted">
       <h3 id="shortcuts-title">Shortcuts</h3>
-      <div class="ai-hint" id="shortcuts-hint">Click a shimeji to open chat. Drag to reposition with gravity. Double-click to jump.</div>
+      <div class="ai-hint" id="shortcuts-hint">Click a mochi to open chat. Drag to reposition with gravity. Double-click to jump.</div>
     </div>
 
     <div class="control-group global-toggle-group">
-      <label class="toggle-row" id="global-shimeji-toggle-row">
-        <span class="toggle-label" id="global-shimeji-label">Show all shimejis</span>
-        <input type="checkbox" id="global-shimeji-toggle" class="toggle-checkbox" checked>
+      <label class="toggle-row" id="global-mochi-toggle-row">
+        <span class="toggle-label" id="global-mochi-label">Show all mochis</span>
+        <input type="checkbox" id="global-mochi-toggle" class="toggle-checkbox" checked>
         <span class="toggle-slider"></span>
       </label>
-      <div class="ai-hint" id="global-shimeji-hint">Toggle to show or hide all shimejis on screen</div>
+      <div class="ai-hint" id="global-mochi-hint">Toggle to show or hide all mochis on screen</div>
     </div>
 
     <div class="control-group presence-group" id="presence-group">
@@ -70,7 +70,7 @@
 
     <div class="control-group">
       <label class="toggle-row" id="startup-toggle-row">
-        <span class="toggle-label" id="startup-label">Start Shimeji on system login</span>
+        <span class="toggle-label" id="startup-label">Start Mochi on system login</span>
         <input type="checkbox" id="start-on-startup-toggle" class="toggle-checkbox">
         <span class="toggle-slider"></span>
       </label>
@@ -80,28 +80,28 @@
         <input type="checkbox" id="start-minimized-toggle" class="toggle-checkbox">
         <span class="toggle-slider"></span>
       </label>
-      <div class="ai-hint" id="start-minimized-hint">Launch without opening the settings window. Shimejis still appear and tray icon is available.</div>
+      <div class="ai-hint" id="start-minimized-hint">Launch without opening the settings window. Mochis still appear and tray icon is available.</div>
       <button class="control-btn" id="create-shortcut-btn" style="margin-top: 8px; display: none;">Create Desktop Shortcut</button>
       <div class="ai-hint" id="create-shortcut-status" style="display: none;"></div>
     </div>
 
-    <div class="control-group" id="shimeji-config-group">
+    <div class="control-group" id="mochi-config-group">
       <div class="section-header">
-        <h3 id="shimeji-section-title">Shimejis</h3>
+        <h3 id="mochi-section-title">Mochis</h3>
       </div>
-      <div class="security-status config-lock-hint" id="shimeji-lock-hint"></div>
-      <div class="ai-hint" id="shimeji-limit-hint">Up to 5 shimejis on screen</div>
-      <div class="shimeji-selector-row">
-        <button class="shimeji-add-btn" id="add-shimeji-btn" aria-label="Add shimeji">+</button>
-        <div class="shimeji-selector" id="shimeji-selector"></div>
+      <div class="security-status config-lock-hint" id="mochi-lock-hint"></div>
+      <div class="ai-hint" id="mochi-limit-hint">Up to 5 mochis on screen</div>
+      <div class="mochi-selector-row">
+        <button class="mochi-add-btn" id="add-mochi-btn" aria-label="Add mochi">+</button>
+        <div class="mochi-selector" id="mochi-selector"></div>
       </div>
-      <div id="shimeji-empty" class="shimeji-empty"></div>
-      <div id="shimeji-list" class="shimeji-list"></div>
+      <div id="mochi-empty" class="mochi-empty"></div>
+      <div id="mochi-list" class="mochi-list"></div>
     </div>
 
     <div class="control-group" id="nft-collection-group">
       <div class="section-header">
-        <h3 id="nft-section-title">NFT Shimejis</h3>
+        <h3 id="nft-section-title">NFT Mochis</h3>
       </div>
       <div class="ai-hint" id="nft-hint">NFT collection syncing is coming soon on desktop.</div>
       <div id="nft-list" class="nft-list is-disabled"></div>
@@ -173,7 +173,7 @@
 
     <div class="control-group">
       <div class="popup-links footer-links">
-        <a href="https://www.shimeji.dev/help#feedback" target="_blank" class="popup-link feedback-link">
+        <a href="https://www.mochi.dev/help#feedback" target="_blank" class="popup-link feedback-link">
           <span id="link-feedback">Feedback</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
@@ -181,7 +181,7 @@
             <line x1="10" y1="14" x2="21" y2="3"></line>
           </svg>
         </a>
-        <a href="https://www.shimeji.dev/privacy" target="_blank" class="popup-link privacy-link">
+        <a href="https://www.mochi.dev/privacy" target="_blank" class="popup-link privacy-link">
           <span id="link-privacy">Privacy</span>
         </a>
       </div>

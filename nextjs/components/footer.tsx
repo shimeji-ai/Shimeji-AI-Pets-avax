@@ -48,7 +48,7 @@ export function Footer() {
                   </span>
                 </Link>
                 <Link
-                  href="https://github.com/mochi-ai/Mochi"
+                  href="https://github.com/shimeji-ai/Mochi"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"

@@ -8,11 +8,12 @@
 | `firefox-extension/` | Firefox browser runtime |
 | `desktop/` | Electron runtime |
 | `runtime-core/` | Canonical shared runtime content (characters, personalities, shared assets) |
-| `shimeji-avax/` | Avalanche app/contracts |
+| `nextjs/` | Avalanche app frontend |
+| `foundry/` | Avalanche contracts |
 | `animation-reference/` | Sprite reference for supported animation sets |
 | `legacy/` | Local-only archive, ignored by git |
 
-For work inside `shimeji-avax/`, read its local instructions first when present.
+For work inside `nextjs/` or `foundry/`, read local instructions first when present.
 
 ## Runtime Core
 
@@ -25,12 +26,12 @@ For work inside `shimeji-avax/`, read its local instructions first when present.
 - Use `./build.sh` from the repo root to sync and build artifacts: `./build.sh chrome` (Chrome zip), `./build.sh firefox` (Firefox zip), `./build.sh windows|macos|linux` (desktop), or `./build.sh all` (everything).
   The script syncs runtime-core first before building the requested artifacts.
 
-## shimeji-avax Notes
+## Avalanche Notes
 
-- `./shimeji-avax/launch.sh` is the canonical interactive entrypoint for chain + deploy + frontend.
+- `./launch.sh` is the canonical interactive entrypoint for chain + deploy + frontend.
 - Core scripts: `scripts/chain.sh`, `scripts/deploy.sh`, `scripts/start.sh`, `scripts/vercel-env-sync.sh`.
-- Contracts live under `shimeji-avax/foundry/` and the frontend under `shimeji-avax/nextjs/`.
-- When changing deploy flow, keep docs aligned: `shimeji-avax/README.md`, `shimeji-avax/foundry/README.md`, `shimeji-avax/nextjs/README.md`.
+- Contracts live under `foundry/` and the frontend under `nextjs/`.
+- When changing deploy flow, keep docs aligned: `README.md`, `foundry/README.md`, `nextjs/README.md`.
 
 ## Token-Efficient Workflow
 
@@ -46,7 +47,7 @@ When pushing changes that include desktop/extension deliverables (`desktop/**`, 
 
 1. Make sure runtime-core is synced to every runtime (run `npm run sync-runtime-core` or use `./build.sh ...`) before packaging so desktop and browser artifacts share the same characters/personalities/assets.
 2. Publish release assets first: `./scripts/publish_release_assets.sh`
-2. Required assets: `shimeji-desktop-windows-portable.exe`, `shimeji-desktop-linux.AppImage`, `shimeji-chrome-extension.zip`
+2. Required assets: `mochi-desktop-windows-portable.exe`, `mochi-desktop-linux.AppImage`, `mochi-chrome-extension.zip`
 3. Never commit desktop binaries to git.
 4. If release upload fails, stop and report instead of pushing.
 

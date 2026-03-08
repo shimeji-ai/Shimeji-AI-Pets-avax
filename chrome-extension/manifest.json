@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Shimeji AI Pets",
+  "name": "Mochi",
   "version": "1.0.0",
-  "description": "Animated AI pets for your browser. Chat with a shimeji or connect your own agent.",
+  "description": "Animated AI pets for your browser. Chat with a mochi or connect your own agent.",
   "permissions": ["storage", "tabs", "scripting"],
   "action": {
     "default_popup": "popup.html",
@@ -24,17 +24,17 @@
   "content_scripts": [
     {
       "matches": [
-        "https://shimeji.dev/*",
-        "https://www.shimeji.dev/*"
+        "https://mochi.dev/*",
+        "https://www.mochi.dev/*"
       ],
-      "js": ["shimeji-shared.js", "content.js"],
+      "js": ["mochi-shared.js", "content.js"],
       "css": ["style.css"],
       "run_at": "document_idle"
     },
     {
       "matches": [
-        "https://shimeji.dev/*",
-        "https://www.shimeji.dev/*"
+        "https://mochi.dev/*",
+        "https://www.mochi.dev/*"
       ],
       "js": ["dapp_content_script.js"],
       "run_at": "document_idle",
@@ -42,8 +42,8 @@
     }
   ],
   "host_permissions": [
-    "https://shimeji.dev/*",
-    "https://www.shimeji.dev/*",
+    "https://mochi.dev/*",
+    "https://www.mochi.dev/*",
     "https://openrouter.ai/*",
     "http://127.0.0.1/*",
     "http://localhost/*",
@@ -62,7 +62,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["characters/**", "assets/shimeji-success.wav", "assets/shimeji-error.wav", "assets/sounds/*"],
+      "resources": ["characters/**", "assets/mochi-success.wav", "assets/mochi-error.wav", "assets/sounds/*"],
       "matches": ["<all_urls>"]
     }
   ]

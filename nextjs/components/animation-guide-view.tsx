@@ -152,7 +152,7 @@ export function AnimationGuideView() {
               {t("Download sprite ZIP", "Descargar ZIP de sprites")}
             </a>
             <a
-              href="https://github.com/mochi-ai/Mochi/tree/main/animation-reference"
+              href="https://github.com/shimeji-ai/Mochi/tree/main/animation-reference"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm text-foreground/80 transition-all hover:border-white/25 hover:bg-white/10 hover:text-foreground"

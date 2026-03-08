@@ -223,7 +223,7 @@ prompt_user_selection() {
 }
 
 main() {
-  local selection="${SHIMEJI_BUILD_TARGET:-}"
+  local selection="${MOCHI_BUILD_TARGET:-}"
   if [ $# -gt 0 ]; then
     selection="$1"
   elif [ -t 0 ]; then

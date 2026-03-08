@@ -1,20 +1,20 @@
-// Content script for Shimeji with multi-instance support
+// Content script for Mochi with multi-instance support
 
 (function() {
-    if (window.__shimejiCleanup) {
-        try { window.__shimejiCleanup(); } catch (e) {}
+    if (window.__mochiCleanup) {
+        try { window.__mochiCleanup(); } catch (e) {}
     }
-    window.__shimejiInitialized = true;
+    window.__mochiInitialized = true;
 
     // ─── Import shared runtime ────────────────────────────────────────────────
     const {
-        SPRITE_SIZE, TICK_MS, MAX_SHIMEJIS,
+        SPRITE_SIZE, TICK_MS, MAX_MOCHIS,
         CALL_BACK_LINE_SPACING, CALL_BACK_LINE_MARGIN, CALL_BACK_RESET_DELAY,
         computeCallBackX, resetCallBackLineCounters, scheduleCallBackLineReset,
         PERSONALITY_TTS, PERSONALITY_SOUND_RATE: PERSONALITY_PITCH,
         TTS_VOICE_PROFILES, TTS_PROFILE_MODIFIERS, TTS_PROFILE_POOL,
-        SHIMEJI_PITCH_FACTORS,
-        getShimejiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
+        MOCHI_PITCH_FACTORS,
+        getMochiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
         getVoicesAsync, pickVoiceByProfile,
         CHAT_THEMES,
         weightedRandom, clamp, hexToRgb, detectBrowserLanguage,
@@ -27,10 +27,10 @@
         getNoCreditsMessage: _getNoCreditsMessageRaw,
         getNoResponseMessage: _getNoResponseMessageRaw,
         getLockedMessage: _getLockedMessageRaw,
-        getDefaultShimeji,
-        SHIMEJI_NOTE_FREQ, synthesizeFluteNote,
-        synthesizeShimejiSounds: _synthesizeShimejiSoundsRaw
-    } = ShimejiShared;
+        getDefaultMochi,
+        MOCHI_NOTE_FREQ, synthesizeFluteNote,
+        synthesizeMochiSounds: _synthesizeMochiSoundsRaw
+    } = MochiShared;
 
     // Locale-aware i18n wrappers (isSpanishLocale is a hoisted function declaration below)
     function getNoApiKeyMessage() { return _getNoApiKeyMessageRaw(isSpanishLocale()); }
@@ -38,7 +38,7 @@
     function getNoResponseMessage() { return _getNoResponseMessageRaw(isSpanishLocale()); }
     function getLockedMessage() { return _getLockedMessageRaw(isSpanishLocale()); }
     // Audio synthesis wrapper (getAudioContext is a hoisted function declaration below)
-    function synthesizeShimejiSounds(shimejiId) { return _synthesizeShimejiSoundsRaw(shimejiId, getAudioContext); }
+    function synthesizeMochiSounds(mochiId) { return _synthesizeMochiSoundsRaw(mochiId, getAudioContext); }
 
     const sizes = {
         small: { scale: 0.5 },
@@ -310,13 +310,13 @@
     }
 
     function migrateLegacy(data) {
-        if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
-            return data.shimejis;
+        if (Array.isArray(data.mochis) && data.mochis.length > 0) {
+            return data.mochis;
         }
 
         return [{
-            id: 'shimeji-1',
-            character: 'shimeji',
+            id: 'mochi-1',
+            character: 'mochi',
             size: 'medium',
             mode: data.chatMode || 'standard',
             openrouterApiKey: data.aiApiKey || '',
@@ -334,13 +334,13 @@
         }];
     }
 
-    function loadShimejiConfigs(callback) {
+    function loadMochiConfigs(callback) {
         const handleData = (data) => {
             let list = migrateLegacy(data);
-            if (!!data.noShimejis) {
+            if (!!data.noMochis) {
                 list = [];
             } else if (!Array.isArray(list) || list.length === 0) {
-                list = [getDefaultShimeji(0)];
+                list = [getDefaultMochi(0)];
             }
             const needsTtsMigration = !data.ttsEnabledMigrationDone;
             list = list.map((item) => {
@@ -372,18 +372,18 @@
                     masterKeyEnabled: !!data.masterKeyEnabled
                 };
             });
-            list = list.slice(0, MAX_SHIMEJIS);
+            list = list.slice(0, MAX_MOCHIS);
             try {
-                chrome.storage.local.set({ shimejis: list, ttsEnabledMigrationDone: true });
+                chrome.storage.local.set({ mochis: list, ttsEnabledMigrationDone: true });
             } catch (e) {
-                safeStorageLocalSet({ shimejis: list, ttsEnabledMigrationDone: true });
+                safeStorageLocalSet({ mochis: list, ttsEnabledMigrationDone: true });
             }
             callback(list);
         };
 
         try {
             chrome.storage.local.get([
-                'shimejis',
+                'mochis',
                 'aiModel',
                 'aiApiKey',
                 'aiPersonality',
@@ -392,11 +392,11 @@
                 'openclawGatewayToken',
                 'ttsEnabledMigrationDone',
                 'masterKeyEnabled',
-                'noShimejis'
+                'noMochis'
             ], (data) => handleData(data || {}));
         } catch (e) {
             safeStorageLocalGet([
-                'shimejis',
+                'mochis',
                 'aiModel',
                 'aiApiKey',
                 'aiPersonality',
@@ -405,22 +405,22 @@
                 'openclawGatewayToken',
                 'ttsEnabledMigrationDone',
                 'masterKeyEnabled',
-                'noShimejis'
+                'noMochis'
             ], (data) => handleData(data || {}));
         }
     }
 
-    function createShimejiRuntime(config, visibilityState, options = {}) {
-        const shimejiId = config.id;
-        const elementSuffix = shimejiId.replace(/[^a-zA-Z0-9_-]/g, '');
-        const mascotId = `shimeji-mascot-${elementSuffix}`;
-        const chatBubbleId = `shimeji-chat-bubble-${elementSuffix}`;
-        const thinkingBubbleId = `shimeji-thinking-bubble-${elementSuffix}`;
-        const alertBubbleId = `shimeji-alert-bubble-${elementSuffix}`;
-        const micCountdownBubbleId = `shimeji-mic-countdown-${elementSuffix}`;
+    function createMochiRuntime(config, visibilityState, options = {}) {
+        const mochiId = config.id;
+        const elementSuffix = mochiId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const mascotId = `mochi-mascot-${elementSuffix}`;
+        const chatBubbleId = `mochi-chat-bubble-${elementSuffix}`;
+        const thinkingBubbleId = `mochi-thinking-bubble-${elementSuffix}`;
+        const alertBubbleId = `mochi-alert-bubble-${elementSuffix}`;
+        const micCountdownBubbleId = `mochi-mic-countdown-${elementSuffix}`;
         const conversationKey = `conversationHistory.${elementSuffix}`;
 
-        let currentCharacter = config.character || 'shimeji';
+        let currentCharacter = config.character || 'mochi';
         let CHARACTER_BASE = safeRuntimeGetURL('characters/' + currentCharacter + '/') || '';
         let currentSize = config.size || 'medium';
         let animationQuality = config.animationQuality === 'simple' ? 'simple' : 'full';
@@ -454,7 +454,7 @@
         let pendingSpeechText = null;
         let soundBuffers = { success: null, error: null };
         let soundBuffersLoaded = false;
-        const chatOpenKey = `shimejiChatOpen.${elementSuffix}`;
+        const chatOpenKey = `mochiChatOpen.${elementSuffix}`;
 
         function getChatOpenState() {
             try {
@@ -533,16 +533,16 @@
             if (!sharedAudioCtx) return;
             soundBuffersLoaded = false;
             const defaultUrls = {
-                success: safeRuntimeGetURL('assets/shimeji-success.wav'),
-                error: safeRuntimeGetURL('assets/shimeji-error.wav')
+                success: safeRuntimeGetURL('assets/mochi-success.wav'),
+                error: safeRuntimeGetURL('assets/mochi-error.wav')
             };
             for (const kind of ['success', 'error']) {
                 soundBuffers[kind] = await loadAudioBuffer(defaultUrls[kind]);
             }
-            // Fill missing with per-shimeji synthesised flute tones
+            // Fill missing with per-mochi synthesised flute tones
             if (!soundBuffers.success || !soundBuffers.error) {
                 try {
-                    const synth = synthesizeShimejiSounds(shimejiId);
+                    const synth = synthesizeMochiSounds(mochiId);
                     if (!soundBuffers.success) soundBuffers.success = synth.success;
                     if (!soundBuffers.error) soundBuffers.error = synth.error;
                 } catch (e) {}
@@ -566,8 +566,8 @@
                 const source = ctx.createBufferSource();
                 source.buffer = buffer;
                 const personalityRate = PERSONALITY_PITCH[config.personality] || 1.0;
-                const shimejiRate = getShimejiPitchFactor(shimejiId);
-                source.playbackRate.value = Math.max(0.6, Math.min(1.6, personalityRate * shimejiRate));
+                const mochiRate = getMochiPitchFactor(mochiId);
+                source.playbackRate.value = Math.max(0.6, Math.min(1.6, personalityRate * mochiRate));
                 const gain = ctx.createGain();
                 gain.gain.value = Math.max(0, Math.min(1, typeof config.soundVolume === 'number' ? config.soundVolume : 0.7));
                 source.connect(gain);
@@ -608,42 +608,42 @@
         async function persistVoiceId(voiceName) {
             if (!voiceName || voiceName === config.ttsVoiceId) return;
             config.ttsVoiceId = voiceName;
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsVoiceId: voiceName } : s);
-                safeStorageLocalSet({ shimejis: updated });
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? { ...s, ttsVoiceId: voiceName } : s);
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistTtsEnabled(enabled) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, ttsEnabled: enabled } : s);
-                safeStorageLocalSet({ shimejis: updated });
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? { ...s, ttsEnabled: enabled } : s);
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistOpenMicEnabled(enabled) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, openMicEnabled: enabled } : s);
-                safeStorageLocalSet({ shimejis: updated });
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? { ...s, openMicEnabled: enabled } : s);
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistRelayEnabled(enabled) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, relayEnabled: enabled } : s);
-                safeStorageLocalSet({ shimejis: updated });
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? { ...s, relayEnabled: enabled } : s);
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistChatStyle(themeColor, bgColor, bubbleStyle, presetId) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
                 const updated = list.map((s) => {
-                    if (s.id !== shimejiId) return s;
+                    if (s.id !== mochiId) return s;
                     return {
                         ...s,
                         chatThemeColor: themeColor,
@@ -652,27 +652,27 @@
                         chatThemePreset: presetId || s.chatThemePreset || 'custom'
                     };
                 });
-                safeStorageLocalSet({ shimejis: updated });
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistChatFontSize(sizeKey) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? { ...s, chatFontSize: sizeKey } : s);
-                safeStorageLocalSet({ shimejis: updated });
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? { ...s, chatFontSize: sizeKey } : s);
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
         function persistChatSize(widthPx, heightPx) {
-            safeStorageLocalGet(['shimejis'], (data) => {
-                const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                const updated = list.map((s) => s.id === shimejiId ? {
+            safeStorageLocalGet(['mochis'], (data) => {
+                const list = Array.isArray(data.mochis) ? data.mochis : [];
+                const updated = list.map((s) => s.id === mochiId ? {
                     ...s,
                     chatWidthPx: widthPx,
                     chatHeightPx: heightPx
                 } : s);
-                safeStorageLocalSet({ shimejis: updated });
+                safeStorageLocalSet({ mochis: updated });
             });
         }
 
@@ -734,8 +734,8 @@
             if (!relayToggleBtnEl) return;
             relayToggleBtnEl.classList.toggle('active', !!config.relayEnabled);
             relayToggleBtnEl.title = config.relayEnabled
-                ? (isSpanishLocale() ? 'Hablar con otros shimejis: activado' : 'Talk to other shimejis: on')
-                : (isSpanishLocale() ? 'Hablar con otros shimejis: apagado' : 'Talk to other shimejis: off');
+                ? (isSpanishLocale() ? 'Hablar con otros mochis: activado' : 'Talk to other mochis: on')
+                : (isSpanishLocale() ? 'Hablar con otros mochis: apagado' : 'Talk to other mochis: off');
         }
 
         async function ensureVoiceForTts() {
@@ -753,13 +753,13 @@
         }
 
         function getSpeechManager() {
-            if (!window.__shimejiSpeechManager) {
-                window.__shimejiSpeechManager = {
+            if (!window.__mochiSpeechManager) {
+                window.__mochiSpeechManager = {
                     queue: [],
                     speaking: false
                 };
             }
-            return window.__shimejiSpeechManager;
+            return window.__mochiSpeechManager;
         }
 
         async function speakTextRaw(text, onEndCallback) {
@@ -877,7 +877,7 @@
             micAutoSendSeconds = 3;
 
             micAutoSendEl = document.createElement('div');
-            micAutoSendEl.className = 'shimeji-mic-autosend';
+            micAutoSendEl.className = 'mochi-mic-autosend';
 
             const textEl = document.createElement('span');
             const countdownEl = document.createElement('strong');
@@ -896,7 +896,7 @@
             micAutoSendEl.appendChild(countdownEl);
             micAutoSendEl.appendChild(cancelBtn);
 
-            const inputArea = micBtnEl.closest('.shimeji-chat-input-area');
+            const inputArea = micBtnEl.closest('.mochi-chat-input-area');
             if (inputArea) {
                 inputArea.appendChild(micAutoSendEl);
             } else {
@@ -928,10 +928,10 @@
                 appendErrorMessage(isSpanishLocale() ? 'Tu navegador no soporta reconocimiento de voz.' : 'Your browser does not support speech recognition.');
                 return;
             }
-            // Stop any other shimeji's recognition (browser only allows one at a time)
-            if (window.__shimejiActiveRecognition && window.__shimejiActiveRecognition !== shimejiId) {
+            // Stop any other mochi's recognition (browser only allows one at a time)
+            if (window.__mochiActiveRecognition && window.__mochiActiveRecognition !== mochiId) {
                 try {
-                    const evt = new CustomEvent('shimeji-stop-mic', { detail: { except: shimejiId } });
+                    const evt = new CustomEvent('mochi-stop-mic', { detail: { except: mochiId } });
                     document.dispatchEvent(evt);
                 } catch (e) {}
             }
@@ -991,8 +991,8 @@
 
             recognition.onend = () => {
                 setMicListeningState(false);
-                if (window.__shimejiActiveRecognition === shimejiId) {
-                    window.__shimejiActiveRecognition = null;
+                if (window.__mochiActiveRecognition === mochiId) {
+                    window.__mochiActiveRecognition = null;
                 }
                 const draft = (chatInputEl ? chatInputEl.value : micDraftText || '').trim();
                 if (autoSendArmed && draft) {
@@ -1012,8 +1012,8 @@
 
             recognition.onerror = (event) => {
                 setMicListeningState(false);
-                if (window.__shimejiActiveRecognition === shimejiId) {
-                    window.__shimejiActiveRecognition = null;
+                if (window.__mochiActiveRecognition === mochiId) {
+                    window.__mochiActiveRecognition = null;
                 }
                 autoSendArmed = false;
                 if (event.error === 'not-allowed') {
@@ -1031,7 +1031,7 @@
             try {
                 recognition.start();
                 setMicListeningState(true);
-                window.__shimejiActiveRecognition = shimejiId;
+                window.__mochiActiveRecognition = mochiId;
             } catch (e) {
                 setMicListeningState(false);
             }
@@ -1046,8 +1046,8 @@
             micSessionAutoRestart = false;
             micSessionContinuous = false;
             setMicListeningState(false);
-            if (window.__shimejiActiveRecognition === shimejiId) {
-                window.__shimejiActiveRecognition = null;
+            if (window.__mochiActiveRecognition === mochiId) {
+                window.__mochiActiveRecognition = null;
             }
         }
 
@@ -1059,25 +1059,25 @@
             }
         }
 
-        // Listen for stop-mic events from other shimejis
-        document.addEventListener('shimeji-stop-mic', (e) => {
-            if (e.detail && e.detail.except !== shimejiId && isListening) {
+        // Listen for stop-mic events from other mochis
+        document.addEventListener('mochi-stop-mic', (e) => {
+            if (e.detail && e.detail.except !== mochiId && isListening) {
                 stopVoiceInput();
             }
         });
 
-        document.addEventListener('shimeji-relay', (e) => {
+        document.addEventListener('mochi-relay', (e) => {
             try {
                 if (extensionInvalidated || !isExtensionContextValid()) return;
-                if (!e.detail || e.detail.sourceId === shimejiId) return;
+                if (!e.detail || e.detail.sourceId === mochiId) return;
                 if (config.enabled === false) return;
                 const mode = getMode();
                 if (mode === 'off') return;
                 const raw = (e.detail.text || '').trim();
                 if (!raw) return;
                 const prefix = isSpanishLocale()
-                    ? 'Esto es lo que dijo tu mascota shimeji AI pet: '
-                    : 'This is what your shimeji AI pet said: ';
+                    ? 'Esto es lo que dijo tu mascota mochi AI pet: '
+                    : 'This is what your mochi AI pet said: ';
                 sendChatMessageWithText(prefix + raw, { isRelay: true });
             } catch (e) {
                 extensionInvalidated = true;
@@ -1085,7 +1085,7 @@
         });
 
         // Listen for voice broadcast from open mic (send transcript to all open chats)
-        document.addEventListener('shimeji-voice-broadcast', (e) => {
+        document.addEventListener('mochi-voice-broadcast', (e) => {
             try {
                 if (extensionInvalidated || !isExtensionContextValid()) return;
                 if (!isChatOpen || !chatInputEl || !e.detail || !e.detail.transcript) return;
@@ -1182,21 +1182,21 @@
                 lastSavedPos = { x, y };
                 const xPct = window.innerWidth ? x / window.innerWidth : 0.5;
                 const yPct = window.innerHeight ? y / window.innerHeight : 0.5;
-                safeStorageLocalGet(['shimejiLastPos'], (data) => {
-                    const map = data.shimejiLastPos && typeof data.shimejiLastPos === 'object' ? data.shimejiLastPos : {};
-                    map[shimejiId] = {
+                safeStorageLocalGet(['mochiLastPos'], (data) => {
+                    const map = data.mochiLastPos && typeof data.mochiLastPos === 'object' ? data.mochiLastPos : {};
+                    map[mochiId] = {
                         xPct: clamp(xPct, 0, 1),
                         yPct: clamp(yPct, 0, 1),
                         ts: Date.now()
                     };
-                    safeStorageLocalSet({ shimejiLastPos: map });
+                    safeStorageLocalSet({ mochiLastPos: map });
                 });
             }, 700);
         }
 
         function buildNoApiKeyMessageElement(includeWarning = false) {
             const msgEl = document.createElement('div');
-            msgEl.className = 'shimeji-chat-msg ai shimeji-no-api-key-msg';
+            msgEl.className = 'mochi-chat-msg ai mochi-no-api-key-msg';
 
             const isEs = isSpanishLocale();
             const prefix = isEs
@@ -1227,7 +1227,7 @@
         function ensureNoApiKeyOnboardingMessage() {
             if (!chatMessagesEl) return;
 
-            const existing = chatMessagesEl.querySelector('.shimeji-no-api-key-msg');
+            const existing = chatMessagesEl.querySelector('.mochi-no-api-key-msg');
             if (existing) existing.remove();
 
             chatMessagesEl.prepend(buildNoApiKeyMessageElement(false));
@@ -1235,10 +1235,10 @@
 
         function ensureNoApiKeyNudgeMessage() {
             if (!chatMessagesEl) return;
-            const existing = chatMessagesEl.querySelector('.shimeji-no-api-key-nudge');
+            const existing = chatMessagesEl.querySelector('.mochi-no-api-key-nudge');
             if (existing) return;
             const msgEl = document.createElement('div');
-            msgEl.className = 'shimeji-chat-msg ai shimeji-no-api-key-nudge';
+            msgEl.className = 'mochi-chat-msg ai mochi-no-api-key-nudge';
             const isEs = isSpanishLocale();
             const prefix = isEs
                 ? '¡Hola! Necesito una API key de '
@@ -1295,7 +1295,7 @@
 
             mascotElement = document.createElement('div');
             mascotElement.id = mascotId;
-            mascotElement.className = 'shimeji-mascot';
+            mascotElement.className = 'mochi-mascot';
             document.body.appendChild(mascotElement);
             updateMascotStyle();
             setupDragListeners();
@@ -1382,7 +1382,7 @@
             mascotElement.addEventListener('touchstart', onTouchStart, { passive: false });
             mascotElement.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                showShimejiContextMenu(e.clientX, e.clientY);
+                showMochiContextMenu(e.clientX, e.clientY);
             });
 
             document.addEventListener('pointermove', onPointerMove);
@@ -1615,24 +1615,24 @@
 
             chatBubbleEl = document.createElement('div');
             chatBubbleEl.id = chatBubbleId;
-            chatBubbleEl.className = 'shimeji-chat-bubble';
+            chatBubbleEl.className = 'mochi-chat-bubble';
             setChatBubbleFront(chatBubbleEl);
 
             const header = document.createElement('div');
-            header.className = 'shimeji-chat-header';
+            header.className = 'mochi-chat-header';
             const titleWrap = document.createElement('div');
-            titleWrap.className = 'shimeji-chat-title-wrap';
+            titleWrap.className = 'mochi-chat-title-wrap';
             const title = document.createElement('span');
             title.textContent = isSpanishLocale() ? 'Chat' : 'Chat';
             chatMetaEl = document.createElement('span');
-            chatMetaEl.className = 'shimeji-chat-meta';
+            chatMetaEl.className = 'mochi-chat-meta';
             titleWrap.appendChild(title);
             titleWrap.appendChild(chatMetaEl);
             const headerBtns = document.createElement('div');
-            headerBtns.className = 'shimeji-chat-header-btns';
+            headerBtns.className = 'mochi-chat-header-btns';
 
             quickTtsBtnEl = document.createElement('button');
-            quickTtsBtnEl.className = 'shimeji-chat-voice-quick';
+            quickTtsBtnEl.className = 'mochi-chat-voice-quick';
             updateQuickTtsBtnVisual();
             quickTtsBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1652,17 +1652,17 @@
             });
 
             const settingsBtnEl = document.createElement('button');
-            settingsBtnEl.className = 'shimeji-chat-settings-toggle';
+            settingsBtnEl.className = 'mochi-chat-settings-toggle';
             settingsBtnEl.textContent = '⚙️';
             settingsBtnEl.title = isSpanishLocale() ? 'Controles' : 'Controls';
 
             const themeBtnEl = document.createElement('button');
-            themeBtnEl.className = 'shimeji-chat-theme-toggle';
+            themeBtnEl.className = 'mochi-chat-theme-toggle';
             themeBtnEl.textContent = '🎨';
             themeBtnEl.title = isSpanishLocale() ? 'Tema de chat' : 'Chat theme';
 
             openMicBtnEl = document.createElement('button');
-            openMicBtnEl.className = 'shimeji-chat-openmic-toggle';
+            openMicBtnEl.className = 'mochi-chat-openmic-toggle';
             openMicBtnEl.textContent = '🎙️';
             updateOpenMicBtnVisual();
             openMicBtnEl.addEventListener('click', (e) => {
@@ -1679,7 +1679,7 @@
             });
 
             relayToggleBtnEl = document.createElement('button');
-            relayToggleBtnEl.className = 'shimeji-chat-relay-toggle';
+            relayToggleBtnEl.className = 'mochi-chat-relay-toggle';
             relayToggleBtnEl.textContent = '🔁';
             updateRelayToggleBtnVisual();
             relayToggleBtnEl.addEventListener('click', (e) => {
@@ -1690,7 +1690,7 @@
             });
 
             const closeBtn = document.createElement('button');
-            closeBtn.className = 'shimeji-chat-close';
+            closeBtn.className = 'mochi-chat-close';
             closeBtn.textContent = '\u00D7';
             closeBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1704,13 +1704,13 @@
             header.appendChild(headerBtns);
 
             const controlsPanel = document.createElement('div');
-            controlsPanel.className = 'shimeji-chat-controls-panel';
+            controlsPanel.className = 'mochi-chat-controls-panel';
             chatControlsPanelEl = controlsPanel;
 
             const micRow = document.createElement('div');
-            micRow.className = 'shimeji-chat-control-row';
+            micRow.className = 'mochi-chat-control-row';
             const micLabel = document.createElement('span');
-            micLabel.className = 'shimeji-chat-control-label';
+            micLabel.className = 'mochi-chat-control-label';
             micLabel.textContent = isSpanishLocale() ? 'Micrófono abierto' : 'Open mic';
             micRow.appendChild(micLabel);
             micRow.appendChild(openMicBtnEl);
@@ -1721,12 +1721,12 @@
             controlsPanel.appendChild(micRow);
 
             const relayRow = document.createElement('div');
-            relayRow.className = 'shimeji-chat-control-row';
+            relayRow.className = 'mochi-chat-control-row';
             const relayLabel = document.createElement('span');
-            relayLabel.className = 'shimeji-chat-control-label';
+            relayLabel.className = 'mochi-chat-control-label';
             relayLabel.textContent = isSpanishLocale()
-                ? 'Hablar con otros shimejis'
-                : 'Talk to other shimejis';
+                ? 'Hablar con otros mochis'
+                : 'Talk to other mochis';
             relayRow.appendChild(relayLabel);
             relayRow.appendChild(relayToggleBtnEl);
             relayRow.addEventListener('click', (e) => {
@@ -1736,9 +1736,9 @@
             controlsPanel.appendChild(relayRow);
 
             const themeRowControl = document.createElement('div');
-            themeRowControl.className = 'shimeji-chat-control-row';
+            themeRowControl.className = 'mochi-chat-control-row';
             const themeLabelControl = document.createElement('span');
-            themeLabelControl.className = 'shimeji-chat-control-label';
+            themeLabelControl.className = 'mochi-chat-control-label';
             themeLabelControl.textContent = isSpanishLocale() ? 'Tema' : 'Theme';
             themeRowControl.appendChild(themeLabelControl);
             themeRowControl.appendChild(themeBtnEl);
@@ -1749,12 +1749,12 @@
             controlsPanel.appendChild(themeRowControl);
 
             const fontRow = document.createElement('div');
-            fontRow.className = 'shimeji-chat-control-row';
+            fontRow.className = 'mochi-chat-control-row';
             const fontLabel = document.createElement('span');
-            fontLabel.className = 'shimeji-chat-control-label';
+            fontLabel.className = 'mochi-chat-control-label';
             fontLabel.textContent = isSpanishLocale() ? 'Tamaño de texto' : 'Text size';
             const fontSelect = document.createElement('select');
-            fontSelect.className = 'shimeji-chat-font-select';
+            fontSelect.className = 'mochi-chat-font-select';
             const fontOptions = [
                 { value: 'small', label: isSpanishLocale() ? 'Pequeño' : 'Small' },
                 { value: 'medium', label: isSpanishLocale() ? 'Medio' : 'Medium' },
@@ -1777,12 +1777,12 @@
             controlsPanel.appendChild(fontRow);
 
             const uiScaleRow = document.createElement('div');
-            uiScaleRow.className = 'shimeji-chat-control-row';
+            uiScaleRow.className = 'mochi-chat-control-row';
             const uiScaleLabel = document.createElement('span');
-            uiScaleLabel.className = 'shimeji-chat-control-label';
+            uiScaleLabel.className = 'mochi-chat-control-label';
             uiScaleLabel.textContent = isSpanishLocale() ? 'Texto UI' : 'UI text';
             uiTextScaleSelectEl = document.createElement('select');
-            uiTextScaleSelectEl.className = 'shimeji-chat-font-select';
+            uiTextScaleSelectEl.className = 'mochi-chat-font-select';
             UI_TEXT_SCALE_OPTIONS.forEach((value) => {
                 const optionEl = document.createElement('option');
                 optionEl.value = String(value);
@@ -1805,17 +1805,17 @@
             }
 
             const themePanel = document.createElement('div');
-            themePanel.className = 'shimeji-chat-theme-panel';
+            themePanel.className = 'mochi-chat-theme-panel';
             chatThemePanelEl = themePanel;
 
             const themeHeader = document.createElement('div');
-            themeHeader.className = 'shimeji-chat-theme-header';
+            themeHeader.className = 'mochi-chat-theme-header';
             const themeHeaderLabel = document.createElement('span');
-            themeHeaderLabel.className = 'shimeji-chat-theme-header-label';
+            themeHeaderLabel.className = 'mochi-chat-theme-header-label';
             themeHeaderLabel.textContent = isSpanishLocale() ? 'Tema de chat' : 'Chat theme';
             const themeCloseBtn = document.createElement('button');
             themeCloseBtn.type = 'button';
-            themeCloseBtn.className = 'shimeji-chat-theme-close';
+            themeCloseBtn.className = 'mochi-chat-theme-close';
             themeCloseBtn.textContent = '\u00D7';
             themeCloseBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1826,12 +1826,12 @@
             themePanel.appendChild(themeHeader);
 
             const presetSection = document.createElement('div');
-            presetSection.className = 'shimeji-chat-theme-section';
+            presetSection.className = 'mochi-chat-theme-section';
             const presetLabel = document.createElement('span');
-            presetLabel.className = 'shimeji-chat-theme-label';
+            presetLabel.className = 'mochi-chat-theme-label';
             presetLabel.textContent = isSpanishLocale() ? 'Temas' : 'Themes';
             const presetRow = document.createElement('div');
-            presetRow.className = 'shimeji-theme-presets';
+            presetRow.className = 'mochi-theme-presets';
             presetSection.appendChild(presetLabel);
             presetSection.appendChild(presetRow);
             themePanel.appendChild(presetSection);
@@ -1840,14 +1840,14 @@
             function createThemeChip(id, label, colors) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'shimeji-theme-circle';
+                btn.className = 'mochi-theme-circle';
                 btn.dataset.themeId = id;
                 btn.title = label;
                 btn.setAttribute('aria-label', label);
                 const outer = document.createElement('span');
-                outer.className = 'shimeji-theme-circle-outer';
+                outer.className = 'mochi-theme-circle-outer';
                 const inner = document.createElement('span');
-                inner.className = 'shimeji-theme-circle-inner';
+                inner.className = 'mochi-theme-circle-inner';
                 if (colors && colors.bg && colors.theme) {
                     outer.style.background = colors.bg;
                     inner.style.background = colors.theme;
@@ -1881,18 +1881,18 @@
             });
 
             const customSection = document.createElement('div');
-            customSection.className = 'shimeji-chat-theme-section shimeji-chat-theme-custom';
+            customSection.className = 'mochi-chat-theme-section mochi-chat-theme-custom';
             const customLabel = document.createElement('span');
-            customLabel.className = 'shimeji-chat-theme-label';
+            customLabel.className = 'mochi-chat-theme-label';
             customLabel.textContent = isSpanishLocale() ? 'Colores' : 'Colors';
             const customRow = document.createElement('div');
-            customRow.className = 'shimeji-theme-color-row';
+            customRow.className = 'mochi-theme-color-row';
             const themeColorInput = document.createElement('input');
             themeColorInput.type = 'color';
-            themeColorInput.className = 'shimeji-chat-theme-color';
+            themeColorInput.className = 'mochi-chat-theme-color';
             const bgColorInput = document.createElement('input');
             bgColorInput.type = 'color';
-            bgColorInput.className = 'shimeji-chat-theme-bg';
+            bgColorInput.className = 'mochi-chat-theme-bg';
             customRow.appendChild(themeColorInput);
             customRow.appendChild(bgColorInput);
             customSection.appendChild(customLabel);
@@ -2000,7 +2000,7 @@
             });
 
             chatMessagesEl = document.createElement('div');
-            chatMessagesEl.className = 'shimeji-chat-messages';
+            chatMessagesEl.className = 'mochi-chat-messages';
             const closePanels = () => {
                 if (chatControlsPanelEl && chatControlsPanelEl.classList.contains('open')) {
                     chatControlsPanelEl.classList.remove('open');
@@ -2012,11 +2012,11 @@
             chatMessagesEl.addEventListener('click', closePanels);
 
             const inputArea = document.createElement('div');
-            inputArea.className = 'shimeji-chat-input-area';
+            inputArea.className = 'mochi-chat-input-area';
             inputArea.addEventListener('click', closePanels);
             chatInputAreaEl = inputArea;
             chatInputEl = document.createElement('input');
-            chatInputEl.className = 'shimeji-chat-input';
+            chatInputEl.className = 'mochi-chat-input';
             chatInputEl.type = 'text';
             chatInputEl.placeholder = isSpanishLocale() ? 'Di algo...' : 'Say something...';
             chatInputEl.addEventListener('keydown', (e) => {
@@ -2032,7 +2032,7 @@
             chatInputEl.addEventListener('touchstart', (e) => e.stopPropagation());
 
             const sendBtn = document.createElement('button');
-            sendBtn.className = 'shimeji-chat-send';
+            sendBtn.className = 'mochi-chat-send';
             sendBtn.textContent = '\u25B6';
             sendBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2041,7 +2041,7 @@
             });
 
             micBtnEl = document.createElement('button');
-            micBtnEl.className = 'shimeji-chat-mic';
+            micBtnEl.className = 'mochi-chat-mic';
             micBtnEl.textContent = '\uD83C\uDF99';
             micBtnEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2059,14 +2059,14 @@
             chatBubbleEl.appendChild(chatMessagesEl);
             chatBubbleEl.appendChild(inputArea);
             const resizeHandleEl = document.createElement('div');
-            resizeHandleEl.className = 'shimeji-chat-resize-handle';
+            resizeHandleEl.className = 'mochi-chat-resize-handle';
             chatBubbleEl.appendChild(resizeHandleEl);
 
             const shouldFocusOnChatClick = (target) => {
                 if (!target || !target.closest) return true;
                 // Keep text selection behavior inside message history.
-                if (target.closest('.shimeji-chat-messages')) return false;
-                if (target.closest('.shimeji-chat-msg')) return false;
+                if (target.closest('.mochi-chat-messages')) return false;
+                if (target.closest('.mochi-chat-msg')) return false;
                 if (target.closest('a')) return false;
                 if (target.closest('input, textarea, select')) return false;
                 if (target.closest('button')) return false;
@@ -2253,10 +2253,10 @@
 
             thinkingBubbleEl = document.createElement('div');
             thinkingBubbleEl.id = thinkingBubbleId;
-            thinkingBubbleEl.className = 'shimeji-thinking-bubble';
+            thinkingBubbleEl.className = 'mochi-thinking-bubble';
             for (let i = 0; i < 3; i++) {
                 const dot = document.createElement('div');
-                dot.className = 'shimeji-thinking-dot';
+                dot.className = 'mochi-thinking-dot';
                 thinkingBubbleEl.appendChild(dot);
             }
             document.body.appendChild(thinkingBubbleEl);
@@ -2268,7 +2268,7 @@
 
             alertBubbleEl = document.createElement('div');
             alertBubbleEl.id = alertBubbleId;
-            alertBubbleEl.className = 'shimeji-alert-bubble';
+            alertBubbleEl.className = 'mochi-alert-bubble';
             alertBubbleEl.textContent = '!';
             alertBubbleEl.style.cursor = 'pointer';
             alertBubbleEl.addEventListener('click', (e) => {
@@ -2283,7 +2283,7 @@
             if (micCountdownBubbleEl) return;
             micCountdownBubbleEl = document.createElement('div');
             micCountdownBubbleEl.id = micCountdownBubbleId;
-            micCountdownBubbleEl.className = 'shimeji-mic-countdown';
+            micCountdownBubbleEl.className = 'mochi-mic-countdown';
             micCountdownBubbleEl.textContent = '3s';
             document.body.appendChild(micCountdownBubbleEl);
             applyAuxBubbleTheme(micCountdownBubbleEl);
@@ -2306,17 +2306,17 @@
         function createInlineThinking() {
             if (inlineThinkingEl) return;
             inlineThinkingEl = document.createElement('div');
-            inlineThinkingEl.className = 'shimeji-inline-thinking';
+            inlineThinkingEl.className = 'mochi-inline-thinking';
             for (let i = 0; i < 3; i++) {
                 const dot = document.createElement('div');
-                dot.className = 'shimeji-thinking-dot';
+                dot.className = 'mochi-thinking-dot';
                 inlineThinkingEl.appendChild(dot);
             }
         }
 
         function onClickOutsideChat(e) {
             if (!isChatOpen) return;
-            if (e.target && e.target.closest && e.target.closest('.shimeji-chat-bubble, .shimeji-mascot')) return;
+            if (e.target && e.target.closest && e.target.closest('.mochi-chat-bubble, .mochi-mascot')) return;
             closeChatBubble();
         }
 
@@ -2326,7 +2326,7 @@
 
         function setChatBubbleFront(target) {
             if (!target) return;
-            const bubbles = document.querySelectorAll('.shimeji-chat-bubble');
+            const bubbles = document.querySelectorAll('.mochi-chat-bubble');
             bubbles.forEach((bubble) => {
                 bubble.classList.remove('chat-front');
                 bubble.style.zIndex = '100000';
@@ -2400,7 +2400,7 @@
                 } else if (needsApiKey || needsAgent) {
                     ensureNoApiKeyOnboardingMessage();
                 } else {
-                    const existing = chatMessagesEl ? chatMessagesEl.querySelector('.shimeji-no-api-key-msg') : null;
+                    const existing = chatMessagesEl ? chatMessagesEl.querySelector('.mochi-no-api-key-msg') : null;
                     if (existing) existing.remove();
                 }
 
@@ -2412,8 +2412,8 @@
                         playSoundOrQueue('error');
                     } else {
                         const msg = isSpanishLocale()
-                            ? 'Hola, soy tu shimeji. Estoy listo para hablar contigo.'
-                            : 'Hi, I am your shimeji. I am ready to chat with you.';
+                            ? 'Hola, soy tu mochi. Estoy listo para hablar contigo.'
+                            : 'Hi, I am your mochi. I am ready to chat with you.';
                         appendMessage('ai', msg);
                         conversationHistory.push({ role: 'assistant', content: msg });
                         saveConversation();
@@ -2484,7 +2484,7 @@
             if (!chatMetaEl) return;
             const mode = getMode();
             if (mode === 'agent') {
-                const fallbackName = defaultOpenClawAgentName(shimejiId);
+                const fallbackName = defaultOpenClawAgentName(mochiId);
                 const agentName = normalizeOpenClawAgentName(config.openclawAgentName, fallbackName);
                 chatMetaEl.textContent = `openclaw · ${agentName}`;
                 return;
@@ -2504,10 +2504,10 @@
                     if (!config.openrouterModelResolved) {
                         const resolved = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
                         config.openrouterModelResolved = resolved;
-                        safeStorageLocalGet(['shimejis'], (data) => {
-                            const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-                            const updated = list.map((s) => s.id === shimejiId ? { ...s, openrouterModelResolved: resolved } : s);
-                            safeStorageLocalSet({ shimejis: updated });
+                        safeStorageLocalGet(['mochis'], (data) => {
+                            const list = Array.isArray(data.mochis) ? data.mochis : [];
+                            const updated = list.map((s) => s.id === mochiId ? { ...s, openrouterModelResolved: resolved } : s);
+                            safeStorageLocalSet({ mochis: updated });
                         });
                     }
                     model = config.openrouterModelResolved || MODEL_KEYS_ENABLED[0];
@@ -2549,7 +2549,7 @@
         }
 
         function showAlert() {
-            if (mascot.isOffScreen) callBackShimeji();
+            if (mascot.isOffScreen) callBackMochi();
             if (!alertBubbleEl) createAlertBubble();
             hasUnreadMessage = true;
             pendingUnreadCount += 1;
@@ -2576,7 +2576,7 @@
             if (thinkingBubbleEl) thinkingBubbleEl.style.display = 'none';
         }
 
-        function callBackShimeji() {
+        function callBackMochi() {
             if (!mascot.isOffScreen) return;
             const scale = sizes[currentSize].scale;
             const size = SPRITE_SIZE * scale;
@@ -2597,7 +2597,7 @@
             if (thinkingBubbleEl) thinkingBubbleEl.style.display = '';
         }
 
-        function dismissShimeji() {
+        function dismissMochi() {
             if (mascot.isOffScreen) return;
             if (mascot.chatClickTimeout) {
                 clearTimeout(mascot.chatClickTimeout);
@@ -2617,17 +2617,17 @@
             mascot.animationTick = 0;
         }
 
-        function showShimejiContextMenu(clientX, clientY) {
-            var existing = document.getElementById('shimeji-context-menu');
+        function showMochiContextMenu(clientX, clientY) {
+            var existing = document.getElementById('mochi-context-menu');
             if (existing) existing.remove();
 
             var menu = document.createElement('div');
-            menu.id = 'shimeji-context-menu';
+            menu.id = 'mochi-context-menu';
             menu.style.cssText = 'position:fixed;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;left:' + clientX + 'px;top:' + clientY + 'px;';
 
             var items = mascot.isOffScreen
-                ? [{ label: 'Call Back', action: callBackShimeji }]
-                : [{ label: 'Dismiss', action: dismissShimeji }];
+                ? [{ label: 'Call Back', action: callBackMochi }]
+                : [{ label: 'Dismiss', action: dismissMochi }];
 
             items.forEach(function(entry) {
                 var item = document.createElement('div');
@@ -2767,7 +2767,7 @@
                     const end = text.indexOf('`', i + 1);
                     if (end > i + 1) {
                         const codeEl = document.createElement('code');
-                        codeEl.className = 'shimeji-chat-inline-code';
+                        codeEl.className = 'mochi-chat-inline-code';
                         codeEl.textContent = text.slice(i + 1, end);
                         target.appendChild(codeEl);
                         i = end + 1;
@@ -2811,7 +2811,7 @@
             paragraphs.forEach((paragraph) => {
                 if (!paragraph) return;
                 const paragraphEl = document.createElement('div');
-                paragraphEl.className = 'shimeji-chat-md-paragraph';
+                paragraphEl.className = 'mochi-chat-md-paragraph';
                 const lines = paragraph.split('\n');
                 lines.forEach((line, index) => {
                     appendInlineMarkdown(paragraphEl, line);
@@ -2825,7 +2825,7 @@
 
         function bindMarkdownCopyButtons(rootEl) {
             if (!rootEl) return;
-            rootEl.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
+            rootEl.querySelectorAll('.mochi-chat-code-copy').forEach((btn) => {
                 if (btn.dataset.bound === '1') return;
                 btn.dataset.bound = '1';
                 btn.addEventListener('click', async (event) => {
@@ -2858,25 +2858,25 @@
                 const rawLang = (match[1] || '').trim();
                 const codeText = (match[2] || '').replace(/\n$/, '');
                 const blockEl = document.createElement('div');
-                blockEl.className = 'shimeji-chat-code-block';
+                blockEl.className = 'mochi-chat-code-block';
 
                 const headerEl = document.createElement('div');
-                headerEl.className = 'shimeji-chat-code-header';
+                headerEl.className = 'mochi-chat-code-header';
 
                 const labelEl = document.createElement('span');
-                labelEl.className = 'shimeji-chat-code-lang';
+                labelEl.className = 'mochi-chat-code-lang';
                 labelEl.textContent = rawLang || (isSpanishLocale() ? 'codigo' : 'code');
 
                 const copyBtn = document.createElement('button');
                 copyBtn.type = 'button';
-                copyBtn.className = 'shimeji-chat-code-copy';
+                copyBtn.className = 'mochi-chat-code-copy';
                 copyBtn.textContent = isSpanishLocale() ? 'Copiar' : 'Copy';
                 markdownCopyTextMap.set(copyBtn, codeText);
 
                 const preEl = document.createElement('pre');
-                preEl.className = 'shimeji-chat-code-pre';
+                preEl.className = 'mochi-chat-code-pre';
                 const codeEl = document.createElement('code');
-                codeEl.className = 'shimeji-chat-code';
+                codeEl.className = 'mochi-chat-code';
                 codeEl.textContent = codeText;
                 preEl.appendChild(codeEl);
 
@@ -2906,7 +2906,7 @@
             conversationHistory.forEach((msg) => {
                 const isUser = msg.role === 'user';
                 const msgEl = document.createElement('div');
-                msgEl.className = `shimeji-chat-msg ${isUser ? 'user' : 'ai'}`;
+                msgEl.className = `mochi-chat-msg ${isUser ? 'user' : 'ai'}`;
                 if (!isUser) {
                     renderMarkdownIntoMessage(msgEl, msg.content);
                     lastAssistantText = msg.content;
@@ -2921,7 +2921,7 @@
         function appendMessage(role, content) {
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
-            msgEl.className = `shimeji-chat-msg ${role}`;
+            msgEl.className = `mochi-chat-msg ${role}`;
             if (role === 'ai') {
                 renderMarkdownIntoMessage(msgEl, content);
                 lastAssistantText = content;
@@ -2944,7 +2944,7 @@
         function appendMessageHtml(role, htmlContent, plainTextFallback) {
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
-            msgEl.className = `shimeji-chat-msg ${role}`;
+            msgEl.className = `mochi-chat-msg ${role}`;
             msgEl.innerHTML = htmlContent;
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -2956,7 +2956,7 @@
         function appendStreamingMessage() {
             if (!chatMessagesEl) return null;
             const msgEl = document.createElement('div');
-            msgEl.className = 'shimeji-chat-msg ai';
+            msgEl.className = 'mochi-chat-msg ai';
             renderMarkdownIntoMessage(msgEl, '');
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -2973,7 +2973,7 @@
         function appendErrorMessage(text) {
             if (!chatMessagesEl) return;
             const msgEl = document.createElement('div');
-            msgEl.className = 'shimeji-chat-msg error';
+            msgEl.className = 'mochi-chat-msg error';
             msgEl.textContent = addWarning(text);
             chatMessagesEl.appendChild(msgEl);
             chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -3141,7 +3141,7 @@
                     clearTimeout(mascot.chatClickTimeout);
                     mascot.chatClickTimeout = null;
                 }
-                dismissShimeji();
+                dismissMochi();
                 return;
             }
             mascot.lastClickAt = now;
@@ -3155,9 +3155,9 @@
         }
 
         function dispatchRelay(text) {
-            const relayEvent = new CustomEvent('shimeji-relay', {
+            const relayEvent = new CustomEvent('mochi-relay', {
                 detail: {
-                    sourceId: shimejiId,
+                    sourceId: mochiId,
                     text
                 }
             });
@@ -3305,12 +3305,12 @@
                     }
                 });
 
-                port.postMessage({ type: 'start', messages: conversationHistory, shimejiId });
+                port.postMessage({ type: 'start', messages: conversationHistory, mochiId });
                 return;
             }
 
             safeRuntimeSendMessage(
-                { type: 'aiChat', messages: conversationHistory, shimejiId },
+                { type: 'aiChat', messages: conversationHistory, mochiId },
                 (response) => {
                     hideThinking();
                     const runtimeError = safeRuntimeLastError();
@@ -3948,12 +3948,12 @@
             mascot.climbSide = 0;
         }
 
-        function startShimeji() {
+        function startMochi() {
             if (gameLoopTimer) return;
             armAudioUnlock();
 
-            safeStorageLocalGet(['shimejiLastPos'], (data) => {
-                const saved = data.shimejiLastPos && data.shimejiLastPos[shimejiId];
+            safeStorageLocalGet(['mochiLastPos'], (data) => {
+                const saved = data.mochiLastPos && data.mochiLastPos[mochiId];
             preloadSprites().then(() => {
                 if (isDisabled) return;
 
@@ -3982,7 +3982,7 @@
             });
         }
 
-        function stopShimeji() {
+        function stopMochi() {
             if (gameLoopTimer) {
                 clearInterval(gameLoopTimer);
                 gameLoopTimer = null;
@@ -4049,9 +4049,9 @@
 
             isDisabled = shouldDisable;
             if (isDisabled) {
-                stopShimeji();
+                stopMochi();
             } else {
-                startShimeji();
+                startMochi();
             }
         }
 
@@ -4073,7 +4073,7 @@
 
         function init() {
             currentSize = config.size || 'medium';
-            currentCharacter = config.character || 'shimeji';
+            currentCharacter = config.character || 'mochi';
             CHARACTER_BASE = safeRuntimeGetURL('characters/' + currentCharacter + '/') || CHARACTER_BASE;
             if (currentCharacter === 'egg') {
                 animationQuality = 'simple';
@@ -4087,10 +4087,10 @@
                 if (startDelayMs > 0) {
                     startDelayTimer = setTimeout(() => {
                         startDelayTimer = null;
-                        startShimeji();
+                        startMochi();
                     }, startDelayMs);
                 } else {
-                    startShimeji();
+                    startMochi();
                 }
             }
         }
@@ -4128,10 +4128,10 @@
         init();
 
         return {
-            id: shimejiId,
+            id: mochiId,
             destroy,
-            callBack: callBackShimeji,
-            dismiss: dismissShimeji,
+            callBack: callBackMochi,
+            dismiss: dismissMochi,
             isOffScreen() { return mascot.isOffScreen; },
             applyVisibilityState,
             applyStoredPosition(saved) {
@@ -4214,8 +4214,8 @@
                 if (syncThemeInputsFn) {
                     syncThemeInputsFn();
                 } else if (chatThemePanelEl) {
-                    const colorInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-color');
-                    const bgInput = chatThemePanelEl.querySelector('.shimeji-chat-theme-bg');
+                    const colorInput = chatThemePanelEl.querySelector('.mochi-chat-theme-color');
+                    const bgInput = chatThemePanelEl.querySelector('.mochi-chat-theme-bg');
                     if (colorInput) colorInput.value = config.chatThemeColor || '#2a1f4e';
                     if (bgInput) bgInput.value = config.chatBgColor || '#ffffff';
                 }
@@ -4238,8 +4238,8 @@
     let runtimes = [];
     let visibilityState = { disabledAll: false, disabledPages: [] };
 
-    function syncRuntimes(shimejiConfigs) {
-        const nextEnabled = shimejiConfigs.filter(c => c && c.enabled !== false);
+    function syncRuntimes(mochiConfigs) {
+        const nextEnabled = mochiConfigs.filter(c => c && c.enabled !== false);
         const nextIds = new Set(nextEnabled.map(c => c.id));
 
         if (nextEnabled.length === 0) {
@@ -4266,7 +4266,7 @@
                     existing.setPrimary(index === 0);
                 }
             } else {
-                runtimes.push(createShimejiRuntime(config, visibilityState, { isPrimary: index === 0 }));
+                runtimes.push(createMochiRuntime(config, visibilityState, { isPrimary: index === 0 }));
             }
         });
     }
@@ -4276,13 +4276,13 @@
             visibilityState.disabledAll = !!syncData[STORAGE_KEYS.disabledAll];
             visibilityState.disabledPages = syncData[STORAGE_KEYS.disabledPages] || [];
 
-            safeStorageLocalGet(['shimejiLanguage', 'uiTextScale'], (data) => {
-                uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
+            safeStorageLocalGet(['mochiLanguage', 'uiTextScale'], (data) => {
+                uiLanguage = data.mochiLanguage || detectBrowserLanguage();
                 globalUiTextScale = normalizeUiTextScale(data.uiTextScale);
-                safeStorageLocalSet({ shimejiLanguage: uiLanguage, uiTextScale: globalUiTextScale });
+                safeStorageLocalSet({ mochiLanguage: uiLanguage, uiTextScale: globalUiTextScale });
             });
 
-            loadShimejiConfigs((configs) => {
+            loadMochiConfigs((configs) => {
                 syncRuntimes(configs);
                 safeStorageLocalGet(['onboardingGreetingShown'], (data) => {
                     if (data.onboardingGreetingShown) return;
@@ -4299,8 +4299,8 @@
     }
 
     function applyPositionsFromStorage() {
-        safeStorageLocalGet(['shimejiLastPos'], (data) => {
-            const map = data.shimejiLastPos && typeof data.shimejiLastPos === 'object' ? data.shimejiLastPos : {};
+        safeStorageLocalGet(['mochiLastPos'], (data) => {
+            const map = data.mochiLastPos && typeof data.mochiLastPos === 'object' ? data.mochiLastPos : {};
             runtimes.forEach((runtime) => {
                 if (typeof runtime.applyStoredPosition === 'function') {
                     runtime.applyStoredPosition(map[runtime.id]);
@@ -4323,13 +4323,13 @@
                 });
             }
 
-                if (areaName === 'local' && changes.shimejis) {
-                    const next = Array.isArray(changes.shimejis.newValue) ? changes.shimejis.newValue : [];
-                    syncRuntimes(next.slice(0, MAX_SHIMEJIS));
+                if (areaName === 'local' && changes.mochis) {
+                    const next = Array.isArray(changes.mochis.newValue) ? changes.mochis.newValue : [];
+                    syncRuntimes(next.slice(0, MAX_MOCHIS));
                 }
 
-            if (areaName === 'local' && changes.shimejiLanguage) {
-                const nextLang = changes.shimejiLanguage.newValue;
+            if (areaName === 'local' && changes.mochiLanguage) {
+                const nextLang = changes.mochiLanguage.newValue;
                 if (nextLang === 'es' || nextLang === 'en') {
                     uiLanguage = nextLang;
                 }
@@ -4363,44 +4363,44 @@
         if (isExtensionContextValid()) {
             chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (extensionInvalidated || !isExtensionContextValid()) return false;
-            if (message.action === 'shutdownShimejis') {
+            if (message.action === 'shutdownMochis') {
                 try {
-                    if (typeof window.__shimejiCleanup === 'function') {
-                        window.__shimejiCleanup();
+                    if (typeof window.__mochiCleanup === 'function') {
+                        window.__mochiCleanup();
                     }
                 } catch (e) {}
                 sendResponse({ ok: true });
                 return true;
             }
-            if (message.action === 'refreshShimejis') {
-                loadShimejiConfigs((configs) => {
+            if (message.action === 'refreshMochis') {
+                loadMochiConfigs((configs) => {
                     syncRuntimes(configs);
                 });
                 sendResponse({ ok: true });
                 return true;
             }
-            if (message.action === 'callBackShimejis') {
+            if (message.action === 'callBackMochis') {
                 runtimes.forEach((runtime) => {
                     if (runtime.isOffScreen()) runtime.callBack();
                 });
                 sendResponse({ ok: true });
                 return true;
             }
-            if (message.action === 'callBackShimeji') {
-                const target = runtimes.find((r) => r.id === message.shimejiId);
+            if (message.action === 'callBackMochi') {
+                const target = runtimes.find((r) => r.id === message.mochiId);
                 if (target && target.isOffScreen()) target.callBack();
                 sendResponse({ ok: true });
                 return true;
             }
-            if (message.action === 'dismissShimejis') {
+            if (message.action === 'dismissMochis') {
                 runtimes.forEach((runtime) => {
                     if (!runtime.isOffScreen()) runtime.dismiss();
                 });
                 sendResponse({ ok: true });
                 return true;
             }
-            if (message.action === 'dismissShimeji') {
-                const target = runtimes.find((r) => r.id === message.shimejiId);
+            if (message.action === 'dismissMochi') {
+                const target = runtimes.find((r) => r.id === message.mochiId);
                 if (target && !target.isOffScreen()) target.dismiss();
                 sendResponse({ ok: true });
                 return true;
@@ -4416,10 +4416,10 @@
         extensionInvalidated = true;
     }
 
-    window.__shimejiCleanup = function() {
+    window.__mochiCleanup = function() {
         runtimes.forEach((runtime) => runtime.destroy());
         runtimes = [];
-        window.__shimejiInitialized = false;
+        window.__mochiInitialized = false;
     };
 
     if (document.readyState === 'complete') {

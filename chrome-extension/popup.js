@@ -11,19 +11,19 @@ document.addEventListener("DOMContentLoaded", () => {
   if (callBackBtn) {
     callBackBtn.addEventListener("click", () => {
       if (!currentTabId) return;
-      chrome.tabs.sendMessage(currentTabId, { action: "callBackShimejis" }).catch(() => {});
+      chrome.tabs.sendMessage(currentTabId, { action: "callBackMochis" }).catch(() => {});
     });
   }
   const dismissAllBtn = document.getElementById("dismiss-all-btn");
   if (dismissAllBtn) {
     dismissAllBtn.addEventListener("click", () => {
       if (!currentTabId) return;
-      chrome.tabs.sendMessage(currentTabId, { action: "dismissShimejis" }).catch(() => {});
+      chrome.tabs.sendMessage(currentTabId, { action: "dismissMochis" }).catch(() => {});
     });
   }
   const REQUIRED_ORIGINS = new Set([
-    "https://shimeji.dev",
-    "https://www.shimeji.dev",
+    "https://mochi.dev",
+    "https://www.mochi.dev",
     "https://openrouter.ai",
     "http://127.0.0.1",
     "http://localhost",
@@ -233,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.tabs.query({}, (tabs) => {
         (tabs || []).forEach((tab) => {
           if (!tab?.id) return;
-          chrome.tabs.sendMessage(tab.id, { action: "shutdownShimejis" }).catch(() => {});
+          chrome.tabs.sendMessage(tab.id, { action: "shutdownMochis" }).catch(() => {});
         });
         resolve(true);
       });
@@ -294,7 +294,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Enabling "all sites" should immediately bring shimejis to life on open tabs.
+      // Enabling "all sites" should immediately bring mochis to life on open tabs.
       await storageSyncSet({ [STORAGE_KEYS.disabledPages]: [] });
       await setDisabledAll(false);
       if (currentTabId) {
@@ -361,7 +361,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setPageControlEnabled(false);
       if (pageToggle) pageToggle.checked = false;
       applyVisibilityVisuals();
-      setStatusMessage("Open a website tab to enable Shimeji on that site.", "Abrí una pestaña web para habilitar al Shimeji.", true);
+      setStatusMessage("Open a website tab to enable Mochi on that site.", "Abrí una pestaña web para habilitar al Mochi.", true);
       return;
     }
 
@@ -471,7 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Disable: remove from this tab immediately.
     try {
-      chrome.tabs.sendMessage(currentTabId, { action: "shutdownShimejis" }).catch(() => {});
+      chrome.tabs.sendMessage(currentTabId, { action: "shutdownMochis" }).catch(() => {});
     } catch {}
 
     if (!allSitesState.active) {
@@ -507,20 +507,20 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshSiteStatus();
 
   // --- AI Chat Settings ---
-  // --- Shimeji Configurator ---
-  const MAX_SHIMEJIS = 5;
-const shimejiListEl = document.getElementById("shimeji-list");
-const shimejiEmptyEl = document.getElementById("shimeji-empty");
+  // --- Mochi Configurator ---
+  const MAX_MOCHIS = 5;
+const mochiListEl = document.getElementById("mochi-list");
+const mochiEmptyEl = document.getElementById("mochi-empty");
 const onboardingBanner = document.getElementById("onboarding-banner");
 const onboardingTitle = document.getElementById("onboarding-title");
 const onboardingBody = document.getElementById("onboarding-body");
 const onboardingCta = document.getElementById("onboarding-cta");
 const onboardingHint = document.getElementById("onboarding-hint");
 const onboardingClose = document.getElementById("onboarding-close");
-  const addShimejiBtn = document.getElementById("add-shimeji-btn");
-  const shimejiSelectorEl = document.getElementById("shimeji-selector");
-  const shimejiSectionTitle = document.getElementById("shimeji-section-title");
-  const shimejiLimitHint = document.getElementById("shimeji-limit-hint");
+  const addMochiBtn = document.getElementById("add-mochi-btn");
+  const mochiSelectorEl = document.getElementById("mochi-selector");
+  const mochiSectionTitle = document.getElementById("mochi-section-title");
+  const mochiLimitHint = document.getElementById("mochi-limit-hint");
   const popupSubtitle = document.getElementById("popup-subtitle");
   const popupStats = document.getElementById("popup-stats");
 const popupThemeLabel = document.getElementById("popup-theme-label");
@@ -538,7 +538,7 @@ const masterkeyActionBtn = document.getElementById("masterkey-action-btn");
 const masterkeySaveBtn = document.getElementById("masterkey-save-btn");
 const masterkeyChangeBtn = document.getElementById("masterkey-change-btn");
 const masterkeyStatus = document.getElementById("masterkey-status");
-const shimejiLockHint = document.getElementById("shimeji-lock-hint");
+const mochiLockHint = document.getElementById("mochi-lock-hint");
 const securityHint = document.getElementById("security-hint");
 const autolockToggle = document.getElementById("autolock-toggle");
 const autolockMinutesInput = document.getElementById("autolock-minutes");
@@ -568,7 +568,7 @@ const presenceTitle = document.getElementById("presence-title");
   ];
 
   const CHARACTER_OPTIONS = [
-    { value: "shimeji", labelEn: "Shimeji", labelEs: "Shimeji" },
+    { value: "mochi", labelEn: "Mochi", labelEs: "Mochi" },
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
@@ -593,8 +593,8 @@ const presenceTitle = document.getElementById("presence-title");
     return VOICE_PROFILE_POOL[Math.floor(Math.random() * VOICE_PROFILE_POOL.length)];
   }
 
-let shimejis = [];
-let selectedShimejiId = null;
+let mochis = [];
+let selectedMochiId = null;
 let nftCharacterIds = new Set();
 let nftCharacters = [];
 let lastOpenrouterApiKeyEnc = null;
@@ -628,17 +628,17 @@ function getPreviewSizePx(sizeKey) {
   return 68;
 }
 
-function buildShimejiPreview(shimeji) {
+function buildMochiPreview(mochi) {
   const wrapper = document.createElement("div");
-  wrapper.className = "shimeji-preview";
+  wrapper.className = "mochi-preview";
 
   const sprite = document.createElement("div");
-  sprite.className = "shimeji-preview-sprite";
-  const sizePx = getPreviewSizePx(shimeji.size);
+  sprite.className = "mochi-preview-sprite";
+  const sizePx = getPreviewSizePx(mochi.size);
   sprite.style.width = `${sizePx}px`;
   sprite.style.height = `${sizePx}px`;
 
-  const character = shimeji.character || "shimeji";
+  const character = mochi.character || "mochi";
   const base = chrome.runtime.getURL(`characters/${character}/`);
   let frameIndex = 0;
   wrapper.appendChild(sprite);
@@ -647,7 +647,7 @@ function buildShimejiPreview(shimeji) {
   let loadedCount = 0;
   let loadingTimer = null;
   const loader = document.createElement("div");
-  loader.className = "shimeji-preview-loader";
+  loader.className = "mochi-preview-loader";
 
   const showLoading = () => {
     if (!wrapper.isConnected) return;
@@ -689,12 +689,12 @@ function buildShimejiPreview(shimeji) {
   return wrapper;
 }
 
-  function ensureShimejiIds(list) {
+  function ensureMochiIds(list) {
     const used = new Set();
     return list.map((item, index) => {
       let id = item.id;
       if (!id || used.has(id)) {
-        let base = `shimeji-${index + 1}`;
+        let base = `mochi-${index + 1}`;
         id = base;
         let suffix = 1;
         while (used.has(id)) {
@@ -841,18 +841,18 @@ function detectBrowserLanguage() {
   }
 
   function initPopupThemeAndLanguage() {
-    chrome.storage.local.get(["popupTheme", "shimejiLanguage", UI_TEXT_SCALE_KEY], (data) => {
+    chrome.storage.local.get(["popupTheme", "mochiLanguage", UI_TEXT_SCALE_KEY], (data) => {
       const theme = data.popupTheme || "random";
-      uiLanguage = data.shimejiLanguage || detectBrowserLanguage();
+      uiLanguage = data.mochiLanguage || detectBrowserLanguage();
       const uiTextScale = data[UI_TEXT_SCALE_KEY] ?? 1;
-      chrome.storage.local.set({ shimejiLanguage: uiLanguage });
+      chrome.storage.local.set({ mochiLanguage: uiLanguage });
       populatePopupThemeSelect(theme);
       populateLanguageSelect(uiLanguage);
       populateUiTextScaleSelect(uiTextScale);
       applyUiTextScale(uiTextScale);
       applyTheme(theme === "random" ? getRandomTheme() : theme);
       setPopupLabels();
-      loadShimejis();
+      loadMochis();
       renderNftSection();
     });
   }
@@ -1006,7 +1006,7 @@ function detectBrowserLanguage() {
         masterKeyAutoLockTimer = null;
       }
       applyMasterKeyUiState();
-      renderShimejis();
+      renderMochis();
     }, masterKeyAutoLockMinutes * 60 * 1000);
   }
 
@@ -1033,10 +1033,10 @@ function detectBrowserLanguage() {
     if (masterkeyConfirmRow) masterkeyConfirmRow.style.display = (!masterKeyEnabled || isChangingMasterKey || isEnablingMasterKey) ? "" : "none";
     if (masterkeyActionsRow) masterkeyActionsRow.style.display = (masterKeyEnabled && masterKeyUnlocked) ? "" : "none";
     if (masterkeyActionBtn) masterkeyActionBtn.style.display = masterKeyEnabled ? "" : "none";
-    if (shimejiLockHint) {
-      shimejiLockHint.textContent = t(
-        "Unlock to edit shimeji configuration.",
-        "Desbloquea para editar la configuración de shimejis."
+    if (mochiLockHint) {
+      mochiLockHint.textContent = t(
+        "Unlock to edit mochi configuration.",
+        "Desbloquea para editar la configuración de mochis."
       );
     }
   }
@@ -1059,8 +1059,8 @@ function detectBrowserLanguage() {
     chrome.storage.local.set({ masterKeyEnabled: true, masterKeySalt });
     applyMasterKeyUiState();
     scheduleAutoLock();
-    await saveShimejis();
-    loadShimejis();
+    await saveMochis();
+    loadMochis();
     return true;
   }
 
@@ -1076,8 +1076,8 @@ function detectBrowserLanguage() {
     const enc = await encryptSecret(value, 'seed', null);
     masterKeySalt = enc.salt;
     chrome.storage.local.set({ masterKeyEnabled: true, masterKeySalt });
-    await saveShimejis();
-    loadShimejis();
+    await saveMochis();
+    loadMochis();
     isChangingMasterKey = false;
     applyMasterKeyUiState();
     setMasterKeyStatusMessage(t('Password updated', 'Contraseña actualizada'));
@@ -1090,7 +1090,7 @@ function detectBrowserLanguage() {
       return false;
     }
     // If we have encrypted data, verify the key by attempting a decrypt.
-    const testPayload = shimejis.find((s) => s.openrouterApiKeyEnc || s.openclawGatewayTokenEnc);
+    const testPayload = mochis.find((s) => s.openrouterApiKeyEnc || s.openclawGatewayTokenEnc);
     if (testPayload) {
       const payload = testPayload.openrouterApiKeyEnc || testPayload.openclawGatewayTokenEnc;
       try {
@@ -1104,7 +1104,7 @@ function detectBrowserLanguage() {
     setSessionMasterKey(value);
     applyMasterKeyUiState();
     scheduleAutoLock();
-    await loadShimejis();
+    await loadMochis();
     return true;
   }
 
@@ -1117,9 +1117,9 @@ function detectBrowserLanguage() {
   }
 
   function setPopupLabels() {
-    if (shimejiSectionTitle) shimejiSectionTitle.textContent = t("Shimejis", "Shimejis");
-    if (shimejiLimitHint) shimejiLimitHint.textContent = t("Up to 5 shimejis on screen", "Hasta 5 shimejis en pantalla");
-    if (addShimejiBtn) addShimejiBtn.textContent = "+";
+    if (mochiSectionTitle) mochiSectionTitle.textContent = t("Mochis", "Mochis");
+    if (mochiLimitHint) mochiLimitHint.textContent = t("Up to 5 mochis on screen", "Hasta 5 mochis en pantalla");
+    if (addMochiBtn) addMochiBtn.textContent = "+";
     if (linkFeedback) linkFeedback.textContent = t("Feedback", "Feedback");
     if (linkPrivacy) linkPrivacy.textContent = t("Privacy", "Privacidad");
     if (labelEnabledPage) labelEnabledPage.textContent = t("Enabled on this site", "Habilitado en este sitio");
@@ -1133,7 +1133,7 @@ if (uiTextScaleNote) uiTextScaleNote.textContent = t(
   "Ctrl/Cmd + o - para cambiar tamaño, Ctrl/Cmd + 0 para reiniciar."
 );
 if (securityTitle) securityTitle.textContent = t("Security", "Seguridad");
-if (masterkeyLabel) masterkeyLabel.textContent = t("Protect shimeji settings with password", "Proteger configuración con contraseña");
+if (masterkeyLabel) masterkeyLabel.textContent = t("Protect mochi settings with password", "Proteger configuración con contraseña");
 if (masterkeyInput) masterkeyInput.placeholder = t("Password", "Contraseña");
 if (masterkeyConfirm) masterkeyConfirm.placeholder = t("Confirm password", "Confirmar contraseña");
 if (masterkeyActionBtn) masterkeyActionBtn.textContent = t("Unlock", "Desbloquear");
@@ -1145,9 +1145,9 @@ if (securityLockText) securityLockText.textContent = t(
   "Ingresa tu contraseña en Seguridad para desbloquear."
 );
 if (autolockLabel) autolockLabel.textContent = t("Auto-lock", "Auto-bloqueo");
-if (shimejiEmptyEl) shimejiEmptyEl.textContent = t(
-  "No shimejis active. Press the + button to add one.",
-  "No hay shimejis activos. Apretá el botón + para agregar uno."
+if (mochiEmptyEl) mochiEmptyEl.textContent = t(
+  "No mochis active. Press the + button to add one.",
+  "No hay mochis activos. Apretá el botón + para agregar uno."
 );
 if (securityHint) securityHint.textContent = t(
   "Use a password to lock configuration changes. You'll be asked once per browser session.",
@@ -1248,15 +1248,15 @@ if (securityHint) securityHint.textContent = t(
 
   function defaultOpenClawAgentName(indexOrId) {
     if (typeof indexOrId === "number") {
-      return `chrome-shimeji-${indexOrId + 1}`;
+      return `chrome-mochi-${indexOrId + 1}`;
     }
     const idMatch = String(indexOrId || "").match(/(\d+)/);
     const suffix = idMatch ? idMatch[1] : "1";
-    return `chrome-shimeji-${suffix}`;
+    return `chrome-mochi-${suffix}`;
   }
 
   function normalizeOpenClawAgentName(rawValue, fallback) {
-    const fallbackName = (fallback || "chrome-shimeji-1").slice(0, OPENCLAW_AGENT_NAME_MAX);
+    const fallbackName = (fallback || "chrome-mochi-1").slice(0, OPENCLAW_AGENT_NAME_MAX);
     const normalized = String(rawValue || "")
       .trim()
       .replace(/\s+/g, "-")
@@ -1268,7 +1268,7 @@ if (securityHint) securityHint.textContent = t(
     return normalized || fallbackName;
   }
 
-  function getDefaultShimeji(index) {
+  function getDefaultMochi(index) {
     const randomChar = CHARACTER_OPTIONS[Math.floor(Math.random() * CHARACTER_OPTIONS.length)].value;
     const randomPersonality = PERSONALITY_OPTIONS[Math.floor(Math.random() * PERSONALITY_OPTIONS.length)].value;
     const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
@@ -1278,7 +1278,7 @@ if (securityHint) securityHint.textContent = t(
     const randomThemeColor = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
     const preset = CHAT_THEMES[Math.floor(Math.random() * CHAT_THEMES.length)];
     return {
-      id: `shimeji-${index + 1}`,
+      id: `mochi-${index + 1}`,
       character: randomChar,
       size: randomSize,
       characterSource: "free",
@@ -1324,35 +1324,35 @@ if (securityHint) securityHint.textContent = t(
     const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
     const pickRandomModel = () => (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
 
-    if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
-      const list = data.shimejis.map((shimeji, index) => {
-        const needsRandom = !shimeji.openrouterModel || shimeji.openrouterModel === "google/gemini-2.0-flash-001";
+    if (Array.isArray(data.mochis) && data.mochis.length > 0) {
+      const list = data.mochis.map((mochi, index) => {
+        const needsRandom = !mochi.openrouterModel || mochi.openrouterModel === "google/gemini-2.0-flash-001";
         if (needsRandom) migrated = true;
-        const fallbackAgentName = defaultOpenClawAgentName(shimeji.id || index);
+        const fallbackAgentName = defaultOpenClawAgentName(mochi.id || index);
         return {
-          ...shimeji,
-          mode: normalizeMode(shimeji.mode),
-          soundEnabled: shimeji.soundEnabled !== false,
-          soundVolume: typeof shimeji.soundVolume === "number" ? shimeji.soundVolume : 0.7,
-          standardProvider: shimeji.standardProvider || "openrouter",
-          openrouterModel: needsRandom ? "random" : shimeji.openrouterModel,
-          openrouterModelResolved: shimeji.openrouterModelResolved
-            || (shimeji.openrouterModel && shimeji.openrouterModel !== "random"
-              ? shimeji.openrouterModel
+          ...mochi,
+          mode: normalizeMode(mochi.mode),
+          soundEnabled: mochi.soundEnabled !== false,
+          soundVolume: typeof mochi.soundVolume === "number" ? mochi.soundVolume : 0.7,
+          standardProvider: mochi.standardProvider || "openrouter",
+          openrouterModel: needsRandom ? "random" : mochi.openrouterModel,
+          openrouterModelResolved: mochi.openrouterModelResolved
+            || (mochi.openrouterModel && mochi.openrouterModel !== "random"
+              ? mochi.openrouterModel
               : pickRandomModel()),
-          ollamaUrl: shimeji.ollamaUrl || "http://127.0.0.1:11434",
-          ollamaModel: shimeji.ollamaModel || "gemma3:1b",
-          openclawGatewayUrl: shimeji.openclawGatewayUrl || "ws://127.0.0.1:18789",
-          openclawGatewayToken: shimeji.openclawGatewayToken || "",
-          openclawAgentName: normalizeOpenClawAgentName(shimeji.openclawAgentName, fallbackAgentName),
-          personality: shimeji.personality || "cryptid",
-          ttsEnabled: shimeji.ttsEnabled === true,
-          ttsVoiceProfile: shimeji.ttsVoiceProfile || pickRandomVoiceProfile(),
-          ttsVoiceId: shimeji.ttsVoiceId || "",
-          openMicEnabled: !!shimeji.openMicEnabled,
-          relayEnabled: !!shimeji.relayEnabled,
-          animationQuality: shimeji.animationQuality || "full",
-          characterSource: shimeji.characterSource || "free"
+          ollamaUrl: mochi.ollamaUrl || "http://127.0.0.1:11434",
+          ollamaModel: mochi.ollamaModel || "gemma3:1b",
+          openclawGatewayUrl: mochi.openclawGatewayUrl || "ws://127.0.0.1:18789",
+          openclawGatewayToken: mochi.openclawGatewayToken || "",
+          openclawAgentName: normalizeOpenClawAgentName(mochi.openclawAgentName, fallbackAgentName),
+          personality: mochi.personality || "cryptid",
+          ttsEnabled: mochi.ttsEnabled === true,
+          ttsVoiceProfile: mochi.ttsVoiceProfile || pickRandomVoiceProfile(),
+          ttsVoiceId: mochi.ttsVoiceId || "",
+          openMicEnabled: !!mochi.openMicEnabled,
+          relayEnabled: !!mochi.relayEnabled,
+          animationQuality: mochi.animationQuality || "full",
+          characterSource: mochi.characterSource || "free"
         };
       });
       return { list, migrated };
@@ -1365,8 +1365,8 @@ if (securityHint) securityHint.textContent = t(
     return {
       migrated,
       list: [{
-        id: "shimeji-1",
-        character: "shimeji",
+        id: "mochi-1",
+        character: "mochi",
         size: "medium",
         characterSource: "free",
         mode: normalizeMode(data.chatMode),
@@ -1394,9 +1394,9 @@ if (securityHint) securityHint.textContent = t(
     };
   }
 
-    function loadShimejis() {
+    function loadMochis() {
     chrome.storage.local.get([
-      'shimejis',
+      'mochis',
       'aiModel',
       'aiApiKey',
       'aiPersonality',
@@ -1411,7 +1411,7 @@ if (securityHint) securityHint.textContent = t(
       'masterKeyAutoLockEnabled',
       'masterKeyAutoLockMinutes',
       'ttsEnabledMigrationDone',
-      'noShimejis'
+      'noMochis'
     ], async (data) => {
       masterKeyEnabled = !!data.masterKeyEnabled;
       masterKeySalt = data.masterKeySalt || null;
@@ -1426,14 +1426,14 @@ if (securityHint) securityHint.textContent = t(
       lastOpenrouterModel = data.lastOpenrouterModel || "random";
 
       const migration = migrateLegacy(data);
-      shimejis = ensureShimejiIds(migration.list);
-      if (!!data.noShimejis) {
-        shimejis = [];
-      } else if (!Array.isArray(shimejis) || shimejis.length === 0) {
-        shimejis = [getDefaultShimeji(0)];
+      mochis = ensureMochiIds(migration.list);
+      if (!!data.noMochis) {
+        mochis = [];
+      } else if (!Array.isArray(mochis) || mochis.length === 0) {
+        mochis = [getDefaultMochi(0)];
       }
       if (!data.ttsEnabledMigrationDone) {
-        shimejis = shimejis.map((s) => ({ ...s, ttsEnabled: s.ttsEnabled === true }));
+        mochis = mochis.map((s) => ({ ...s, ttsEnabled: s.ttsEnabled === true }));
       }
       let modelReRolled = false;
       if (lastOpenrouterModel && lastOpenrouterModel !== "random") {
@@ -1449,7 +1449,7 @@ if (securityHint) securityHint.textContent = t(
           }
           return pick;
         };
-        shimejis = shimejis.map((s) => {
+        mochis = mochis.map((s) => {
           if (s.openrouterModel === "random" && s.openrouterModelResolved === lastOpenrouterModel) {
             modelReRolled = true;
             return { ...s, openrouterModelResolved: pickRandomModel(lastOpenrouterModel) };
@@ -1457,30 +1457,30 @@ if (securityHint) securityHint.textContent = t(
           return s;
         });
       }
-      if ((migration.migrated || modelReRolled) && shimejis.length > 0) {
-        saveShimejis();
+      if ((migration.migrated || modelReRolled) && mochis.length > 0) {
+        saveMochis();
       }
-      if (shimejis.length > 0) {
-        const hasAnyActive = shimejis.some((s) => {
+      if (mochis.length > 0) {
+        const hasAnyActive = mochis.some((s) => {
           const mode = normalizeMode(s.mode);
           return mode === "standard" || mode === "agent";
         });
         if (!hasAnyActive) {
-          shimejis[0].mode = "standard";
+          mochis[0].mode = "standard";
         }
       }
 
       let needsEncrypt = false;
       if (masterKeyEnabled && sessionKey) {
-        for (const shimeji of shimejis) {
-          if (shimeji.openrouterApiKeyEnc) {
+        for (const mochi of mochis) {
+          if (mochi.openrouterApiKeyEnc) {
             try {
-              shimeji.openrouterApiKey = await decryptSecret(sessionKey, shimeji.openrouterApiKeyEnc);
+              mochi.openrouterApiKey = await decryptSecret(sessionKey, mochi.openrouterApiKeyEnc);
             } catch {}
           }
-          if (shimeji.openclawGatewayTokenEnc) {
+          if (mochi.openclawGatewayTokenEnc) {
             try {
-              shimeji.openclawGatewayToken = await decryptSecret(sessionKey, shimeji.openclawGatewayTokenEnc);
+              mochi.openclawGatewayToken = await decryptSecret(sessionKey, mochi.openclawGatewayTokenEnc);
             } catch {}
           }
         }
@@ -1490,19 +1490,19 @@ if (securityHint) securityHint.textContent = t(
           } catch {}
         }
       } else if (!masterKeyEnabled) {
-        for (const shimeji of shimejis) {
-          if (!shimeji.openrouterApiKey && shimeji.openrouterApiKeyEnc) {
+        for (const mochi of mochis) {
+          if (!mochi.openrouterApiKey && mochi.openrouterApiKeyEnc) {
             try {
-              shimeji.openrouterApiKey = await decryptWithDeviceKey(shimeji.openrouterApiKeyEnc);
+              mochi.openrouterApiKey = await decryptWithDeviceKey(mochi.openrouterApiKeyEnc);
             } catch {}
           }
-          if (!shimeji.openclawGatewayToken && shimeji.openclawGatewayTokenEnc) {
+          if (!mochi.openclawGatewayToken && mochi.openclawGatewayTokenEnc) {
             try {
-              shimeji.openclawGatewayToken = await decryptWithDeviceKey(shimeji.openclawGatewayTokenEnc);
+              mochi.openclawGatewayToken = await decryptWithDeviceKey(mochi.openclawGatewayTokenEnc);
             } catch {}
           }
-          if ((shimeji.openrouterApiKey && !shimeji.openrouterApiKeyEnc) ||
-              (shimeji.openclawGatewayToken && !shimeji.openclawGatewayTokenEnc)) {
+          if ((mochi.openrouterApiKey && !mochi.openrouterApiKeyEnc) ||
+              (mochi.openclawGatewayToken && !mochi.openclawGatewayTokenEnc)) {
             needsEncrypt = true;
           }
         }
@@ -1513,22 +1513,22 @@ if (securityHint) securityHint.textContent = t(
         }
       }
 
-      chrome.storage.local.set({ shimejis, ttsEnabledMigrationDone: true });
-      renderShimejis();
-      if (needsEncrypt) saveShimejis();
+      chrome.storage.local.set({ mochis, ttsEnabledMigrationDone: true });
+      renderMochis();
+      if (needsEncrypt) saveMochis();
       maybePromptMasterKey();
     });
   }
 
   async function notifyRefresh() {
     try {
-      chrome.runtime.sendMessage({ type: "refreshShimejis" });
+      chrome.runtime.sendMessage({ type: "refreshMochis" });
     } catch {}
     try {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tabId = tabs?.[0]?.id;
         if (!tabId) return;
-        chrome.tabs.sendMessage(tabId, { action: "refreshShimejis" }).catch(() => {});
+        chrome.tabs.sendMessage(tabId, { action: "refreshMochis" }).catch(() => {});
       });
     } catch {}
   }
@@ -1542,16 +1542,16 @@ if (securityHint) securityHint.textContent = t(
     });
   }
 
-  function getStoredShimejis() {
+  function getStoredMochis() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(["shimejis"], (data) => {
-        resolve(Array.isArray(data.shimejis) ? data.shimejis : []);
+      chrome.storage.local.get(["mochis"], (data) => {
+        resolve(Array.isArray(data.mochis) ? data.mochis : []);
       });
     });
   }
 
-  async function saveShimejis() {
-    const noShimejis = shimejis.length === 0;
+  async function saveMochis() {
+    const noMochis = mochis.length === 0;
     if (masterKeyEnabled) {
       const sessionKey = await getSessionMasterKey();
       if (!sessionKey) {
@@ -1559,8 +1559,8 @@ if (securityHint) securityHint.textContent = t(
         return;
       }
       const out = [];
-      for (const shimeji of shimejis) {
-        const entry = { ...shimeji };
+      for (const mochi of mochis) {
+        const entry = { ...mochi };
         if (entry.openrouterApiKey) {
           const enc = await encryptSecret(sessionKey, entry.openrouterApiKey, masterKeySalt);
           masterKeySalt = enc.salt;
@@ -1576,8 +1576,8 @@ if (securityHint) securityHint.textContent = t(
         if (entry.openclawGatewayToken) entry.openclawGatewayToken = '';
         out.push(entry);
       }
-      await setLocalAndRefresh({ shimejis: out, masterKeyEnabled: true, masterKeySalt, noShimejis });
-      shimejis = shimejis.map((s, idx) => ({
+      await setLocalAndRefresh({ mochis: out, masterKeyEnabled: true, masterKeySalt, noMochis });
+      mochis = mochis.map((s, idx) => ({
         ...s,
         openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
         openclawGatewayTokenEnc: out[idx]?.openclawGatewayTokenEnc || s.openclawGatewayTokenEnc
@@ -1585,10 +1585,10 @@ if (securityHint) securityHint.textContent = t(
       return;
     }
     // master key disabled, persist plaintext and clear encrypted fields
-    const stored = await getStoredShimejis();
+    const stored = await getStoredMochis();
     const storedById = new Map(stored.map((s) => [s.id, s]));
     const out = [];
-    for (const s of shimejis) {
+    for (const s of mochis) {
       const prev = storedById.get(s.id) || {};
       const openrouterApiKey = s.openrouterApiKey || prev.openrouterApiKey || "";
       const openclawGatewayToken = s.openclawGatewayToken || prev.openclawGatewayToken || "";
@@ -1609,32 +1609,32 @@ if (securityHint) securityHint.textContent = t(
       }
       out.push(entry);
     }
-    await setLocalAndRefresh({ shimejis: out, masterKeyEnabled: false, masterKeySalt: null, noShimejis });
-    shimejis = shimejis.map((s, idx) => ({
+    await setLocalAndRefresh({ mochis: out, masterKeyEnabled: false, masterKeySalt: null, noMochis });
+    mochis = mochis.map((s, idx) => ({
       ...s,
       openrouterApiKeyEnc: out[idx]?.openrouterApiKeyEnc || s.openrouterApiKeyEnc,
       openclawGatewayTokenEnc: out[idx]?.openclawGatewayTokenEnc || s.openclawGatewayTokenEnc
     }));
   }
 
-  function renderShimejis() {
-    if (!shimejiListEl) return;
+  function renderMochis() {
+    if (!mochiListEl) return;
     previewIntervals.forEach((id) => clearInterval(id));
     previewIntervals = [];
-    shimejiListEl.innerHTML = "";
+    mochiListEl.innerHTML = "";
 
-    if (!selectedShimejiId || !shimejis.find((s) => s.id === selectedShimejiId)) {
-      selectedShimejiId = shimejis[0]?.id || null;
+    if (!selectedMochiId || !mochis.find((s) => s.id === selectedMochiId)) {
+      selectedMochiId = mochis[0]?.id || null;
     }
-    if (shimejiEmptyEl) {
-      if (shimejis.length === 0) {
-        shimejiEmptyEl.style.display = "";
-        shimejiEmptyEl.textContent = t(
-          "No shimejis active. Press the + button to add one.",
-          "No hay shimejis activos. Apretá el botón + para agregar uno."
+    if (mochiEmptyEl) {
+      if (mochis.length === 0) {
+        mochiEmptyEl.style.display = "";
+        mochiEmptyEl.textContent = t(
+          "No mochis active. Press the + button to add one.",
+          "No hay mochis activos. Apretá el botón + para agregar uno."
         );
       } else {
-        shimejiEmptyEl.style.display = "none";
+        mochiEmptyEl.style.display = "none";
       }
     }
 
@@ -1642,48 +1642,48 @@ if (securityHint) securityHint.textContent = t(
     let countAgent = 0;
     let countOff = 0;
 
-    shimejis.forEach((shimeji, index) => {
-      const isEnabled = shimeji.enabled !== false;
-      const mode = isEnabled ? normalizeMode(shimeji.mode) : "off";
+    mochis.forEach((mochi, index) => {
+      const isEnabled = mochi.enabled !== false;
+      const mode = isEnabled ? normalizeMode(mochi.mode) : "off";
       if (mode === "standard") countStandard += 1;
       if (mode === "agent") countAgent += 1;
       if (mode === "off") countOff += 1;
 
       const card = document.createElement("div");
-      card.className = "shimeji-card";
-      card.dataset.shimejiId = shimeji.id;
+      card.className = "mochi-card";
+      card.dataset.mochiId = mochi.id;
       card.dataset.mode = mode;
-      card.dataset.enabled = shimeji.enabled !== false ? "on" : "off";
-      if (selectedShimejiId && shimeji.id !== selectedShimejiId) {
+      card.dataset.enabled = mochi.enabled !== false ? "on" : "off";
+      if (selectedMochiId && mochi.id !== selectedMochiId) {
         card.classList.add("hidden");
       }
 
       const header = document.createElement("div");
-      header.className = "shimeji-card-header";
+      header.className = "mochi-card-header";
       const titleWrap = document.createElement("div");
       const metaWrap = document.createElement("div");
-      metaWrap.className = "shimeji-card-meta";
+      metaWrap.className = "mochi-card-meta";
       const title = document.createElement("div");
-      title.className = "shimeji-card-title";
-      title.textContent = `${t("Shimeji", "Shimeji")} ${index + 1}`;
+      title.className = "mochi-card-title";
+      title.textContent = `${t("Mochi", "Mochi")} ${index + 1}`;
       const idText = document.createElement("div");
-      idText.className = "shimeji-card-id";
-      idText.textContent = shimeji.id;
+      idText.className = "mochi-card-id";
+      idText.textContent = mochi.id;
       titleWrap.appendChild(title);
       titleWrap.appendChild(idText);
       metaWrap.appendChild(titleWrap);
       const headerActions = document.createElement("div");
-      headerActions.className = "shimeji-card-actions";
+      headerActions.className = "mochi-card-actions";
       const activeToggle = document.createElement("label");
       activeToggle.className = "toggle-row mini-toggle header-active-toggle";
-      activeToggle.title = shimeji.enabled !== false
+      activeToggle.title = mochi.enabled !== false
         ? t("Active", "Activo")
         : t("Off", "Apagado");
       const activeInput = document.createElement("input");
       activeInput.type = "checkbox";
       activeInput.className = "toggle-checkbox";
       activeInput.dataset.field = "enabled";
-      activeInput.checked = shimeji.enabled !== false;
+      activeInput.checked = mochi.enabled !== false;
       const activeSlider = document.createElement("span");
       activeSlider.className = "toggle-slider";
       activeToggle.appendChild(activeInput);
@@ -1697,23 +1697,23 @@ if (securityHint) securityHint.textContent = t(
       header.appendChild(metaWrap);
       header.appendChild(headerActions);
 
-      const preview = buildShimejiPreview(shimeji);
+      const preview = buildMochiPreview(mochi);
 
       const grid = document.createElement("div");
-      grid.className = "shimeji-grid";
+      grid.className = "mochi-grid";
 
-      grid.appendChild(renderCharacterField(shimeji));
-      if (nftCharacterIds.has(shimeji.character)) {
+      grid.appendChild(renderCharacterField(mochi));
+      if (nftCharacterIds.has(mochi.character)) {
         grid.appendChild(renderSelectField("animationQuality", t("Animation", "Animación"), [
           { value: "simple", labelEn: "Simple (MVP)", labelEs: "Simple (MVP)" },
           { value: "full", labelEn: "Complete", labelEs: "Completa" }
-        ], shimeji.animationQuality || "full"));
+        ], mochi.animationQuality || "full"));
       }
-      const personalityOptions = getPersonalityOptionsForCharacter(shimeji.character);
-      grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), personalityOptions, shimeji.personality));
-      grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), shimeji.soundEnabled !== false));
-      grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), shimeji.soundVolume ?? 0.7));
-      grid.appendChild(renderToggleField("ttsEnabled", t("Read Aloud", "Leer en voz alta"), !!shimeji.ttsEnabled));
+      const personalityOptions = getPersonalityOptionsForCharacter(mochi.character);
+      grid.appendChild(renderSelectField("personality", t("Personality", "Personalidad"), personalityOptions, mochi.personality));
+      grid.appendChild(renderToggleField("soundEnabled", t("Notifications", "Notificaciones"), mochi.soundEnabled !== false));
+      grid.appendChild(renderRangeField("soundVolume", t("Volume", "Volumen"), mochi.soundVolume ?? 0.7));
+      grid.appendChild(renderToggleField("ttsEnabled", t("Read Aloud", "Leer en voz alta"), !!mochi.ttsEnabled));
       grid.appendChild(renderSelectField("ttsVoiceProfile", t("Voice", "Voz"), [
         { value: "random", labelEn: "Random", labelEs: "Aleatoria" },
         { value: "warm", labelEn: "Warm", labelEs: "Cálida" },
@@ -1721,14 +1721,14 @@ if (securityHint) securityHint.textContent = t(
         { value: "deep", labelEn: "Deep", labelEs: "Grave" },
         { value: "calm", labelEn: "Calm", labelEs: "Suave" },
         { value: "energetic", labelEn: "Energetic", labelEs: "Enérgica" }
-      ], shimeji.ttsVoiceProfile || "random"));
-      grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!shimeji.openMicEnabled));
-      grid.appendChild(renderToggleField("relayEnabled", t("Talk to other shimejis", "Hablar con otros shimejis"), !!shimeji.relayEnabled));
+      ], mochi.ttsVoiceProfile || "random"));
+      grid.appendChild(renderToggleField("openMicEnabled", t("Open Mic", "Micrófono abierto"), !!mochi.openMicEnabled));
+      grid.appendChild(renderToggleField("relayEnabled", t("Talk to other mochis", "Hablar con otros mochis"), !!mochi.relayEnabled));
       grid.appendChild(renderSelectField("size", t("Size", "Tamaño"), [
         { value: "small", labelEn: "Small", labelEs: "Pequeño" },
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "big", labelEn: "Large", labelEs: "Grande" },
-      ], shimeji.size));
+      ], mochi.size));
       const aiBrainField = renderSelectField("mode", t("AI Brain", "Cerebro AI"), [
         { value: "standard", labelEn: "Standard (API key only)", labelEs: "Standard (solo API key)" },
         { value: "agent", labelEn: "AI Agent", labelEs: "AI Agent" },
@@ -1740,12 +1740,12 @@ if (securityHint) securityHint.textContent = t(
       aiCorePanel.appendChild(aiBrainField);
 
       const standardBlock = document.createElement("div");
-      standardBlock.className = "shimeji-mode-row";
+      standardBlock.className = "mochi-mode-row";
       standardBlock.dataset.mode = "standard";
       standardBlock.appendChild(renderSelectField("standardProvider", t("Provider", "Proveedor"), [
         { value: "openrouter", labelEn: "OpenRouter", labelEs: "OpenRouter" },
         { value: "ollama", labelEn: "Ollama", labelEs: "Ollama" }
-      ], shimeji.standardProvider || "openrouter", "ai-core-field"));
+      ], mochi.standardProvider || "openrouter", "ai-core-field"));
       const providerHint = document.createElement("div");
       providerHint.className = "helper-text";
       providerHint.textContent = t(
@@ -1756,7 +1756,7 @@ if (securityHint) securityHint.textContent = t(
       const openrouterInput = renderInputField(
         "openrouterApiKey",
         t("OpenRouter API Key (optional)", "API Key OpenRouter (opcional)"),
-        shimeji.openrouterApiKey,
+        mochi.openrouterApiKey,
         "password",
         t("Paste your API key", "Pega tu API key"),
         "provider-openrouter ai-core-field"
@@ -1776,17 +1776,17 @@ if (securityHint) securityHint.textContent = t(
         "openrouterModel",
         t("Model", "Modelo"),
         MODEL_OPTIONS,
-        shimeji.openrouterModel,
+        mochi.openrouterModel,
         "provider-openrouter ai-core-field"
       ));
       const ollamaBlock = document.createElement("div");
-      ollamaBlock.className = "shimeji-mode-row";
+      ollamaBlock.className = "mochi-mode-row";
       ollamaBlock.dataset.provider = "ollama";
-      ollamaBlock.appendChild(renderInputField("ollamaUrl", t("Ollama URL", "Ollama URL"), shimeji.ollamaUrl || "http://127.0.0.1:11434", "text", "http://127.0.0.1:11434", "ai-core-field"));
+      ollamaBlock.appendChild(renderInputField("ollamaUrl", t("Ollama URL", "Ollama URL"), mochi.ollamaUrl || "http://127.0.0.1:11434", "text", "http://127.0.0.1:11434", "ai-core-field"));
       const ollamaModelField = renderInputField(
         "ollamaModel",
         t("Ollama Model", "Modelo Ollama"),
-        shimeji.ollamaModel || "gemma3:1b",
+        mochi.ollamaModel || "gemma3:1b",
         "text",
         "gemma3:1b",
         "ai-core-field"
@@ -1807,8 +1807,8 @@ if (securityHint) securityHint.textContent = t(
       const ollamaSelect = document.createElement("select");
       ollamaSelect.className = "ai-select";
       ollamaSelect.dataset.field = "ollamaModelSelect";
-      ollamaSelect.dataset.shimejiId = shimeji.id;
-      ollamaSelect.id = `select-ollamaModel-${shimeji.id}`;
+      ollamaSelect.dataset.mochiId = mochi.id;
+      ollamaSelect.id = `select-ollamaModel-${mochi.id}`;
       ollamaSelect.innerHTML = `<option value="custom">${t("Custom model", "Modelo personalizado")}</option>`;
       const ollamaRefreshBtn = document.createElement("button");
       ollamaRefreshBtn.type = "button";
@@ -1830,17 +1830,17 @@ if (securityHint) securityHint.textContent = t(
       );
       ollamaBlock.appendChild(ollamaHint);
       standardBlock.appendChild(ollamaBlock);
-      setTimeout(() => { refreshOllamaModels(shimeji.id, false); }, 0);
+      setTimeout(() => { refreshOllamaModels(mochi.id, false); }, 0);
 
       const agentBlock = document.createElement("div");
-      agentBlock.className = "shimeji-mode-row";
+      agentBlock.className = "mochi-mode-row";
       agentBlock.dataset.mode = "agent";
-      agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), shimeji.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
+      agentBlock.appendChild(renderInputField("openclawGatewayUrl", t("Gateway URL", "Gateway URL"), mochi.openclawGatewayUrl, "text", "ws://127.0.0.1:18789", "ai-core-field"));
       agentBlock.appendChild(
         renderInputField(
           "openclawAgentName",
           t("Agent Name", "Nombre del agente"),
-          shimeji.openclawAgentName || defaultOpenClawAgentName(index),
+          mochi.openclawAgentName || defaultOpenClawAgentName(index),
           "text",
           defaultOpenClawAgentName(index),
           "ai-core-field"
@@ -1863,7 +1863,7 @@ if (securityHint) securityHint.textContent = t(
       const openclawTokenInput = renderInputField(
         "openclawGatewayToken",
         t("Gateway Auth Token", "Token de auth del gateway"),
-        shimeji.openclawGatewayToken,
+        mochi.openclawGatewayToken,
         "password",
         t("Enter gateway auth token", "Ingresá el token de auth del gateway"),
         "ai-core-field"
@@ -1884,7 +1884,7 @@ if (securityHint) securityHint.textContent = t(
 
       // Chat Style collapsible section
       const chatStyleBlock = document.createElement("div");
-      chatStyleBlock.className = "shimeji-chat-style-section";
+      chatStyleBlock.className = "mochi-chat-style-section";
       chatStyleBlock.style.display = mode === "off" ? "none" : "";
 
       const chatStyleHeader = document.createElement("div");
@@ -1896,7 +1896,7 @@ if (securityHint) securityHint.textContent = t(
       });
 
       const chatStyleGrid = document.createElement("div");
-      chatStyleGrid.className = "shimeji-grid chat-style-grid";
+      chatStyleGrid.className = "mochi-grid chat-style-grid";
 
       const chatThemeOptions = [
         { value: "custom", labelEn: "Custom", labelEs: "Personalizado" },
@@ -1911,7 +1911,7 @@ if (securityHint) securityHint.textContent = t(
         "chatThemePreset",
         t("Chat Theme", "Tema de chat"),
         chatThemeOptions,
-        getChatThemePresetId(shimeji)
+        getChatThemePresetId(mochi)
       );
       chatStyleGrid.appendChild(chatThemeSelect);
 
@@ -1973,22 +1973,22 @@ if (securityHint) securityHint.textContent = t(
         themeButtons.forEach((b, key) => b.classList.toggle("active", key === presetId));
       });
 
-      const initialPreset = getChatThemePresetId(shimeji);
+      const initialPreset = getChatThemePresetId(mochi);
       themeButtons.forEach((b, key) => b.classList.toggle("active", key === initialPreset));
       chatStyleGrid.appendChild(themeRow);
 
-      chatStyleGrid.appendChild(renderColorField("chatThemeColor", t("Theme Color", "Color Tema"), shimeji.chatThemeColor || "#2a1f4e"));
-      chatStyleGrid.appendChild(renderColorField("chatBgColor", t("Background", "Fondo"), shimeji.chatBgColor || "#ffffff"));
+      chatStyleGrid.appendChild(renderColorField("chatThemeColor", t("Theme Color", "Color Tema"), mochi.chatThemeColor || "#2a1f4e"));
+      chatStyleGrid.appendChild(renderColorField("chatBgColor", t("Background", "Fondo"), mochi.chatBgColor || "#ffffff"));
       chatStyleGrid.appendChild(renderSelectField("chatFontSize", t("Font Size", "Tamaño Texto"), [
         { value: "small", labelEn: "Small", labelEs: "Pequeño" },
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "large", labelEn: "Large", labelEs: "Grande" }
-      ], shimeji.chatFontSize || "medium"));
+      ], mochi.chatFontSize || "medium"));
       chatStyleGrid.appendChild(renderSelectField("chatWidth", t("Chat Width", "Ancho Chat"), [
         { value: "small", labelEn: "Narrow", labelEs: "Angosto" },
         { value: "medium", labelEn: "Medium", labelEs: "Mediano" },
         { value: "large", labelEn: "Wide", labelEs: "Ancho" }
-      ], shimeji.chatWidth || "medium"));
+      ], mochi.chatWidth || "medium"));
 
       chatStyleBlock.appendChild(chatStyleHeader);
       chatStyleBlock.appendChild(chatStyleGrid);
@@ -1998,50 +1998,50 @@ if (securityHint) securityHint.textContent = t(
       card.appendChild(grid);
       card.appendChild(aiCorePanel);
       card.appendChild(chatStyleBlock);
-      shimejiListEl.appendChild(card);
+      mochiListEl.appendChild(card);
 
       toggleModeBlocks(card, mode);
-      toggleProviderBlocks(card, shimeji.standardProvider || "openrouter");
+      toggleProviderBlocks(card, mochi.standardProvider || "openrouter");
     });
 
 
-    if (shimejiSelectorEl) {
-      shimejiSelectorEl.innerHTML = "";
-      for (let i = 0; i < MAX_SHIMEJIS; i += 1) {
+    if (mochiSelectorEl) {
+      mochiSelectorEl.innerHTML = "";
+      for (let i = 0; i < MAX_MOCHIS; i += 1) {
         const btn = document.createElement("button");
-        btn.className = "shimeji-selector-btn";
+        btn.className = "mochi-selector-btn";
         btn.type = "button";
         btn.textContent = `${i + 1}`;
-        const shimeji = shimejis[i];
-        if (!shimeji) {
+        const mochi = mochis[i];
+        if (!mochi) {
           btn.disabled = true;
         } else {
-          btn.dataset.shimejiId = shimeji.id;
-          if (shimeji.id === selectedShimejiId) btn.classList.add("active");
+          btn.dataset.mochiId = mochi.id;
+          if (mochi.id === selectedMochiId) btn.classList.add("active");
         }
-        shimejiSelectorEl.appendChild(btn);
+        mochiSelectorEl.appendChild(btn);
       }
     }
 
-    if (addShimejiBtn) {
-      addShimejiBtn.disabled = shimejis.length >= MAX_SHIMEJIS;
+    if (addMochiBtn) {
+      addMochiBtn.disabled = mochis.length >= MAX_MOCHIS;
     }
 
     if (popupStats) {
-      const total = shimejis.length;
+      const total = mochis.length;
       const standardText = t("standard", "standard");
       const agentText = t("agent", "agente");
       const offText = t("off", "apagado");
       popupStats.textContent = `${total} total · ${countStandard} ${standardText} · ${countAgent} ${agentText} · ${countOff} ${offText}`;
     }
 
-    // Render per-shimeji dismiss/call buttons
-    const dismissCallList = document.getElementById("shimeji-dismiss-call-list");
-    if (dismissCallList && shimejis.length > 1) {
+    // Render per-mochi dismiss/call buttons
+    const dismissCallList = document.getElementById("mochi-dismiss-call-list");
+    if (dismissCallList && mochis.length > 1) {
       dismissCallList.innerHTML = "";
-      shimejis.forEach((shimeji) => {
-        if (shimeji.enabled === false) return;
-        const charName = (shimeji.character || "shimeji").replace(/^\w/, (c) => c.toUpperCase());
+      mochis.forEach((mochi) => {
+        if (mochi.enabled === false) return;
+        const charName = (mochi.character || "mochi").replace(/^\w/, (c) => c.toUpperCase());
         const row = document.createElement("div");
         row.className = "dismiss-call-row individual";
         const dismissBtn = document.createElement("button");
@@ -2049,14 +2049,14 @@ if (securityHint) securityHint.textContent = t(
         dismissBtn.textContent = t("Dismiss", "Ocultar") + " " + charName;
         dismissBtn.addEventListener("click", () => {
           if (!currentTabId) return;
-          chrome.tabs.sendMessage(currentTabId, { action: "dismissShimeji", shimejiId: shimeji.id }).catch(() => {});
+          chrome.tabs.sendMessage(currentTabId, { action: "dismissMochi", mochiId: mochi.id }).catch(() => {});
         });
         const callBtn = document.createElement("button");
         callBtn.className = "call-back-btn mini";
         callBtn.textContent = t("Call", "Llamar") + " " + charName;
         callBtn.addEventListener("click", () => {
           if (!currentTabId) return;
-          chrome.tabs.sendMessage(currentTabId, { action: "callBackShimeji", shimejiId: shimeji.id }).catch(() => {});
+          chrome.tabs.sendMessage(currentTabId, { action: "callBackMochi", mochiId: mochi.id }).catch(() => {});
         });
         row.appendChild(dismissBtn);
         row.appendChild(callBtn);
@@ -2096,12 +2096,12 @@ if (securityHint) securityHint.textContent = t(
     return wrapper;
   }
 
-  function getChatThemePresetId(shimeji) {
-    if (shimeji.chatThemePreset === "random") return "random";
-    if (shimeji.chatThemePreset === "custom") return "custom";
-    const theme = (shimeji.chatThemeColor || "").toLowerCase();
-    const bg = (shimeji.chatBgColor || "").toLowerCase();
-    const bubble = shimeji.chatBubbleStyle || "glass";
+  function getChatThemePresetId(mochi) {
+    if (mochi.chatThemePreset === "random") return "random";
+    if (mochi.chatThemePreset === "custom") return "custom";
+    const theme = (mochi.chatThemeColor || "").toLowerCase();
+    const bg = (mochi.chatBgColor || "").toLowerCase();
+    const bubble = mochi.chatBubbleStyle || "glass";
     const match = CHAT_THEME_PRESETS.find((preset) =>
       preset.theme.toLowerCase() === theme
       && preset.bg.toLowerCase() === bg
@@ -2110,7 +2110,7 @@ if (securityHint) securityHint.textContent = t(
     return match ? match.id : "custom";
   }
 
-  function renderCharacterField(shimeji) {
+  function renderCharacterField(mochi) {
     const wrapper = document.createElement("div");
     wrapper.className = "ai-field character-field full-width";
 
@@ -2121,8 +2121,8 @@ if (securityHint) securityHint.textContent = t(
     const toggleRow = document.createElement("div");
     toggleRow.className = "character-source-toggle";
 
-    const isNft = nftCharacterIds.has(shimeji.character);
-    const source = shimeji.characterSource || (isNft ? "nft" : "free");
+    const isNft = nftCharacterIds.has(mochi.character);
+    const source = mochi.characterSource || (isNft ? "nft" : "free");
 
     const freeBtn = document.createElement("button");
     freeBtn.type = "button";
@@ -2143,7 +2143,7 @@ if (securityHint) securityHint.textContent = t(
     toggleRow.appendChild(freeBtn);
     toggleRow.appendChild(nftBtn);
 
-    const freeSelect = renderSelectField("character", "", CHARACTER_OPTIONS, source === "free" && !isNft ? shimeji.character : CHARACTER_OPTIONS[0]?.value);
+    const freeSelect = renderSelectField("character", "", CHARACTER_OPTIONS, source === "free" && !isNft ? mochi.character : CHARACTER_OPTIONS[0]?.value);
     const freeSelectEl = freeSelect.querySelector("select");
     if (freeSelectEl) freeSelectEl.dataset.source = "free";
     freeSelect.classList.add("character-select");
@@ -2161,7 +2161,7 @@ if (securityHint) securityHint.textContent = t(
     if (nftOptions.length === 0) {
       nftOptions.push({ value: "", labelEn: t("No NFT characters", "Sin personajes NFT"), labelEs: t("No NFT characters", "Sin personajes NFT"), disabled: true });
     }
-    const nftSelect = renderSelectField("character", "", nftOptions, source === "nft" && isNft ? shimeji.character : nftOptions[0]?.value || "");
+    const nftSelect = renderSelectField("character", "", nftOptions, source === "nft" && isNft ? mochi.character : nftOptions[0]?.value || "");
     const nftSelectEl = nftSelect.querySelector("select");
     if (nftSelectEl) nftSelectEl.dataset.source = "nft";
     nftSelect.classList.add("character-select");
@@ -2171,11 +2171,11 @@ if (securityHint) securityHint.textContent = t(
     toggleRowWrap.className = "character-toggle-row";
     toggleRowWrap.appendChild(toggleRow);
     const ctaInline = document.createElement("a");
-    ctaInline.href = "https://www.shimeji.dev/auction";
+    ctaInline.href = "https://www.mochi.dev/auction";
     ctaInline.target = "_blank";
     ctaInline.rel = "noopener noreferrer";
-    ctaInline.className = "shimeji-nft-cta inline";
-    ctaInline.textContent = t("Get a Shimeji NFT", "Conseguí un Shimeji NFT");
+    ctaInline.className = "mochi-nft-cta inline";
+    ctaInline.textContent = t("Get a Mochi NFT", "Conseguí un Mochi NFT");
     toggleRowWrap.appendChild(ctaInline);
 
     wrapper.appendChild(label);
@@ -2293,7 +2293,7 @@ if (securityHint) securityHint.textContent = t(
   function toggleModeBlocks(card, mode) {
     const standardBlock = card.querySelector('[data-mode="standard"]');
     const agentBlock = card.querySelector('[data-mode="agent"]');
-    const chatStyleBlock = card.querySelector(".shimeji-chat-style-section");
+    const chatStyleBlock = card.querySelector(".mochi-chat-style-section");
     if (standardBlock) standardBlock.style.display = mode === "standard" ? "" : "none";
     if (agentBlock) agentBlock.style.display = mode === "agent" ? "" : "none";
     if (chatStyleBlock) chatStyleBlock.style.display = mode === "off" ? "none" : "";
@@ -2312,8 +2312,8 @@ if (securityHint) securityHint.textContent = t(
     });
   }
 
-  function updateShimeji(id, field, value) {
-    const target = shimejis.find((s) => s.id === id);
+  function updateMochi(id, field, value) {
+    const target = mochis.find((s) => s.id === id);
     if (!target) return;
     if (field === "mode") {
       target[field] = normalizeMode(value);
@@ -2345,7 +2345,7 @@ if (securityHint) securityHint.textContent = t(
     } else {
       target[field] = value;
     }
-  saveShimejis();
+  saveMochis();
 }
 
 // Polyfill for AbortSignal.timeout if not available
@@ -2400,18 +2400,18 @@ function setOllamaSelectOptions(select, modelNames, currentModel) {
 }
 
 // Refresh Ollama models from server and update dropdown
-async function refreshOllamaModels(shimejiId, showFeedback = true) {
-  const shimeji = shimejis.find((s) => s.id === shimejiId);
-  if (!shimeji) return;
+async function refreshOllamaModels(mochiId, showFeedback = true) {
+  const mochi = mochis.find((s) => s.id === mochiId);
+  if (!mochi) return;
 
-  const select = document.getElementById(`select-ollamaModel-${shimejiId}`);
-  const card = document.querySelector(`[data-shimeji-id="${shimejiId}"]`);
+  const select = document.getElementById(`select-ollamaModel-${mochiId}`);
+  const card = document.querySelector(`[data-mochi-id="${mochiId}"]`);
   const customInput = card?.querySelector('input[data-field="ollamaModel"]');
   const refreshBtn = card?.querySelector('button[data-action="refresh-ollama-models"]');
   if (!select || !customInput || !card) return;
 
-  const currentModel = (shimeji.ollamaModel || "").trim() || "gemma3:1b";
-  const normalizedUrl = normalizeOllamaUrl(shimeji.ollamaUrl || "http://127.0.0.1:11434");
+  const currentModel = (mochi.ollamaModel || "").trim() || "gemma3:1b";
+  const normalizedUrl = normalizeOllamaUrl(mochi.ollamaUrl || "http://127.0.0.1:11434");
 
   if (refreshBtn) refreshBtn.disabled = true;
   select.disabled = true;
@@ -2438,7 +2438,7 @@ async function refreshOllamaModels(shimejiId, showFeedback = true) {
     setOllamaSelectOptions(select, modelNames, currentModel);
     if (select.value !== "custom") {
       customInput.value = select.value;
-      updateShimeji(shimejiId, "ollamaModel", select.value);
+      updateMochi(mochiId, "ollamaModel", select.value);
     }
 
     if (showFeedback) {
@@ -2481,11 +2481,11 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
   function showOnboardingBanner() {
     if (!onboardingBanner || !onboardingActive) return;
     onboardingBanner.classList.add("show");
-    if (onboardingTitle) onboardingTitle.textContent = t("Welcome to Shimeji AI Pets", "Bienvenido a Shimeji AI Pets");
+    if (onboardingTitle) onboardingTitle.textContent = t("Welcome to Mochi", "Bienvenido a Mochi");
     if (onboardingBody) {
       onboardingBody.innerHTML = isSpanishLocale()
-        ? "Configura el <strong>Cerebro AI</strong> del primer shimeji: Proveedor, API key y Modelo."
-        : "Configure the first shimeji <strong>AI Brain</strong>: Provider, API key, and Model.";
+        ? "Configura el <strong>Cerebro AI</strong> del primer mochi: Proveedor, API key y Modelo."
+        : "Configure the first mochi <strong>AI Brain</strong>: Provider, API key, and Model.";
     }
     if (onboardingCta) onboardingCta.textContent = t("Configure AI Brain", "Configurar Cerebro AI");
     if (onboardingHint) onboardingHint.textContent = t(
@@ -2503,7 +2503,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
     }
     if (onboardingCta) {
       onboardingCta.addEventListener("click", () => {
-        const firstCard = shimejiListEl?.querySelector(".shimeji-card");
+        const firstCard = mochiListEl?.querySelector(".mochi-card");
         if (!firstCard) return;
         firstCard.scrollIntoView({ behavior: "smooth", block: "start" });
         const aiCore = firstCard.querySelector(".ai-core-panel");
@@ -2515,58 +2515,58 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
     }
   }
 
-  if (addShimejiBtn) {
-    addShimejiBtn.addEventListener("click", async () => {
-      if (shimejis.length === 0) {
-        chrome.storage.local.set({ noShimejis: false });
+  if (addMochiBtn) {
+    addMochiBtn.addEventListener("click", async () => {
+      if (mochis.length === 0) {
+        chrome.storage.local.set({ noMochis: false });
       }
-      if (shimejis.length >= MAX_SHIMEJIS) return;
-      const newShimeji = getDefaultShimeji(shimejis.length);
-      // Copy API key and provider settings from an existing shimeji
-      const donor = shimejis.find((s) => (s.openrouterApiKey || "").trim());
+      if (mochis.length >= MAX_MOCHIS) return;
+      const newMochi = getDefaultMochi(mochis.length);
+      // Copy API key and provider settings from an existing mochi
+      const donor = mochis.find((s) => (s.openrouterApiKey || "").trim());
       if (donor) {
-        newShimeji.openrouterApiKey = donor.openrouterApiKey;
-        newShimeji.standardProvider = donor.standardProvider || "openrouter";
-        if (donor.openrouterApiKeyEnc) newShimeji.openrouterApiKeyEnc = donor.openrouterApiKeyEnc;
+        newMochi.openrouterApiKey = donor.openrouterApiKey;
+        newMochi.standardProvider = donor.standardProvider || "openrouter";
+        if (donor.openrouterApiKeyEnc) newMochi.openrouterApiKeyEnc = donor.openrouterApiKeyEnc;
       } else if (lastOpenrouterApiKeyEnc) {
-        newShimeji.standardProvider = lastStandardProvider || "openrouter";
-        newShimeji.openrouterApiKeyEnc = lastOpenrouterApiKeyEnc;
+        newMochi.standardProvider = lastStandardProvider || "openrouter";
+        newMochi.openrouterApiKeyEnc = lastOpenrouterApiKeyEnc;
         if (lastOpenrouterApiKeyPlain) {
-          newShimeji.openrouterApiKey = lastOpenrouterApiKeyPlain;
+          newMochi.openrouterApiKey = lastOpenrouterApiKeyPlain;
         } else if (masterKeyEnabled && masterKeyUnlocked) {
           try {
             const sessionKey = await getSessionMasterKey();
             if (sessionKey) {
-              newShimeji.openrouterApiKey = await decryptSecret(sessionKey, lastOpenrouterApiKeyEnc);
+              newMochi.openrouterApiKey = await decryptSecret(sessionKey, lastOpenrouterApiKeyEnc);
             }
           } catch {}
         } else if (!masterKeyEnabled) {
           try {
-            newShimeji.openrouterApiKey = await decryptWithDeviceKey(lastOpenrouterApiKeyEnc);
+            newMochi.openrouterApiKey = await decryptWithDeviceKey(lastOpenrouterApiKeyEnc);
           } catch {}
         }
       }
-      // Always default to random selection for new shimejis
-      newShimeji.openrouterModel = "random";
+      // Always default to random selection for new mochis
+      newMochi.openrouterModel = "random";
       const enabledModels = MODEL_OPTIONS.filter((opt) => !opt.disabled && opt.value !== "random");
-      newShimeji.openrouterModelResolved = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
-      shimejis.push(newShimeji);
-      shimejis = ensureShimejiIds(shimejis);
-      selectedShimejiId = shimejis[shimejis.length - 1]?.id || null;
-      await saveShimejis();
-      renderShimejis();
+      newMochi.openrouterModelResolved = (enabledModels[Math.floor(Math.random() * enabledModels.length)] || MODEL_OPTIONS[1]).value;
+      mochis.push(newMochi);
+      mochis = ensureMochiIds(mochis);
+      selectedMochiId = mochis[mochis.length - 1]?.id || null;
+      await saveMochis();
+      renderMochis();
     });
   }
 
-  if (shimejiListEl) {
-    shimejiListEl.addEventListener("click", async (e) => {
+  if (mochiListEl) {
+    mochiListEl.addEventListener("click", async (e) => {
       const action = e.target?.dataset?.action;
-      const card = e.target.closest(".shimeji-card");
+      const card = e.target.closest(".mochi-card");
       if (!card) return;
-      const id = card.dataset.shimejiId;
+      const id = card.dataset.mochiId;
       if (action === "remove") {
-        if (shimejis.length === 1) {
-          const last = shimejis[0];
+        if (mochis.length === 1) {
+          const last = mochis[0];
           const provider = last.standardProvider || "openrouter";
           const model = last.openrouterModel || MODEL_OPTIONS[0].value;
           let keyEnc = last.openrouterApiKeyEnc || null;
@@ -2596,35 +2596,35 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
             lastOpenrouterModel: model,
             masterKeySalt
           });
-          shimejis = [];
-          selectedShimejiId = null;
-          chrome.storage.local.set({ noShimejis: true });
-          saveShimejis();
-          renderShimejis();
+          mochis = [];
+          selectedMochiId = null;
+          chrome.storage.local.set({ noMochis: true });
+          saveMochis();
+          renderMochis();
           return;
         }
-        const removeIndex = shimejis.findIndex((s) => s.id === id);
-        shimejis = shimejis.filter((s) => s.id !== id);
-        if (selectedShimejiId === id) {
-          const next = shimejis[removeIndex] || shimejis[removeIndex - 1] || shimejis[0];
-          selectedShimejiId = next ? next.id : null;
+        const removeIndex = mochis.findIndex((s) => s.id === id);
+        mochis = mochis.filter((s) => s.id !== id);
+        if (selectedMochiId === id) {
+          const next = mochis[removeIndex] || mochis[removeIndex - 1] || mochis[0];
+          selectedMochiId = next ? next.id : null;
         }
-        saveShimejis();
-        renderShimejis();
+        saveMochis();
+        renderMochis();
       } else if (action === "character-source") {
         const source = e.target?.dataset?.source;
-        const shimeji = shimejis.find((s) => s.id === id);
-        if (!shimeji) return;
+        const mochi = mochis.find((s) => s.id === id);
+        if (!mochi) return;
         if (source === "free") {
-          updateShimeji(id, "characterSource", "free");
+          updateMochi(id, "characterSource", "free");
           const nextFree = CHARACTER_OPTIONS[0]?.value;
-          if (nextFree) updateShimeji(id, "character", nextFree);
+          if (nextFree) updateMochi(id, "character", nextFree);
         } else if (source === "nft") {
-          updateShimeji(id, "characterSource", "nft");
+          updateMochi(id, "characterSource", "nft");
           const nextNft = nftCharacters[0]?.id;
-          if (nextNft) updateShimeji(id, "character", nextNft);
+          if (nextNft) updateMochi(id, "character", nextNft);
         }
-        renderShimejis();
+        renderMochis();
       } else if (action === "refresh-ollama-models") {
         refreshOllamaModels(id, true);
       } else if (action === "toggle") {
@@ -2639,25 +2639,25 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
       }
     });
 
-    shimejiListEl.addEventListener("change", (e) => {
-      const card = e.target.closest(".shimeji-card");
+    mochiListEl.addEventListener("change", (e) => {
+      const card = e.target.closest(".mochi-card");
       if (!card) return;
-      const id = card.dataset.shimejiId;
+      const id = card.dataset.mochiId;
       const field = e.target.dataset.field;
       if (!field) return;
       if (field === "chatThemePreset") {
         const presetId = e.target.value;
         if (presetId === "custom") {
-          updateShimeji(id, "chatThemePreset", "custom");
+          updateMochi(id, "chatThemePreset", "custom");
           return;
         }
         if (presetId === "random") {
           const preset = CHAT_THEME_PRESETS[Math.floor(Math.random() * CHAT_THEME_PRESETS.length)];
           if (!preset) return;
-          updateShimeji(id, "chatThemePreset", "random");
-          updateShimeji(id, "chatThemeColor", preset.theme);
-          updateShimeji(id, "chatBgColor", preset.bg);
-          updateShimeji(id, "chatBubbleStyle", preset.bubble);
+          updateMochi(id, "chatThemePreset", "random");
+          updateMochi(id, "chatThemeColor", preset.theme);
+          updateMochi(id, "chatBgColor", preset.bg);
+          updateMochi(id, "chatBubbleStyle", preset.bubble);
           const themeInput = card.querySelector('input[data-field="chatThemeColor"]');
           const bgInput = card.querySelector('input[data-field="chatBgColor"]');
           if (themeInput) themeInput.value = preset.theme;
@@ -2666,10 +2666,10 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         }
         const preset = CHAT_THEME_PRESETS.find((item) => item.id === presetId);
         if (!preset) return;
-        updateShimeji(id, "chatThemePreset", presetId);
-        updateShimeji(id, "chatThemeColor", preset.theme);
-        updateShimeji(id, "chatBgColor", preset.bg);
-        updateShimeji(id, "chatBubbleStyle", preset.bubble);
+        updateMochi(id, "chatThemePreset", presetId);
+        updateMochi(id, "chatThemeColor", preset.theme);
+        updateMochi(id, "chatBgColor", preset.bg);
+        updateMochi(id, "chatBubbleStyle", preset.bubble);
         const themeInput = card.querySelector('input[data-field="chatThemeColor"]');
         const bgInput = card.querySelector('input[data-field="chatBgColor"]');
         if (themeInput) themeInput.value = preset.theme;
@@ -2683,12 +2683,12 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
           if (modelInput) modelInput.focus();
         } else {
           if (modelInput) modelInput.value = nextModel;
-          updateShimeji(id, "ollamaModel", nextModel);
+          updateMochi(id, "ollamaModel", nextModel);
         }
         return;
       }
       if (e.target.type === "checkbox") {
-        updateShimeji(id, field, e.target.checked);
+        updateMochi(id, field, e.target.checked);
         if (field === "enabled") {
           card.dataset.enabled = e.target.checked ? "on" : "off";
         }
@@ -2698,9 +2698,9 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         if (field === "openclawAgentName") {
           const normalized = normalizeOpenClawAgentName(e.target.value, defaultOpenClawAgentName(id));
           e.target.value = normalized;
-          updateShimeji(id, field, normalized);
+          updateMochi(id, field, normalized);
         } else {
-          updateShimeji(id, field, e.target.value);
+          updateMochi(id, field, e.target.value);
         }
       }
       if (field === "mode") {
@@ -2712,7 +2712,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         }
       }
       if (field === "character") {
-        renderShimejis();
+        renderMochis();
       }
       if (field === "standardProvider") {
         toggleProviderBlocks(card, e.target.value);
@@ -2723,26 +2723,26 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
       if (field === "chatThemeColor" || field === "chatBgColor") {
         const presetSelect = card.querySelector('select[data-field="chatThemePreset"]');
         if (presetSelect) presetSelect.value = "custom";
-        updateShimeji(id, "chatThemePreset", "custom");
+        updateMochi(id, "chatThemePreset", "custom");
       }
     });
 
-      shimejiListEl.addEventListener("input", (e) => {
-      const card = e.target.closest(".shimeji-card");
+      mochiListEl.addEventListener("input", (e) => {
+      const card = e.target.closest(".mochi-card");
       if (!card) return;
-      const id = card.dataset.shimejiId;
+      const id = card.dataset.mochiId;
       const field = e.target.dataset.field;
       if (!field) return;
       if (field === "soundVolume") {
         const v = Number(e.target.value) / 100;
-        updateShimeji(id, field, v);
+        updateMochi(id, field, v);
       } else {
         if (field === "openclawAgentName") {
           const normalized = normalizeOpenClawAgentName(e.target.value, defaultOpenClawAgentName(id));
           e.target.value = normalized;
-          updateShimeji(id, field, normalized);
+          updateMochi(id, field, normalized);
         } else {
-          updateShimeji(id, field, e.target.value);
+          updateMochi(id, field, e.target.value);
         }
         if (field === "ollamaModel") {
           const select = card.querySelector('select[data-field="ollamaModelSelect"]');
@@ -2754,14 +2754,14 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
     });
   }
 
-  if (shimejiSelectorEl) {
-    shimejiSelectorEl.addEventListener("click", (e) => {
-      const btn = e.target.closest(".shimeji-selector-btn");
+  if (mochiSelectorEl) {
+    mochiSelectorEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".mochi-selector-btn");
       if (!btn || btn.disabled) return;
-      const id = btn.dataset.shimejiId;
-      if (!id || id === selectedShimejiId) return;
-      selectedShimejiId = id;
-      renderShimejis();
+      const id = btn.dataset.mochiId;
+      if (!id || id === selectedMochiId) return;
+      selectedMochiId = id;
+      renderMochis();
     });
   }
 
@@ -2781,14 +2781,14 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         isChangingMasterKey = false;
         isEnablingMasterKey = false;
         isChangingMasterKey = false;
-        await saveShimejis();
+        await saveMochis();
         clearSessionMasterKey();
         if (masterKeyAutoLockTimer) {
           clearTimeout(masterKeyAutoLockTimer);
           masterKeyAutoLockTimer = null;
         }
         applyMasterKeyUiState();
-        renderShimejis();
+        renderMochis();
         return;
       }
       if (!masterKeyEnabled) {
@@ -2816,7 +2816,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
           masterKeyAutoLockTimer = null;
         }
         applyMasterKeyUiState();
-        renderShimejis();
+        renderMochis();
         return;
       }
       const value = (masterkeyInput?.value || '').trim();
@@ -2889,7 +2889,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
   const linkNftCollection = document.getElementById("link-nft-collection");
 
   function renderNftSection() {
-    if (nftSectionTitle) nftSectionTitle.textContent = t("NFT Shimejis", "Shimejis NFT");
+    if (nftSectionTitle) nftSectionTitle.textContent = t("NFT Mochis", "Mochis NFT");
     if (linkNftCollection) linkNftCollection.textContent = t("Manage Collection", "Gestionar Colección");
     if (!nftListEl) return;
 
@@ -2913,7 +2913,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
           "Aún no hay personajes NFT. Visita la página de colección para conectar tu wallet."
         );
         nftListEl.appendChild(empty);
-        renderShimejis();
+        renderMochis();
         return;
       }
 
@@ -2955,7 +2955,7 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         card.appendChild(id);
         nftListEl.appendChild(card);
       });
-      renderShimejis();
+      renderMochis();
     });
   }
 
@@ -2973,12 +2973,12 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
     popupLanguageSelect.addEventListener("change", () => {
       const value = popupLanguageSelect.value || "en";
       uiLanguage = value;
-      chrome.storage.local.set({ shimejiLanguage: value });
+      chrome.storage.local.set({ mochiLanguage: value });
       populatePopupThemeSelect(popupThemeSelect?.value || "random");
       populateLanguageSelect(value);
       setPopupLabels();
       renderNftSection();
-      renderShimejis();
+      renderMochis();
     });
   }
 

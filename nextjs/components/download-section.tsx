@@ -5,15 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 const WIN_RELEASE_URL =
-  "https://github.com/mochi-ai/Mochi/releases/latest/download/mochi-desktop-windows-portable.zip";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-windows-portable.exe";
 const LINUX_RELEASE_URL =
-  "https://github.com/mochi-ai/Mochi/releases/latest/download/mochi-desktop-linux.AppImage";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-linux.AppImage";
 const MAC_RELEASE_URL =
-  "https://github.com/mochi-ai/Mochi/releases/latest/download/mochi-desktop-macos.zip";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-macos.zip";
 const CHROME_RELEASE_URL =
-  "https://github.com/mochi-ai/Mochi/releases/latest/download/mochi-chrome-extension.zip";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-chrome-extension.zip";
 const FIREFOX_RELEASE_URL =
-  "https://github.com/mochi-ai/Mochi/releases/latest/download/mochi-firefox-extension.zip";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-firefox-extension.zip";
 
 export function DownloadSection() {
   const { isSpanish } = useLanguage();
