@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -10,6 +11,8 @@ import {ShimejiNFT} from "./ShimejiNFT.sol";
 import {ShimejiEditions} from "./ShimejiEditions.sol";
 
 contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
+    using SafeERC20 for IERC20;
+
     enum Currency {
         Avax,
         Usdc
@@ -45,20 +48,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         bool active;
     }
 
-    struct SwapListing {
-        address creator;
-        uint256 offeredTokenId;
-        string intention;
-        bool active;
-    }
-
-    struct SwapBid {
-        uint256 listingId;
-        address bidder;
-        uint256 bidderTokenId;
-        bool active;
-    }
-
     struct CommissionOrder {
         address buyer;
         address seller;
@@ -85,7 +74,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         uint64 resolvedAt;
     }
 
-    uint64 public constant MAX_SWAP_INTENTION_LEN = 280;
     uint64 public constant MAX_COMMISSION_INTENTION_LEN = 500;
     uint64 public constant MAX_REFERENCE_IMAGE_URL_LEN = 512;
     uint64 public constant MAX_COMMISSION_TURNAROUND_DAYS = 365;
@@ -99,14 +87,10 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
 
     uint256 public nextListingId;
     uint256 public nextEditionListingId;
-    uint256 public nextSwapListingId;
-    uint256 public nextSwapBidId;
     uint256 public nextCommissionOrderId;
 
     mapping(uint256 => ListingInfo) public listings;
     mapping(uint256 => EditionListingInfo) public editionListings;
-    mapping(uint256 => SwapListing) public swapListings;
-    mapping(uint256 => SwapBid) public swapBids;
     mapping(uint256 => CommissionOrder) public commissionOrders;
     mapping(address => uint256) public sellerActiveCommissionEggListing;
     mapping(address => uint256) public sellerOpenCommissionOrder;
@@ -115,8 +99,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
     event ListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 indexed tokenId, Currency currency, bool commissionEgg);
     event EditionListingCreated(uint256 indexed listingId, address indexed seller, uint256 indexed editionId, uint256 amount, Currency currency);
     event EditionListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 indexed editionId, Currency currency, uint256 remainingAmount);
-    event SwapListingCreated(uint256 indexed listingId, address indexed creator, uint256 indexed tokenId);
-    event SwapBidPlaced(uint256 indexed bidId, uint256 indexed listingId, address indexed bidder, uint256 bidderTokenId);
     event CommissionOrderCreated(uint256 indexed orderId, uint256 indexed listingId, address indexed buyer, uint256 tokenId);
 
     constructor(address initialOwner, address nftAddress, address editionsAddress, address usdcAddress) Ownable(initialOwner) {
@@ -168,7 +150,7 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         require(listing.active, "listing inactive");
         require(!listing.isCommissionEgg, "use commission buy");
         require(listing.currency == Currency.Usdc, "currency mismatch");
-        usdc.transferFrom(msg.sender, address(this), listing.price);
+        usdc.safeTransferFrom(msg.sender, address(this), listing.price);
         _buy(listingId, Currency.Usdc, listing.price, "", "");
     }
 
@@ -181,7 +163,7 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         require(listing.active, "listing inactive");
         require(listing.isCommissionEgg, "listing not commission");
         require(listing.currency == Currency.Usdc, "currency mismatch");
-        usdc.transferFrom(msg.sender, address(this), listing.price);
+        usdc.safeTransferFrom(msg.sender, address(this), listing.price);
         _buy(listingId, Currency.Usdc, listing.price, intention, referenceImageUrl);
     }
 
@@ -193,7 +175,7 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         EditionListingInfo memory listing = editionListings[listingId];
         require(listing.active, "listing inactive");
         require(listing.currency == Currency.Usdc, "currency mismatch");
-        usdc.transferFrom(msg.sender, address(this), listing.price);
+        usdc.safeTransferFrom(msg.sender, address(this), listing.price);
         _buyEdition(listingId, Currency.Usdc, listing.price);
     }
 
@@ -217,66 +199,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         listing.active = false;
         listing.remainingAmount = 0;
         IERC1155(address(editions)).safeTransferFrom(address(this), msg.sender, listing.editionId, remainingAmount, "");
-    }
-
-    function createSwapListing(uint256 offeredTokenId, string calldata intention) external returns (uint256 listingId) {
-        require(bytes(intention).length > 0 && bytes(intention).length <= MAX_SWAP_INTENTION_LEN, "invalid intention");
-        require(nft.ownerOf(offeredTokenId) == msg.sender, "not owner");
-        nft.transferFrom(msg.sender, address(this), offeredTokenId);
-
-        listingId = nextSwapListingId++;
-        swapListings[listingId] = SwapListing({
-            creator: msg.sender,
-            offeredTokenId: offeredTokenId,
-            intention: intention,
-            active: true
-        });
-        emit SwapListingCreated(listingId, msg.sender, offeredTokenId);
-    }
-
-    function placeSwapBid(uint256 listingId, uint256 bidderTokenId) external returns (uint256 bidId) {
-        SwapListing memory listing = swapListings[listingId];
-        require(listing.active, "swap inactive");
-        require(nft.ownerOf(bidderTokenId) == msg.sender, "not owner");
-        nft.transferFrom(msg.sender, address(this), bidderTokenId);
-
-        bidId = nextSwapBidId++;
-        swapBids[bidId] = SwapBid({
-            listingId: listingId,
-            bidder: msg.sender,
-            bidderTokenId: bidderTokenId,
-            active: true
-        });
-        emit SwapBidPlaced(bidId, listingId, msg.sender, bidderTokenId);
-    }
-
-    function acceptSwapBid(uint256 listingId, uint256 bidId) external nonReentrant {
-        SwapListing storage listing = swapListings[listingId];
-        SwapBid storage bid = swapBids[bidId];
-        require(listing.active, "swap inactive");
-        require(listing.creator == msg.sender, "not creator");
-        require(bid.active && bid.listingId == listingId, "bid inactive");
-
-        listing.active = false;
-        bid.active = false;
-        nft.transferFrom(address(this), bid.bidder, listing.offeredTokenId);
-        nft.transferFrom(address(this), listing.creator, bid.bidderTokenId);
-    }
-
-    function cancelSwapListing(uint256 listingId) external nonReentrant {
-        SwapListing storage listing = swapListings[listingId];
-        require(listing.active, "swap inactive");
-        require(listing.creator == msg.sender, "not creator");
-        listing.active = false;
-        nft.transferFrom(address(this), msg.sender, listing.offeredTokenId);
-    }
-
-    function cancelSwapBid(uint256 bidId) external nonReentrant {
-        SwapBid storage bid = swapBids[bidId];
-        require(bid.active, "bid inactive");
-        require(bid.bidder == msg.sender, "not bidder");
-        bid.active = false;
-        nft.transferFrom(address(this), msg.sender, bid.bidderTokenId);
     }
 
     function markCommissionDelivered(uint256 orderId) external {
@@ -340,14 +262,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
         return nextEditionListingId;
     }
 
-    function totalSwapListings() external view returns (uint256) {
-        return nextSwapListingId;
-    }
-
-    function totalSwapBids() external view returns (uint256) {
-        return nextSwapBidId;
-    }
-
     function totalCommissionOrders() external view returns (uint256) {
         return nextCommissionOrderId;
     }
@@ -358,14 +272,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
 
     function getEditionListing(uint256 listingId) external view returns (EditionListingInfo memory) {
         return editionListings[listingId];
-    }
-
-    function getSwapListing(uint256 listingId) external view returns (SwapListing memory) {
-        return swapListings[listingId];
-    }
-
-    function getSwapBid(uint256 bidId) external view returns (SwapBid memory) {
-        return swapBids[bidId];
     }
 
     function getCommissionOrder(uint256 orderId) external view returns (CommissionOrder memory) {
@@ -489,7 +395,7 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
             (bool ok,) = payable(to).call{value: amount}("");
             require(ok, "avax payout failed");
         } else {
-            usdc.transfer(to, amount);
+            usdc.safeTransfer(to, amount);
         }
     }
 

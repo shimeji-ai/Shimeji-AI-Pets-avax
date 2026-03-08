@@ -7,8 +7,9 @@ import { MarketplaceNftOwnerActions } from "@/components/marketplace-nft-owner-a
 import { fetchAuctions, fetchRecentBidsForAuction } from "@/lib/auction";
 import { getArtistProfilesByWallets } from "@/lib/artist-profiles-store";
 import type { ArtistProfile } from "@/lib/marketplace-hub-types";
-import { fetchListings, fetchSwapListings } from "@/lib/marketplace";
+import { fetchListings } from "@/lib/marketplace";
 import { fetchNftCreatorById, fetchNftTokenById } from "@/lib/nft-read";
+import { fetchSwapListings } from "@/lib/swap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

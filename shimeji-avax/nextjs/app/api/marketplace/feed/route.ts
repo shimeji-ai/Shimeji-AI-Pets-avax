@@ -6,8 +6,9 @@ import {
   type MarketplaceFeedItem,
   type MarketplaceFeedResponse,
 } from "@/lib/marketplace-hub-types";
-import { fetchEditionListings, fetchListings, fetchSwapListings } from "@/lib/marketplace";
+import { fetchEditionListings, fetchListings } from "@/lib/marketplace";
 import { fetchEditionTokenById, fetchNftTokensByIds } from "@/lib/nft-read";
+import { fetchSwapListings } from "@/lib/swap";
 
 export const runtime = "nodejs";
 
@@ -109,11 +110,11 @@ export async function GET(request: NextRequest) {
       warnings.push("Failed to enrich edition listings with metadata.");
       return [];
     });
-    const editionById = new Map(
-      editionRecords
-        .filter((record): record is NonNullable<typeof record> => Boolean(record))
-        .map((record) => [record.editionId, record]),
-    );
+    const editionById = new Map<number, NonNullable<(typeof editionRecords)[number]>>();
+    for (const record of editionRecords) {
+      if (!record) continue;
+      editionById.set(record.editionId, record);
+    }
 
     const sellerProfiles: Record<string, ArtistProfile> = await getArtistProfilesByWallets(
       [

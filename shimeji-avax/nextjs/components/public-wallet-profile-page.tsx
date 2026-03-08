@@ -10,8 +10,9 @@ import {
 import { PublicProfileHeaderEditor } from "@/components/public-profile-header-editor";
 import { fetchAuctions } from "@/lib/auction";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
-import { fetchListings, fetchSwapBids, fetchSwapListings } from "@/lib/marketplace";
+import { fetchListings } from "@/lib/marketplace";
 import { fetchOwnedNftsByWallet } from "@/lib/nft-read";
+import { fetchSwapBids, fetchSwapListings } from "@/lib/swap";
 
 type PublicWalletProfilePageProps = {
   wallet: string;

@@ -13,9 +13,9 @@ import {
   buildBuyCommissionAvaxTx,
   buildBuyUsdcTx,
   buildBuyAvaxTx,
-  buildPlaceSwapBidTx,
 } from "@/lib/marketplace";
 import { buildBidUsdcTx, buildBidAvaxTx } from "@/lib/auction";
+import { buildPlaceSwapBidTx } from "@/lib/swap";
 import type { MarketplaceMyStudioResponse, MyStudioNftItem } from "@/lib/marketplace-hub-types";
 
 const AVAX_DECIMALS = 18;

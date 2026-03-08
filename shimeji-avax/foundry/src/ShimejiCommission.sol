@@ -3,9 +3,12 @@ pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract ShimejiCommission is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     enum CommissionStatus {
         Open,
         Accepted,
@@ -60,7 +63,7 @@ contract ShimejiCommission is Ownable, ReentrancyGuard {
             require(msg.value == priceAvax, "incorrect avax");
         } else {
             require(msg.value == 0, "unexpected avax");
-            usdc.transferFrom(msg.sender, address(this), priceUsdc);
+            usdc.safeTransferFrom(msg.sender, address(this), priceUsdc);
         }
 
         commissionId = nextCommissionId++;
@@ -103,7 +106,7 @@ contract ShimejiCommission is Ownable, ReentrancyGuard {
             (bool ok,) = payable(request.artist).call{value: request.priceAvax}("");
             require(ok, "avax payout failed");
         } else {
-            usdc.transfer(request.artist, request.priceUsdc);
+            usdc.safeTransfer(request.artist, request.priceUsdc);
         }
     }
 
@@ -116,7 +119,7 @@ contract ShimejiCommission is Ownable, ReentrancyGuard {
             (bool ok,) = payable(request.buyer).call{value: request.priceAvax}("");
             require(ok, "avax refund failed");
         } else {
-            usdc.transfer(request.buyer, request.priceUsdc);
+            usdc.safeTransfer(request.buyer, request.priceUsdc);
         }
     }
 

@@ -11,10 +11,9 @@ import type {
 import {
   fetchCommissionOrders,
   fetchListings,
-  fetchSwapBids,
-  fetchSwapListings,
 } from "@/lib/marketplace";
 import { fetchNftTokensByIds, fetchOwnedNftsByWallet } from "@/lib/nft-read";
+import { fetchSwapBids, fetchSwapListings } from "@/lib/swap";
 
 export const runtime = "nodejs";
 

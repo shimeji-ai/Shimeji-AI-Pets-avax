@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { fetchAuctions } from "@/lib/auction";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
-import { fetchListings, fetchSwapBids, fetchSwapListings } from "@/lib/marketplace";
+import { fetchListings } from "@/lib/marketplace";
 import { fetchOwnedNftsByWallet } from "@/lib/nft-read";
+import { fetchSwapBids, fetchSwapListings } from "@/lib/swap";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

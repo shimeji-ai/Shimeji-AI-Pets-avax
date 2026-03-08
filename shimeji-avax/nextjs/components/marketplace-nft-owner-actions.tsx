@@ -8,8 +8,8 @@ import { useWalletSession } from "@/components/wallet-provider";
 import { useLanguage } from "@/components/language-provider";
 import { submitContractWrite } from "@/components/marketplace-hub-shared";
 import { buildCreateItemAuctionTx } from "@/lib/auction";
+import { buildCreateSwapListingTx } from "@/lib/swap";
 import {
-  buildCreateSwapListingTx,
   buildListCommissionEggTx,
   buildListForSaleTx,
 } from "@/lib/marketplace";

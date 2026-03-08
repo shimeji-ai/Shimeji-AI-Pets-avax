@@ -8,6 +8,7 @@ import {ShimejiNFT} from "../src/ShimejiNFT.sol";
 import {ShimejiEditions} from "../src/ShimejiEditions.sol";
 import {ShimejiAuction} from "../src/ShimejiAuction.sol";
 import {ShimejiMarketplace} from "../src/ShimejiMarketplace.sol";
+import {ShimejiSwap} from "../src/ShimejiSwap.sol";
 import {ShimejiCommission} from "../src/ShimejiCommission.sol";
 
 contract ShimejiSuiteTest is Test {
@@ -23,6 +24,7 @@ contract ShimejiSuiteTest is Test {
     ShimejiEditions internal editions;
     ShimejiAuction internal auction;
     ShimejiMarketplace internal marketplace;
+    ShimejiSwap internal swap;
     ShimejiCommission internal commission;
 
     function setUp() public {
@@ -39,6 +41,7 @@ contract ShimejiSuiteTest is Test {
         editions = new ShimejiEditions(owner);
         auction = new ShimejiAuction(owner, address(nft), address(usdc), address(oracle));
         marketplace = new ShimejiMarketplace(owner, address(nft), address(editions), address(usdc));
+        swap = new ShimejiSwap(owner, address(nft));
         commission = new ShimejiCommission(owner, address(usdc));
         usdc.mint(buyer, 1_000_000 * 1e6);
         usdc.mint(bidder, 1_000_000 * 1e6);
@@ -166,6 +169,31 @@ contract ShimejiSuiteTest is Test {
 
         assertEq(nft.ownerOf(tokenId), bidder);
         assertEq(seller.balance, sellerBalanceBefore + 1.1 ether);
+    }
+
+    function testSwapListingBidAcceptLifecycle() public {
+        vm.startPrank(seller);
+        uint256 offeredTokenId = nft.createFinishedNft("ipfs://mushroom");
+        nft.setApprovalForAll(address(swap), true);
+        uint256 listingId = swap.createSwapListing(offeredTokenId, "Swap for a different rare shimeji");
+        vm.stopPrank();
+
+        vm.startPrank(bidder);
+        uint256 bidderTokenId = nft.createFinishedNft("ipfs://fox");
+        nft.setApprovalForAll(address(swap), true);
+        uint256 bidId = swap.placeSwapBid(listingId, bidderTokenId);
+        vm.stopPrank();
+
+        vm.prank(seller);
+        swap.acceptSwapBid(listingId, bidId);
+
+        assertEq(nft.ownerOf(offeredTokenId), bidder);
+        assertEq(nft.ownerOf(bidderTokenId), seller);
+
+        ShimejiSwap.SwapListing memory listing = swap.getSwapListing(listingId);
+        ShimejiSwap.SwapBid memory bid = swap.getSwapBid(bidId);
+        assertFalse(listing.active);
+        assertFalse(bid.active);
     }
 
     function testStandaloneCommissionUsdcLifecycle() public {

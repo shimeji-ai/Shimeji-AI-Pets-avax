@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ShimejiNFT} from "./ShimejiNFT.sol";
 
@@ -11,6 +12,8 @@ interface IPriceOracleLike {
 }
 
 contract ShimejiAuction is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     enum Currency {
         Avax,
         Usdc
@@ -109,7 +112,7 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
 
     function bidUsdc(uint256 auctionId, uint256 amount) external nonReentrant {
         require(amount > 0, "amount=0");
-        usdc.transferFrom(msg.sender, address(this), amount);
+        usdc.safeTransferFrom(msg.sender, address(this), amount);
         _placeBid(auctionId, msg.sender, amount, Currency.Usdc);
     }
 
@@ -172,7 +175,7 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
             (bool ok,) = payable(bid.bidder).call{value: bid.amount}("");
             require(ok, "refund failed");
         } else {
-            usdc.transfer(bid.bidder, bid.amount);
+            usdc.safeTransfer(bid.bidder, bid.amount);
         }
     }
 
@@ -181,7 +184,7 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
             (bool ok,) = payable(seller).call{value: bid.amount}("");
             require(ok, "avax payout failed");
         } else {
-            usdc.transfer(seller, bid.amount);
+            usdc.safeTransfer(seller, bid.amount);
         }
     }
 
