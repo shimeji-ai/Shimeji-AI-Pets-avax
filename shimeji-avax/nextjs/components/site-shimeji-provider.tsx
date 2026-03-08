@@ -357,6 +357,8 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     openclawPairedSessionToken: sanitizeString(raw.openclawPairedSessionToken, "", 1200),
     openclawPairedSessionExpiresAt: sanitizeIsoDateString(raw.openclawPairedSessionExpiresAt),
     openclawPairedAgentName: sanitizeString(raw.openclawPairedAgentName, "", 64),
+    bitteApiKey: sanitizeString(raw.bitteApiKey, "", 600),
+    bitteAgentId: sanitizeString(raw.bitteAgentId, "", 300),
     soundInputProvider,
     soundInputAutoSend: sanitizeBoolean(raw.soundInputAutoSend, DEFAULT_CONFIG.soundInputAutoSend),
     soundOutputProvider,
