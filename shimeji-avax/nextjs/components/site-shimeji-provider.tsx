@@ -16,6 +16,7 @@ import {
   SITE_SHIMEJI_CHAT_DEFAULT_HEIGHT_PX,
   SITE_SHIMEJI_CHAT_THEMES,
 } from "@/lib/site-shimeji-chat-ui";
+import { useWalletSession } from "@/components/wallet-provider";
 
 export type SiteShimejiProviderKind = "site" | "openrouter" | "ollama" | "openclaw" | "bitte";
 export type SiteShimejiOpenClawMode = "paired";
@@ -26,6 +27,7 @@ export type SiteShimejiCharacterOption = {
   key: string;
   label: string;
   iconUrl: string;
+  spritesBaseUri?: string | null;
 };
 
 export type SiteShimejiPersonalityOption = {
@@ -312,6 +314,7 @@ function sanitizeConfig(input: unknown): SiteShimejiConfig {
     raw.provider === "openrouter" ||
     raw.provider === "ollama" ||
     raw.provider === "openclaw" ||
+    raw.provider === "bitte" ||
     raw.provider === "site"
       ? raw.provider
       : DEFAULT_CONFIG.provider;
@@ -409,6 +412,7 @@ function canUseProvider(config: SiteShimejiConfig, freeSiteMessagesRemaining: nu
 }
 
 export function SiteShimejiProvider({ children }: { children: ReactNode }) {
+  const { publicKey } = useWalletSession();
   const [config, setConfig] = useState<SiteShimejiConfig>(DEFAULT_CONFIG);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [catalog, setCatalog] = useState<SiteShimejiCatalog | null>(null);
@@ -473,7 +477,8 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
     setCatalogLoading(true);
     setCatalogError(null);
     try {
-      const response = await fetch("/api/site-shimeji/catalog", { cache: "no-store" });
+      const query = publicKey ? `?wallet=${encodeURIComponent(publicKey)}` : "";
+      const response = await fetch(`/api/site-shimeji/catalog${query}`, { cache: "no-store" });
       const json = (await response.json()) as Partial<SiteShimejiCatalog> & { error?: string };
       if (!response.ok || !json || !Array.isArray(json.characters) || !Array.isArray(json.personalities)) {
         throw new Error(json?.error || "Failed to load site shimeji catalog.");
@@ -511,7 +516,7 @@ export function SiteShimejiProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     reloadCatalog().catch(() => undefined);
-  }, []);
+  }, [publicKey]);
 
   const freeSiteMessagesRemaining = useMemo(() => {
     const limit = catalog?.freeSiteMessageLimit ?? DEFAULT_FREE_SITE_MESSAGE_LIMIT;
