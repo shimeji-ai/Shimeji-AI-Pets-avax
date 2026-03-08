@@ -83,8 +83,8 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
   const activeFrame = frames[frameIndex] || frames[0];
 
   return (
-    <div className="rounded-[1.5rem] border border-cyan-300/20 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),transparent_58%),linear-gradient(180deg,rgba(4,10,20,0.9),rgba(12,18,32,0.82))] p-5">
-      <div className="relative flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/12 bg-[#07111f] p-5">
+    <div className="neural-card rounded-[1.5rem] border border-cyan-300/15 p-5">
+      <div className="relative flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-5">
         <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1">
           <Play className="h-2.5 w-2.5 fill-cyan-300 text-cyan-300" />
           <span className="text-[10px] font-medium text-cyan-200/80">preview</span>
@@ -174,7 +174,7 @@ export function AnimationGuideView() {
               t("If a sprite is missing, nothing is uploaded — keep editing locally.", "Si falta un sprite, no se sube nada y seguís corrigiendo en local."),
               t("Once the set is complete, you can mint and then list or auction.", "Cuando el set está completo, podés mintear y después publicar o subastar."),
             ].map((step, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-[#0a1322] p-4 text-sm text-foreground/80">
+              <div key={i} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-foreground/80">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-400/10 text-[10px] font-semibold text-cyan-200">
                   {i + 1}
                 </span>
@@ -226,7 +226,7 @@ export function AnimationGuideView() {
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {section.frames.map((frame, index) => (
-                <div key={`${section.key}-${frame}-${index}`} className="group rounded-2xl border border-white/10 bg-[#0a1322] p-3 transition-colors hover:border-white/20">
+                <div key={`${section.key}-${frame}-${index}`} className="group rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-colors hover:border-white/20">
                   <div className="flex aspect-square items-center justify-center rounded-xl border border-white/10 bg-white/5 p-3">
                     <img
                       src={animationReferenceSpriteUrl(frame)}

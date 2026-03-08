@@ -5,6 +5,7 @@ import { useLanguage } from "./language-provider";
 import Link from "next/link";
 import DownloadButton from "./download-button";
 import { useState } from "react";
+import { ArrowRight, PlayCircle, Wand2 } from "lucide-react";
 import { ANIMATION_GUIDE_PATH, CHARACTER_CREATOR_PATH } from "@/lib/shimeji-sprite-spec";
 
 const providers = [
@@ -211,25 +212,28 @@ export function HelpSection() {
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
+                <PlayCircle className="mb-4 h-8 w-8 text-cyan-300/70" />
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   {isSpanish ? "Animaciones y preview" : "Animations and preview"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground sm:text-base">
                   {isSpanish
-                    ? "Mira la guia de animacion y probá como se ve un personaje antes de mintearlo."
+                    ? "Mirá la guía de animación y probá cómo se ve un personaje antes de mintearlo."
                     : "Open the animation guide and preview how a character looks before minting it."}
                 </p>
                 <div className="mt-6">
                   <Link
                     href={ANIMATION_GUIDE_PATH}
-                    className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
+                    className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-cyan-400/50 hover:bg-cyan-400/25 hover:shadow-[0_0_16px_rgba(103,232,249,0.15)]"
                   >
+                    <ArrowRight className="h-4 w-4" />
                     {isSpanish ? "Guía de animaciones" : "Animation guide"}
                   </Link>
                 </div>
               </div>
 
               <div className="neural-card rounded-3xl border border-emerald-300/15 p-8 sm:p-10">
+                <Wand2 className="mb-4 h-8 w-8 text-emerald-300/70" />
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   {isSpanish ? "Creación de NFT" : "NFT creation"}
                 </h2>
@@ -241,8 +245,9 @@ export function HelpSection() {
                 <div className="mt-6">
                   <Link
                     href={CHARACTER_CREATOR_PATH}
-                    className="inline-flex rounded-full border border-emerald-300/20 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-emerald-400/25"
+                    className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-emerald-400/50 hover:bg-emerald-400/25 hover:shadow-[0_0_16px_rgba(52,211,153,0.15)]"
                   >
+                    <ArrowRight className="h-4 w-4" />
                     {isSpanish ? "Creador de personajes" : "Character creator"}
                   </Link>
                 </div>
