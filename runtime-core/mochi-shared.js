@@ -1,4 +1,4 @@
-// shimeji-shared.js — Shared runtime for Shimeji AI Pets
+// mochi-shared.js — Shared runtime for Mochi
 // Canonical source lives in runtime-core/; sync to all targets via: npm run sync-runtime-core
 //
 // IMPORTANT: No console.log calls — this file runs inside browser extension content scripts.
@@ -10,11 +10,11 @@
     // ─── Core constants ───────────────────────────────────────────────────────
     var SPRITE_SIZE  = 128;
     var TICK_MS      = 40;
-    var MAX_SHIMEJIS = 5;
+    var MAX_MOCHIS = 5;
 
     // ─── CallBack-line positioning ────────────────────────────────────────────
-    // Determines where each shimeji lands when recalled from off-screen.
-    // State is page-scoped (shared across all shimejis on the same page).
+    // Determines where each mochi lands when recalled from off-screen.
+    // State is page-scoped (shared across all mochis on the same page).
     var CALL_BACK_LINE_SPACING    = 150;
     var CALL_BACK_LINE_MARGIN     = 22;
     var CALL_BACK_RESET_DELAY     = 1200;
@@ -36,8 +36,8 @@
     function computeCallBackX(edge, size) {
         var safeEdge   = edge === -1 ? -1 : 1;
         var sideKey    = safeEdge === -1 ? 'left' : 'right';
-        var slot       = Math.min(_callBackLineCount[sideKey], MAX_SHIMEJIS - 1);
-        _callBackLineCount[sideKey] = Math.min(_callBackLineCount[sideKey] + 1, MAX_SHIMEJIS);
+        var slot       = Math.min(_callBackLineCount[sideKey], MAX_MOCHIS - 1);
+        _callBackLineCount[sideKey] = Math.min(_callBackLineCount[sideKey] + 1, MAX_MOCHIS);
         scheduleCallBackLineReset();
         var spacing     = Math.max(CALL_BACK_LINE_SPACING, size * 1.1);
         var screenWidth = Math.max(window.innerWidth, size + CALL_BACK_LINE_MARGIN * 2);
@@ -86,11 +86,11 @@
 
     var TTS_PROFILE_POOL = Object.keys(TTS_VOICE_PROFILES).filter(function (k) { return k !== 'random'; });
 
-    var SHIMEJI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
+    var MOCHI_PITCH_FACTORS = [0.85, 0.93, 1.0, 1.08, 1.18];
 
-    function getShimejiPitchFactor(shimejiId) {
-        var idx = parseInt((String(shimejiId).match(/(\d+)/) || [null, '1'])[1], 10) - 1;
-        return SHIMEJI_PITCH_FACTORS[idx % SHIMEJI_PITCH_FACTORS.length];
+    function getMochiPitchFactor(mochiId) {
+        var idx = parseInt((String(mochiId).match(/(\d+)/) || [null, '1'])[1], 10) - 1;
+        return MOCHI_PITCH_FACTORS[idx % MOCHI_PITCH_FACTORS.length];
     }
 
     function pickRandomTtsProfile() {
@@ -184,7 +184,7 @@
     }
 
     // ─── Config defaults (browser / extension runtime) ────────────────────────
-    var CHARACTER_KEYS   = ['shimeji', 'bunny', 'kitten', 'ghost', 'blob', 'lobster', 'mushroom', 'penguin'];
+    var CHARACTER_KEYS   = ['mochi', 'bunny', 'kitten', 'ghost', 'blob', 'lobster', 'mushroom', 'penguin'];
     var PERSONALITY_KEYS = ['cryptid', 'cozy', 'chaotic', 'philosopher', 'hype', 'noir', 'egg'];
     var MODEL_KEYS = [
         'google/gemini-2.0-flash-001', 'moonshotai/kimi-k2.5', 'anthropic/claude-sonnet-4',
@@ -326,14 +326,14 @@
     var OPENCLAW_AGENT_NAME_MAX = 32;
 
     function defaultOpenClawAgentName(indexOrId) {
-        if (typeof indexOrId === 'number') return 'chrome-shimeji-' + (indexOrId + 1);
+        if (typeof indexOrId === 'number') return 'chrome-mochi-' + (indexOrId + 1);
         var match  = String(indexOrId || '').match(/(\d+)/);
         var suffix = match ? match[1] : '1';
-        return 'chrome-shimeji-' + suffix;
+        return 'chrome-mochi-' + suffix;
     }
 
     function normalizeOpenClawAgentName(rawValue, fallback) {
-        var fallbackName = String(fallback || 'chrome-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+        var fallbackName = String(fallback || 'chrome-mochi-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
         var normalized   = String(rawValue || '')
             .trim()
             .replace(/\s+/g, '-')
@@ -390,8 +390,8 @@
             : 'I am locked. Open the extension and unlock the password to chat.';
     }
 
-    // ─── Default shimeji config factory ──────────────────────────────────────
-    function getDefaultShimeji(index) {
+    // ─── Default mochi config factory ──────────────────────────────────────
+    function getDefaultMochi(index) {
         var randomChar         = CHARACTER_KEYS[Math.floor(Math.random() * CHARACTER_KEYS.length)];
         var randomPersonality  = PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
         var randomModel        = MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
@@ -400,7 +400,7 @@
         var randomThemeColor   = THEME_COLOR_POOL[Math.floor(Math.random() * THEME_COLOR_POOL.length)];
         var preset             = pickRandomChatTheme();
         return {
-            id:                      'shimeji-' + (index + 1),
+            id:                      'mochi-' + (index + 1),
             character:               randomChar,
             size:                    randomSize,
             mode:                    'standard',
@@ -432,7 +432,7 @@
     }
 
     // ─── Audio synthesis (pure — callers supply their AudioContext) ───────────
-    var SHIMEJI_NOTE_FREQ = [523.25, 659.25, 783.99, 880.00, 1046.50]; // C5 E5 G5 A5 C6
+    var MOCHI_NOTE_FREQ = [523.25, 659.25, 783.99, 880.00, 1046.50]; // C5 E5 G5 A5 C6
 
     // Returns a Float32Array of PCM samples for a flute-like note.
     function synthesizeFluteNote(sampleRate, freq, duration) {
@@ -458,14 +458,14 @@
         return data;
     }
 
-    // Builds success + error AudioBuffers for a shimeji slot.
+    // Builds success + error AudioBuffers for a mochi slot.
     // getAudioContextFn must return an AudioContext (or null).
-    function synthesizeShimejiSounds(shimejiId, getAudioContextFn) {
+    function synthesizeMochiSounds(mochiId, getAudioContextFn) {
         var ctx = getAudioContextFn();
         if (!ctx) return { success: null, error: null };
         var sr      = ctx.sampleRate;
-        var idx     = parseInt((String(shimejiId).match(/(\d+)/) || [null, '1'])[1], 10) - 1;
-        var baseFreq = SHIMEJI_NOTE_FREQ[idx % SHIMEJI_NOTE_FREQ.length];
+        var idx     = parseInt((String(mochiId).match(/(\d+)/) || [null, '1'])[1], 10) - 1;
+        var baseFreq = MOCHI_NOTE_FREQ[idx % MOCHI_NOTE_FREQ.length];
 
         var successSamples = synthesizeFluteNote(sr, baseFreq, 0.38);
         var successBuf     = ctx.createBuffer(1, successSamples.length, sr);
@@ -483,11 +483,11 @@
     }
 
     // ─── Export ───────────────────────────────────────────────────────────────
-    global.ShimejiShared = {
+    global.MochiShared = {
         // Core
         SPRITE_SIZE:  SPRITE_SIZE,
         TICK_MS:      TICK_MS,
-        MAX_SHIMEJIS: MAX_SHIMEJIS,
+        MAX_MOCHIS: MAX_MOCHIS,
 
         // CallBack-line positioning
         CALL_BACK_LINE_SPACING:  CALL_BACK_LINE_SPACING,
@@ -503,8 +503,8 @@
         TTS_VOICE_PROFILES:     TTS_VOICE_PROFILES,
         TTS_PROFILE_MODIFIERS:  TTS_PROFILE_MODIFIERS,
         TTS_PROFILE_POOL:       TTS_PROFILE_POOL,
-        SHIMEJI_PITCH_FACTORS:  SHIMEJI_PITCH_FACTORS,
-        getShimejiPitchFactor:  getShimejiPitchFactor,
+        MOCHI_PITCH_FACTORS:  MOCHI_PITCH_FACTORS,
+        getMochiPitchFactor:  getMochiPitchFactor,
         pickRandomTtsProfile:   pickRandomTtsProfile,
         getVoicesAsync:         getVoicesAsync,
         pickVoiceByProfile:     pickVoiceByProfile,
@@ -549,12 +549,12 @@
         getLockedMessage:     getLockedMessage,
 
         // Config factory
-        getDefaultShimeji: getDefaultShimeji,
+        getDefaultMochi: getDefaultMochi,
 
         // Audio synthesis
-        SHIMEJI_NOTE_FREQ:       SHIMEJI_NOTE_FREQ,
+        MOCHI_NOTE_FREQ:       MOCHI_NOTE_FREQ,
         synthesizeFluteNote:     synthesizeFluteNote,
-        synthesizeShimejiSounds: synthesizeShimejiSounds
+        synthesizeMochiSounds: synthesizeMochiSounds
     };
 
 })(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
