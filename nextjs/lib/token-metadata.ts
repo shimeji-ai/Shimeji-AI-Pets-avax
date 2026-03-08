@@ -7,6 +7,40 @@ export type TokenMetadataPreview = {
   metadataUrl: string | null;
 };
 
+const IPFS_GATEWAYS = [
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://ipfs.io/ipfs/",
+];
+
+function getIpfsPath(raw: string | null | undefined): string | null {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (value.startsWith("ipfs://")) {
+    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
+    return path || null;
+  }
+  return null;
+}
+
+function buildGatewayUrls(raw: string): string[] {
+  const ipfsPath = getIpfsPath(raw);
+  if (!ipfsPath) {
+    return [raw];
+  }
+  return IPFS_GATEWAYS.map((gateway) => `${gateway}${ipfsPath}`);
+}
+
+export function buildMediaProxyUrl(raw: string | null | undefined): string | null {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  const ipfsPath = getIpfsPath(value);
+  if (!ipfsPath) {
+    return resolveMediaUrl(value);
+  }
+  return `/api/ipfs?uri=${encodeURIComponent(`ipfs://${ipfsPath}`)}`;
+}
+
 export function resolveMediaUrl(raw: string | null | undefined): string | null {
   const value = String(raw || "").trim();
   if (!value) return null;
@@ -49,12 +83,21 @@ export async function fetchTokenMetadataPreview(tokenUri: string): Promise<Token
   }
 
   try {
-    const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
-    if (!response.ok) {
-      return { name: null, description: null, imageUrl: null, metadataUrl: resolvedTokenUri };
+    let data: Record<string, unknown> | null = null;
+    for (const candidateUrl of buildGatewayUrls(resolvedTokenUri)) {
+      const response = await fetch(candidateUrl, { cache: "force-cache" });
+      if (!response.ok) continue;
+      data = (await response.json()) as Record<string, unknown>;
+      break;
     }
-
-    const data = (await response.json()) as Record<string, unknown>;
+    if (!data) {
+      return {
+        name: null,
+        description: null,
+        imageUrl: null,
+        metadataUrl: buildMediaProxyUrl(resolvedTokenUri),
+      };
+    }
     const imageRaw =
       typeof data.image === "string"
         ? data.image
@@ -65,11 +108,10 @@ export async function fetchTokenMetadataPreview(tokenUri: string): Promise<Token
     return {
       name: typeof data.name === "string" ? data.name : null,
       description: typeof data.description === "string" ? data.description : null,
-      imageUrl: resolveMediaUrl(imageRaw),
-      metadataUrl: resolvedTokenUri,
+      imageUrl: buildMediaProxyUrl(imageRaw),
+      metadataUrl: buildMediaProxyUrl(resolvedTokenUri),
     };
   } catch {
-    return { name: null, description: null, imageUrl: null, metadataUrl: resolvedTokenUri };
+    return { name: null, description: null, imageUrl: null, metadataUrl: buildMediaProxyUrl(resolvedTokenUri) };
   }
 }
-
