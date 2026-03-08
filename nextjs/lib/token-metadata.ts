@@ -1,5 +1,12 @@
 import "server-only";
 
+import {
+  buildIpfsGatewayUrls,
+  buildIpfsProxyUrl,
+  normalizeKnownAssetUrl,
+  resolveIpfsHttpUrl,
+} from "@/lib/ipfs";
+
 export type TokenMetadataPreview = {
   name: string | null;
   description: string | null;
@@ -7,38 +14,10 @@ export type TokenMetadataPreview = {
   metadataUrl: string | null;
 };
 
-const IPFS_GATEWAYS = [
-  "https://gateway.pinata.cloud/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://ipfs.io/ipfs/",
-];
-
-function getIpfsPath(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
-  if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path || null;
-  }
-  return null;
-}
-
-function buildGatewayUrls(raw: string): string[] {
-  const ipfsPath = getIpfsPath(raw);
-  if (!ipfsPath) {
-    return [raw];
-  }
-  return IPFS_GATEWAYS.map((gateway) => `${gateway}${ipfsPath}`);
-}
-
 export function buildMediaProxyUrl(raw: string | null | undefined): string | null {
   const value = String(raw || "").trim();
   if (!value) return null;
-  const ipfsPath = getIpfsPath(value);
-  if (!ipfsPath) {
-    return resolveMediaUrl(value);
-  }
-  return `/api/ipfs?uri=${encodeURIComponent(`ipfs://${ipfsPath}`)}`;
+  return buildIpfsProxyUrl(value) || resolveMediaUrl(value);
 }
 
 function readString(value: unknown): string | null {
@@ -88,12 +67,14 @@ function extractImageRaw(data: Record<string, unknown>): string | null {
 }
 
 export function resolveMediaUrl(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
+  const value = normalizeKnownAssetUrl(raw);
   if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path ? `https://ipfs.io/ipfs/${path}` : null;
+
+  const ipfsHttpUrl = resolveIpfsHttpUrl(value);
+  if (ipfsHttpUrl) {
+    return ipfsHttpUrl;
   }
+
   if (
     value.startsWith("http://") ||
     value.startsWith("https://") ||
@@ -130,7 +111,7 @@ export async function fetchTokenMetadataPreview(tokenUri: string): Promise<Token
 
   try {
     let data: Record<string, unknown> | null = null;
-    for (const candidateUrl of buildGatewayUrls(tokenUri)) {
+    for (const candidateUrl of buildIpfsGatewayUrls(tokenUri)) {
       const response = await fetch(candidateUrl, { cache: "force-cache" });
       if (!response.ok) continue;
       data = (await response.json()) as Record<string, unknown>;

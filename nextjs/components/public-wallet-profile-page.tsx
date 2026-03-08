@@ -4,8 +4,6 @@ import { ImageIcon, UserRound } from "lucide-react";
 import { Footer } from "@/components/footer";
 import {
   formatMarketplaceTokenAmount,
-  isLikelyImageUrl,
-  resolveMediaUrl,
   type TokenPreview,
 } from "@/components/marketplace-hub-shared";
 import { PublicProfileHeaderEditor } from "@/components/public-profile-header-editor";
@@ -14,6 +12,7 @@ import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-st
 import { fetchListings } from "@/lib/marketplace";
 import { fetchOwnedEditionsByWallet, fetchOwnedNftsByWallet } from "@/lib/nft-read";
 import { fetchSwapBids, fetchSwapListings } from "@/lib/swap";
+import { fetchTokenMetadataPreview } from "@/lib/token-metadata";
 
 type PublicWalletProfilePageProps = {
   wallet: string;
@@ -43,37 +42,13 @@ function walletShort(value: string) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
-async function fetchTokenPreview(tokenUri: string): Promise<TokenPreview> {
-  const resolvedTokenUri = resolveMediaUrl(tokenUri);
-  if (!resolvedTokenUri) return { imageUrl: null, name: null };
-
-  if (isLikelyImageUrl(resolvedTokenUri)) {
-    return { imageUrl: resolvedTokenUri, name: null };
-  }
-
-  try {
-    const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
-    if (!response.ok) return { imageUrl: null, name: null };
-    const data = (await response.json()) as { image?: unknown; image_url?: unknown; name?: unknown };
-    const imageRaw =
-      typeof data.image === "string"
-        ? data.image
-        : typeof data.image_url === "string"
-          ? data.image_url
-          : null;
-    return {
-      imageUrl: resolveMediaUrl(imageRaw),
-      name: typeof data.name === "string" ? data.name : null,
-    };
-  } catch {
-    return { imageUrl: null, name: null };
-  }
-}
-
 async function fetchTokenPreviewMap(tokenUris: string[]): Promise<Record<string, TokenPreview>> {
   const uniqueUris = Array.from(new Set(tokenUris.filter((uri) => typeof uri === "string" && uri.trim().length > 0)));
   const entries = await Promise.all(
-    uniqueUris.map(async (uri) => [uri, await fetchTokenPreview(uri)] as const),
+    uniqueUris.map(async (uri) => {
+      const preview = await fetchTokenMetadataPreview(uri);
+      return [uri, { imageUrl: preview.imageUrl, name: preview.name }] as const;
+    }),
   );
   return Object.fromEntries(entries);
 }

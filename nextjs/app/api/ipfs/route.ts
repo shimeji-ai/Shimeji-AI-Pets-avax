@@ -1,33 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildIpfsGatewayUrls, getIpfsPath } from "@/lib/ipfs";
 
 export const runtime = "nodejs";
-
-const IPFS_GATEWAYS = [
-  "https://gateway.pinata.cloud/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-  "https://ipfs.io/ipfs/",
-];
-
-function getIpfsPath(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
-  if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path || null;
-  }
-  return null;
-}
 
 export async function GET(request: NextRequest) {
   const rawUri = request.nextUrl.searchParams.get("uri");
   const ipfsPath = getIpfsPath(rawUri);
 
   if (!ipfsPath) {
-    return NextResponse.json({ error: "Expected an ipfs:// URI." }, { status: 400 });
+    return NextResponse.json({ error: "Expected an IPFS URI or gateway URL." }, { status: 400 });
   }
 
-  for (const gateway of IPFS_GATEWAYS) {
-    const target = `${gateway}${ipfsPath}`;
+  for (const target of buildIpfsGatewayUrls(rawUri)) {
     try {
       const upstream = await fetch(target, { cache: "force-cache" });
       if (!upstream.ok || !upstream.body) continue;
@@ -50,4 +34,3 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({ error: "Unable to fetch IPFS asset." }, { status: 502 });
 }
-

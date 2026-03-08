@@ -6,6 +6,12 @@ import { MarketplaceNftDetailActions } from "@/components/marketplace-nft-detail
 import { MarketplaceNftOwnerActions } from "@/components/marketplace-nft-owner-actions";
 import { fetchAuctions, fetchRecentBidsForAuction } from "@/lib/auction";
 import { getArtistProfilesByWallets } from "@/lib/artist-profiles-store";
+import {
+  buildIpfsGatewayUrls,
+  buildIpfsProxyUrl,
+  normalizeKnownAssetUrl,
+  resolveIpfsHttpUrl,
+} from "@/lib/ipfs";
 import type { ArtistProfile } from "@/lib/marketplace-hub-types";
 import { fetchListings } from "@/lib/marketplace";
 import { fetchNftCreatorById, fetchNftTokenById } from "@/lib/nft-read";
@@ -38,12 +44,14 @@ function walletShort(value: string | null | undefined) {
 }
 
 function resolveMediaUrl(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
+  const value = normalizeKnownAssetUrl(raw);
   if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path ? `https://ipfs.io/ipfs/${path}` : null;
+
+  const ipfsHttpUrl = resolveIpfsHttpUrl(value);
+  if (ipfsHttpUrl) {
+    return ipfsHttpUrl;
   }
+
   if (
     value.startsWith("http://") ||
     value.startsWith("https://") ||
@@ -129,12 +137,16 @@ async function fetchTokenMetadataPreview(tokenUri: string): Promise<NftMetadataP
   }
 
   try {
-    const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
-    if (!response.ok) {
+    let data: Record<string, unknown> | null = null;
+    for (const candidateUrl of buildIpfsGatewayUrls(tokenUri)) {
+      const response = await fetch(candidateUrl, { cache: "force-cache" });
+      if (!response.ok) continue;
+      data = (await response.json()) as Record<string, unknown>;
+      break;
+    }
+    if (!data) {
       return { name: null, description: null, imageUrl: null, attributes: [], metadataUrl: resolvedTokenUri };
     }
-
-    const data = (await response.json()) as Record<string, unknown>;
     const imageRaw =
       typeof data.image === "string"
         ? data.image
@@ -145,12 +157,18 @@ async function fetchTokenMetadataPreview(tokenUri: string): Promise<NftMetadataP
     return {
       name: typeof data.name === "string" ? data.name : null,
       description: typeof data.description === "string" ? data.description : null,
-      imageUrl: resolveMediaUrl(imageRaw),
+      imageUrl: buildIpfsProxyUrl(imageRaw) || resolveMediaUrl(imageRaw),
       attributes: parseAttributes(data.attributes),
-      metadataUrl: resolvedTokenUri,
+      metadataUrl: buildIpfsProxyUrl(tokenUri) || resolvedTokenUri,
     };
   } catch {
-    return { name: null, description: null, imageUrl: null, attributes: [], metadataUrl: resolvedTokenUri };
+    return {
+      name: null,
+      description: null,
+      imageUrl: null,
+      attributes: [],
+      metadataUrl: buildIpfsProxyUrl(tokenUri) || resolvedTokenUri,
+    };
   }
 }
 

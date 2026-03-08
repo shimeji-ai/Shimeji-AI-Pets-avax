@@ -1,6 +1,11 @@
 import "server-only";
 
 import { fetchOwnedEditionsByWallet, fetchOwnedNftsByWallet } from "@/lib/nft-read";
+import {
+  buildIpfsGatewayUrls,
+  normalizeKnownAssetUrl,
+  resolveIpfsHttpUrl,
+} from "@/lib/ipfs";
 
 export type NftCharacterCatalogEntry = {
   id: string;
@@ -22,12 +27,14 @@ type MetadataAttribute = {
 };
 
 function resolveMediaUrl(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
+  const value = normalizeKnownAssetUrl(raw);
   if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path ? `https://ipfs.io/ipfs/${path}` : null;
+
+  const ipfsHttpUrl = resolveIpfsHttpUrl(value);
+  if (ipfsHttpUrl) {
+    return ipfsHttpUrl;
   }
+
   if (value.startsWith("http://") || value.startsWith("https://")) {
     return value;
   }
@@ -68,19 +75,22 @@ function parseCharacterIdFromMetadata(metadata: Record<string, unknown>, isCommi
   return isCommissionEgg ? "egg" : "";
 }
 
-async function fetchJsonObject(url: string): Promise<Record<string, unknown> | null> {
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-      next: { revalidate: 0 },
-    });
-    if (!response.ok) return null;
-    const json = await response.json();
-    if (!json || typeof json !== "object" || Array.isArray(json)) return null;
-    return json as Record<string, unknown>;
-  } catch {
-    return null;
+async function fetchJsonObject(rawUrl: string): Promise<Record<string, unknown> | null> {
+  for (const candidateUrl of buildIpfsGatewayUrls(rawUrl)) {
+    try {
+      const response = await fetch(candidateUrl, {
+        cache: "no-store",
+        next: { revalidate: 0 },
+      });
+      if (!response.ok) continue;
+      const json = await response.json();
+      if (!json || typeof json !== "object" || Array.isArray(json)) continue;
+      return json as Record<string, unknown>;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 export async function buildOwnedNftCharacterCatalog(walletAddress: string): Promise<NftCharacterCatalogEntry[]> {
@@ -93,23 +103,21 @@ export async function buildOwnedNftCharacterCatalog(walletAddress: string): Prom
 
   await Promise.all(
     owned.map(async (token) => {
-      const resolvedUri = resolveMediaUrl(token.tokenUri);
-      if (!resolvedUri) {
+      if (!resolveMediaUrl(token.tokenUri)) {
         metadataByTokenId.set(token.tokenId, null);
         return;
       }
-      metadataByTokenId.set(token.tokenId, await fetchJsonObject(resolvedUri));
+      metadataByTokenId.set(token.tokenId, await fetchJsonObject(token.tokenUri));
     }),
   );
 
   await Promise.all(
     ownedEditions.map(async (edition) => {
-      const resolvedUri = resolveMediaUrl(edition.tokenUri);
-      if (!resolvedUri) {
+      if (!resolveMediaUrl(edition.tokenUri)) {
         metadataByEditionId.set(edition.editionId, null);
         return;
       }
-      metadataByEditionId.set(edition.editionId, await fetchJsonObject(resolvedUri));
+      metadataByEditionId.set(edition.editionId, await fetchJsonObject(edition.tokenUri));
     }),
   );
 

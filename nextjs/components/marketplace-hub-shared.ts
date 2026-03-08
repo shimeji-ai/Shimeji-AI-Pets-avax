@@ -1,4 +1,9 @@
 import type { ArtistProfile, ArtistProfileUpdateInput } from "@/lib/marketplace-hub-types";
+import {
+  buildIpfsProxyUrl,
+  normalizeKnownAssetUrl,
+  resolveIpfsHttpUrl,
+} from "@/lib/ipfs";
 
 const BIGINT_ZERO = BigInt(0);
 const BIGINT_ONE = BigInt(1);
@@ -137,12 +142,14 @@ export function formatTimestamp(timestampSeconds: number | null | undefined) {
 }
 
 export function resolveMediaUrl(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
+  const value = normalizeKnownAssetUrl(raw);
   if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path ? `https://ipfs.io/ipfs/${path}` : null;
+
+  const ipfsHttpUrl = resolveIpfsHttpUrl(value);
+  if (ipfsHttpUrl) {
+    return ipfsHttpUrl;
   }
+
   if (
     value.startsWith("http://") ||
     value.startsWith("https://") ||
@@ -157,12 +164,7 @@ export function resolveMediaUrl(raw: string | null | undefined): string | null {
 export function buildClientMediaProxyUrl(raw: string | null | undefined): string | null {
   const value = String(raw || "").trim();
   if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    if (!path) return null;
-    return `/api/ipfs?uri=${encodeURIComponent(`ipfs://${path}`)}`;
-  }
-  return resolveMediaUrl(value);
+  return buildIpfsProxyUrl(value) || resolveMediaUrl(value);
 }
 
 export function isLikelyImageUrl(value: string | null | undefined) {

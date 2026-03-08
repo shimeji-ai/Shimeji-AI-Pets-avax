@@ -4,6 +4,7 @@ import { Footer } from "@/components/footer";
 import { MarketplaceEditionDetailActions } from "@/components/marketplace-edition-detail-actions";
 import { fetchEditionListings } from "@/lib/marketplace";
 import { fetchEditionTokenById } from "@/lib/nft-read";
+import { fetchTokenMetadataPreview } from "@/lib/token-metadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,35 +12,6 @@ export const dynamic = "force-dynamic";
 type Params = {
   params: Promise<{ listingId: string }>;
 };
-
-function resolveMediaUrl(raw: string | null | undefined): string | null {
-  const value = String(raw || "").trim();
-  if (!value) return null;
-  if (value.startsWith("ipfs://")) {
-    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
-    return path ? `https://ipfs.io/ipfs/${path}` : null;
-  }
-  return value;
-}
-
-async function fetchTokenMetadataPreview(tokenUri: string) {
-  const resolvedTokenUri = resolveMediaUrl(tokenUri);
-  if (!resolvedTokenUri) {
-    return { name: null, description: null, imageUrl: null };
-  }
-  try {
-    const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
-    if (!response.ok) return { name: null, description: null, imageUrl: null };
-    const data = (await response.json()) as Record<string, unknown>;
-    return {
-      name: typeof data.name === "string" ? data.name : null,
-      description: typeof data.description === "string" ? data.description : null,
-      imageUrl: resolveMediaUrl(typeof data.image === "string" ? data.image : null),
-    };
-  } catch {
-    return { name: null, description: null, imageUrl: null };
-  }
-}
 
 export default async function MarketplaceEditionPage({ params }: Params) {
   const requestHeaders = await headers();

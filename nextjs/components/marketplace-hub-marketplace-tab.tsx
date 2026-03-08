@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { InputField } from "@/components/marketplace-hub-fields";
 import type { MarketplaceFeedItem } from "@/lib/marketplace-hub-types";
 import {
+  buildClientMediaProxyUrl,
   type FeedAssetFilter,
   type FeedSaleFilter,
   type FeedSort,
@@ -333,7 +334,11 @@ export function MarketplaceHubMarketplaceTab({
                 : null;
             const preview = item.tokenUri ? tokenPreviews[item.tokenUri] : null;
             const commissionPlaceholderImageUrl = isCommissionEgg
-              ? (item.sellerProfile?.bannerUrl || item.sellerProfile?.avatarUrl || null)
+              ? (
+                  buildClientMediaProxyUrl(item.sellerProfile?.bannerUrl) ||
+                  buildClientMediaProxyUrl(item.sellerProfile?.avatarUrl) ||
+                  null
+                )
               : null;
             const previewImageUrl = commissionPlaceholderImageUrl || item.imageUrl || preview?.imageUrl || null;
             const title =
