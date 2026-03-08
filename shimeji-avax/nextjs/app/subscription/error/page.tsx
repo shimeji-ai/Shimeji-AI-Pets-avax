@@ -1,16 +1,14 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Home } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 
-export default function SubscriptionErrorPage({
-  searchParams,
-}: {
-  searchParams: { reason?: string };
-}) {
+export default function SubscriptionErrorPage() {
   const { isSpanish } = useLanguage();
+  const searchParams = useSearchParams();
 
   const errorMessagesEn: Record<string, { title: string; message: string }> = {
     "missing-token": {
@@ -58,7 +56,7 @@ export default function SubscriptionErrorPage({
     },
   };
 
-  const error = (isSpanish ? errorMessagesEs : errorMessagesEn)[searchParams?.reason || ""] || {
+  const error = (isSpanish ? errorMessagesEs : errorMessagesEn)[searchParams.get("reason") ?? ""] || {
     title: isSpanish ? "Algo salió mal" : "Something Went Wrong",
     message: isSpanish ? "Ocurrió un error inesperado. Probá de nuevo." : "An unexpected error occurred. Please try again.",
   };

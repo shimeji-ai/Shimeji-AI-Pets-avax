@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Fingerprint, Shield, Sparkles, Loader2, AlertCircle, X, Wallet } from "lucide-react";
-import { createSmartAccountFromPasskey, getSmartAccountSupport } from "@/lib/smart-account";
+import { useState } from "react";
+import { Fingerprint, Shield, Loader2, AlertCircle, X, Wallet } from "lucide-react";
+import { createSmartAccountFromPasskey } from "@/lib/smart-account";
 import type { SmartAccountHandle } from "@/lib/smart-account";
 import { useLanguage } from "@/components/language-provider";
 
@@ -19,29 +19,10 @@ export function SmartAccountModal({ onSuccess, onClose, onConnectWallet }: Props
   const [step, setStep] = useState<Step>("choose");
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [supportError, setSupportError] = useState<string | null>(null);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
-  useEffect(() => {
-    const support = getSmartAccountSupport();
-    setSupportError(
-      support.supported
-        ? null
-        : t(
-            support.reason ?? "This browser does not support passkeys.",
-            support.reason ?? "Este navegador no soporta passkeys.",
-          ),
-    );
-  }, [isSpanish]);
-
   async function handlePasskey(mode: "register" | "login") {
-    if (supportError) {
-      setError(supportError);
-      setStep("error");
-      return;
-    }
-
     setStep("loading");
     setError(null);
     try {
@@ -118,62 +99,39 @@ export function SmartAccountModal({ onSuccess, onClose, onConnectWallet }: Props
               </div>
             </button>
 
-            {/* Passkey option */}
-            <button
-              type="button"
-              onClick={() => {
-                if (supportError) {
-                  setError(supportError);
-                  setStep("error");
-                  return;
-                }
-                setStep("action");
-              }}
-              className="group flex w-full cursor-pointer items-center gap-4 rounded-2xl border border-orange-500/35 bg-orange-500/10 p-4 text-left transition-all hover:border-orange-500/65 hover:bg-orange-500/14"
+            {/* Passkey option — coming soon */}
+            <div
+              className="flex w-full cursor-not-allowed items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left opacity-60"
+              aria-disabled="true"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-orange-500/30 bg-orange-500/10 text-orange-400">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-muted-foreground">
                 <Fingerprint className="h-5 w-5" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">
                     {t("Shimeji Passport", "Shimeji Passport")}
                   </p>
-                  <span className="rounded-full bg-orange-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-400">
-                    {t("New", "Nuevo")}
+                  <span className="rounded-full border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground/50">
+                    {t("Coming soon", "Próximamente")}
                   </span>
                 </div>
-                <p className="text-xs leading-5 text-foreground/70">
+                <p className="text-xs leading-5 text-foreground/50">
                   {t(
-                    "Passkey — no seed phrase, works everywhere",
-                    "Passkey — sin frase semilla, funciona en todos lados",
+                    "Passkey smart account — powered by ZeroDev",
+                    "Smart account con passkey — powered by ZeroDev",
                   )}
                 </p>
               </div>
-            </button>
-
-            {supportError ? (
-              <div className="rounded-2xl border border-orange-500/25 bg-orange-500/10 p-3 text-xs leading-5 text-orange-200">
-                {supportError}
-              </div>
-            ) : null}
-
-            {/* Benefits pills */}
-            <div className="flex flex-wrap gap-2 pt-1">
-              {[
-                t("No seed phrase", "Sin frase semilla"),
-                t("Gasless txns", "Txns sin gas"),
-                t("Desktop + Extension", "Desktop + Extensión"),
-              ].map((benefit) => (
-                <span
-                  key={benefit}
-                  className="flex items-center gap-1 rounded-full border border-border/70 bg-secondary/55 px-2.5 py-1 text-[11px] text-foreground/70"
-                >
-                  <Sparkles className="h-3 w-3 text-orange-400" />
-                  {benefit}
-                </span>
-              ))}
             </div>
+
+            {/* ZeroDev note */}
+            <p className="text-[11px] text-foreground/40 text-center">
+              {t(
+                "Shimeji Passport uses ZeroDev passkey smart accounts — no seed phrase, gasless transactions.",
+                "Shimeji Passport usa smart accounts con passkey de ZeroDev — sin frase semilla, transacciones sin gas.",
+              )}
+            </p>
           </div>
         )}
 

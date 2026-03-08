@@ -1,17 +1,15 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Home } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 
-export default function SubscriptionSuccessPage({
-  searchParams,
-}: {
-  searchParams: { type?: string; already?: string };
-}) {
+export default function SubscriptionSuccessPage() {
   const { isSpanish } = useLanguage();
-  const already = searchParams?.already === "true";
+  const searchParams = useSearchParams();
+  const already = searchParams.get("already") === "true";
 
   const typeMessagesEn: Record<string, string> = {
     updates: "project updates and new features",
@@ -25,8 +23,9 @@ export default function SubscriptionSuccessPage({
     collection_request: "anuncios de nuevas colecciones",
   };
 
-  const message = searchParams?.type
-    ? (isSpanish ? typeMessagesEs[searchParams.type] : typeMessagesEn[searchParams.type]) || (isSpanish ? "novedades" : "updates")
+  const type = searchParams.get("type") ?? "";
+  const message = type
+    ? (isSpanish ? typeMessagesEs[type] : typeMessagesEn[type]) || (isSpanish ? "novedades" : "updates")
     : (isSpanish ? "novedades" : "updates");
 
   return (
