@@ -1101,7 +1101,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
     );
   }
 
-  return (
+  if (config.provider === "openclaw") return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         {providerHelpLinks("openclaw")}
