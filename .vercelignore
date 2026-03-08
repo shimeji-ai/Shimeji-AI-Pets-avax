@@ -1,5 +1,6 @@
 dist/
 **/.next/
+**/.next.*/
 **/node_modules/
 
 # Exclude only repo-root utility folders; keep shimeji-avax/nextjs assets intact
@@ -12,3 +13,6 @@ animation-reference/
 /scripts/
 legacy/
 shimeji-eth/
+shimeji-avax/.chain/
+shimeji-avax/.deploy-env/
+shimeji-avax/foundry/
