@@ -148,8 +148,8 @@ export function MarketplaceHubStudioCommissionsTab({
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
-                "Review the required sprite set first, then open the creator to test a new character locally before turning it into an NFT.",
-                "Revisá primero el set de sprites requerido y después abrí el creador para probar un personaje nuevo en local antes de convertirlo en NFT.",
+                "Review the animation guide first, then open the creator to test a new character locally before turning it into an NFT.",
+                "Mira la guia de animacion y despues abrí el creador para probar un personaje en local antes de convertirlo en NFT.",
               )}
             </p>
           </div>

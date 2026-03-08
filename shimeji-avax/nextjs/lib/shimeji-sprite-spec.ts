@@ -102,3 +102,8 @@ export function findMissingRequiredSprites(paths: string[]) {
   const available = new Set(collectSpriteFileNames(paths));
   return REQUIRED_SHIMEJI_SPRITES.filter((fileName) => !available.has(fileName));
 }
+
+export function animationReferenceSpriteUrl(fileName: string) {
+  const safeName = encodeURIComponent(normalizeSpriteFileName(fileName));
+  return `https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/animation-reference/runtime-required/${safeName}`;
+}

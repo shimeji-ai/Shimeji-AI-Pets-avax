@@ -203,31 +203,49 @@ export function HelpSection() {
     <section id="help" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="w-full mx-auto mb-20">
-          <div className="mb-6 rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.06] p-6 sm:p-8">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-3xl">
+          <div className="mb-6">
+            <div className="mb-3">
+              <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">
+                {isSpanish ? "Creación y NFT" : "Creation and NFT"}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  {isSpanish ? "Animaciones y creador local" : "Animations and local creator"}
+                  {isSpanish ? "Animaciones y preview" : "Animations and preview"}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground sm:text-base">
                   {isSpanish
-                    ? "Mirá la guía de sprites inspirada en la animation-reference del repo y probá cómo se ve un personaje nuevo antes de subirlo a IPFS o mintearlo."
-                    : "Open the sprite guide inspired by the repo animation reference and preview a new character before uploading to IPFS or minting."}
+                    ? "Mira la guia de animacion y probá como se ve un personaje antes de mintearlo."
+                    : "Open the animation guide and preview how a character looks before minting it."}
                 </p>
+                <div className="mt-6">
+                  <Link
+                    href={ANIMATION_GUIDE_PATH}
+                    className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
+                  >
+                    {isSpanish ? "Guía de animaciones" : "Animation guide"}
+                  </Link>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href={ANIMATION_GUIDE_PATH}
-                  className="rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
-                >
-                  {isSpanish ? "Guía de animaciones" : "Animation guide"}
-                </Link>
-                <Link
-                  href={CHARACTER_CREATOR_PATH}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-white/10"
-                >
-                  {isSpanish ? "Creador de personajes" : "Character creator"}
-                </Link>
+
+              <div className="neural-card rounded-3xl border border-emerald-300/15 p-8 sm:p-10">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  {isSpanish ? "Creación de NFT" : "NFT creation"}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                  {isSpanish
+                    ? "Abrí la app de creación para cargar sprites localmente, validar el set requerido y recién después mintear, vender o subastar."
+                    : "Open the creator app to load sprites locally, validate the required set, and then mint, sell, or auction."}
+                </p>
+                <div className="mt-6">
+                  <Link
+                    href={CHARACTER_CREATOR_PATH}
+                    className="inline-flex rounded-full border border-emerald-300/20 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-emerald-400/25"
+                  >
+                    {isSpanish ? "Creador de personajes" : "Character creator"}
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
