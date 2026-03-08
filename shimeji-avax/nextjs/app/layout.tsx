@@ -92,8 +92,8 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <WalletProvider>
-          <LanguageProvider>
+        <LanguageProvider>
+          <WalletProvider>
             <ThemeProvider>
               <SiteShimejiProvider>
                 <Header />
@@ -101,8 +101,8 @@ export default function RootLayout({
                 <SiteShimejiMascot />
               </SiteShimejiProvider>
             </ThemeProvider>
-          </LanguageProvider>
-        </WalletProvider>
+          </WalletProvider>
+        </LanguageProvider>
         <Analytics />
       </body>
     </html>

@@ -1313,6 +1313,44 @@ Do not print the relay token or gateway token in your final reply. Return only t
             </a>
           </div>
 
+          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">
+              {isSpanish ? "Guía rápida (Bitte API key + Agent ID)" : "Quick guide (Bitte API key + Agent ID)"}
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
+              <li>
+                {isSpanish
+                  ? "Entrá a bitte.ai, iniciá sesión o creá cuenta."
+                  : "Go to bitte.ai, then sign in or create an account."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Abrí tu panel de desarrollador / configuración y creá una API key."
+                  : "Open your developer/settings dashboard and create an API key."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Creá o abrí un agente y copiá su Agent ID."
+                  : "Create or open an agent and copy its Agent ID."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Pegá la API key y el Agent ID acá."
+                  : "Paste the API key and Agent ID here."}
+              </li>
+            </ol>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {isSpanish
+                ? "Tu API key se guarda localmente en este navegador. No la compartas por chat."
+                : "Your API key is stored locally in this browser. Do not share it in chat."}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {isSpanish
+                ? "Mientras tengas créditos gratis del sitio, no necesitás pagar ni configurar una key propia."
+                : "While site free credits remain, you do not need to pay or configure your own key."}
+            </p>
+          </div>
+
           <label className="block mb-3">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bitte API Key

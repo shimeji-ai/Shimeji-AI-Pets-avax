@@ -2,6 +2,7 @@
 
 import styled from "styled-components";
 import { useWalletSession } from "@/components/wallet-provider";
+import { useSmartAccount } from "@/components/smart-account-context";
 import { useLanguage } from "@/components/language-provider";
 
 function shortenAddress(value: string) {
@@ -20,28 +21,37 @@ export function ConnectWalletButton() {
     connect,
     disconnect,
   } = useWalletSession();
+  const { isSmartAccountAvailable, openSmartAccountModal } = useSmartAccount();
+
+  const t = (en: string, es: string) => (isSpanish ? es : en);
+
+  const handleButtonClick = () => {
+    if (isConnected) {
+      disconnect();
+      return;
+    }
+
+    if (!isSmartAccountAvailable) {
+      void connect();
+      return;
+    }
+
+    openSmartAccountModal();
+  };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       <StyledButton
         type="button"
-        onClick={() => {
-          if (isConnected) {
-            disconnect();
-            return;
-          }
-          void connect();
-        }}
-        disabled={isConnecting || isDetecting}
+        onClick={handleButtonClick}
+        disabled={isDetecting}
       >
         <strong className="label">
           {isDetecting
-            ? (isSpanish ? "Detectando wallet..." : "Detecting wallet...")
-            : isConnecting
-              ? (isSpanish ? "Conectando..." : "Connecting...")
-              : isConnected
-                ? (isSpanish ? "DESCONECTAR" : "DISCONNECT")
-                : (isSpanish ? "CONECTAR WALLET" : "CONNECT WALLET")}
+            ? t("Detecting wallet...", "Detectando wallet...")
+            : isConnected
+                ? t("DISCONNECT", "DESCONECTAR")
+                : t("CONNECT", "CONECTAR")}
         </strong>
         <span className="stars-container" aria-hidden="true">
           <span className="stars" />
@@ -51,6 +61,7 @@ export function ConnectWalletButton() {
           <span className="circle" />
         </span>
       </StyledButton>
+
       {isConnected && publicKey ? (
         <div className="hidden xl:flex flex-col text-xs text-muted-foreground">
           <span>{shortenAddress(publicKey)}</span>
