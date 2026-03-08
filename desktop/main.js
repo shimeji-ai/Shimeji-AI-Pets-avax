@@ -25,7 +25,7 @@ const OPENCLAW_HEARTBEAT_INTERVAL_MS = readPositiveIntEnv('OPENCLAW_HEARTBEAT_IN
 const GITHUB_RELEASES_API = 'https://api.github.com/repos/shimeji-ai/Mochi/releases/latest';
 const UPDATE_CHECK_INTERVAL_MS = 1000 * 60 * 30;
 const UPDATE_ASSET_FOR_PLATFORM = {
-  win32: 'mochi-desktop-windows.zip',
+  win32: 'mochi-desktop-windows.exe',
   linux: 'mochi-desktop-linux.AppImage',
   darwin: 'mochi-desktop-macos.zip'
 };

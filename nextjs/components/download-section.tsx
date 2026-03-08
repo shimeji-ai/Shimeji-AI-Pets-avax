@@ -2,10 +2,9 @@
 
 import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
 
 const WIN_RELEASE_URL =
-  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-windows.zip";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-windows.exe";
 const LINUX_RELEASE_URL =
   "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-linux.AppImage";
 const CHROME_RELEASE_URL =
@@ -79,13 +78,13 @@ export function DownloadSection() {
                 </p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Versión portable en .zip. Descargá, descomprimí y ejecutá `Mochi Desktop.exe`. Si Windows pregunta por seguridad, permite la ejecución."
-                    : "Portable .zip build with no installer required. Download, extract, and run `Mochi Desktop.exe`. If Windows shows a security prompt, allow execution."}
+                    ? "Ejecutable portable en .exe. Descargá y ejecutalo directamente. Si Windows pregunta por seguridad, permite la ejecución."
+                    : "Portable .exe build. Download it and run it directly. If Windows shows a security prompt, allow execution."}
                 </div>
                 <div className="mt-3">
                   <Button asChild className="neural-button w-full">
                     <a href={WIN_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                      {isSpanish ? "Descargar Windows (.zip)" : "Download Windows (.zip)"}
+                      {isSpanish ? "Descargar Windows (.exe)" : "Download Windows (.exe)"}
                     </a>
                   </Button>
                 </div>

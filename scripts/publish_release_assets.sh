@@ -10,7 +10,7 @@ DESKTOP_DIST_DIR="${ROOT_DIR}/desktop/dist"
 EXT_SOURCE_DIR="${ROOT_DIR}/chrome-extension"
 FF_EXT_SOURCE_DIR="${ROOT_DIR}/firefox-extension"
 TEMP_DIR="$(mktemp -d)"
-WIN_CANONICAL="${TEMP_DIR}/mochi-desktop-windows.zip"
+WIN_CANONICAL="${TEMP_DIR}/mochi-desktop-windows.exe"
 LINUX_CANONICAL="${TEMP_DIR}/mochi-desktop-linux.AppImage"
 MAC_CANONICAL="${TEMP_DIR}/mochi-desktop-macos.zip"
 EXT_ZIP="${TEMP_DIR}/mochi-chrome-extension.zip"
@@ -48,8 +48,8 @@ for required_name in LINUX_ASSET; do
   fi
 done
 
-if [[ ! -f "$WIN_ASSET" ]] && [[ ! -d "$WIN_UNPACKED_DIR" ]]; then
-  echo "Missing required Windows asset in ${DESKTOP_DIST_DIR}: portable exe or win-unpacked/" >&2
+if [[ ! -f "$WIN_ASSET" ]]; then
+  echo "Missing required Windows asset in ${DESKTOP_DIST_DIR}: portable exe" >&2
   exit 1
 fi
 
@@ -94,15 +94,7 @@ rm -f "$FF_EXT_ZIP"
   zip -rq "$FF_EXT_ZIP" . -x ".git/*" "node_modules/*"
 )
 
-if [[ -d "$WIN_UNPACKED_DIR" ]]; then
-  rm -f "$WIN_CANONICAL"
-  (
-    cd "$WIN_UNPACKED_DIR"
-    zip -rq "$WIN_CANONICAL" .
-  )
-elif [[ -f "$WIN_ASSET" ]]; then
-  cp -f "$WIN_ASSET" "$WIN_CANONICAL"
-fi
+cp -f "$WIN_ASSET" "$WIN_CANONICAL"
 
 cp -f "$LINUX_ASSET" "$LINUX_CANONICAL"
 if [[ -n "$MAC_ASSET" ]]; then
@@ -137,7 +129,7 @@ fi
 gh release upload "${UPLOAD_ARGS[@]}"
 
 echo "Uploaded assets to release ${TAG}"
-echo "Windows: https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-windows.zip"
+echo "Windows: https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-windows.exe"
 echo "Linux:   https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-linux.AppImage"
 if [[ -n "$MAC_ASSET" ]]; then
   echo "macOS:   https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-macos.zip"
