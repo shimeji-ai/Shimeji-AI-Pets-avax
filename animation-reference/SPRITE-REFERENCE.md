@@ -1,6 +1,6 @@
-# Shimeji Sprite Reference for Chrome Extension
+# Mochi Sprite Reference for Chrome Extension
 
-This document describes all sprites from the Shimeji-ee project and how to implement them in a Chrome extension context.
+This document describes all sprites from the Mochi-ee project and how to implement them in a Chrome extension context.
 
 ## Folder Structure
 
@@ -208,7 +208,7 @@ const spinHeadFrames = [
 
 | Sprite | Original | Description | Animation Use |
 |--------|----------|-------------|---------------|
-| `pull-up-friend-frame-1.png` | shime38 | Reaching down | Pulling up new Shimeji |
+| `pull-up-friend-frame-1.png` | shime38 | Reaching down | Pulling up new Mochi |
 | `pull-up-friend-frame-2.png` | shime39 | Grabbing | Pulling animation |
 | `pull-up-friend-frame-3.png` | shime40 | Lifting | Pulling animation |
 | `pull-up-friend-frame-4.png` | shime41 | Friend emerging | Pulling animation |
@@ -216,7 +216,7 @@ const spinHeadFrames = [
 | `divide-frame-2.png` | shime43 | Division mid 1 | Splitting animation |
 | `divide-frame-3.png` | shime44 | Division mid 2 | Splitting animation |
 | `divide-frame-4.png` | shime45 | Division mid 3 | Splitting animation |
-| `divide-frame-5.png` | shime46 | Division complete | Two shimejis visible |
+| `divide-frame-5.png` | shime46 | Division complete | Two mochis visible |
 
 **Note:** These are advanced features for spawning multiple mascots.
 
@@ -233,7 +233,7 @@ const spinHeadFrames = [
 
 ## MVP Implementation Guide
 
-The `mvp/` folder contains 11 essential sprites for a basic working Shimeji:
+The `mvp/` folder contains 11 essential sprites for a basic working Mochi:
 
 ### State Machine
 
@@ -345,7 +345,7 @@ const boundaries = {
 Use a fixed-position overlay div with pointer-events: none (except on the mascot itself):
 
 ```css
-#shimeji-container {
+#mochi-container {
   position: fixed;
   top: 0;
   left: 0;
@@ -355,7 +355,7 @@ Use a fixed-position overlay div with pointer-events: none (except on the mascot
   z-index: 999999;
 }
 
-#shimeji {
+#mochi {
   pointer-events: auto;
   cursor: grab;
 }
@@ -363,7 +363,7 @@ Use a fixed-position overlay div with pointer-events: none (except on the mascot
 
 ### Animation Timing
 
-Original Shimeji uses "ticks" for timing. Convert to milliseconds:
+Original Mochi uses "ticks" for timing. Convert to milliseconds:
 
 ```javascript
 const TICK_MS = 40; // ~25 FPS

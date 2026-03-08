@@ -1,11 +1,11 @@
 {
-  "name": "shimeji-desktop",
+  "name": "mochi-desktop",
   "version": "0.1.0",
   "description": "AI agent orchestrator, for all your online and onchain activities. NFTs unlock customization.",
-  "homepage": "https://github.com/luloxi/Shimeji-AI-Pets",
+  "homepage": "https://github.com/luloxi/Mochi",
   "author": {
     "name": "Kathonejo & Lulox",
-    "email": "hello@shimeji.ai"
+    "email": "hello@mochi.ai"
   },
   "private": true,
   "main": "main.js",
@@ -29,8 +29,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "dev.shimeji.desktop",
-    "productName": "Shimeji Desktop",
+    "appId": "dev.mochi.desktop",
+    "productName": "Mochi Desktop",
     "files": [
       "**/*",
       "!dist{,/**}",
@@ -50,21 +50,21 @@
       ]
     },
     "portable": {
-      "artifactName": "Shimeji-Desktop-Portable-${version}.exe"
+      "artifactName": "Mochi-Desktop-Portable-${version}.exe"
     },
     "mac": {
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64"] }
       ],
-      "artifactName": "Shimeji-Desktop-${version}-${arch}.${ext}"
+      "artifactName": "Mochi-Desktop-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
         { "target": "AppImage", "arch": ["x64"] },
         { "target": "deb", "arch": ["x64"] }
       ],
-      "artifactName": "Shimeji-Desktop-${version}-${arch}.${ext}",
-      "maintainer": "Kathonejo & Lulox <hello@shimeji.ai>",
+      "artifactName": "Mochi-Desktop-${version}-${arch}.${ext}",
+      "maintainer": "Kathonejo & Lulox <hello@mochi.ai>",
       "category": "Utility"
     },
     "icon": "icon.png"

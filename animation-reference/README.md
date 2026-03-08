@@ -1,6 +1,6 @@
 # Animation Reference 🐱🐰
 
-Guia simple y visual de las animaciones de Shimeji.
+Guia simple y visual de las animaciones de Mochi.
 
 Si solo queres saber "que sprites necesito" y "como se animan", este es el README.
 
@@ -138,4 +138,4 @@ Si queres verlos con preview y detalle: [SPRITE-REFERENCE-ART.md](./SPRITE-REFER
 4. Luego agrega caida/rebote y drag.
 5. Por ultimo agrega pared/techo/idle avanzados.
 
-Con esto ya queda lista una base de animacion clara para gatitos 🐱, conejitos 🐰 y cualquier shimeji nuevo.
+Con esto ya queda lista una base de animacion clara para gatitos 🐱, conejitos 🐰 y cualquier mochi nuevo.

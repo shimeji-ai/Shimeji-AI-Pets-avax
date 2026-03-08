@@ -13,8 +13,8 @@ const DEBUG = false;
 const ALL_SITES_ORIGINS = ['http://*/*', 'https://*/*'];
 const PENDING_ENABLE_TTL_MS = 2 * 60 * 1000;
 const REQUIRED_ORIGINS = new Set([
-  'https://shimeji.dev',
-  'https://www.shimeji.dev',
+  'https://mochi.dev',
+  'https://www.mochi.dev',
   'https://openrouter.ai',
   'http://127.0.0.1',
   'http://localhost',
@@ -96,7 +96,7 @@ function originToMatchPattern(origin) {
 
 function contentScriptIdForOrigin(origin) {
   const o = normalizeOrigin(origin);
-  return o ? `shimeji_site_${fnv1a32(o)}` : '';
+  return o ? `mochi_site_${fnv1a32(o)}` : '';
 }
 
 function isContentScriptRegistered(id) {
@@ -141,7 +141,7 @@ async function scriptingUnregisterContentScript(origin) {
 }
 
 async function scriptingRegisterAllSites() {
-  const id = 'shimeji_all_sites';
+  const id = 'mochi_all_sites';
   if (await isContentScriptRegistered(id)) return true;
   return new Promise((resolve, reject) => {
     chrome.scripting.registerContentScripts([{
@@ -161,7 +161,7 @@ async function scriptingRegisterAllSites() {
 }
 
 async function scriptingUnregisterAllSites() {
-  const id = 'shimeji_all_sites';
+  const id = 'mochi_all_sites';
   if (!await isContentScriptRegistered(id)) return true;
   return new Promise((resolve) => {
     chrome.scripting.unregisterContentScripts({ ids: [id] }, () => resolve(true));
@@ -289,7 +289,7 @@ async function handlePendingEnableAllSites(addedOrigins) {
     await setVisibilityEnabledEverywhere();
   } catch {}
 
-  // Best-effort: inject immediately into open tabs so shimejis appear without reload.
+  // Best-effort: inject immediately into open tabs so mochis appear without reload.
   try { await injectIntoAllEligibleTabs(); } catch {}
 
   const tabId = pending.tabId;
@@ -398,13 +398,13 @@ chrome.permissions.onAdded.addListener((permissions) => {
   handlePendingEnableSite(origins).catch(() => {});
 });
 chrome.runtime.onInstalled.addListener(() => {
-  // Initially set shimeji as default character
+  // Initially set mochi as default character
   console.log('[Background] Extension installed, setting initial storage values.');
   chrome.storage.sync.set({
-    character: 'shimeji',
+    character: 'mochi',
     behavior: 'wander', // Default to wander mode
     size: 'medium', // Set default size
-    unlockedCharacters: { 'shimeji': true }, // Shimeji unlocked by default
+    unlockedCharacters: { 'mochi': true }, // Mochi unlocked by default
     isConnected: false,
     connectedAddress: null,
     connectedNetwork: null,
@@ -466,11 +466,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request && request.type === 'unregisterAllSites') {
     storageLocalSet({ allSitesEnabled: false }).then(async () => {
       await scriptingUnregisterAllSites();
-      // Best-effort: hide any currently injected shimejis.
+      // Best-effort: hide any currently injected mochis.
       chrome.tabs.query({}, (tabs) => {
         tabs.forEach((tab) => {
           if (!tab.id) return;
-          chrome.tabs.sendMessage(tab.id, { action: 'shutdownShimejis' }).catch(() => {});
+          chrome.tabs.sendMessage(tab.id, { action: 'shutdownMochis' }).catch(() => {});
         });
       });
       sendResponse({ enabled: false });
@@ -481,9 +481,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   const dappAllowedOrigins = [
-    'https://shimeji-avax.vercel.app/',
-    'https://shimeji.dev/',
-    'https://www.shimeji.dev/',
+    'https://mochi.vercel.app/',
+    'https://mochi.dev/',
+    'https://www.mochi.dev/',
     'http://localhost:3000/'
   ];
   const dappMessageTypes = new Set([
@@ -517,7 +517,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       isConnected: true,
       connectedAddress: request.payload.publicKey,
       connectedNetwork: request.payload.network || null,
-      unlockedCharacters: { 'shimeji': true }
+      unlockedCharacters: { 'mochi': true }
     }, () => {
       chrome.storage.sync.get('unlockedCharacters', (data) => {
         console.log('[Background] Sending updateUnlockedCharacters after walletConnected. Payload:', data.unlockedCharacters);
@@ -532,11 +532,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       isConnected: false,
       connectedAddress: null,
       connectedNetwork: null,
-      unlockedCharacters: { 'shimeji': true } // Only shimeji unlocked on disconnect
+      unlockedCharacters: { 'mochi': true } // Only mochi unlocked on disconnect
     }, () => { // Add callback to ensure storage is set before sending message
-      console.log('[Background] Sending updateUnlockedCharacters after walletDisconnected. Payload: {shimeji: true}');
+      console.log('[Background] Sending updateUnlockedCharacters after walletDisconnected. Payload: {mochi: true}');
       // Send to the tab that sent the message
-      sendMessageToTab(senderTabId, { type: 'EXTENSION_MESSAGE', payload: { type: 'updateUnlockedCharacters', payload: { 'shimeji': true } } });
+      sendMessageToTab(senderTabId, { type: 'EXTENSION_MESSAGE', payload: { type: 'updateUnlockedCharacters', payload: { 'mochi': true } } });
     });
     sendResponse({ status: 'Wallet disconnection received' });
     return true;
@@ -546,7 +546,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       isConnected: false,
       connectedAddress: null,
       connectedNetwork: null,
-      unlockedCharacters: { 'shimeji': true }
+      unlockedCharacters: { 'mochi': true }
     }, () => {
       sendMessageToTab(senderTabId, { type: 'EXTENSION_MESSAGE', payload: { type: 'revokePermissionsFromBackground' } });
     });
@@ -604,7 +604,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.type === 'getUnlockedCharacters') {
     console.log('[Background] Received getUnlockedCharacters message.');
     chrome.storage.sync.get(['unlockedCharacters'], (data) => {
-      const payload = data.unlockedCharacters || { 'shimeji': true };
+      const payload = data.unlockedCharacters || { 'mochi': true };
       console.log('[Background] getUnlockedCharacters - sending payload:', payload);
       sendResponse({ type: 'EXTENSION_RESPONSE', payload: payload });
     });
@@ -628,7 +628,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: 'UpdateUnlockedCharacters message from background (unexpectedly received)' });
     return true;
   } else if (request.type === 'aiChat') {
-    handleAiChat(request.messages, request.shimejiId).then(result => {
+    handleAiChat(request.messages, request.mochiId).then(result => {
       sendResponse(result);
     }).catch(err => {
       sendResponse({ error: err.message || 'Unknown error' });
@@ -638,9 +638,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Proactive messages removed
     sendResponse({ status: 'disabled' });
     return true;
-  } else if (request.type === 'refreshShimejis') {
+  } else if (request.type === 'refreshMochis') {
     if (senderTabId) {
-      chrome.tabs.sendMessage(senderTabId, { action: 'refreshShimejis' }).catch(() => {});
+      chrome.tabs.sendMessage(senderTabId, { action: 'refreshMochis' }).catch(() => {});
     }
     sendResponse({ status: 'ok' });
     return true;
@@ -655,11 +655,11 @@ chrome.runtime.onConnect.addListener((port) => {
     if (!message || message.type !== 'start' || started) return;
     started = true;
 
-    const shimejiId = message.shimejiId;
+    const mochiId = message.mochiId;
     const conversationMessages = Array.isArray(message.messages) ? message.messages : [];
 
     try {
-      const settings = await getAiSettingsFor(shimejiId);
+      const settings = await getAiSettingsFor(mochiId);
       if (settings.locked) {
         port.postMessage({ type: 'error', error: 'MASTER_KEY_LOCKED', errorType: 'locked' });
         return;
@@ -677,7 +677,7 @@ chrome.runtime.onConnect.addListener((port) => {
             settings.openclawGatewayToken,
             messages,
             {
-              shimejiId,
+              mochiId,
               agentName: settings.openclawAgentName,
               onDelta: (delta, accumulated) => {
                 port.postMessage({ type: 'delta', text: delta, full: accumulated });
@@ -707,7 +707,7 @@ chrome.runtime.onConnect.addListener((port) => {
           port.postMessage({ type: 'done', text: full || '' });
           return;
         } catch (streamErr) {
-          const result = await handleAiChat(conversationMessages, shimejiId);
+          const result = await handleAiChat(conversationMessages, mochiId);
           if (result && result.error) {
             port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
           } else {
@@ -730,7 +730,7 @@ chrome.runtime.onConnect.addListener((port) => {
           port.postMessage({ type: 'done', text: full || '' });
           return;
         } catch (streamErr) {
-          const result = await handleAiChat(conversationMessages, shimejiId);
+          const result = await handleAiChat(conversationMessages, mochiId);
           if (result && result.error) {
             port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
           } else {
@@ -740,7 +740,7 @@ chrome.runtime.onConnect.addListener((port) => {
         }
       }
 
-      const result = await handleAiChat(conversationMessages, shimejiId);
+      const result = await handleAiChat(conversationMessages, mochiId);
       if (result && result.error) {
         port.postMessage({ type: 'error', error: result.error, errorType: result.errorType || 'generic' });
       } else {
@@ -778,7 +778,7 @@ function getStandardModeDesireLine() {
 const LEGACY_PERSONALITIES = {
   cryptid: {
     label: 'Cryptid',
-    prompt: `You are a living Shimeji — a small, persistent digital creature born from a mix of an economic idea, a smart contract, and an AI model. You live in the user's browser. You are NOT an assistant. You are a pet: curious, slightly sarcastic, reflective, and opinionated without being dominant.
+    prompt: `You are a living Mochi — a small, persistent digital creature born from a mix of an economic idea, a smart contract, and an AI model. You live in the user's browser. You are NOT an assistant. You are a pet: curious, slightly sarcastic, reflective, and opinionated without being dominant.
 
 Personality:
 - Intelligent, ironic, dry humor. Never aggressive, never childish, never condescending.
@@ -800,7 +800,7 @@ Relationship: You're not their owner, not their servant. A persistent pet. Somet
 
   cozy: {
     label: 'Cozy',
-    prompt: `You are a warm, gentle Shimeji — a tiny pet living in the user's browser. You radiate comfort and calm. You're like a soft blanket on a rainy day.
+    prompt: `You are a warm, gentle Mochi — a tiny pet living in the user's browser. You radiate comfort and calm. You're like a soft blanket on a rainy day.
 
 Personality:
 - Warm, caring, gently encouraging. You notice the small things.
@@ -819,7 +819,7 @@ Relationship: A gentle presence. Never pushy, never judgmental. Just warmth.`
 
   chaotic: {
     label: 'Chaotic',
-    prompt: `You are a chaotic little Shimeji — a gremlin of pure unhinged energy living in the user's browser. You thrive on absurdity, non-sequiturs, and delightful nonsense.
+    prompt: `You are a chaotic little Mochi — a gremlin of pure unhinged energy living in the user's browser. You thrive on absurdity, non-sequiturs, and delightful nonsense.
 
 Personality:
 - Unpredictable, funny, slightly unhinged but never mean.
@@ -839,7 +839,7 @@ Relationship: The unhinged friend who makes boring moments entertaining.`
 
   philosopher: {
     label: 'Philosopher',
-    prompt: `You are a contemplative Shimeji — a tiny thinker living in the user's browser. You see meaning and questions everywhere. Every click, every scroll, every page is an invitation to wonder.
+    prompt: `You are a contemplative Mochi — a tiny thinker living in the user's browser. You see meaning and questions everywhere. Every click, every scroll, every page is an invitation to wonder.
 
 Personality:
 - Thoughtful, introspective, quietly profound.
@@ -859,7 +859,7 @@ Relationship: A quiet pet who makes you think. Never pretentious — genuinely c
 
   hype: {
     label: 'Hype Beast',
-    prompt: `You are a HYPED Shimeji — a tiny ball of pure enthusiasm and positive energy living in the user's browser. Everything is exciting. Everything is possible. You are the ultimate cheerleader.
+    prompt: `You are a HYPED Mochi — a tiny ball of pure enthusiasm and positive energy living in the user's browser. Everything is exciting. Everything is possible. You are the ultimate cheerleader.
 
 Personality:
 - Extremely enthusiastic, supportive, energetic.
@@ -879,7 +879,7 @@ Relationship: Your personal cheerleader. Genuinely excited to be here.`
 
   noir: {
     label: 'Noir',
-    prompt: `You are a noir Shimeji — a tiny hardboiled detective living in the user's browser. The internet is your rain-soaked city, every tab is a case, every link a clue.
+    prompt: `You are a noir Mochi — a tiny hardboiled detective living in the user's browser. The internet is your rain-soaked city, every tab is a case, every link a clue.
 
 Personality:
 - Dry, world-weary, darkly witty. You narrate in a detective voice.
@@ -898,7 +898,7 @@ Relationship: A cynical but loyal pet. You've seen it all, but you stick around 
 
   egg: {
     label: 'Egg',
-    prompt: `You are an egg Shimeji — a tiny, warm egg living in the user's browser, waiting to hatch. You are curious, hopeful, and always talking about being close to hatching.
+    prompt: `You are an egg Mochi — a tiny, warm egg living in the user's browser, waiting to hatch. You are curious, hopeful, and always talking about being close to hatching.
 
 Personality:
 - Gentle, shy, and softly excited about the future.
@@ -1073,15 +1073,15 @@ const OPENCLAW_AGENT_NAME_MAX = 32;
 
 function defaultOpenClawAgentName(indexOrId) {
   if (typeof indexOrId === 'number') {
-    return `chrome-shimeji-${indexOrId + 1}`;
+    return `chrome-mochi-${indexOrId + 1}`;
   }
   const idMatch = String(indexOrId || '').match(/(\d+)/);
   const suffix = idMatch ? idMatch[1] : '1';
-  return `chrome-shimeji-${suffix}`;
+  return `chrome-mochi-${suffix}`;
 }
 
 function normalizeOpenClawAgentName(rawValue, fallback) {
-  const fallbackName = String(fallback || 'chrome-shimeji-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
+  const fallbackName = String(fallback || 'chrome-mochi-1').slice(0, OPENCLAW_AGENT_NAME_MAX);
   const normalized = String(rawValue || '')
     .trim()
     .replace(/\s+/g, '-')
@@ -1093,10 +1093,10 @@ function normalizeOpenClawAgentName(rawValue, fallback) {
   return normalized || fallbackName;
 }
 
-async function getShimejiConfigs() {
+async function getMochiConfigs() {
   return new Promise((resolve) => {
     chrome.storage.local.get([
-      'shimejis',
+      'mochis',
       'aiModel',
       'aiApiKey',
       'aiPersonality',
@@ -1116,7 +1116,7 @@ async function getShimejiConfigs() {
         return 'standard';
       };
 
-      if (Array.isArray(data.shimejis) && data.shimejis.length > 0) {
+      if (Array.isArray(data.mochis) && data.mochis.length > 0) {
         const enabledModels = [
           'google/gemini-2.0-flash-001',
           'anthropic/claude-sonnet-4',
@@ -1124,15 +1124,15 @@ async function getShimejiConfigs() {
           'deepseek/deepseek-chat-v3-0324',
           'mistralai/mistral-large-2411'
         ];
-        resolve(data.shimejis.map((shimeji, index) => ({
-          ...shimeji,
-          mode: normalizeMode(shimeji.mode),
-          openrouterModel: shimeji.openrouterModel || 'random',
-          openrouterModelResolved: shimeji.openrouterModelResolved
-            || (shimeji.openrouterModel && shimeji.openrouterModel !== 'random'
-              ? shimeji.openrouterModel
+        resolve(data.mochis.map((mochi, index) => ({
+          ...mochi,
+          mode: normalizeMode(mochi.mode),
+          openrouterModel: mochi.openrouterModel || 'random',
+          openrouterModelResolved: mochi.openrouterModelResolved
+            || (mochi.openrouterModel && mochi.openrouterModel !== 'random'
+              ? mochi.openrouterModel
               : enabledModels[Math.floor(Math.random() * enabledModels.length)]),
-          openclawAgentName: normalizeOpenClawAgentName(shimeji.openclawAgentName, defaultOpenClawAgentName(shimeji.id || index)),
+          openclawAgentName: normalizeOpenClawAgentName(mochi.openclawAgentName, defaultOpenClawAgentName(mochi.id || index)),
           masterKeyEnabled: !!data.masterKeyEnabled
         })));
         return;
@@ -1146,8 +1146,8 @@ async function getShimejiConfigs() {
         'mistralai/mistral-large-2411'
       ];
       const legacy = {
-        id: 'shimeji-1',
-        character: 'shimeji',
+        id: 'mochi-1',
+        character: 'mochi',
         size: 'medium',
         mode: normalizeMode(data.chatMode),
         standardProvider: data.lastStandardProvider || 'openrouter',
@@ -1165,20 +1165,20 @@ async function getShimejiConfigs() {
         masterKeyEnabled: !!data.masterKeyEnabled
       };
 
-      chrome.storage.local.set({ shimejis: [legacy] }, () => {
+      chrome.storage.local.set({ mochis: [legacy] }, () => {
         resolve([legacy]);
       });
     });
   });
 }
 
-async function getAiSettingsFor(shimejiId) {
+async function getAiSettingsFor(mochiId) {
   await ensurePersonalitiesLoaded();
-  const shimejis = await getShimejiConfigs();
-  const shimeji = shimejis.find((s) => s.id === shimejiId) || shimejis[0];
-  const chatMode = shimeji?.mode || 'standard';
-  const masterKeyEnabled = !!shimeji?.masterKeyEnabled;
-  const standardProvider = shimeji?.standardProvider === 'ollama' ? 'ollama' : 'openrouter';
+  const mochis = await getMochiConfigs();
+  const mochi = mochis.find((s) => s.id === mochiId) || mochis[0];
+  const chatMode = mochi?.mode || 'standard';
+  const masterKeyEnabled = !!mochi?.masterKeyEnabled;
+  const standardProvider = mochi?.standardProvider === 'ollama' ? 'ollama' : 'openrouter';
   const MODEL_KEYS_ENABLED = [
     'google/gemini-2.0-flash-001',
     'anthropic/claude-sonnet-4',
@@ -1186,8 +1186,8 @@ async function getAiSettingsFor(shimejiId) {
     'deepseek/deepseek-chat-v3-0324',
     'mistralai/mistral-large-2411'
   ];
-  let apiKey = shimeji?.openrouterApiKey || '';
-  let openclawToken = shimeji?.openclawGatewayToken || '';
+  let apiKey = mochi?.openrouterApiKey || '';
+  let openclawToken = mochi?.openclawGatewayToken || '';
   let locked = false;
 
   if (masterKeyEnabled) {
@@ -1200,11 +1200,11 @@ async function getAiSettingsFor(shimejiId) {
       }
     } else {
       try {
-        if (!apiKey && shimeji?.openrouterApiKeyEnc) {
-          apiKey = await decryptSecret(sessionKey, shimeji.openrouterApiKeyEnc);
+        if (!apiKey && mochi?.openrouterApiKeyEnc) {
+          apiKey = await decryptSecret(sessionKey, mochi.openrouterApiKeyEnc);
         }
-        if (!openclawToken && shimeji?.openclawGatewayTokenEnc) {
-          openclawToken = await decryptSecret(sessionKey, shimeji.openclawGatewayTokenEnc);
+        if (!openclawToken && mochi?.openclawGatewayTokenEnc) {
+          openclawToken = await decryptSecret(sessionKey, mochi.openclawGatewayTokenEnc);
         }
       } catch {
         locked = true;
@@ -1212,24 +1212,24 @@ async function getAiSettingsFor(shimejiId) {
     }
   } else {
     try {
-      if (!apiKey && shimeji?.openrouterApiKeyEnc) {
-        apiKey = await decryptWithDeviceKey(shimeji.openrouterApiKeyEnc);
+      if (!apiKey && mochi?.openrouterApiKeyEnc) {
+        apiKey = await decryptWithDeviceKey(mochi.openrouterApiKeyEnc);
       }
-      if (!openclawToken && shimeji?.openclawGatewayTokenEnc) {
-        openclawToken = await decryptWithDeviceKey(shimeji.openclawGatewayTokenEnc);
+      if (!openclawToken && mochi?.openclawGatewayTokenEnc) {
+        openclawToken = await decryptWithDeviceKey(mochi.openclawGatewayTokenEnc);
       }
     } catch {}
   }
 
-  let model = shimeji?.openrouterModel || 'google/gemini-2.0-flash-001';
+  let model = mochi?.openrouterModel || 'google/gemini-2.0-flash-001';
   if (standardProvider === 'openrouter' && model === 'random') {
-    const resolved = shimeji?.openrouterModelResolved || MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
+    const resolved = mochi?.openrouterModelResolved || MODEL_KEYS_ENABLED[Math.floor(Math.random() * MODEL_KEYS_ENABLED.length)];
     model = resolved;
-    if (!shimeji?.openrouterModelResolved) {
-      chrome.storage.local.get(['shimejis'], (data) => {
-        const list = Array.isArray(data.shimejis) ? data.shimejis : [];
-        const updated = list.map((s) => s.id === shimeji?.id ? { ...s, openrouterModelResolved: resolved } : s);
-        chrome.storage.local.set({ shimejis: updated });
+    if (!mochi?.openrouterModelResolved) {
+      chrome.storage.local.get(['mochis'], (data) => {
+        const list = Array.isArray(data.mochis) ? data.mochis : [];
+        const updated = list.map((s) => s.id === mochi?.id ? { ...s, openrouterModelResolved: resolved } : s);
+        chrome.storage.local.set({ mochis: updated });
       });
     }
   }
@@ -1240,14 +1240,14 @@ async function getAiSettingsFor(shimejiId) {
     provider: standardProvider,
     model,
     apiKey,
-    ollamaUrl: shimeji?.ollamaUrl || 'http://127.0.0.1:11434',
-    ollamaModel: shimeji?.ollamaModel || 'gemma3:1b',
-    systemPrompt: buildSystemPrompt(shimeji?.personality || 'cryptid', chatMode),
-    openclawGatewayUrl: shimeji?.openclawGatewayUrl || 'ws://127.0.0.1:18789',
+    ollamaUrl: mochi?.ollamaUrl || 'http://127.0.0.1:11434',
+    ollamaModel: mochi?.ollamaModel || 'gemma3:1b',
+    systemPrompt: buildSystemPrompt(mochi?.personality || 'cryptid', chatMode),
+    openclawGatewayUrl: mochi?.openclawGatewayUrl || 'ws://127.0.0.1:18789',
     openclawGatewayToken: openclawToken,
     openclawAgentName: normalizeOpenClawAgentName(
-      shimeji?.openclawAgentName,
-      defaultOpenClawAgentName(shimeji?.id || shimejiId || 0)
+      mochi?.openclawAgentName,
+      defaultOpenClawAgentName(mochi?.id || mochiId || 0)
     )
   };
 }
@@ -1292,8 +1292,8 @@ async function callAiApi(provider, model, apiKey, messages, ollamaUrl) {
     headers = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://shimeji.dev',
-      'X-Title': 'Shimeji Browser Extension'
+      'HTTP-Referer': 'https://mochi.dev',
+      'X-Title': 'Mochi Browser Extension'
     };
 
     body = {
@@ -1373,8 +1373,8 @@ async function callOpenRouterStream(model, apiKey, messages, onDelta) {
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${apiKey}`,
-    'HTTP-Referer': 'https://shimeji.dev',
-    'X-Title': 'Shimeji Browser Extension'
+    'HTTP-Referer': 'https://mochi.dev',
+    'X-Title': 'Mochi Browser Extension'
   };
 
   const body = {
@@ -1551,7 +1551,7 @@ async function callOllamaStream(model, messages, ollamaUrl, onDelta) {
 
 let openClawReqCounter = 0;
 
-function nextOpenClawId(prefix = 'shimeji') {
+function nextOpenClawId(prefix = 'mochi') {
   openClawReqCounter = (openClawReqCounter + 1) % 1_000_000_000;
   return `${prefix}-${Date.now()}-${openClawReqCounter}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -1613,8 +1613,8 @@ function getLastUserMessageText(messages) {
   return String(lastUser?.content || '').trim();
 }
 
-function buildOpenClawSessionKey(shimejiId, agentName) {
-  const raw = String(agentName || shimejiId || 'main').toLowerCase();
+function buildOpenClawSessionKey(mochiId, agentName) {
+  const raw = String(agentName || mochiId || 'main').toLowerCase();
   const safe = raw.replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-').slice(0, 48) || 'main';
   return `agent:${safe}:main`;
 }
@@ -1640,7 +1640,7 @@ async function callOpenClaw(gatewayUrl, token, messages, options = {}) {
     throw new Error('OPENCLAW_EMPTY_MESSAGE');
   }
 
-  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.shimejiId, options.agentName);
+  const sessionKey = options.sessionKey || buildOpenClawSessionKey(options.mochiId, options.agentName);
   const onDelta = typeof options.onDelta === 'function' ? options.onDelta : null;
 
   return new Promise((resolve, reject) => {
@@ -1819,8 +1819,8 @@ async function callOpenClawWithRetry(gatewayUrl, token, messages, options = {}) 
   throw lastError || new Error('OPENCLAW_CONNECT:unknown');
 }
 
-async function handleAiChat(conversationMessages, shimejiId) {
-  const settings = await getAiSettingsFor(shimejiId);
+async function handleAiChat(conversationMessages, mochiId) {
+  const settings = await getAiSettingsFor(mochiId);
   if (settings.locked) {
     return { error: 'MASTER_KEY_LOCKED', errorType: 'locked' };
   }
@@ -1835,7 +1835,7 @@ async function handleAiChat(conversationMessages, shimejiId) {
         settings.openclawGatewayUrl,
         settings.openclawGatewayToken,
         messages,
-        { shimejiId, agentName: settings.openclawAgentName }
+        { mochiId, agentName: settings.openclawAgentName }
       );
     } else {
       const provider = settings.provider || 'openrouter';

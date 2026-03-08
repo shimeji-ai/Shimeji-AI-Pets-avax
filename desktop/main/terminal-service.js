@@ -55,9 +55,9 @@ function shouldDropTerminalLine(pending, rawLine) {
   if (!trimmed) return false;
   if (pending?.startMarker && trimmed.includes(pending.startMarker)) return true;
   if (pending?.marker && trimmed.includes(pending.marker)) return true;
-  if (/^__shimeji_exit=/.test(trimmed)) return true;
-  if (/^[^@\s]+@[^:\s]+:[^#$\n]*[#$]\s*__shimeji_exit=/.test(trimmed)) return true;
-  if (/^printf\s+["'].*SHIMEJI_(START|DONE)_/i.test(trimmed)) return true;
+  if (/^__mochi_exit=/.test(trimmed)) return true;
+  if (/^[^@\s]+@[^:\s]+:[^#$\n]*[#$]\s*__mochi_exit=/.test(trimmed)) return true;
+  if (/^printf\s+["'].*MOCHI_(START|DONE)_/i.test(trimmed)) return true;
   if (/^cd\s+["'][^"']*["']\s*>\/dev\/null\s+2>&1\s+\|\|\s+echo\s+"Warning: could not cd into/i.test(trimmed)) {
     return true;
   }
@@ -119,7 +119,7 @@ function resolveTerminalCommandCompatibility(commandText) {
   if (base === 'codex') {
     if (!tail) {
       return {
-        error: 'codex is interactive. In Shimeji terminal, use: codex exec "<prompt>"'
+        error: 'codex is interactive. In Mochi terminal, use: codex exec "<prompt>"'
       };
     }
     if (/^(--help|-h|--version|-V)\b/.test(tail)) {
@@ -140,7 +140,7 @@ function resolveTerminalCommandCompatibility(commandText) {
   if (base === 'claude') {
     if (!tail) {
       return {
-        error: 'claude is interactive. In Shimeji terminal, use: claude -p "<prompt>"'
+        error: 'claude is interactive. In Mochi terminal, use: claude -p "<prompt>"'
       };
     }
     if (/^(--help|-h|--version|-v)\b/.test(tail)) {
@@ -187,7 +187,7 @@ function createTerminalService({ emitEvent } = {}) {
     if (!filteredChunk) return;
     pending.accumulated += filteredChunk;
     sendEvent(pending.webContents, 'terminal-stream-delta', {
-      shimejiId: sessionObj.shimejiId,
+      mochiId: sessionObj.mochiId,
       delta: filteredChunk,
       accumulated: pending.accumulated,
       source
@@ -205,7 +205,7 @@ function createTerminalService({ emitEvent } = {}) {
     }
     const content = sanitizeTerminalOutput(pending.accumulated, pending);
     sendEvent(pending.webContents, 'terminal-stream-done', {
-      shimejiId: sessionObj.shimejiId,
+      mochiId: sessionObj.mochiId,
       exitCode,
       content
     });
@@ -220,7 +220,7 @@ function createTerminalService({ emitEvent } = {}) {
     if (!pending) return;
     sessionObj.pending = null;
     sendEvent(pending.webContents, 'terminal-stream-error', {
-      shimejiId: sessionObj.shimejiId,
+      mochiId: sessionObj.mochiId,
       error: errorMessage
     });
     pending.reject(new Error(errorMessage));
@@ -278,7 +278,7 @@ function createTerminalService({ emitEvent } = {}) {
     flushTerminalChunk(sessionObj, pending, data, 'stderr');
   }
 
-  function createTerminalSession(shimejiId, settings = {}) {
+  function createTerminalSession(mochiId, settings = {}) {
     const distro = normalizeTerminalDistro(settings.terminalDistro);
     const configuredCwd = normalizeTerminalCwd(settings.terminalCwd);
     const isWindows = process.platform === 'win32';
@@ -295,13 +295,13 @@ function createTerminalService({ emitEvent } = {}) {
         ...process.env,
         TERM: process.env.TERM || 'xterm-256color',
         COLORTERM: process.env.COLORTERM || 'truecolor',
-        TERM_PROGRAM: process.env.TERM_PROGRAM || 'ShimejiDesktop',
+        TERM_PROGRAM: process.env.TERM_PROGRAM || 'MochiDesktop',
         TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0'
       }
     });
 
     const sessionObj = {
-      shimejiId,
+      mochiId,
       distro,
       configuredCwd,
       needsConfiguredCwd: Boolean(configuredCwd),
@@ -318,10 +318,10 @@ function createTerminalService({ emitEvent } = {}) {
     child.on('error', (error) => {
       const message = error?.message ? `TERMINAL_ERROR:${error.message}` : 'TERMINAL_ERROR';
       failTerminalPending(sessionObj, message);
-      terminalSessions.delete(shimejiId);
+      terminalSessions.delete(mochiId);
     });
     child.on('exit', (code, signal) => {
-      terminalSessions.delete(shimejiId);
+      terminalSessions.delete(mochiId);
       if (!sessionObj.pending) return;
       const message = sessionObj.closing
         ? 'TERMINAL_SESSION_CLOSED'
@@ -329,14 +329,14 @@ function createTerminalService({ emitEvent } = {}) {
       failTerminalPending(sessionObj, message);
     });
 
-    terminalSessions.set(shimejiId, sessionObj);
+    terminalSessions.set(mochiId, sessionObj);
     return sessionObj;
   }
 
-  function closeSession(shimejiId, reason = 'TERMINAL_SESSION_CLOSED') {
-    const sessionObj = terminalSessions.get(shimejiId);
+  function closeSession(mochiId, reason = 'TERMINAL_SESSION_CLOSED') {
+    const sessionObj = terminalSessions.get(mochiId);
     if (!sessionObj) return false;
-    terminalSessions.delete(shimejiId);
+    terminalSessions.delete(mochiId);
     sessionObj.closing = true;
     if (sessionObj.pending) {
       failTerminalPending(sessionObj, reason);
@@ -350,21 +350,21 @@ function createTerminalService({ emitEvent } = {}) {
   }
 
   function closeAllSessions() {
-    for (const shimejiId of terminalSessions.keys()) {
-      closeSession(shimejiId, 'TERMINAL_SESSION_CLOSED');
+    for (const mochiId of terminalSessions.keys()) {
+      closeSession(mochiId, 'TERMINAL_SESSION_CLOSED');
     }
   }
 
-  function getOrCreateSession(shimejiId, settings = {}) {
+  function getOrCreateSession(mochiId, settings = {}) {
     const desiredDistro = normalizeTerminalDistro(settings.terminalDistro);
     const desiredCwd = normalizeTerminalCwd(settings.terminalCwd);
-    let sessionObj = terminalSessions.get(shimejiId);
+    let sessionObj = terminalSessions.get(mochiId);
     if (sessionObj && sessionObj.distro !== desiredDistro) {
-      closeSession(shimejiId, 'TERMINAL_SESSION_REPLACED');
+      closeSession(mochiId, 'TERMINAL_SESSION_REPLACED');
       sessionObj = null;
     }
     if (!sessionObj) {
-      sessionObj = createTerminalSession(shimejiId, {
+      sessionObj = createTerminalSession(mochiId, {
         terminalDistro: desiredDistro,
         terminalCwd: desiredCwd
       });
@@ -378,13 +378,13 @@ function createTerminalService({ emitEvent } = {}) {
     return sessionObj;
   }
 
-  async function autocomplete(shimejiId, fragment, settings = {}) {
+  async function autocomplete(mochiId, fragment, settings = {}) {
     const query = String(fragment || '');
     if (!query) {
       return { ok: true, completion: '', candidates: [] };
     }
 
-    const sessionObj = getOrCreateSession(shimejiId, settings);
+    const sessionObj = getOrCreateSession(mochiId, settings);
     const cwd = normalizeTerminalCwd(sessionObj.currentCwd || sessionObj.configuredCwd || settings.terminalCwd);
     const distro = normalizeTerminalDistro(settings.terminalDistro || sessionObj.distro);
     const isWindows = process.platform === 'win32';
@@ -405,7 +405,7 @@ function createTerminalService({ emitEvent } = {}) {
           ...process.env,
           TERM: process.env.TERM || 'xterm-256color',
           COLORTERM: process.env.COLORTERM || 'truecolor',
-          TERM_PROGRAM: process.env.TERM_PROGRAM || 'ShimejiDesktop',
+          TERM_PROGRAM: process.env.TERM_PROGRAM || 'MochiDesktop',
           TERM_PROGRAM_VERSION: process.env.TERM_PROGRAM_VERSION || '0.1.0'
         }
       });
@@ -475,7 +475,7 @@ function createTerminalService({ emitEvent } = {}) {
     };
   }
 
-  async function executeCommand(webContents, shimejiId, commandText, settings = {}) {
+  async function executeCommand(webContents, mochiId, commandText, settings = {}) {
     const commandInput = String(commandText || '').replace(/\r\n?/g, '\n').trim();
     if (!commandInput) {
       return { ok: false, error: 'Empty command.' };
@@ -489,7 +489,7 @@ function createTerminalService({ emitEvent } = {}) {
       return { ok: false, error: 'Empty command.' };
     }
 
-    const sessionObj = getOrCreateSession(shimejiId, {
+    const sessionObj = getOrCreateSession(mochiId, {
       terminalDistro: settings.terminalDistro,
       terminalCwd: settings.terminalCwd
     });
@@ -499,8 +499,8 @@ function createTerminalService({ emitEvent } = {}) {
     }
 
     const markerSeed = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    const startMarker = `__SHIMEJI_START_${markerSeed}__`;
-    const marker = `__SHIMEJI_DONE_${markerSeed}__`;
+    const startMarker = `__MOCHI_START_${markerSeed}__`;
+    const marker = `__MOCHI_DONE_${markerSeed}__`;
     const commandTrimmed = command.trim();
 
     return new Promise((resolve, reject) => {
@@ -523,7 +523,7 @@ function createTerminalService({ emitEvent } = {}) {
         ? `cd "${escapeBashDoubleQuoted(sessionObj.configuredCwd)}" >/dev/null 2>&1 || echo "Warning: could not cd into ${escapeBashDoubleQuoted(sessionObj.configuredCwd)}"\n`
         : '';
       const startLine = `printf "${startMarker}\\n"\n`;
-      const markerLine = `__shimeji_exit="$?"\nprintf "\\n${marker}%s|%s\\n" "$__shimeji_exit" "$(pwd)"\n`;
+      const markerLine = `__mochi_exit="$?"\nprintf "\\n${marker}%s|%s\\n" "$__mochi_exit" "$(pwd)"\n`;
       const script = `${cwdPrefix}${startLine}${command}\n${markerLine}`;
       if (applyConfiguredCwd) {
         sessionObj.needsConfiguredCwd = false;

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shimeji Desktop Overlay</title>
+  <title>Mochi Desktop Overlay</title>
   <link rel="stylesheet" href="../node_modules/xterm/css/xterm.css" />
   <link rel="stylesheet" href="chat.css" />
   <style>
@@ -18,7 +18,7 @@
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
     
-    #shimeji-container {
+    #mochi-container {
       position: fixed;
       top: 0;
       left: 0;
@@ -29,17 +29,17 @@
     }
     
     /* Ensure chat bubbles capture mouse events */
-    .shimeji-chat-bubble {
+    .mochi-chat-bubble {
       pointer-events: auto !important;
     }
     
-    .shimeji-wrapper {
+    .mochi-wrapper {
       position: absolute;
       pointer-events: auto;
       cursor: pointer;
     }
     
-    .shimeji-sprite {
+    .mochi-sprite {
       width: 128px;
       height: 128px;
       transform-origin: center;
@@ -48,7 +48,7 @@
       transition: filter 0.2s;
     }
     
-    .shimeji-sprite:hover {
+    .mochi-sprite:hover {
       filter: brightness(1.1);
     }
     
@@ -103,10 +103,10 @@
   </style>
 </head>
 <body>
-  <div id="shimeji-container"></div>
+  <div id="mochi-container"></div>
   <script src="../node_modules/xterm/lib/xterm.js"></script>
   <script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
-  <script src="shimeji-shared.js"></script>
+  <script src="mochi-shared.js"></script>
   <script src="terminal-pane.js"></script>
   <script src="overlay.js"></script>
 </body>

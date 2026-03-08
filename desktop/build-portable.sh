@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Shimeji Desktop - Portable EXE Build Script
+# Mochi Desktop - Portable EXE Build Script
 # This script builds the Nullsoft Installer portable executable for Windows
 
 set -e
 
 echo "========================================"
-echo "Shimeji Desktop - Portable Build"
+echo "Mochi Desktop - Portable Build"
 echo "========================================"
 echo ""
 
@@ -43,17 +43,17 @@ echo "========================================"
 echo "Build Verification"
 echo "========================================"
 
-if [ -f "dist/Shimeji-Desktop-Portable-0.1.0.exe" ]; then
+if [ -f "dist/Mochi-Desktop-Portable-0.1.0.exe" ]; then
     echo "SUCCESS: Portable exe created!"
     echo ""
-    file "dist/Shimeji-Desktop-Portable-0.1.0.exe"
+    file "dist/Mochi-Desktop-Portable-0.1.0.exe"
     echo ""
     echo "File size:"
-    ls -lh "dist/Shimeji-Desktop-Portable-0.1.0.exe"
+    ls -lh "dist/Mochi-Desktop-Portable-0.1.0.exe"
     echo ""
     echo "Next steps:"
-    echo "1. Copy dist/Shimeji-Desktop-Portable-0.1.0.exe to a Windows machine"
-    echo "2. Run the executable to install Shimeji Desktop"
+    echo "1. Copy dist/Mochi-Desktop-Portable-0.1.0.exe to a Windows machine"
+    echo "2. Run the executable to install Mochi Desktop"
 else
     echo "ERROR: Build failed - executable not found!"
     exit 1

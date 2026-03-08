@@ -1,4 +1,4 @@
-# Shimeji Sprite Reference for Artists
+# Mochi Sprite Reference for Artists
 
 This guide explains how each image is used in the character’s animations in plain, visual terms. It is meant for illustrators and graphic designers. The developer-focused document remains in `SPRITE-REFERENCE.md`.
 
@@ -119,11 +119,11 @@ The dangle frames alternate to create a gentle leg swing.
 
 ---
 
-## Original Shimeji-ee Sprite Mapping (For Importing New Characters)
+## Original Mochi-ee Sprite Mapping (For Importing New Characters)
 
-This mapping shows which **Shimeji-ee original sprite** each renamed file corresponds to. Use this when bringing in existing Shimeji-ee packs and renaming them for this extension.
+This mapping shows which **Mochi-ee original sprite** each renamed file corresponds to. Use this when bringing in existing Mochi-ee packs and renaming them for this extension.
 
-| Renamed Sprite | Shimeji-ee Original |
+| Renamed Sprite | Mochi-ee Original |
 |----------------|---------------------|
 | `stand-neutral.png` | `shime1` |
 | `walk-step-left.png` | `shime2` |

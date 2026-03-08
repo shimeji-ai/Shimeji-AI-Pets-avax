@@ -12,14 +12,14 @@
 Run the build script to create a new portable exe:
 
 ```bash
-cd /home/lulox/Shimeji-AI-Pets/desktop
+cd /home/lulox/Mochi/desktop
 ./build-portable.sh
 ```
 
 Or manually:
 
 ```bash
-cd /home/lulox/Shimeji-AI-Pets/desktop
+cd /home/lulox/Mochi/desktop
 rm -f dist/*.exe && npx electron-builder --win
 ```
 
@@ -27,15 +27,15 @@ rm -f dist/*.exe && npx electron-builder --win
 
 ## Build Process
 
-The build creates a Nullsoft Installer self-extracting portable exe (`Shimeji-Desktop-Portable-0.1.0.exe`).
+The build creates a Nullsoft Installer self-extracting portable exe (`Mochi-Desktop-Portable-0.1.0.exe`).
 
 ## Verification
 
 After build completes, verify the exe was created:
 
 ```bash
-ls -la /home/lulox/Shimeji-AI-Pets/desktop/dist/Shimeji-Desktop-Portable-0.1.0.exe
-file /home/lulox/Shimeji-AI-Pets/desktop/dist/Shimeji-Desktop-Portable-0.1.0.exe
+ls -la /home/lulox/Mochi/desktop/dist/Mochi-Desktop-Portable-0.1.0.exe
+file /home/lulox/Mochi/desktop/dist/Mochi-Desktop-Portable-0.1.0.exe
 ```
 
 Expected output: `PE32 executable (GUI) Intel 80386, for MS Windows, Nullsoft Installer self-extracting archive`
@@ -66,7 +66,7 @@ If `npx electron-builder --win` fails:
 
 | File | Purpose |
 |------|---------|
-| `renderer/overlay.js` | Shimeji rendering, physics, behavior |
+| `renderer/overlay.js` | Mochi rendering, physics, behavior |
 | `renderer/settings.html` | Settings UI layout |
 | `renderer/settings.css` | Settings UI styling |
 | `renderer/settings.js` | Settings UI logic |
@@ -79,8 +79,8 @@ If `npx electron-builder --win` fails:
 ## Testing the Build
 
 Copy the portable exe to a Windows machine and verify:
-1. Shimejis appear on screen
+1. Mochis appear on screen
 2. They fall and start walking
 3. Click opens chat, double-click makes them jump
 4. Settings window opens and works
-5. Adding/removing shimejis works
+5. Adding/removing mochis works
