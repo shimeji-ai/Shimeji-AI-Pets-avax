@@ -136,7 +136,7 @@ export function SubscribeSection() {
 
             <div className="flex justify-between items-center gap-3">
               <a
-                href="https://x.com/MochiAIPets"
+                href="https://x.com/MochiAgents"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="neural-button rounded-xl px-6 py-3 text-base font-semibold inline-flex items-center gap-2 bg-[#1d9bf0] text-white hover:bg-[#1483d6]"

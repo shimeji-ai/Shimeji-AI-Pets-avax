@@ -30,7 +30,7 @@ export function Footer() {
              
               <div className="flex gap-3">
                 <Link
-                  href="https://x.com/MochiAIPets"
+                  href="https://x.com/MochiAgents"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-11 h-11 rounded-2xl p-[2px] neural-outline transition-transform hover:-translate-y-0.5"

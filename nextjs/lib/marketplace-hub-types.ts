@@ -54,6 +54,9 @@ export type MarketplaceFeedItem = {
   status: "active" | "ended" | "sold" | "cancelled";
   tokenId: number | null;
   tokenUri: string | null;
+  tokenName?: string | null;
+  imageUrl?: string | null;
+  metadataUrl?: string | null;
   tokenStandard?: "ERC721" | "ERC1155" | null;
   quantityAvailable?: number | null;
   sellerWallet: string | null;

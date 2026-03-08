@@ -161,11 +161,12 @@ export function MarketplaceHubMarketplaceTab({
                   <div className="aspect-square w-full">
                     {(() => {
                       const preview = liveAuctionItem.tokenUri ? tokenPreviews[liveAuctionItem.tokenUri] : null;
-                      if (preview?.imageUrl) {
+                      const previewImageUrl = liveAuctionItem.imageUrl || preview?.imageUrl || null;
+                      if (previewImageUrl) {
                         return (
                           <img
-                            src={preview.imageUrl}
-                            alt={preview.name || `Auction ${liveAuctionItem.auction?.auctionId ?? ""}`}
+                            src={previewImageUrl}
+                            alt={liveAuctionItem.tokenName || preview?.name || `Auction ${liveAuctionItem.auction?.auctionId ?? ""}`}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />
@@ -193,9 +194,10 @@ export function MarketplaceHubMarketplaceTab({
                     {t("Live Auction", "Subasta en vivo")}
                   </div>
                   <h3 className="mt-3 text-lg font-semibold text-foreground">
-                    {liveAuctionItem.tokenId !== null
-                      ? `${t("Mochi NFT", "Mochi NFT")} #${liveAuctionItem.tokenId}`
-                      : `${t("Auction", "Subasta")} #${liveAuctionItem.auction?.auctionId ?? "?"}`}
+                    {liveAuctionItem.tokenName ||
+                      (liveAuctionItem.tokenId !== null
+                        ? `${t("Mochi NFT", "Mochi NFT")} #${liveAuctionItem.tokenId}`
+                        : `${t("Auction", "Subasta")} #${liveAuctionItem.auction?.auctionId ?? "?"}`)}
                   </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {t(
@@ -333,8 +335,9 @@ export function MarketplaceHubMarketplaceTab({
             const commissionPlaceholderImageUrl = isCommissionEgg
               ? (item.sellerProfile?.bannerUrl || item.sellerProfile?.avatarUrl || null)
               : null;
-            const previewImageUrl = commissionPlaceholderImageUrl || preview?.imageUrl || null;
+            const previewImageUrl = commissionPlaceholderImageUrl || item.imageUrl || preview?.imageUrl || null;
             const title =
+              item.tokenName ||
               preview?.name ||
               (item.tokenId !== null
                 ? `${isCommissionEgg ? t("Commission Egg", "Huevo de comision") : isEdition ? t("Edition", "Edición") : "Mochi NFT"} #${item.tokenId}`
@@ -388,6 +391,9 @@ export function MarketplaceHubMarketplaceTab({
                 </div>
 
                 <div className="flex flex-col gap-2 border-t border-border/60 p-3">
+                  <div>
+                    <p className="line-clamp-2 text-base font-semibold leading-tight text-foreground">{title}</p>
+                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <p className="leading-none text-lg font-semibold text-foreground">{primaryPrice}</p>
                     <span

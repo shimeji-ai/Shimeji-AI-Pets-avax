@@ -14,7 +14,7 @@ export function UpdatesSubscribePopup({
   buttonVariant = "default",
 }: UpdatesSubscribePopupProps) {
   const { isSpanish } = useLanguage();
-  const updatesXUrl = "https://x.com/MochiAIPets";
+  const updatesXUrl = "https://x.com/MochiAgents";
 
   return (
     <Button asChild variant={buttonVariant} className={`${buttonClassName} cursor-pointer`.trim()}>

@@ -135,8 +135,8 @@ export function ProjectFeedbackBox() {
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <p className="text-xs text-muted-foreground">
               {isSpanish
-                ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @MochiAIPets en X."
-                : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @MochiAIPets on X."}
+                ? "Si el usuario de X está vacío, el feedback es anónimo y no participa del giveaway. Recuerda seguir a @MochiAgents en X."
+                : "If X username is empty, feedback is anonymous and not eligible for the giveaway draw. Also remember to follow @MochiAgents on X."}
             </p>
             <Button
               type="submit"

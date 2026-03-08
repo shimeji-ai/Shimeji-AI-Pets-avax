@@ -125,6 +125,20 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
         throw new Error(payload.error || "Failed to load feed");
       }
       setFeed(payload);
+      setTokenPreviews((prev) => {
+        const next = { ...prev };
+        for (const item of payload.items || []) {
+          if (!item.tokenUri) continue;
+          const imageUrl = item.imageUrl ?? null;
+          const name = item.tokenName ?? null;
+          if (!imageUrl && !name) continue;
+          next[item.tokenUri] = {
+            imageUrl,
+            name,
+          };
+        }
+        return next;
+      });
     } catch (error) {
       setFeedError(error instanceof Error ? error.message : "Failed to load marketplace feed.");
     } finally {

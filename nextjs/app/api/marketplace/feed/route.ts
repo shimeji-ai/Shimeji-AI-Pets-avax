@@ -9,6 +9,7 @@ import {
 import { fetchEditionListings, fetchListings } from "@/lib/marketplace";
 import { fetchEditionTokenById, fetchNftTokensByIds } from "@/lib/nft-read";
 import { fetchSwapListings } from "@/lib/swap";
+import { fetchTokenMetadataPreview } from "@/lib/token-metadata";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,7 @@ function matchesSearch(item: MarketplaceFeedItem, search: string): boolean {
     item.saleKind,
     item.sellerWallet || "",
     item.tokenUri || "",
+    item.tokenName || "",
     item.sellerProfile?.displayName || "",
     ...(item.sellerProfile?.styleTags ?? []),
     ...(item.sellerProfile?.languages ?? []),
@@ -116,6 +118,22 @@ export async function GET(request: NextRequest) {
       editionById.set(record.editionId, record);
     }
 
+    const metadataUris = Array.from(
+      new Set(
+        [
+          ...tokenRecords.map((record) => record.tokenUri),
+          ...editionRecords.map((record) => record?.tokenUri ?? null),
+        ].filter((uri): uri is string => Boolean(uri)),
+      ),
+    );
+    const metadataEntries = await Promise.all(
+      metadataUris.map(async (uri) => [uri, await fetchTokenMetadataPreview(uri)] as const),
+    ).catch(() => {
+      warnings.push("Failed to load token metadata previews.");
+      return [] as Array<readonly [string, Awaited<ReturnType<typeof fetchTokenMetadataPreview>>]>;
+    });
+    const metadataByUri = new Map(metadataEntries);
+
     const sellerProfiles: Record<string, ArtistProfile> = await getArtistProfilesByWallets(
       [
         ...listings.map((listing) => listing.seller),
@@ -142,6 +160,9 @@ export async function GET(request: NextRequest) {
         status: listing.active ? "active" : "cancelled",
         tokenId: listing.tokenId,
         tokenUri: token?.tokenUri ?? null,
+        tokenName: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.name ?? null) : null,
+        imageUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.imageUrl ?? null) : null,
+        metadataUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.metadataUrl ?? null) : null,
         tokenStandard: "ERC721",
         quantityAvailable: 1,
         sellerWallet: listing.seller,
@@ -173,6 +194,9 @@ export async function GET(request: NextRequest) {
         status: listing.active ? "active" : "cancelled",
         tokenId: listing.editionId,
         tokenUri: token?.tokenUri ?? null,
+        tokenName: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.name ?? null) : null,
+        imageUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.imageUrl ?? null) : null,
+        metadataUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.metadataUrl ?? null) : null,
         tokenStandard: "ERC1155",
         quantityAvailable: listing.remainingAmount,
         sellerWallet: listing.seller,
@@ -205,6 +229,24 @@ export async function GET(request: NextRequest) {
         status: auction.finalized || auction.endTime <= now ? "ended" : "active",
         tokenId: isItemAuction ? (auction.tokenId ?? null) : null,
         tokenUri: token?.tokenUri ?? auction.tokenUri ?? null,
+        tokenName:
+          token?.tokenUri
+            ? (metadataByUri.get(token.tokenUri)?.name ?? null)
+            : auction.tokenUri
+              ? (metadataByUri.get(auction.tokenUri)?.name ?? null)
+              : null,
+        imageUrl:
+          token?.tokenUri
+            ? (metadataByUri.get(token.tokenUri)?.imageUrl ?? null)
+            : auction.tokenUri
+              ? (metadataByUri.get(auction.tokenUri)?.imageUrl ?? null)
+              : null,
+        metadataUrl:
+          token?.tokenUri
+            ? (metadataByUri.get(token.tokenUri)?.metadataUrl ?? null)
+            : auction.tokenUri
+              ? (metadataByUri.get(auction.tokenUri)?.metadataUrl ?? null)
+              : null,
         tokenStandard: "ERC721",
         quantityAvailable: 1,
         sellerWallet,
@@ -247,6 +289,9 @@ export async function GET(request: NextRequest) {
         status: listing.active ? "active" : "cancelled",
         tokenId: listing.offeredTokenId,
         tokenUri: token?.tokenUri ?? null,
+        tokenName: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.name ?? null) : null,
+        imageUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.imageUrl ?? null) : null,
+        metadataUrl: token?.tokenUri ? (metadataByUri.get(token.tokenUri)?.metadataUrl ?? null) : null,
         tokenStandard: "ERC721",
         quantityAvailable: 1,
         sellerWallet: listing.creator,
