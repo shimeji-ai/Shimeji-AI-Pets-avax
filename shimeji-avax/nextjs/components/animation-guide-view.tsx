@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ArrowRight, Download, ExternalLink, Play } from "lucide-react";
 import {
   CHARACTER_CREATOR_PATH,
   PREVIEW_ANIMATION_SETS,
   REQUIRED_SPRITES_ZIP_PATH,
   animationReferenceSpriteUrl,
 } from "@/lib/shimeji-sprite-spec";
+import { useLanguage } from "@/components/language-provider";
 
 type GuideSection = {
   key: string;
@@ -82,7 +84,11 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
 
   return (
     <div className="rounded-[1.5rem] border border-cyan-300/20 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),transparent_58%),linear-gradient(180deg,rgba(4,10,20,0.9),rgba(12,18,32,0.82))] p-5">
-      <div className="flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/12 bg-[#07111f] p-5">
+      <div className="relative flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/12 bg-[#07111f] p-5">
+        <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1">
+          <Play className="h-2.5 w-2.5 fill-cyan-300 text-cyan-300" />
+          <span className="text-[10px] font-medium text-cyan-200/80">preview</span>
+        </div>
         <img
           src={animationReferenceSpriteUrl(activeFrame)}
           alt={`${title} - ${activeFrame}`}
@@ -93,10 +99,10 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
         {frames.map((frame, index) => (
           <span
             key={`${title}-${frame}-${index}`}
-            className={`rounded-full border px-2.5 py-1 text-[10px] ${
+            className={`rounded-full border px-2.5 py-1 text-[10px] transition-colors ${
               frame === activeFrame
-                ? "border-cyan-300/30 bg-cyan-400/20 text-foreground"
-                : "border-white/12 bg-white/5 text-foreground/80"
+                ? "border-cyan-300/30 bg-cyan-400/20 text-cyan-100"
+                : "border-white/10 bg-white/5 text-foreground/60"
             }`}
           >
             {frame}
@@ -108,42 +114,51 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
 }
 
 export function AnimationGuideView() {
+  const { isSpanish } = useLanguage();
+  const t = (en: string, es: string) => (isSpanish ? es : en);
+
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-cyan-100/80">
               Animation Guide
             </span>
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-              Guia visual de animacion
+              {t("Visual animation guide", "Guía visual de animación")}
             </h1>
             <p className="mt-4 text-sm leading-7 text-foreground/80 sm:text-base">
-              Esta guía muestra los sprites reales, explica para qué sirve cada secuencia y reproduce un loop simple para que puedas validar el ritmo visual antes de mintear.
+              {t(
+                "This guide shows the real sprites, explains what each sequence is for, and plays a simple loop so you can validate the visual rhythm before minting.",
+                "Esta guía muestra los sprites reales, explica para qué sirve cada secuencia y reproduce un loop simple para que puedas validar el ritmo visual antes de mintear.",
+              )}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
               href={CHARACTER_CREATOR_PATH}
-              className="rounded-full border border-emerald-300/25 bg-emerald-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-emerald-400/25"
+              className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-emerald-400/50 hover:bg-emerald-400/25 hover:shadow-[0_0_16px_rgba(52,211,153,0.15)]"
             >
-              Abrir creador de personajes
+              <ArrowRight className="h-4 w-4" />
+              {t("Open character creator", "Abrir creador de personajes")}
             </Link>
+            <a
+              href={REQUIRED_SPRITES_ZIP_PATH}
+              download
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-amber-400/45 hover:bg-amber-400/25 hover:shadow-[0_0_16px_rgba(251,191,36,0.12)]"
+            >
+              <Download className="h-4 w-4" />
+              {t("Download sprite ZIP", "Descargar ZIP de sprites")}
+            </a>
             <a
               href="https://github.com/shimeji-ai/Shimeji-AI-Pets-avax/tree/main/animation-reference"
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-foreground transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm text-foreground/80 transition-all hover:border-white/25 hover:bg-white/10 hover:text-foreground"
             >
-              Ver animation-reference del repo
-            </a>
-            <a
-              href={REQUIRED_SPRITES_ZIP_PATH}
-              download
-              className="rounded-full border border-amber-300/20 bg-amber-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-400/25"
-            >
-              Descargar ZIP de sprites
+              <ExternalLink className="h-4 w-4" />
+              {t("View repo reference", "Ver referencia del repo")}
             </a>
           </div>
         </div>
@@ -151,36 +166,48 @@ export function AnimationGuideView() {
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="neural-card rounded-3xl border border-fuchsia-300/15 p-6">
-          <h2 className="text-2xl font-semibold text-foreground">Como funciona</h2>
-          <div className="mt-4 space-y-3 text-sm text-foreground/80">
-            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
-              1. Cargás portada y carpeta de sprites en local.
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
-              2. Revisás el preview del personaje y el checklist de frames requeridos.
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
-              3. Si falta un sprite, no se sube nada y seguís corrigiendo en local.
-            </div>
-            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
-              4. Cuando el set está completo, podés mintear y después publicar o subastar con el flujo actual.
-            </div>
+          <h2 className="text-xl font-semibold text-foreground">{t("How it works", "Cómo funciona")}</h2>
+          <div className="mt-4 space-y-2.5">
+            {[
+              t("Load a cover image and your sprite folder locally.", "Cargás portada y carpeta de sprites en local."),
+              t("Check the character preview and the required frames checklist.", "Revisás el preview del personaje y el checklist de frames requeridos."),
+              t("If a sprite is missing, nothing is uploaded — keep editing locally.", "Si falta un sprite, no se sube nada y seguís corrigiendo en local."),
+              t("Once the set is complete, you can mint and then list or auction.", "Cuando el set está completo, podés mintear y después publicar o subastar."),
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-[#0a1322] p-4 text-sm text-foreground/80">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-cyan-300/25 bg-cyan-400/10 text-[10px] font-semibold text-cyan-200">
+                  {i + 1}
+                </span>
+                {step}
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="neural-card rounded-3xl border border-cyan-300/15 p-6">
-          <h2 className="text-2xl font-semibold text-foreground">Pack descargable</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t("Downloadable pack", "Pack descargable")}</h2>
           <p className="mt-2 text-sm text-foreground/80">
-            Bajá el ZIP con los nombres correctos y usalo como base para armar tu personaje. El creador valida ese pack antes de habilitar IPFS y mint.
+            {t(
+              "Download the ZIP with the correct file names and use it as a base to build your character. The creator validates the pack before enabling IPFS and mint.",
+              "Bajá el ZIP con los nombres correctos y usalo como base para armar tu personaje. El creador valida ese pack antes de habilitar IPFS y mint.",
+            )}
           </p>
-          <div className="mt-6">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
             <a
               href={REQUIRED_SPRITES_ZIP_PATH}
               download
-              className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
+              className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-amber-400/45 hover:bg-amber-400/25 hover:shadow-[0_0_16px_rgba(251,191,36,0.12)]"
             >
-              Descargar ZIP requerido
+              <Download className="h-4 w-4" />
+              {t("Download required ZIP", "Descargar ZIP requerido")}
             </a>
+            <Link
+              href={CHARACTER_CREATOR_PATH}
+              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm text-foreground/80 transition-all hover:border-white/25 hover:bg-white/10 hover:text-foreground"
+            >
+              <ArrowRight className="h-4 w-4" />
+              {t("Go to creator", "Ir al creador")}
+            </Link>
           </div>
         </div>
       </div>
@@ -191,7 +218,7 @@ export function AnimationGuideView() {
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
               <div>
                 <h2 className="text-2xl font-semibold text-foreground">{section.title}</h2>
-                <p className="mt-2 text-sm font-medium text-cyan-100">{section.description}</p>
+                <p className="mt-2 font-mono text-xs text-cyan-300/80">{section.description}</p>
                 <p className="mt-4 text-sm leading-7 text-foreground/80">{section.explanation}</p>
               </div>
               <FrameLoop frames={section.frames} title={section.title} />
@@ -199,16 +226,16 @@ export function AnimationGuideView() {
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {section.frames.map((frame, index) => (
-                <div key={`${section.key}-${frame}-${index}`} className="rounded-2xl border border-white/12 bg-[#0a1322] p-3">
-                  <div className="flex aspect-square items-center justify-center rounded-xl border border-white/12 bg-white/5 p-3">
+                <div key={`${section.key}-${frame}-${index}`} className="group rounded-2xl border border-white/10 bg-[#0a1322] p-3 transition-colors hover:border-white/20">
+                  <div className="flex aspect-square items-center justify-center rounded-xl border border-white/10 bg-white/5 p-3">
                     <img
                       src={animationReferenceSpriteUrl(frame)}
                       alt={frame}
-                      className="h-24 w-24 object-contain"
+                      className="h-24 w-24 object-contain transition-transform group-hover:scale-110"
                       loading="lazy"
                     />
                   </div>
-                  <p className="mt-2 break-all text-[11px] text-foreground">{frame}</p>
+                  <p className="mt-2 break-all text-[11px] text-foreground/70">{frame}</p>
                 </div>
               ))}
             </div>
@@ -216,8 +243,14 @@ export function AnimationGuideView() {
         ))}
       </div>
 
-      <div className="neural-card rounded-3xl border border-amber-300/15 p-6 text-sm text-foreground/80">
-        Mantener mismo canvas, misma baseline y fondo transparente sigue siendo obligatorio para evitar jitter entre frames.
+      <div className="neural-card flex items-start gap-3 rounded-3xl border border-amber-300/15 p-6">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-300/30 bg-amber-400/15 text-[10px] font-bold text-amber-200">!</span>
+        <p className="text-sm text-foreground/80">
+          {t(
+            "Maintaining the same canvas size, same baseline, and transparent background is mandatory to avoid jitter between frames.",
+            "Mantener mismo canvas, misma baseline y fondo transparente sigue siendo obligatorio para evitar jitter entre frames.",
+          )}
+        </p>
       </div>
     </div>
   );

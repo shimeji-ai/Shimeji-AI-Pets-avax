@@ -155,46 +155,79 @@ export function CharacterCreatorPageClient() {
     }
   }
 
+  const steps = [
+    {
+      num: "1",
+      label: t("Art", "Arte"),
+      sub: t("Cover + sprites", "Portada + sprites"),
+      color: "border-cyan-300/25 bg-cyan-400/10 text-cyan-200",
+    },
+    {
+      num: "2",
+      label: t("Validate", "Validar"),
+      sub: t("37 required sprites", "37 sprites requeridos"),
+      color: "border-fuchsia-300/25 bg-fuchsia-400/10 text-fuchsia-200",
+    },
+    {
+      num: "3",
+      label: t("Mint", "Mintear"),
+      sub: t("IPFS + blockchain", "IPFS + blockchain"),
+      color: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
+    },
+  ];
+
   return (
     <>
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 pt-28 md:px-6 lg:px-8">
         <div className="neural-card rounded-3xl border border-cyan-300/15 p-6 md:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">Character Creator</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Cargá sprites en local, previsualizá y minteá recién al final
+                {t("Load sprites locally, preview, and mint at the end", "Cargá sprites en local, previsualizá y minteá recién al final")}
               </h1>
               <p className="mt-3 text-sm leading-7 text-foreground/80 sm:text-base">
-                Esta página muestra solo herramientas de creación. Podés subir sprites uno por uno o importar una carpeta,
-                probar el personaje en la web y recién al final pasar por IPFS, mint y listado/subasta.
+                {t(
+                  "Upload sprites one by one or import a folder, test your character in the browser, and only go through IPFS, mint, and listing/auction at the very end.",
+                  "Podés subir sprites uno por uno o importar una carpeta, probar el personaje en la web y recién al final pasar por IPFS, mint y listado/subasta.",
+                )}
               </p>
+              <div className="mt-5 flex flex-wrap gap-4">
+                {steps.map(({ num, label, sub, color }) => (
+                  <div key={num} className="flex items-center gap-2.5">
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${color}`}>
+                      {num}
+                    </span>
+                    <div>
+                      <p className="text-xs font-medium text-foreground">{label}</p>
+                      <p className="text-[11px] text-muted-foreground">{sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {!isConnected ? (
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  className="bg-emerald-500 text-black hover:bg-emerald-400"
                   onClick={() => void connect()}
                   disabled={isConnecting}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-emerald-400/50 hover:bg-emerald-400/25 hover:shadow-[0_0_16px_rgba(52,211,153,0.15)] disabled:opacity-60"
                 >
                   {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {t("Connect wallet", "Conectar wallet")}
-                </Button>
+                </button>
               ) : null}
               {publicKey ? (
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-border bg-white/5 text-foreground hover:bg-white/10"
                   onClick={() => void loadStudio(publicKey)}
                   disabled={studioLoading}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm text-foreground/80 transition-all hover:border-white/25 hover:bg-white/10 hover:text-foreground disabled:opacity-60"
                 >
                   {studioLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   {t("Refresh studio", "Actualizar estudio")}
-                </Button>
+                </button>
               ) : null}
             </div>
           </div>
