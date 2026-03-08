@@ -333,14 +333,20 @@ function ProviderFields() {
       : `${window.location.origin}/api/site-shimeji/openclaw/relay/respond`;
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
+    const externalIcon = (
+      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    );
     if (kind === "openrouter") {
       return (
         <a
           href="https://openrouter.ai/settings/keys"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
         >
+          {externalIcon}
           {isSpanish ? "Conseguir API key de OpenRouter" : "Get OpenRouter API key"}
         </a>
       );
@@ -351,8 +357,9 @@ function ProviderFields() {
           href="https://ollama.com"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-white/25 hover:bg-white/10"
         >
+          {externalIcon}
           {isSpanish ? "Descargar / configurar Ollama" : "Download / setup Ollama"}
         </a>
       );
@@ -362,8 +369,9 @@ function ProviderFields() {
         href="https://github.com/openclaw/openclaw"
         target="_blank"
         rel="noreferrer"
-        className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-white/25 hover:bg-white/10"
       >
+        {externalIcon}
         {isSpanish ? "Configurar OpenClaw" : "Setup OpenClaw"}
       </a>
     );
@@ -1279,80 +1287,99 @@ Do not print the relay token or gateway token in your final reply. Return only t
   );
 
   if (config.provider === "bitte") {
+    const hasOwnKey = Boolean(config.bitteApiKey.trim() && config.bitteAgentId.trim());
+    const creditsLeft = freeSiteMessagesRemaining ?? 0;
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-green-700 bg-green-300 p-3 text-sm text-black">
-          <p className="font-semibold">
-            {isSpanish ? "Créditos gratis disponibles" : "Free credits available"}
-          </p>
-          <p className="mt-1 text-xs text-black/80">
-            {isSpanish
-              ? `Usados: ${freeSiteMessagesUsed}. Restantes: ${freeSiteMessagesRemaining ?? 0}.`
-              : `Used: ${freeSiteMessagesUsed}. Remaining: ${freeSiteMessagesRemaining ?? 0}.`}
-          </p>
-          <p className="mt-2 text-xs text-black/80">
-            {isSpanish
-              ? "Podés usar Bitte AI con los créditos del sitio. Cuando se terminen, configurá tu propia API key de Bitte para seguir chateando."
-              : "You can use Bitte AI with site credits. When they run out, configure your own Bitte API key to keep chatting."}
-          </p>
-        </div>
+        {/* Status banner */}
+        {hasOwnKey ? (
+          <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-sm">
+            <p className="font-semibold text-foreground">
+              {isSpanish ? "Usando tu propia API key de Bitte AI" : "Using your own Bitte AI API key"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isSpanish
+                ? "Los mensajes van directamente a tu cuenta de Bitte AI sin límites del sitio."
+                : "Messages go directly to your Bitte AI account, no site credit limits."}
+            </p>
+          </div>
+        ) : creditsLeft > 0 ? (
+          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.08] p-3 text-sm">
+            <p className="font-semibold text-foreground">
+              {isSpanish ? "Bitte AI activo — usando créditos gratis del sitio" : "Bitte AI active — using free site credits"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isSpanish
+                ? `Créditos usados: ${freeSiteMessagesUsed}. Restantes: ${creditsLeft}. Configurá tu propia key abajo para no tener límite.`
+                : `Used: ${freeSiteMessagesUsed}. Remaining: ${creditsLeft}. Set your own key below to remove the limit.`}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm">
+            <p className="font-semibold text-foreground">
+              {isSpanish ? "Créditos del sitio agotados" : "Site credits exhausted"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isSpanish
+                ? "Configurá tu propia API key de Bitte AI para seguir chateando sin límites."
+                : "Set your own Bitte AI API key below to keep chatting without limits."}
+            </p>
+          </div>
+        )}
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isSpanish ? "Configuración opcional (para cuando se acaben los créditos)" : "Optional configuration (for when credits run out)"}
-          </p>
-
-          <div className="flex flex-wrap gap-2 mb-3">
+        {/* API key fields — always visible */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-foreground">
+                {isSpanish ? "Tu propia API key (opcional mientras haya créditos)" : "Your own API key (optional while credits remain)"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {isSpanish
+                  ? "Se guarda solo en este navegador."
+                  : "Stored only in this browser."}
+              </p>
+            </div>
             <a
-              href="https://www.bitte.ai/"
+              href="https://bitte.ai/developers"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
             >
-              {isSpanish ? "Conseguir API key de Bitte" : "Get Bitte API key"}
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              {isSpanish ? "Conseguir API key" : "Get API key"}
             </a>
           </div>
 
-          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground">
-              {isSpanish ? "Guía rápida (Bitte API key + Agent ID)" : "Quick guide (Bitte API key + Agent ID)"}
+          {/* Quick guide */}
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground mb-1.5">
+              {isSpanish ? "Cómo obtener tu API key en 3 pasos" : "How to get your API key in 3 steps"}
             </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-4">
-              <li>
-                {isSpanish
-                  ? "Entrá a bitte.ai, iniciá sesión o creá cuenta."
-                  : "Go to bitte.ai, then sign in or create an account."}
-              </li>
-              <li>
-                {isSpanish
-                  ? "Abrí tu panel de desarrollador / configuración y creá una API key."
-                  : "Open your developer/settings dashboard and create an API key."}
-              </li>
-              <li>
-                {isSpanish
-                  ? "Creá o abrí un agente y copiá su Agent ID."
-                  : "Create or open an agent and copy its Agent ID."}
-              </li>
-              <li>
-                {isSpanish
-                  ? "Pegá la API key y el Agent ID acá."
-                  : "Paste the API key and Agent ID here."}
-              </li>
-            </ol>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {isSpanish
-                ? "Tu API key se guarda localmente en este navegador. No la compartas por chat."
-                : "Your API key is stored locally in this browser. Do not share it in chat."}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {isSpanish
-                ? "Mientras tengas créditos gratis del sitio, no necesitás pagar ni configurar una key propia."
-                : "While site free credits remain, you do not need to pay or configure your own key."}
-            </p>
+            <div className="space-y-1.5">
+              {(isSpanish ? [
+                "Entrá a bitte.ai, iniciá sesión o creá cuenta.",
+                "En el dashboard de desarrollador, creá una API key y copiala.",
+                "Pegala acá abajo junto con el Agent ID del agente que quieras usar.",
+              ] : [
+                "Go to bitte.ai and sign in or create an account.",
+                "In the developer dashboard, create an API key and copy it.",
+                "Paste it below along with the Agent ID of the agent you want to use.",
+              ]).map((step, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-[9px] font-bold text-cyan-200">
+                    {i + 1}
+                  </span>
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <label className="block mb-3">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bitte API Key
             </span>
             <input
@@ -1360,29 +1387,29 @@ Do not print the relay token or gateway token in your final reply. Return only t
               value={config.bitteApiKey}
               onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
               placeholder="bitte-..."
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
               autoComplete="off"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {isSpanish ? "Agent ID" : "Agent ID"}
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Agent ID
             </span>
             <input
               type="text"
               value={config.bitteAgentId}
               onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
               placeholder={isSpanish ? "tu-agente-id" : "your-agent-id"}
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
             />
           </label>
         </div>
 
         <p className="text-xs text-muted-foreground">
           {isSpanish
-            ? "Bitte AI permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
-            : "Bitte AI allows interacting with NEAR and EVM blockchains through AI agents."}
+            ? "Bitte AI te permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
+            : "Bitte AI lets you interact with NEAR and EVM blockchains through AI agents."}
         </p>
       </div>
     );
@@ -1699,23 +1726,47 @@ export function SiteShimejiConfigPanel({ inline = false }: { inline?: boolean } 
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="block sm:col-span-2">
+                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {isSpanish ? "Personaje" : "Character"}
                   </span>
-                  <select
-                    value={config.character}
-                    onChange={(event) => updateConfig({ character: event.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                    disabled={catalogLoading || !catalog?.characters.length}
-                  >
-                    {(catalog?.characters ?? []).map((character) => (
-                      <option key={character.key} value={character.key}>
-                        {character.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  {catalogLoading ? (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {Array.from({ length: 8 }).map((_, index) => (
+                        <div
+                          key={`character-loading-${index}`}
+                          className="h-[88px] animate-pulse rounded-2xl border border-white/10 bg-white/5"
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {(catalog?.characters ?? []).map((character) => (
+                        <button
+                          key={character.key}
+                          type="button"
+                          onClick={() => updateConfig({ character: character.key })}
+                          className={`group flex flex-col items-center rounded-2xl border p-3 text-center transition-all ${
+                            config.character === character.key
+                              ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
+                              : "border-white/10 bg-white/5 hover:border-[var(--brand-accent)]/50 hover:bg-white/10"
+                          }`}
+                          disabled={catalogLoading}
+                        >
+                          <img
+                            src={character.iconUrl}
+                            alt=""
+                            className="h-12 w-12 object-contain transition-transform group-hover:scale-110"
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                          <div className="mt-2 w-full truncate text-[11px] font-semibold text-foreground/90">
+                            {character.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
