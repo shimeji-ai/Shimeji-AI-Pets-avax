@@ -154,6 +154,17 @@ export function resolveMediaUrl(raw: string | null | undefined): string | null {
   return value;
 }
 
+export function buildClientMediaProxyUrl(raw: string | null | undefined): string | null {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  if (value.startsWith("ipfs://")) {
+    const path = value.slice("ipfs://".length).replace(/^ipfs\//, "");
+    if (!path) return null;
+    return `/api/ipfs?uri=${encodeURIComponent(`ipfs://${path}`)}`;
+  }
+  return resolveMediaUrl(value);
+}
+
 export function isLikelyImageUrl(value: string | null | undefined) {
   if (!value) return false;
   return (

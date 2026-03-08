@@ -11,6 +11,7 @@ import {
   type FeedSort,
   type ProfileDraft,
   type TokenPreview,
+  buildClientMediaProxyUrl,
   buildProfileDraft,
   formatMarketplaceTokenAmount,
   isLikelyImageUrl,
@@ -224,10 +225,20 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
         try {
           const resolvedTokenUri = resolveMediaUrl(tokenUri);
           if (resolvedTokenUri && isLikelyImageUrl(resolvedTokenUri)) {
-            nextPreview = { imageUrl: resolvedTokenUri, name: null };
+            nextPreview = { imageUrl: buildClientMediaProxyUrl(tokenUri), name: null };
           } else if (resolvedTokenUri) {
-            const response = await fetch(resolvedTokenUri, { cache: "force-cache" });
-            if (response.ok) {
+            const fetchUrl = tokenUri.startsWith("ipfs://")
+              ? `/api/ipfs?uri=${encodeURIComponent(tokenUri)}`
+              : resolvedTokenUri;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
+            let response: Response | null = null;
+            try {
+              response = await fetch(fetchUrl, { cache: "force-cache", signal: controller.signal });
+            } finally {
+              clearTimeout(timeout);
+            }
+            if (response?.ok) {
               const data = (await response.json()) as { image?: unknown; image_url?: unknown; name?: unknown };
               const imageRaw =
                 typeof data.image === "string"
@@ -236,7 +247,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     ? data.image_url
                     : null;
               nextPreview = {
-                imageUrl: resolveMediaUrl(imageRaw),
+                imageUrl: buildClientMediaProxyUrl(imageRaw),
                 name: typeof data.name === "string" ? data.name : null,
               };
             }

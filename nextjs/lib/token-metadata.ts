@@ -130,7 +130,7 @@ export async function fetchTokenMetadataPreview(tokenUri: string): Promise<Token
 
   try {
     let data: Record<string, unknown> | null = null;
-    for (const candidateUrl of buildGatewayUrls(resolvedTokenUri)) {
+    for (const candidateUrl of buildGatewayUrls(tokenUri)) {
       const response = await fetch(candidateUrl, { cache: "force-cache" });
       if (!response.ok) continue;
       data = (await response.json()) as Record<string, unknown>;
