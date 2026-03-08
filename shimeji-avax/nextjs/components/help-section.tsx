@@ -5,6 +5,7 @@ import { useLanguage } from "./language-provider";
 import Link from "next/link";
 import DownloadButton from "./download-button";
 import { useState } from "react";
+import { ANIMATION_GUIDE_PATH, CHARACTER_CREATOR_PATH } from "@/lib/shimeji-sprite-spec";
 
 const providers = [
   {
@@ -202,6 +203,34 @@ export function HelpSection() {
     <section id="help" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <ScrollAnimation variants={variants}>
         <div className="w-full mx-auto mb-20">
+          <div className="mb-6 rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.06] p-6 sm:p-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  {isSpanish ? "Animaciones y creador local" : "Animations and local creator"}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                  {isSpanish
+                    ? "Mirá la guía de sprites inspirada en la animation-reference del repo y probá cómo se ve un personaje nuevo antes de subirlo a IPFS o mintearlo."
+                    : "Open the sprite guide inspired by the repo animation reference and preview a new character before uploading to IPFS or minting."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={ANIMATION_GUIDE_PATH}
+                  className="rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
+                >
+                  {isSpanish ? "Guía de animaciones" : "Animation guide"}
+                </Link>
+                <Link
+                  href={CHARACTER_CREATOR_PATH}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-white/10"
+                >
+                  {isSpanish ? "Creador de personajes" : "Character creator"}
+                </Link>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Install + Unlock combined */}
             <div className="neural-card rounded-3xl p-8 sm:p-10">

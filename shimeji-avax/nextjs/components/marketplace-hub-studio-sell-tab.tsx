@@ -1,11 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeftRight, Check, Gavel, ImageIcon, Loader2, Tag, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { HubTranslateFn, TokenPreview } from "@/components/marketplace-hub-shared";
 import { formatTokenAmount, walletShort } from "@/components/marketplace-hub-shared";
 import type { MarketplaceMyStudioResponse } from "@/lib/marketplace-hub-types";
+import {
+  ANIMATION_GUIDE_PATH,
+  PREVIEW_ANIMATION_SETS,
+  type PreviewAnimationKey,
+  REQUIRED_SHIMEJI_SPRITES,
+  findMissingRequiredSprites,
+  normalizeSpriteFileName,
+} from "@/lib/shimeji-sprite-spec";
 
 type ListAction = "fixed_price" | "auction" | "swap";
 type MintMode = "unique" | "edition";
@@ -60,6 +69,20 @@ function parseAttributesText(raw: string) {
     .filter((entry): entry is { trait_type: string; value: string } => Boolean(entry));
 }
 
+function spriteRelativePath(file: File) {
+  return ((file as RelativeFile).webkitRelativePath || file.name || "sprite.png").trim();
+}
+
+function buildSpritePreviewMap(files: File[]) {
+  const previewMap: Record<string, string> = {};
+  for (const file of files) {
+    const fileName = normalizeSpriteFileName(spriteRelativePath(file) || file.name);
+    if (!fileName || previewMap[fileName]) continue;
+    previewMap[fileName] = URL.createObjectURL(file);
+  }
+  return previewMap;
+}
+
 export function MarketplaceHubStudioSellTab({
   t,
   studio,
@@ -108,6 +131,9 @@ export function MarketplaceHubStudioSellTab({
   const [mintCoverImage, setMintCoverImage] = useState<File | null>(null);
   const [mintCoverPreviewUrl, setMintCoverPreviewUrl] = useState<string | null>(null);
   const [mintSpriteFiles, setMintSpriteFiles] = useState<File[]>([]);
+  const [mintSpritePreviewMap, setMintSpritePreviewMap] = useState<Record<string, string>>({});
+  const [previewAnimation, setPreviewAnimation] = useState<PreviewAnimationKey>("walk");
+  const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
   const [mintUploadBusy, setMintUploadBusy] = useState(false);
   const [mintFormError, setMintFormError] = useState("");
   const spriteFolderInputRef = useRef<HTMLInputElement | null>(null);
@@ -129,6 +155,27 @@ export function MarketplaceHubStudioSellTab({
     return () => URL.revokeObjectURL(objectUrl);
   }, [mintCoverImage]);
 
+  useEffect(() => {
+    const nextPreviewMap = buildSpritePreviewMap(mintSpriteFiles);
+    setMintSpritePreviewMap(nextPreviewMap);
+    return () => {
+      Object.values(nextPreviewMap).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [mintSpriteFiles]);
+
+  useEffect(() => {
+    setPreviewFrameIndex(0);
+  }, [previewAnimation, mintSpriteFiles.length]);
+
+  useEffect(() => {
+    const frames = PREVIEW_ANIMATION_SETS[previewAnimation];
+    if (frames.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setPreviewFrameIndex((current) => (current + 1) % frames.length);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [previewAnimation]);
+
   const regularNfts = studio.ownedNfts.filter((n) => !n.isCommissionEgg);
   const allNfts = studio.ownedNfts;
   const activeListings = studio.myListings.filter((l) => l.active && !l.isCommissionEgg);
@@ -138,6 +185,17 @@ export function MarketplaceHubStudioSellTab({
 
   const nftsForAction = listAction === "swap" ? allNfts : regularNfts;
   const currentSelectedId = listAction === "swap" ? swapOfferedTokenId : selectedTokenId;
+  const spritePaths = mintSpriteFiles.map((file) => spriteRelativePath(file) || file.name);
+  const missingRequiredSprites = findMissingRequiredSprites(spritePaths);
+  const hasRequiredSpriteSet = missingRequiredSprites.length === 0;
+  const previewFrames = PREVIEW_ANIMATION_SETS[previewAnimation];
+  const activePreviewSpriteName = previewFrames[previewFrameIndex % previewFrames.length];
+  const activePreviewSpriteUrl = mintSpritePreviewMap[activePreviewSpriteName] || null;
+  const creatorReadyForUpload =
+    Boolean(mintTitle.trim()) &&
+    Boolean(mintDescription.trim()) &&
+    Boolean(mintCoverImage) &&
+    hasRequiredSpriteSet;
 
   function handleNftClick(tokenId: string) {
     if (listAction === "swap") {
@@ -186,6 +244,15 @@ export function MarketplaceHubStudioSellTab({
         t(
           "Sprite folder is required for animated Shimeji NFTs.",
           "La carpeta de sprites es obligatoria para NFTs Shimeji animados.",
+        ),
+      );
+      return;
+    }
+    if (!hasRequiredSpriteSet) {
+      setMintFormError(
+        t(
+          `Missing required sprites: ${missingRequiredSprites.join(", ")}`,
+          `Faltan sprites requeridos: ${missingRequiredSprites.join(", ")}`,
         ),
       );
       return;
@@ -296,264 +363,370 @@ export function MarketplaceHubStudioSellTab({
   return (
     <div className="config-contrast-panel space-y-4">
       {showCreatePanel ? (
-        <div className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4">
-        <h3 className="text-sm font-semibold text-foreground">{t("Create and Publish NFT", "Crear y Publicar NFT")}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t(
-            "Upload cover art + sprite folder, define metadata, choose unique or edition copies, then mint and optionally list or auction immediately.",
-            "Subí portada + carpeta de sprites, definí metadata, elegí único o edición con copias, y minteá con publicación o subasta opcional al instante.",
-          )}
-        </p>
-
-        <div className="mt-4 space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
+        <div id="create-character-app" className="scroll-mt-28 rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Title", "Título")}</label>
-              <input
-                type="text"
-                value={mintTitle}
-                onChange={(e) => setMintTitle(e.target.value)}
-                placeholder={t("My New Shimeji", "Mi nuevo Shimeji")}
-                maxLength={120}
-                className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Mode", "Modo")}</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMintMode("unique")}
-                  className={`rounded-lg border px-3 py-2 text-xs transition ${
-                    mintMode === "unique"
-                      ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
-                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-                  }`}
-                >
-                  {t("Unique 1/1", "Único 1/1")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMintMode("edition")}
-                  className={`rounded-lg border px-3 py-2 text-xs transition ${
-                    mintMode === "edition"
-                      ? "border-blue-300/30 bg-blue-400/15 text-foreground"
-                      : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
-                  }`}
-                >
-                  {t("Edition", "Edición")}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Description", "Descripción")}</label>
-            <textarea
-              value={mintDescription}
-              onChange={(e) => setMintDescription(e.target.value)}
-              placeholder={t("Describe this Shimeji and style details.", "Describe este Shimeji y detalles del estilo.")}
-              maxLength={4000}
-              rows={3}
-              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              {t("Attributes (one per line: trait:value)", "Atributos (una línea por atributo: rasgo:valor)")}
-            </label>
-            <textarea
-              value={mintAttributesText}
-              onChange={(e) => setMintAttributesText(e.target.value)}
-              placeholder={t("Style:Pixel\nMood:Playful\nRig:Desktop", "Estilo:Pixel\nMood:Juguetón\nRig:Desktop")}
-              rows={4}
-              className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Cover Image", "Imagen de portada")}</label>
-              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
-                <span className="inline-flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  {mintCoverImage ? mintCoverImage.name : t("Choose image", "Elegir imagen")}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    setMintCoverImage(file);
-                  }}
-                />
-              </label>
-              {mintCoverPreviewUrl ? (
-                <div className="mt-2 h-16 w-16 overflow-hidden rounded-lg border border-border bg-white/5">
-                  <img src={mintCoverPreviewUrl} alt="cover preview" className="h-full w-full object-cover" />
-                </div>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                {t("Sprite Folder (Required)", "Carpeta de sprites (Obligatoria)")}
-              </label>
-              <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
-                <span className="inline-flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  {t("Choose folder", "Elegir carpeta")}
-                </span>
-                <input
-                  ref={spriteFolderInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    setMintSpriteFiles(Array.from(event.target.files || []));
-                  }}
-                />
-              </label>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                {mintSpriteFiles.length > 0
-                  ? t(`${mintSpriteFiles.length} sprite files selected`, `${mintSpriteFiles.length} archivos de sprites seleccionados`)
-                  : t(
-                      "Required for Shimeji animation. Without sprites, this is just a static NFT.",
-                      "Obligatoria para la animación de Shimeji. Sin sprites, esto es solo un NFT estático.",
-                    )}
+              <h3 className="text-sm font-semibold text-foreground">{t("Character Creator App", "App creadora de personajes")}</h3>
+              <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
+                {t(
+                  "Load art locally, validate the runtime sprite set, preview the animation, and only push to IPFS when you want to mint and optionally list or auction it.",
+                  "Cargá arte en local, validá el set de sprites del runtime, previsualizá la animación y recién hacé push a IPFS cuando quieras mintearlo y opcionalmente publicarlo o subastarlo.",
+                )}
               </p>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={ANIMATION_GUIDE_PATH}
+                className="rounded-full border border-cyan-300/20 bg-cyan-400/15 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-cyan-400/25"
+              >
+                {t("Animation guide", "Guía de animaciones")}
+              </Link>
+            </div>
           </div>
 
-          {mintMode === "edition" ? (
-            <div className="grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Title", "Título")}</label>
+                  <input
+                    type="text"
+                    value={mintTitle}
+                    onChange={(e) => setMintTitle(e.target.value)}
+                    placeholder={t("My New Shimeji", "Mi nuevo Shimeji")}
+                    maxLength={120}
+                    className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Mode", "Modo")}</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMintMode("unique")}
+                      className={`rounded-lg border px-3 py-2 text-xs transition ${
+                        mintMode === "unique"
+                          ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
+                          : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                      }`}
+                    >
+                      {t("Unique 1/1", "Único 1/1")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMintMode("edition")}
+                      className={`rounded-lg border px-3 py-2 text-xs transition ${
+                        mintMode === "edition"
+                          ? "border-blue-300/30 bg-blue-400/15 text-foreground"
+                          : "border-border bg-white/5 text-muted-foreground hover:bg-white/10"
+                      }`}
+                    >
+                      {t("Edition", "Edición")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Copies", "Copias")}</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={mintCopies}
-                  onChange={(e) => setMintCopies(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Description", "Descripción")}</label>
+                <textarea
+                  value={mintDescription}
+                  onChange={(e) => setMintDescription(e.target.value)}
+                  placeholder={t("Describe this Shimeji and style details.", "Describe este Shimeji y detalles del estilo.")}
+                  maxLength={4000}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
                 />
               </div>
-            </div>
-          ) : null}
 
-          <div className="rounded-xl border border-border bg-white/5 p-3">
-            <div className="grid gap-3 md:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t("After mint", "Después de mintear")}
+                  {t("Attributes (one per line: trait:value)", "Atributos (una línea por atributo: rasgo:valor)")}
                 </label>
-                <select
-                  value={mintListMode}
-                  onChange={(e) => setMintListMode(e.target.value as MintListMode)}
-                  className={selectClassName}
-                  style={selectStyle}
-                >
-                  <option className={selectOptionClassName} style={selectOptionStyle} value="fixed_price">
-                    {t("Auto-list fixed price", "Publicar a precio fijo")}
-                  </option>
-                  <option className={selectOptionClassName} style={selectOptionStyle} value="auction">
-                    {t("Auto-start auction", "Iniciar subasta")}
-                  </option>
-                  <option className={selectOptionClassName} style={selectOptionStyle} value="none">
-                    {t("Mint only", "Solo mintear")}
-                  </option>
-                </select>
+                <textarea
+                  value={mintAttributesText}
+                  onChange={(e) => setMintAttributesText(e.target.value)}
+                  placeholder={t("Style:Pixel\nMood:Playful\nRig:Desktop", "Estilo:Pixel\nMood:Juguetón\nRig:Desktop")}
+                  rows={4}
+                  className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50"
+                />
               </div>
-              {mintListMode === "fixed_price" ? (
-                <>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Cover Image", "Imagen de portada")}</label>
+                  <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
+                    <span className="inline-flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      {mintCoverImage ? mintCoverImage.name : t("Choose image", "Elegir imagen")}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        setMintCoverImage(file);
+                      }}
+                    />
+                  </label>
+                  {mintCoverPreviewUrl ? (
+                    <div className="mt-2 h-16 w-16 overflow-hidden rounded-lg border border-border bg-white/5">
+                      <img src={mintCoverPreviewUrl} alt="cover preview" className="h-full w-full object-cover" />
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    {t("Sprite Folder (Required)", "Carpeta de sprites (Obligatoria)")}
+                  </label>
+                  <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
+                    <span className="inline-flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      {t("Choose folder", "Elegir carpeta")}
+                    </span>
+                    <input
+                      ref={spriteFolderInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => {
+                        setMintSpriteFiles(Array.from(event.target.files || []));
+                      }}
+                    />
+                  </label>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    {mintSpriteFiles.length > 0
+                      ? t(`${mintSpriteFiles.length} local sprite files loaded`, `${mintSpriteFiles.length} archivos de sprites locales cargados`)
+                      : t(
+                          "Local-only while editing. Files are uploaded only when you mint.",
+                          "Todo queda local mientras editás. Los archivos se suben solo cuando minteás.",
+                        )}
+                  </p>
+                </div>
+              </div>
+
+              {mintMode === "edition" ? (
+                <div className="grid gap-3 md:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Price", "Precio")}</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Copies", "Copias")}</label>
                     <input
                       type="number"
-                      value={mintListPrice}
-                      onChange={(e) => setMintListPrice(e.target.value)}
-                      min="0"
-                      placeholder="0"
+                      min={1}
+                      max={50}
+                      value={mintCopies}
+                      onChange={(e) => setMintCopies(e.target.value)}
                       className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
                     />
                   </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-xl border border-border bg-white/5 p-3">
+                <div className="grid gap-3 md:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      {t("After mint", "Después de mintear")}
+                    </label>
                     <select
-                      value={mintListCurrency}
-                      onChange={(e) => setMintListCurrency(e.target.value as "Avax" | "Usdc")}
+                      value={mintListMode}
+                      onChange={(e) => setMintListMode(e.target.value as MintListMode)}
                       className={selectClassName}
                       style={selectStyle}
                     >
-                      <option className={selectOptionClassName} style={selectOptionStyle} value="Avax">
-                        AVAX
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="fixed_price">
+                        {t("Auto-list fixed price", "Publicar a precio fijo")}
                       </option>
-                      <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
-                        USDC
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="auction">
+                        {t("Auto-start auction", "Iniciar subasta")}
+                      </option>
+                      <option className={selectOptionClassName} style={selectOptionStyle} value="none">
+                        {t("Mint only", "Solo mintear")}
                       </option>
                     </select>
                   </div>
-                </>
+                  {mintListMode === "fixed_price" ? (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Price", "Precio")}</label>
+                        <input
+                          type="number"
+                          value={mintListPrice}
+                          onChange={(e) => setMintListPrice(e.target.value)}
+                          min="0"
+                          placeholder="0"
+                          className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                        <select
+                          value={mintListCurrency}
+                          onChange={(e) => setMintListCurrency(e.target.value as "Avax" | "Usdc")}
+                          className={selectClassName}
+                          style={selectStyle}
+                        >
+                          <option className={selectOptionClassName} style={selectOptionStyle} value="Avax">
+                            AVAX
+                          </option>
+                          <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">
+                            USDC
+                          </option>
+                        </select>
+                      </div>
+                    </>
+                  ) : null}
+                  {mintListMode === "auction" ? (
+                    <>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start price", "Precio inicial")}</label>
+                        <input
+                          type="number"
+                          value={mintAuctionPrice}
+                          onChange={(e) => setMintAuctionPrice(e.target.value)}
+                          min="0"
+                          placeholder="0"
+                          className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
+                        <select
+                          value={mintAuctionCurrency}
+                          onChange={(e) => setMintAuctionCurrency(e.target.value as "Avax" | "Usdc")}
+                          className={selectClassName}
+                          style={selectStyle}
+                        >
+                          <option className={selectOptionClassName} style={selectOptionStyle} value="Avax">AVAX</option>
+                          <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">USDC</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Duration (hours)", "Duración (horas)")}</label>
+                        <input
+                          type="number"
+                          value={mintAuctionDurationHours}
+                          onChange={(e) => setMintAuctionDurationHours(e.target.value)}
+                          min="1"
+                          placeholder="24"
+                          className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              {mintFormError ? (
+                <div className="rounded-lg border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-xs text-foreground">
+                  {mintFormError}
+                </div>
               ) : null}
-              {mintListMode === "auction" ? (
-                <>
+
+              <Button
+                type="button"
+                onClick={() => void handleCreateMintPackage()}
+                disabled={txBusy || mintUploadBusy || !creatorReadyForUpload}
+                className="w-full bg-blue-500 text-black hover:bg-blue-400"
+              >
+                {txBusy || mintUploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {t("Upload to IPFS, Mint, and Continue", "Subir a IPFS, mintear y continuar")}
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Start price", "Precio inicial")}</label>
-                    <input
-                      type="number"
-                      value={mintAuctionPrice}
-                      onChange={(e) => setMintAuctionPrice(e.target.value)}
-                      min="0"
-                      placeholder="0"
-                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                    />
+                    <h4 className="text-sm font-semibold text-foreground">{t("Local preview", "Preview local")}</h4>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t(
+                        "Cycles local files only. Use it to verify how a new character will feel before minting.",
+                        "Cicla solo archivos locales. Usalo para verificar cómo se verá un personaje nuevo antes de mintearlo.",
+                      )}
+                    </p>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Currency", "Moneda")}</label>
-                    <select
-                      value={mintAuctionCurrency}
-                      onChange={(e) => setMintAuctionCurrency(e.target.value as "Avax" | "Usdc")}
-                      className={selectClassName}
-                      style={selectStyle}
+                  <select
+                    value={previewAnimation}
+                    onChange={(e) => setPreviewAnimation(e.target.value as PreviewAnimationKey)}
+                    className={selectClassName}
+                    style={selectStyle}
+                  >
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="walk">{t("Walk", "Caminar")}</option>
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="jump">{t("Jump", "Saltar")}</option>
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="wall">{t("Wall", "Pared")}</option>
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="ceiling">{t("Ceiling", "Techo")}</option>
+                    <option className={selectOptionClassName} style={selectOptionStyle} value="idle">{t("Idle", "Idle")}</option>
+                  </select>
+                </div>
+
+                <div className="mt-4 flex min-h-[240px] items-center justify-center rounded-[1.5rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.18),transparent_55%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-6">
+                  {activePreviewSpriteUrl ? (
+                    <img
+                      src={activePreviewSpriteUrl}
+                      alt={activePreviewSpriteName}
+                      className="h-40 w-40 object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.4)]"
+                    />
+                  ) : (
+                    <div className="text-center text-xs text-muted-foreground">
+                      <p>{t("Missing local frame for this animation step.", "Falta el frame local para este paso de animación.")}</p>
+                      <p className="mt-2">{activePreviewSpriteName}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {previewFrames.map((frame, index) => (
+                    <span
+                      key={`${previewAnimation}-${frame}-${index}`}
+                      className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                        frame === activePreviewSpriteName
+                          ? "border-cyan-300/30 bg-cyan-400/20 text-foreground"
+                          : "border-white/10 bg-white/5 text-muted-foreground"
+                      }`}
                     >
-                      <option className={selectOptionClassName} style={selectOptionStyle} value="Avax">AVAX</option>
-                      <option className={selectOptionClassName} style={selectOptionStyle} value="Usdc">USDC</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Duration (hours)", "Duración (horas)")}</label>
-                    <input
-                      type="number"
-                      value={mintAuctionDurationHours}
-                      onChange={(e) => setMintAuctionDurationHours(e.target.value)}
-                      min="1"
-                      placeholder="24"
-                      className="w-full rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
-                    />
-                  </div>
-                </>
-              ) : null}
+                      {frame}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold text-foreground">{t("Required sprite checklist", "Checklist de sprites requeridos")}</h4>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] ${
+                      hasRequiredSpriteSet
+                        ? "border-emerald-300/30 bg-emerald-400/15 text-foreground"
+                        : "border-amber-300/30 bg-amber-400/15 text-foreground"
+                    }`}
+                  >
+                    {hasRequiredSpriteSet
+                      ? t("Ready", "Listo")
+                      : t(`${missingRequiredSprites.length} missing`, `${missingRequiredSprites.length} faltantes`)}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {REQUIRED_SHIMEJI_SPRITES.map((fileName) => {
+                    const present = Boolean(mintSpritePreviewMap[fileName]);
+                    return (
+                      <div
+                        key={fileName}
+                        className={`rounded-xl border px-3 py-2 text-[11px] ${
+                          present
+                            ? "border-emerald-300/25 bg-emerald-400/10 text-foreground"
+                            : "border-white/10 bg-black/20 text-muted-foreground"
+                        }`}
+                      >
+                        {present ? "OK" : "Missing"} · {fileName}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-
-          {mintFormError ? (
-            <div className="rounded-lg border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-xs text-foreground">
-              {mintFormError}
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            onClick={() => void handleCreateMintPackage()}
-            disabled={txBusy || mintUploadBusy}
-            className="w-full bg-blue-500 text-black hover:bg-blue-400"
-          >
-            {txBusy || mintUploadBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {t("Create NFT Package + Mint", "Crear paquete NFT + Mintear")}
-          </Button>
-        </div>
         </div>
       ) : null}
 

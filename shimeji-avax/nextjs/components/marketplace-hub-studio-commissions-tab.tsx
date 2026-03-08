@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AlertTriangle, Check, ImageIcon, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   walletShort,
 } from "@/components/marketplace-hub-shared";
 import type { MarketplaceMyStudioResponse, MyStudioCommissionOrderItem } from "@/lib/marketplace-hub-types";
+import { ANIMATION_GUIDE_PATH, CHARACTER_CREATOR_PATH } from "@/lib/shimeji-sprite-spec";
 
 type Props = {
   t: HubTranslateFn;
@@ -138,6 +140,36 @@ export function MarketplaceHubStudioCommissionsTab({
 
   return (
     <div className="config-contrast-panel space-y-4">
+      <div className="rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.06] p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-3xl">
+            <h3 className="text-sm font-semibold text-foreground">
+              {t("Need the animation spec or local preview app?", "¿Necesitás la guía de animaciones o la app de preview local?")}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "Review the required sprite set first, then open the creator to test a new character locally before turning it into an NFT.",
+                "Revisá primero el set de sprites requerido y después abrí el creador para probar un personaje nuevo en local antes de convertirlo en NFT.",
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={ANIMATION_GUIDE_PATH}
+              className="rounded-full border border-cyan-300/20 bg-cyan-400/15 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-cyan-400/25"
+            >
+              {t("Animation guide", "Guía de animaciones")}
+            </Link>
+            <Link
+              href={CHARACTER_CREATOR_PATH}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-white/10"
+            >
+              {t("Open creator", "Abrir creador")}
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Lock status banner */}
       {!canListNewCommissionEgg && lockReason ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs text-foreground">

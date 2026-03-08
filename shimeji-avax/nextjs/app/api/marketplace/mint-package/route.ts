@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { findMissingRequiredSprites } from "@/lib/shimeji-sprite-spec";
 
 export const runtime = "nodejs";
 
@@ -243,6 +244,19 @@ export async function POST(request: NextRequest) {
       totalBytes += entry.size;
       const relativePath = rawSpritePaths[index] || entry.name;
       spriteFiles.push({ file: entry, relativePath });
+    }
+
+    const missingRequiredSprites = findMissingRequiredSprites(
+      spriteFiles.map((entry) => entry.relativePath || entry.file.name),
+    );
+    if (missingRequiredSprites.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Missing required sprite files: ${missingRequiredSprites.join(", ")}`,
+          missingRequiredSprites,
+        },
+        { status: 400 },
+      );
     }
 
     if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
