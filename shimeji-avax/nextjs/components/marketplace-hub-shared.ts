@@ -1,8 +1,15 @@
 import type { ArtistProfile, ArtistProfileUpdateInput } from "@/lib/marketplace-hub-types";
 
-export const AVAX_SCALE = BigInt(10) ** BigInt(18);
-export const USDC_SCALE = BigInt(10) ** BigInt(6);
-export const DEFAULT_AVAX_USDC_RATE = BigInt(25) * BigInt(10) ** BigInt(8);
+const BIGINT_ZERO = BigInt(0);
+const BIGINT_ONE = BigInt(1);
+
+function bigintPow10(decimals: number) {
+  return BigInt(`1${"0".repeat(Math.max(0, decimals))}`);
+}
+
+export const AVAX_SCALE = bigintPow10(18);
+export const USDC_SCALE = bigintPow10(6);
+export const DEFAULT_AVAX_USDC_RATE = BigInt(25) * bigintPow10(8);
 export const PROFILE_SESSION_PREFIX = "shimeji_artist_profile_session:";
 export const COMMISSION_AUTO_RELEASE_AFTER_DELIVERY_SECS = 7 * 24 * 60 * 60;
 
@@ -60,10 +67,9 @@ export function formatTokenAmount(rawUnits: string | number | bigint | null | un
           ? BigInt(rawUnits)
           : null;
   if (parsed === null) return "-";
-  const scale = BigInt(10) ** BigInt(decimals);
-  const zero = BigInt(0);
-  const sign = parsed < zero ? "-" : "";
-  const abs = parsed < zero ? -parsed : parsed;
+  const scale = bigintPow10(decimals);
+  const sign = parsed < BIGINT_ZERO ? "-" : "";
+  const abs = parsed < BIGINT_ZERO ? -parsed : parsed;
   const whole = abs / scale;
   const frac = (abs % scale).toString().padStart(decimals, "0").replace(/0+$/, "");
   return `${sign}${whole.toString()}${frac ? `.${frac}` : ""}`;
@@ -78,12 +84,12 @@ export function parseAmountToUnits(value: string, decimals = 18): bigint {
   }
   const [whole, fraction = ""] = trimmed.split(".");
   const fracPadded = (fraction + "0".repeat(decimals)).slice(0, decimals);
-  return BigInt(whole) * (BigInt(10) ** BigInt(decimals)) + BigInt(fracPadded || "0");
+  return BigInt(whole) * bigintPow10(decimals) + BigInt(fracPadded || "0");
 }
 
 export function computeRate(priceAvax: bigint, priceUsdc: bigint): bigint {
-  if (priceAvax > 0n && priceUsdc > 0n) {
-    return (priceUsdc * BigInt(10) ** BigInt(8)) / (priceAvax / AVAX_SCALE || 1n);
+  if (priceAvax > BIGINT_ZERO && priceUsdc > BIGINT_ZERO) {
+    return (priceUsdc * bigintPow10(8)) / (priceAvax / AVAX_SCALE || BIGINT_ONE);
   }
   return DEFAULT_AVAX_USDC_RATE;
 }

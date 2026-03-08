@@ -76,9 +76,14 @@ export async function fetchOwnedNftsByWallet(walletAddress: string, opts?: { tot
   const items = await Promise.all(
     Array.from({ length: capped }, (_, index) => fetchNftTokenById(index)),
   );
-  return items
-    .filter((item): item is NftTokenRecord => Boolean(item) && item.owner.toLowerCase() === owner.toLowerCase())
-    .sort((a, b) => a.tokenId - b.tokenId);
+  const owned: NftTokenRecord[] = [];
+  for (const item of items) {
+    if (!item) continue;
+    if (item.owner.toLowerCase() !== owner.toLowerCase()) continue;
+    owned.push(item);
+  }
+  owned.sort((a, b) => a.tokenId - b.tokenId);
+  return owned;
 }
 
 export async function fetchEditionTotalSupply(): Promise<number> {
@@ -143,7 +148,11 @@ export async function fetchOwnedEditionsByWallet(walletAddress: string, opts?: {
     }),
   );
 
-  return items
-    .filter((item): item is EditionTokenRecord => Boolean(item))
-    .sort((a, b) => a.editionId - b.editionId);
+  const owned: EditionTokenRecord[] = [];
+  for (const item of items) {
+    if (!item) continue;
+    owned.push(item);
+  }
+  owned.sort((a, b) => a.editionId - b.editionId);
+  return owned;
 }

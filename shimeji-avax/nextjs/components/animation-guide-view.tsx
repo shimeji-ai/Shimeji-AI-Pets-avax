@@ -16,7 +16,7 @@ type GuideSection = {
   title: string;
   description: string;
   explanation: string;
-  frames: string[];
+  frames: readonly string[];
 };
 
 const sections: GuideSection[] = [
@@ -70,7 +70,7 @@ const sections: GuideSection[] = [
   },
 ];
 
-function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
+function FrameLoop({ frames, title }: { frames: readonly string[]; title: string }) {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {

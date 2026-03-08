@@ -75,11 +75,14 @@ export async function fetchRecentBidsForAuction(auctionId: number, _auctionStart
     return logs
       .slice(-limit)
       .reverse()
-      .map((log) => ({
-        bidder: getAddress(String(log.args.bidder)),
-        amount: BigInt(log.args.amount ?? 0n),
-        currency: mapCurrency(log.args.currency ?? 0),
-      }));
+      .map((log) => {
+        const args = (log as any).args ?? {};
+        return {
+          bidder: getAddress(String(args.bidder)),
+          amount: BigInt(args.amount ?? 0n),
+          currency: mapCurrency(args.currency ?? 0),
+        };
+      });
   } catch {
     return [];
   }

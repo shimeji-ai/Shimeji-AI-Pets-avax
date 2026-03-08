@@ -45,14 +45,14 @@ export async function fetchCommissions(): Promise<CommissionRequest[]> {
       buyer: getAddress(data.buyer),
       intention: String(data.intention ?? ""),
       referenceImage: String(data.referenceImage ?? ""),
-      priceAvax: BigInt(data.priceAvax ?? 0n),
-      priceUsdc: BigInt(data.priceUsdc ?? 0n),
-      avaxUsdcRate: BigInt(data.avaxUsdcRate ?? 0n),
+      priceAvax: BigInt(data.priceAvax ?? 0),
+      priceUsdc: BigInt(data.priceUsdc ?? 0),
+      avaxUsdcRate: BigInt(data.avaxUsdcRate ?? 0),
       currency: mapCurrency(data.currency),
       status: mapStatus(data.status),
-      tokenId: Number(data.tokenId ?? 0n),
+      tokenId: Number(data.tokenId ?? 0),
       artist: data.artist ? getAddress(data.artist) : "0x0000000000000000000000000000000000000000",
-      createdAt: Number(data.createdAt ?? 0n),
+      createdAt: Number(data.createdAt ?? 0),
     });
   }
   return items;

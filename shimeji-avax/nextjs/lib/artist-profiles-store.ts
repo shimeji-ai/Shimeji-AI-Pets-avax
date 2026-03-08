@@ -502,7 +502,7 @@ export async function verifyArtistAuthChallenge(input: {
       throw new Error("Challenge expired");
     }
     const recoveredAddress = await verifyMessage({
-      address: wallet,
+      address: getAddress(wallet),
       message: challenge.message,
       signature: signedMessage as `0x${string}`,
     });

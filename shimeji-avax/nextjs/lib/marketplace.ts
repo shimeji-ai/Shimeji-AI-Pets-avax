@@ -162,7 +162,7 @@ async function getListingPrice(listingId: number) {
   const client = getPublicClient();
   const contract = getMarketplaceContract();
   const listing: any = await client.readContract({ ...contract, functionName: "getListing", args: [BigInt(listingId)] });
-  return BigInt(listing.price ?? 0n);
+  return BigInt(listing.price ?? 0);
 }
 
 export async function buildBuyAvaxTx(_buyerPublicKey: string, listingId: number) {
@@ -183,7 +183,7 @@ export async function buildBuyEditionAvaxTx(_buyerPublicKey: string, listingId: 
   const client = getPublicClient();
   const contract = getMarketplaceContract();
   const listing: any = await client.readContract({ ...contract, functionName: "getEditionListing", args: [BigInt(listingId)] });
-  const price = BigInt(listing.price ?? 0n);
+  const price = BigInt(listing.price ?? 0);
   return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "buyEditionAvax", args: [BigInt(listingId).toString()], value: price.toString() });
 }
 

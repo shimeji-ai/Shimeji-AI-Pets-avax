@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, createWalletClient, getAddress, http, parseAbi, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { localAvalancheChain } from "@/lib/contracts";
 
 function normalizeNetwork(value: string) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -37,9 +38,11 @@ async function fundLocalAvaxAndUsdc(address: `0x${string}`) {
   const account = getDeployerAccount();
   const walletClient = createWalletClient({
     account,
+    chain: localAvalancheChain,
     transport: http(rpcUrl),
   });
   const publicClient = createPublicClient({
+    chain: localAvalancheChain,
     transport: http(rpcUrl),
   });
 

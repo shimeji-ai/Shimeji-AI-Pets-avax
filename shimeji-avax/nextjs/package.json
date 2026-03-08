@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/vendor-runtime-core.js && prisma generate && next build",
+    "build": "node scripts/vendor-runtime-core.js && prisma generate && next build --webpack",
     "dev": "next dev",
     "lint": "eslint .",
     "prisma:generate": "prisma generate",
