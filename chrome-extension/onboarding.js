@@ -33,15 +33,15 @@ const OPENCLAW_AGENT_NAME_MAX = 32;
 
 function defaultOpenClawAgentName(indexOrId) {
   if (typeof indexOrId === "number") {
-    return `chrome-shimeji-${indexOrId + 1}`;
+    return `chrome-mochi-${indexOrId + 1}`;
   }
   const match = String(indexOrId || "").match(/(\d+)/);
   const suffix = match ? match[1] : "1";
-  return `chrome-shimeji-${suffix}`;
+  return `chrome-mochi-${suffix}`;
 }
 
 function normalizeOpenClawAgentName(rawValue, fallback) {
-  const fallbackName = String(fallback || "chrome-shimeji-1").slice(0, OPENCLAW_AGENT_NAME_MAX);
+  const fallbackName = String(fallback || "chrome-mochi-1").slice(0, OPENCLAW_AGENT_NAME_MAX);
   const normalized = String(rawValue || "")
     .trim()
     .replace(/\s+/g, "-")
@@ -69,8 +69,8 @@ function setLabels() {
   const langLabel = document.getElementById("lang-label");
   if (langLabel) langLabel.textContent = t("Language", "Idioma");
   document.getElementById("onboarding-title").textContent = t(
-    "Welcome! Let's bring your first shimeji to life.",
-    "Bienvenido! Demos vida a tu primer shimeji."
+    "Welcome! Let's bring your first mochi to life.",
+    "Bienvenido! Demos vida a tu primer mochi."
   );
   document.getElementById("onboarding-subtitle").textContent = t(
     "Configure the AI Brain and start chatting in seconds.",
@@ -122,8 +122,8 @@ function setLabels() {
   saveBtn.textContent = t("Save", "Guardar");
   skipBtn.textContent = t("Skip for now", "Omitir por ahora");
   document.getElementById("add-more-hint").textContent = t(
-    "You can add more shimejis later with the + button.",
-    "Luego podés agregar más shimejis con el botón +."
+    "You can add more mochis later with the + button.",
+    "Luego podés agregar más mochis con el botón +."
   );
 }
 
@@ -274,10 +274,10 @@ function toggleMode() {
   toggleProvider();
 }
 
-function getDefaultShimeji(index) {
+function getDefaultMochi(index) {
   return {
-    id: `shimeji-${index + 1}`,
-    character: "shimeji",
+    id: `mochi-${index + 1}`,
+    character: "mochi",
     size: "medium",
     mode: "standard",
     standardProvider: "openrouter",
@@ -306,8 +306,8 @@ function getDefaultShimeji(index) {
 }
 
 function loadExistingConfig() {
-  chrome.storage.local.get(["shimejis"], (data) => {
-    const list = Array.isArray(data.shimejis) ? data.shimejis : [];
+  chrome.storage.local.get(["mochis"], (data) => {
+    const list = Array.isArray(data.mochis) ? data.mochis : [];
     const first = list[0];
     if (!first) {
       if (openclawAgentName) openclawAgentName.value = defaultOpenClawAgentName(0);
@@ -342,10 +342,10 @@ function loadExistingConfig() {
 function saveConfig() {
   const provider = providerSelect.value || "openrouter";
   const mode = modeSelect?.value || "standard";
-  chrome.storage.local.get(["shimejis", "noShimejis"], (data) => {
-    let list = Array.isArray(data.shimejis) ? data.shimejis : [];
+  chrome.storage.local.get(["mochis", "noMochis"], (data) => {
+    let list = Array.isArray(data.mochis) ? data.mochis : [];
     if (list.length === 0) {
-      list = [getDefaultShimeji(0)];
+      list = [getDefaultMochi(0)];
     }
     const first = list[0];
     first.mode = mode;
@@ -366,7 +366,7 @@ function saveConfig() {
         defaultOpenClawAgentName(first.id || 0)
       );
     }
-    chrome.storage.local.set({ shimejis: list, noShimejis: false }, () => {
+    chrome.storage.local.set({ mochis: list, noMochis: false }, () => {
       window.location.href = chrome.runtime.getURL("onboarding-success.html");
     });
   });
@@ -377,12 +377,12 @@ function skipOnboarding() {
 }
 
 function initOnboardingLanguage() {
-  chrome.storage.local.get(["shimejiLanguage"], (data) => {
-    if (data.shimejiLanguage === "es" || data.shimejiLanguage === "en") {
-      language = data.shimejiLanguage;
+  chrome.storage.local.get(["mochiLanguage"], (data) => {
+    if (data.mochiLanguage === "es" || data.mochiLanguage === "en") {
+      language = data.mochiLanguage;
     } else {
       language = detectBrowserLanguage();
-      chrome.storage.local.set({ shimejiLanguage: language });
+      chrome.storage.local.set({ mochiLanguage: language });
     }
     if (langSelect) langSelect.value = language;
     setLabels();
@@ -439,7 +439,7 @@ if (langSelect) {
   langSelect.addEventListener("change", () => {
     const value = langSelect.value === "es" ? "es" : "en";
     language = value;
-    chrome.storage.local.set({ shimejiLanguage: value });
+    chrome.storage.local.set({ mochiLanguage: value });
     setLabels();
     populateModels(modelSelect.value || "random");
     populateOllamaModelSelect(ollamaModel.value || "gemma3:1b");

@@ -1,19 +1,19 @@
-// ─── Shared runtime (loaded from shimeji-shared.js) ──────────────────────────
+// ─── Shared runtime (loaded from mochi-shared.js) ──────────────────────────
 const {
-  SPRITE_SIZE, TICK_MS, MAX_SHIMEJIS,
+  SPRITE_SIZE, TICK_MS, MAX_MOCHIS,
   CALL_BACK_LINE_SPACING, CALL_BACK_LINE_MARGIN, CALL_BACK_RESET_DELAY,
   computeCallBackX, resetCallBackLineCounters, scheduleCallBackLineReset,
   PERSONALITY_TTS, PERSONALITY_SOUND_RATE,
   TTS_VOICE_PROFILES, TTS_PROFILE_MODIFIERS, TTS_PROFILE_POOL,
-  SHIMEJI_PITCH_FACTORS,
-  getShimejiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
+  MOCHI_PITCH_FACTORS,
+  getMochiPitchFactor, pickRandomTtsProfile, pickRandomChatTheme,
   getVoicesAsync, pickVoiceByProfile,
   CHAT_THEMES,
   weightedRandom, clamp, hexToRgb,
   detectBrowserLanguage
-} = window.ShimejiShared;
-const UPDATE_PANEL_ID = 'shimeji-update-panel';
-const UPDATE_STYLE_ID = 'shimeji-update-style';
+} = window.MochiShared;
+const UPDATE_PANEL_ID = 'mochi-update-panel';
+const UPDATE_STYLE_ID = 'mochi-update-style';
 const UPDATE_NOTES_LIMIT = 280;
 let updatePanelElement = null;
 let updateDownloadBtn = null;
@@ -225,7 +225,7 @@ function handleDownloadButton() {
   updateDownloadBtn.disabled = true;
   updateStatusText(t('Downloading update…', 'Descargando actualización…'));
   updateProgressBar(0);
-  window.shimejiApi.downloadUpdateAsset({
+  window.mochiApi.downloadUpdateAsset({
     assetUrl: currentUpdateInfo.assetUrl,
     assetName: currentUpdateInfo.assetName,
     version: currentUpdateInfo.version
@@ -240,7 +240,7 @@ function handleInstallButton() {
   if (!currentDownloadedPath) return;
   updateInstallBtn.disabled = true;
   updateStatusText(t('Launching update…', 'Iniciando actualización…'));
-  window.shimejiApi.installDownloadedUpdate({ filePath: currentDownloadedPath }).catch(() => {
+  window.mochiApi.installDownloadedUpdate({ filePath: currentDownloadedPath }).catch(() => {
     updateStatusText(t('Failed to launch update.', 'No se pudo iniciar la actualización.'), 'alert');
     updateInstallBtn.disabled = false;
   });
@@ -287,31 +287,31 @@ function handleInstallStart(payload) {
 }
 
 function setupUpdateListeners() {
-  if (!window.shimejiApi) return;
-  if (typeof window.shimejiApi.onUpdateAvailable === 'function') {
-    window.shimejiApi.onUpdateAvailable(handleUpdateAvailable);
+  if (!window.mochiApi) return;
+  if (typeof window.mochiApi.onUpdateAvailable === 'function') {
+    window.mochiApi.onUpdateAvailable(handleUpdateAvailable);
   }
-  if (typeof window.shimejiApi.onUpdateDownloadStart === 'function') {
-    window.shimejiApi.onUpdateDownloadStart(handleDownloadStart);
+  if (typeof window.mochiApi.onUpdateDownloadStart === 'function') {
+    window.mochiApi.onUpdateDownloadStart(handleDownloadStart);
   }
-  if (typeof window.shimejiApi.onUpdateDownloadProgress === 'function') {
-    window.shimejiApi.onUpdateDownloadProgress(handleDownloadProgress);
+  if (typeof window.mochiApi.onUpdateDownloadProgress === 'function') {
+    window.mochiApi.onUpdateDownloadProgress(handleDownloadProgress);
   }
-  if (typeof window.shimejiApi.onUpdateDownloadComplete === 'function') {
-    window.shimejiApi.onUpdateDownloadComplete(handleDownloadComplete);
+  if (typeof window.mochiApi.onUpdateDownloadComplete === 'function') {
+    window.mochiApi.onUpdateDownloadComplete(handleDownloadComplete);
   }
-  if (typeof window.shimejiApi.onUpdateDownloadError === 'function') {
-    window.shimejiApi.onUpdateDownloadError(handleDownloadError);
+  if (typeof window.mochiApi.onUpdateDownloadError === 'function') {
+    window.mochiApi.onUpdateDownloadError(handleDownloadError);
   }
-  if (typeof window.shimejiApi.onUpdateInstallStart === 'function') {
-    window.shimejiApi.onUpdateInstallStart(handleInstallStart);
+  if (typeof window.mochiApi.onUpdateInstallStart === 'function') {
+    window.mochiApi.onUpdateInstallStart(handleInstallStart);
   }
 }
 
 // Work area bottom in screen coords (set from main process via IPC).
 // When the taskbar/panel sits at the bottom of the screen the overlay window
 // covers the full display.bounds height, but the panel is drawn on top of it.
-// Using workArea keeps shimejis walking ON the panel surface instead of behind it.
+// Using workArea keeps mochis walking ON the panel surface instead of behind it.
 let screenWorkAreaBottom = null;
 const DRAG_THRESHOLD_PX = 4;
 const CHAT_EDGE_MARGIN_PX = 8;
@@ -352,7 +352,7 @@ const ANIMATION_FRAMES = {
   walkingOn: ['walk-step-left.png', 'stand-neutral.png', 'walk-step-right.png', 'stand-neutral.png']
 };
 
-const SHIMEJI_STATES = {
+const MOCHI_STATES = {
   IDLE: 'idle',
   WALKING: 'walking',
   RUNNING: 'running',
@@ -401,8 +401,8 @@ const CHAT_MAX_WIDTH = 9999;
 const CHAT_MAX_HEIGHT = 560;
 
 const SOUND_ASSET_PATHS = {
-  success: 'assets/shimeji-success.wav',
-  error: 'assets/shimeji-error.wav'
+  success: 'assets/mochi-success.wav',
+  error: 'assets/mochi-error.wav'
 };
 
 const TERMINAL_ATTENTION_PATTERNS = [
@@ -490,7 +490,7 @@ async function ensureSharedSoundBuffersLoaded() {
 }
 
 const CHARACTERS = [
-  { id: 'shimeji', label: 'Shimeji' },
+  { id: 'mochi', label: 'Mochi' },
   { id: 'bunny', label: 'Bunny' },
   { id: 'kitten', label: 'Kitten' },
   { id: 'egg', label: 'Egg' },
@@ -501,15 +501,15 @@ const CHARACTERS = [
   { id: 'penguin', label: 'Penguin' }
 ];
 
-let shimejis = [];
+let mochis = [];
 let globalConfig = {};
 let uiLanguage = null;
-let activeMicShimejiId = null;
+let activeMicMochiId = null;
 const UI_TEXT_SCALE_OPTIONS = [0.85, 1, 1.15, 1.3, 1.45];
 
 function syncUiLanguageFromConfig(config = globalConfig) {
-  const fromConfig = config && (config.shimejiLanguage === 'es' || config.shimejiLanguage === 'en')
-    ? config.shimejiLanguage
+  const fromConfig = config && (config.mochiLanguage === 'es' || config.mochiLanguage === 'en')
+    ? config.mochiLanguage
     : null;
   uiLanguage = fromConfig || detectBrowserLanguage();
 }
@@ -578,12 +578,12 @@ function normalizeTerminalProfile(rawValue) {
   return normalized;
 }
 
-class Shimeji {
+class Mochi {
   constructor(id, config = {}) {
     this.id = id;
     const randomTheme = pickRandomChatTheme();
     this.config = {
-      character: config.character || 'shimeji',
+      character: config.character || 'mochi',
       size: config.size || 'medium',
       enabled: config.enabled !== false,
       personality: config.personality || 'cryptid',
@@ -616,7 +616,7 @@ class Shimeji {
       vx: 0,
       vy: 0,
       direction: 1,
-      currentState: SHIMEJI_STATES.FALLING,
+      currentState: MOCHI_STATES.FALLING,
       onGround: false,
       onWall: false,
       onCeiling: false,
@@ -720,13 +720,13 @@ class Shimeji {
     this.loadConversation();
     this.setupEventListeners();
 
-    console.log(`Shimeji ${this.id} created with character "${this.config.character}" at (${this.state.x.toFixed(0)}, ${this.state.y.toFixed(0)})`);
+    console.log(`Mochi ${this.id} created with character "${this.config.character}" at (${this.state.x.toFixed(0)}, ${this.state.y.toFixed(0)})`);
   }
 
   async loadConversation() {
-    if (!window.shimejiApi?.getConversation) return;
+    if (!window.mochiApi?.getConversation) return;
     try {
-      const history = await window.shimejiApi.getConversation(this.id);
+      const history = await window.mochiApi.getConversation(this.id);
       if (Array.isArray(history)) {
         this.messages = history.filter((item) => item && typeof item === 'object');
         this.renderMessages();
@@ -735,20 +735,20 @@ class Shimeji {
   }
 
   saveConversation() {
-    if (!window.shimejiApi?.saveConversation) return;
-    window.shimejiApi.saveConversation(this.id, this.messages.slice(-80));
+    if (!window.mochiApi?.saveConversation) return;
+    window.mochiApi.saveConversation(this.id, this.messages.slice(-80));
   }
 
   getCharacterPath() {
-    const char = this.config.character || 'shimeji';
+    const char = this.config.character || 'mochi';
     return `characters/${char}/`;
   }
 
   createElements() {
-    let container = document.getElementById('shimeji-container');
+    let container = document.getElementById('mochi-container');
     if (!container) {
       container = document.createElement('div');
-      container.id = 'shimeji-container';
+      container.id = 'mochi-container';
       container.style.cssText = `
         position: fixed;
         top: 0;
@@ -763,7 +763,7 @@ class Shimeji {
 
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const wrapper = document.createElement('div');
-    wrapper.className = 'shimeji-wrapper';
+    wrapper.className = 'mochi-wrapper';
     const isEnabled = this.config.enabled !== false;
     wrapper.style.cssText = `
       position: absolute;
@@ -777,7 +777,7 @@ class Shimeji {
     `;
 
     const sprite = document.createElement('img');
-    sprite.className = 'shimeji-sprite';
+    sprite.className = 'mochi-sprite';
     sprite.alt = this.id;
     sprite.style.cssText = `
       width: ${SPRITE_SIZE * scale}px;
@@ -791,15 +791,15 @@ class Shimeji {
     sprite.src = charPath + 'stand-neutral.png';
 
     const overheadTyping = document.createElement('div');
-    overheadTyping.className = 'shimeji-overhead-typing';
+    overheadTyping.className = 'mochi-overhead-typing';
     overheadTyping.appendChild(this.createTypingDotsElement());
 
     const notificationBadge = document.createElement('div');
-    notificationBadge.className = 'shimeji-notification-badge';
+    notificationBadge.className = 'mochi-notification-badge';
     notificationBadge.textContent = '1';
 
     const notificationBubble = document.createElement('div');
-    notificationBubble.className = 'shimeji-notification-bubble';
+    notificationBubble.className = 'mochi-notification-bubble';
 
     wrapper.appendChild(overheadTyping);
     wrapper.appendChild(notificationBadge);
@@ -813,41 +813,41 @@ class Shimeji {
 
   createChatBubble() {
     const chat = document.createElement('div');
-    chat.className = 'shimeji-chat-bubble chat-style-glass';
+    chat.className = 'mochi-chat-bubble chat-style-glass';
     chat.style.position = 'absolute';
 
     const header = document.createElement('div');
-    header.className = 'shimeji-chat-header';
+    header.className = 'mochi-chat-header';
 
     const titleWrap = document.createElement('div');
-    titleWrap.className = 'shimeji-chat-title-wrap';
+    titleWrap.className = 'mochi-chat-title-wrap';
     const chatName = document.createElement('span');
-    chatName.className = 'shimeji-chat-name';
-    chatName.textContent = 'Shimeji';
+    chatName.className = 'mochi-chat-name';
+    chatName.textContent = 'Mochi';
     const chatMeta = document.createElement('span');
-    chatMeta.className = 'shimeji-chat-meta';
+    chatMeta.className = 'mochi-chat-meta';
     chatMeta.textContent = 'OpenRouter';
     titleWrap.appendChild(chatName);
     titleWrap.appendChild(chatMeta);
 
     const headerButtons = document.createElement('div');
-    headerButtons.className = 'shimeji-chat-header-btns';
+    headerButtons.className = 'mochi-chat-header-btns';
 
     const ttsBtn = document.createElement('button');
     ttsBtn.type = 'button';
-    ttsBtn.className = 'shimeji-chat-voice-quick';
+    ttsBtn.className = 'mochi-chat-voice-quick';
     ttsBtn.textContent = '🔇';
     ttsBtn.title = t('Enable voice', 'Activar voz');
 
     const settingsBtn = document.createElement('button');
     settingsBtn.type = 'button';
-    settingsBtn.className = 'shimeji-chat-settings-toggle';
+    settingsBtn.className = 'mochi-chat-settings-toggle';
     settingsBtn.textContent = '⚙️';
     settingsBtn.title = t('Controls', 'Controles');
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'shimeji-chat-close';
+    closeBtn.className = 'mochi-chat-close';
     closeBtn.textContent = '×';
     closeBtn.title = t('Close', 'Cerrar');
 
@@ -858,13 +858,13 @@ class Shimeji {
     header.appendChild(headerButtons);
 
     const controlsPanel = document.createElement('div');
-    controlsPanel.className = 'shimeji-chat-controls-panel';
+    controlsPanel.className = 'mochi-chat-controls-panel';
 
     const makeControlRow = (label, control) => {
       const row = document.createElement('div');
-      row.className = 'shimeji-chat-control-row';
+      row.className = 'mochi-chat-control-row';
       const rowLabel = document.createElement('span');
-      rowLabel.className = 'shimeji-chat-control-label';
+      rowLabel.className = 'mochi-chat-control-label';
       rowLabel.textContent = label;
       row.appendChild(rowLabel);
       row.appendChild(control);
@@ -873,7 +873,7 @@ class Shimeji {
 
     const openMicToggleBtn = document.createElement('button');
     openMicToggleBtn.type = 'button';
-    openMicToggleBtn.className = 'shimeji-chat-openmic-toggle';
+    openMicToggleBtn.className = 'mochi-chat-openmic-toggle';
     openMicToggleBtn.textContent = '🎙️';
     openMicToggleBtn.title = t('Enable open mic', 'Activar micrófono abierto');
     const openMicRowParts = makeControlRow(t('Open mic', 'Micrófono abierto'), openMicToggleBtn);
@@ -887,10 +887,10 @@ class Shimeji {
 
     const relayToggleBtn = document.createElement('button');
     relayToggleBtn.type = 'button';
-    relayToggleBtn.className = 'shimeji-chat-relay-toggle';
+    relayToggleBtn.className = 'mochi-chat-relay-toggle';
     relayToggleBtn.textContent = '🔁';
-    relayToggleBtn.title = t('Talk to other shimejis: off', 'Hablar con otros shimejis: apagado');
-    const relayRowParts = makeControlRow(t('Talk to other shimejis', 'Hablar con otros shimejis'), relayToggleBtn);
+    relayToggleBtn.title = t('Talk to other mochis: off', 'Hablar con otros mochis: apagado');
+    const relayRowParts = makeControlRow(t('Talk to other mochis', 'Hablar con otros mochis'), relayToggleBtn);
     const relayRow = relayRowParts.row;
     const relayLabel = relayRowParts.rowLabel;
     relayRow.addEventListener('click', (event) => {
@@ -901,7 +901,7 @@ class Shimeji {
 
     const themeToggleBtn = document.createElement('button');
     themeToggleBtn.type = 'button';
-    themeToggleBtn.className = 'shimeji-chat-theme-toggle';
+    themeToggleBtn.className = 'mochi-chat-theme-toggle';
     themeToggleBtn.textContent = '🎨';
     themeToggleBtn.title = t('Chat theme', 'Tema de chat');
     const themeRowParts = makeControlRow(t('Theme', 'Tema'), themeToggleBtn);
@@ -914,7 +914,7 @@ class Shimeji {
     controlsPanel.appendChild(themeRow);
 
     const fontSizeSelect = document.createElement('select');
-    fontSizeSelect.className = 'shimeji-chat-font-select';
+    fontSizeSelect.className = 'mochi-chat-font-select';
     [
       { value: 'small', label: t('Small', 'Pequeño') },
       { value: 'medium', label: t('Medium', 'Medio') },
@@ -935,7 +935,7 @@ class Shimeji {
     controlsPanel.appendChild(fontRow);
 
     const uiTextScaleSelect = document.createElement('select');
-    uiTextScaleSelect.className = 'shimeji-chat-font-select';
+    uiTextScaleSelect.className = 'mochi-chat-font-select';
     UI_TEXT_SCALE_OPTIONS.forEach((value) => {
       const optionEl = document.createElement('option');
       optionEl.value = String(value);
@@ -952,28 +952,28 @@ class Shimeji {
     controlsPanel.appendChild(uiTextScaleRow);
 
     const themePanel = document.createElement('div');
-    themePanel.className = 'shimeji-chat-theme-panel';
+    themePanel.className = 'mochi-chat-theme-panel';
 
     const themeHeader = document.createElement('div');
-    themeHeader.className = 'shimeji-chat-theme-header';
+    themeHeader.className = 'mochi-chat-theme-header';
     const themeHeaderLabel = document.createElement('span');
-    themeHeaderLabel.className = 'shimeji-chat-theme-header-label';
+    themeHeaderLabel.className = 'mochi-chat-theme-header-label';
     themeHeaderLabel.textContent = t('Chat theme', 'Tema de chat');
     const themeCloseBtn = document.createElement('button');
     themeCloseBtn.type = 'button';
-    themeCloseBtn.className = 'shimeji-chat-theme-close';
+    themeCloseBtn.className = 'mochi-chat-theme-close';
     themeCloseBtn.textContent = '×';
     themeHeader.appendChild(themeHeaderLabel);
     themeHeader.appendChild(themeCloseBtn);
     themePanel.appendChild(themeHeader);
 
     const presetSection = document.createElement('div');
-    presetSection.className = 'shimeji-chat-theme-section';
+    presetSection.className = 'mochi-chat-theme-section';
     const presetLabel = document.createElement('span');
-    presetLabel.className = 'shimeji-chat-theme-label';
+    presetLabel.className = 'mochi-chat-theme-label';
     presetLabel.textContent = t('Themes', 'Temas');
     const presetRow = document.createElement('div');
-    presetRow.className = 'shimeji-theme-presets';
+    presetRow.className = 'mochi-theme-presets';
     presetSection.appendChild(presetLabel);
     presetSection.appendChild(presetRow);
     themePanel.appendChild(presetSection);
@@ -984,15 +984,15 @@ class Shimeji {
       const label = isSpanishLocale() ? (labelEs || labelEn) : (labelEn || labelEs);
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'shimeji-theme-circle';
+      btn.className = 'mochi-theme-circle';
       btn.dataset.themeId = id;
       btn.title = label;
       btn.setAttribute('aria-label', label);
 
       const outer = document.createElement('span');
-      outer.className = 'shimeji-theme-circle-outer';
+      outer.className = 'mochi-theme-circle-outer';
       const inner = document.createElement('span');
-      inner.className = 'shimeji-theme-circle-inner';
+      inner.className = 'mochi-theme-circle-inner';
       if (colors && colors.theme && colors.bg) {
         outer.style.background = colors.bg;
         inner.style.background = colors.theme;
@@ -1028,18 +1028,18 @@ class Shimeji {
     });
 
     const customSection = document.createElement('div');
-    customSection.className = 'shimeji-chat-theme-section shimeji-chat-theme-custom';
+    customSection.className = 'mochi-chat-theme-section mochi-chat-theme-custom';
     const customLabel = document.createElement('span');
-    customLabel.className = 'shimeji-chat-theme-label';
+    customLabel.className = 'mochi-chat-theme-label';
     customLabel.textContent = t('Colors', 'Colores');
     const customRow = document.createElement('div');
-    customRow.className = 'shimeji-theme-color-row';
+    customRow.className = 'mochi-theme-color-row';
     const themeColorInput = document.createElement('input');
     themeColorInput.type = 'color';
-    themeColorInput.className = 'shimeji-chat-theme-color';
+    themeColorInput.className = 'mochi-chat-theme-color';
     const bgColorInput = document.createElement('input');
     bgColorInput.type = 'color';
-    bgColorInput.className = 'shimeji-chat-theme-bg';
+    bgColorInput.className = 'mochi-chat-theme-bg';
     customRow.appendChild(themeColorInput);
     customRow.appendChild(bgColorInput);
     customSection.appendChild(customLabel);
@@ -1047,32 +1047,32 @@ class Shimeji {
     themePanel.appendChild(customSection);
 
     const messagesArea = document.createElement('div');
-    messagesArea.className = 'shimeji-chat-messages';
+    messagesArea.className = 'mochi-chat-messages';
 
     const terminalPane = document.createElement('div');
-    terminalPane.className = 'shimeji-chat-terminal-pane';
+    terminalPane.className = 'mochi-chat-terminal-pane';
     const terminalStatus = document.createElement('div');
-    terminalStatus.className = 'shimeji-chat-terminal-status';
+    terminalStatus.className = 'mochi-chat-terminal-status';
     terminalStatus.textContent = t('Terminal disconnected', 'Terminal desconectado');
     const terminalViewport = document.createElement('div');
-    terminalViewport.className = 'shimeji-chat-terminal-viewport';
+    terminalViewport.className = 'mochi-chat-terminal-viewport';
     terminalPane.appendChild(terminalStatus);
     terminalPane.appendChild(terminalViewport);
 
     const inputArea = document.createElement('div');
-    inputArea.className = 'shimeji-chat-input-area';
+    inputArea.className = 'mochi-chat-input-area';
     const input = document.createElement('textarea');
-    input.className = 'shimeji-chat-input';
+    input.className = 'mochi-chat-input';
     input.rows = 1;
     input.placeholder = t('Say something...', 'Di algo...');
     const sendBtn = document.createElement('button');
     sendBtn.type = 'button';
-    sendBtn.className = 'shimeji-chat-send';
+    sendBtn.className = 'mochi-chat-send';
     sendBtn.setAttribute('aria-label', t('Send', 'Enviar'));
     sendBtn.textContent = '▶';
     const micBtn = document.createElement('button');
     micBtn.type = 'button';
-    micBtn.className = 'shimeji-chat-mic';
+    micBtn.className = 'mochi-chat-mic';
     micBtn.setAttribute('aria-label', t('Push to talk', 'Presiona para hablar'));
     micBtn.textContent = '🎙';
     inputArea.appendChild(input);
@@ -1080,7 +1080,7 @@ class Shimeji {
     inputArea.appendChild(micBtn);
 
     const resizeHandle = document.createElement('div');
-    resizeHandle.className = 'shimeji-chat-resize-handle';
+    resizeHandle.className = 'mochi-chat-resize-handle';
 
     chat.appendChild(header);
     chat.appendChild(controlsPanel);
@@ -1137,12 +1137,12 @@ class Shimeji {
 
     const shouldFocusOnChatClick = (target) => {
       if (!target || !target.closest) return true;
-      if (target.closest('.shimeji-chat-messages')) return false;
-      if (target.closest('.shimeji-chat-msg')) return false;
+      if (target.closest('.mochi-chat-messages')) return false;
+      if (target.closest('.mochi-chat-msg')) return false;
       if (target.closest('a')) return false;
       if (target.closest('input, textarea, select')) return false;
       if (target.closest('button')) return false;
-      if (target.closest('.shimeji-chat-terminal-pane')) return false;
+      if (target.closest('.mochi-chat-terminal-pane')) return false;
       return true;
     };
 
@@ -1296,9 +1296,9 @@ class Shimeji {
     chat.addEventListener('mousedown', (event) => {
       if (this.tryStartResizeFromEdge(event)) return;
       event.stopPropagation();
-      if (window.shimejiApi?.setIgnoreMouseEvents) {
+      if (window.mochiApi?.setIgnoreMouseEvents) {
         isMouseOverInteractive = true;
-        window.shimejiApi.setIgnoreMouseEvents(false);
+        window.mochiApi.setIgnoreMouseEvents(false);
       }
     });
 
@@ -1324,16 +1324,16 @@ class Shimeji {
 
     this.elements.input.addEventListener('focus', () => {
       this.bringToFront();
-      if (window.shimejiApi?.setIgnoreMouseEvents) {
+      if (window.mochiApi?.setIgnoreMouseEvents) {
         isMouseOverInteractive = true;
-        window.shimejiApi.setIgnoreMouseEvents(false);
+        window.mochiApi.setIgnoreMouseEvents(false);
       }
     });
 
-    document.addEventListener('shimeji-relay', this.boundRelayHandler);
-    document.addEventListener('shimeji-stop-mic', this.boundStopMicHandler);
+    document.addEventListener('mochi-relay', this.boundRelayHandler);
+    document.addEventListener('mochi-stop-mic', this.boundStopMicHandler);
 
-    const TerminalPaneCtor = window.ShimejiTerminalPane;
+    const TerminalPaneCtor = window.MochiTerminalPane;
     if (TerminalPaneCtor && terminalViewport) {
       this.terminalView = new TerminalPaneCtor(terminalViewport, {
         onData: (data) => this.sendTerminalInput(data),
@@ -1445,7 +1445,7 @@ class Shimeji {
       this.elements.openMicLabel.textContent = t('Open mic', 'Micrófono abierto');
     }
     if (this.elements.relayLabel) {
-      this.elements.relayLabel.textContent = t('Talk to other shimejis', 'Hablar con otros shimejis');
+      this.elements.relayLabel.textContent = t('Talk to other mochis', 'Hablar con otros mochis');
     }
     if (this.elements.themeLabel) {
       this.elements.themeLabel.textContent = t('Theme', 'Tema');
@@ -1494,7 +1494,7 @@ class Shimeji {
       });
     }
     if (this.elements.messagesArea) {
-      this.elements.messagesArea.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
+      this.elements.messagesArea.querySelectorAll('.mochi-chat-code-copy').forEach((btn) => {
         const text = String(btn.textContent || '').trim();
         if (text === 'Copied' || text === 'Copiado' || text === 'Failed' || text === 'Error') return;
         btn.textContent = t('Copy', 'Copiar');
@@ -1553,8 +1553,8 @@ class Shimeji {
       this.elements.relayToggleBtn.classList.toggle('active', active);
       this.elements.relayToggleBtn.textContent = '🔁';
       this.elements.relayToggleBtn.title = active
-        ? t('Talk to other shimejis: on', 'Hablar con otros shimejis: activado')
-        : t('Talk to other shimejis: off', 'Hablar con otros shimejis: apagado');
+        ? t('Talk to other mochis: on', 'Hablar con otros mochis: activado')
+        : t('Talk to other mochis: off', 'Hablar con otros mochis: apagado');
     }
 
     if (this.elements.themeToggleBtn) {
@@ -1645,7 +1645,7 @@ class Shimeji {
   }
 
   persistConfig() {
-    persistShimejiConfig(this.id, this.config);
+    persistMochiConfig(this.id, this.config);
   }
 
   toggleTts() {
@@ -1708,7 +1708,7 @@ class Shimeji {
       const utterance = new SpeechSynthesisUtterance(next.text);
       const base = PERSONALITY_TTS[this.config.personality] || { pitch: 1.0, rate: 1.0 };
       const mod = TTS_PROFILE_MODIFIERS[this.config.ttsVoiceProfile || 'random'] || { pitchOffset: 0, rateOffset: 0 };
-      utterance.pitch = clamp(base.pitch + mod.pitchOffset, 0.1, 2.0) * getShimejiPitchFactor(this.id);
+      utterance.pitch = clamp(base.pitch + mod.pitchOffset, 0.1, 2.0) * getMochiPitchFactor(this.id);
       utterance.rate = clamp(base.rate + mod.rateOffset, 0.1, 3.0);
       const voice = await this.resolveTtsVoice();
       if (voice) utterance.voice = voice;
@@ -1815,8 +1815,8 @@ class Shimeji {
     const hasMicrophone = await this.ensureMicrophonePermission();
     if (!hasMicrophone) return;
 
-    if (activeMicShimejiId && activeMicShimejiId !== this.id) {
-      document.dispatchEvent(new CustomEvent('shimeji-stop-mic', {
+    if (activeMicMochiId && activeMicMochiId !== this.id) {
+      document.dispatchEvent(new CustomEvent('mochi-stop-mic', {
         detail: { except: this.id }
       }));
     }
@@ -1857,7 +1857,7 @@ class Shimeji {
       recorder.start(250);
       this.mediaRecorder = recorder;
       this.isListening = true;
-      activeMicShimejiId = this.id;
+      activeMicMochiId = this.id;
 
       if (this.micSessionContinuous) {
         this.startSilenceDetection(stream);
@@ -1865,7 +1865,7 @@ class Shimeji {
     } catch {
       this.mediaRecorder = null;
       this.isListening = false;
-      if (activeMicShimejiId === this.id) activeMicShimejiId = null;
+      if (activeMicMochiId === this.id) activeMicMochiId = null;
       if (!this.config.openMicEnabled) this.releaseMicrophonePermissionStream();
     }
     this.syncChatControlButtons();
@@ -1936,7 +1936,7 @@ class Shimeji {
     const recorder = this.mediaRecorder;
     this.mediaRecorder = null;
     this.isListening = false;
-    if (activeMicShimejiId === this.id) activeMicShimejiId = null;
+    if (activeMicMochiId === this.id) activeMicMochiId = null;
 
     if (!recorder || recorder.state === 'inactive') {
       this.syncChatControlButtons();
@@ -1973,8 +1973,8 @@ class Shimeji {
     }
 
     try {
-      const result = await window.shimejiApi.transcribeAudio({
-        shimejiId: this.id,
+      const result = await window.mochiApi.transcribeAudio({
+        mochiId: this.id,
         audioData: arrayBuffer
       });
 
@@ -2019,8 +2019,8 @@ class Shimeji {
     this.clearMicRestartTimer();
     this.stopMediaRecorder();
 
-    if (activeMicShimejiId === this.id) {
-      activeMicShimejiId = null;
+    if (activeMicMochiId === this.id) {
+      activeMicMochiId = null;
     }
     if (disableAutoRestart || this.config.openMicEnabled !== true) {
       this.releaseMicrophonePermissionStream();
@@ -2114,15 +2114,15 @@ class Shimeji {
     const text = `${detail.text || ''}`.trim();
     if (!text) return;
     const relayPrompt = isSpanishLocale()
-      ? `Shimeji ${detail.fromId || 'aliado'} dice: ${text}`
-      : `Shimeji ${detail.fromId || 'ally'} says: ${text}`;
+      ? `Mochi ${detail.fromId || 'aliado'} dice: ${text}`
+      : `Mochi ${detail.fromId || 'ally'} says: ${text}`;
     this.sendPrompt(relayPrompt, { suppressRelay: true });
   }
 
   dispatchRelay(text) {
     const cleanText = `${text || ''}`.trim();
     if (!cleanText) return;
-    document.dispatchEvent(new CustomEvent('shimeji-relay', {
+    document.dispatchEvent(new CustomEvent('mochi-relay', {
       detail: { fromId: this.id, text: cleanText }
     }));
   }
@@ -2314,7 +2314,7 @@ class Shimeji {
       const source = ctx.createBufferSource();
       source.buffer = buffer;
       const personalityRate = PERSONALITY_SOUND_RATE[this.config.personality] || 1.0;
-      source.playbackRate.value = clamp(personalityRate * getShimejiPitchFactor(this.id), 0.6, 1.6);
+      source.playbackRate.value = clamp(personalityRate * getMochiPitchFactor(this.id), 0.6, 1.6);
       const gain = ctx.createGain();
       gain.gain.value = clamp(Number(this.config.soundVolume || 0.7), 0, 1);
       source.connect(gain);
@@ -2337,19 +2337,19 @@ class Shimeji {
     this.playNotificationSound('error');
   }
 
-  getShimejiNumber() {
+  getMochiNumber() {
     const match = `${this.id}`.match(/(\d+)$/);
     if (match) return Number(match[1]);
-    const index = shimejis.indexOf(this);
+    const index = mochis.indexOf(this);
     return index >= 0 ? index + 1 : 1;
   }
 
   getOpenClawAgentName() {
-    const shimejiNumber = this.getShimejiNumber();
-    const fallback = `desktop-shimeji-${shimejiNumber}`;
-    const perShimejiKey = `shimeji${shimejiNumber}_openclawAgentName`;
+    const mochiNumber = this.getMochiNumber();
+    const fallback = `desktop-mochi-${mochiNumber}`;
+    const perMochiKey = `mochi${mochiNumber}_openclawAgentName`;
     const rawName = this.config.openclawAgentName
-      || globalConfig[perShimejiKey]
+      || globalConfig[perMochiKey]
       || globalConfig.openclawAgentName
       || fallback;
     const normalized = `${rawName || ''}`.trim();
@@ -2357,10 +2357,10 @@ class Shimeji {
   }
 
   getTerminalDistroName() {
-    const shimejiNumber = this.getShimejiNumber();
-    const perShimejiKey = `shimeji${shimejiNumber}_terminalDistro`;
+    const mochiNumber = this.getMochiNumber();
+    const perMochiKey = `mochi${mochiNumber}_terminalDistro`;
     const rawValue = this.config.terminalDistro
-      || globalConfig[perShimejiKey]
+      || globalConfig[perMochiKey]
       || globalConfig.terminalDistro
       || DEFAULT_TERMINAL_PROFILE;
     const normalized = normalizeTerminalProfile(rawValue);
@@ -2520,7 +2520,7 @@ class Shimeji {
 
   async handleTerminalAutocomplete(direction = 1) {
     if (!this.isTerminalMode()) return;
-    if (!this.elements.input || !window.shimejiApi?.terminalAutocomplete) return;
+    if (!this.elements.input || !window.mochiApi?.terminalAutocomplete) return;
 
     const cycleDirection = direction < 0 ? -1 : 1;
     const input = this.elements.input;
@@ -2562,8 +2562,8 @@ class Shimeji {
     const requestToken = ++this.terminalAutocompleteToken;
     let result;
     try {
-      result = await window.shimejiApi.terminalAutocomplete({
-        shimejiId: this.id,
+      result = await window.mochiApi.terminalAutocomplete({
+        mochiId: this.id,
         fragment,
         terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
         terminalCwd: this.config.terminalCwd || ''
@@ -2625,10 +2625,10 @@ class Shimeji {
   supportsInteractiveTerminalMode() {
     return this.isTerminalMode()
       && Boolean(this.terminalView)
-      && Boolean(window.shimejiApi?.terminalSessionStart)
-      && Boolean(window.shimejiApi?.terminalSessionWrite)
-      && Boolean(window.shimejiApi?.terminalSessionResize)
-      && Boolean(window.shimejiApi?.terminalSessionStop);
+      && Boolean(window.mochiApi?.terminalSessionStart)
+      && Boolean(window.mochiApi?.terminalSessionWrite)
+      && Boolean(window.mochiApi?.terminalSessionResize)
+      && Boolean(window.mochiApi?.terminalSessionStop);
   }
 
   setTerminalStatus(text, { error = false } = {}) {
@@ -2694,9 +2694,9 @@ class Shimeji {
 
   focusTerminal() {
     if (!this.supportsInteractiveTerminalMode() || !this.chatOpen) return;
-    if (window.shimejiApi?.setIgnoreMouseEvents) {
+    if (window.mochiApi?.setIgnoreMouseEvents) {
       isMouseOverInteractive = true;
-      window.shimejiApi.setIgnoreMouseEvents(false);
+      window.mochiApi.setIgnoreMouseEvents(false);
     }
     window.focus();
     requestAnimationFrame(() => {
@@ -2718,8 +2718,8 @@ class Shimeji {
     this.terminalSessionStarting = (async () => {
       let result;
       try {
-        result = await window.shimejiApi.terminalSessionStart({
-          shimejiId: this.id,
+        result = await window.mochiApi.terminalSessionStart({
+          mochiId: this.id,
           terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
           terminalCwd: this.config.terminalCwd || ''
         });
@@ -2760,8 +2760,8 @@ class Shimeji {
     if (!ready) return;
     let result;
     try {
-      result = await window.shimejiApi.terminalSessionWrite({
-        shimejiId: this.id,
+      result = await window.mochiApi.terminalSessionWrite({
+        mochiId: this.id,
         data: payload,
         terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
         terminalCwd: this.config.terminalCwd || ''
@@ -2784,8 +2784,8 @@ class Shimeji {
     if (!ready) return;
     let result;
     try {
-      result = await window.shimejiApi.terminalSessionRunLine({
-        shimejiId: this.id,
+      result = await window.mochiApi.terminalSessionRunLine({
+        mochiId: this.id,
         line,
         terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
         terminalCwd: this.config.terminalCwd || ''
@@ -2808,10 +2808,10 @@ class Shimeji {
     if (!Number.isFinite(parsedCols) || !Number.isFinite(parsedRows)) return;
     if (parsedCols === this.terminalLastSize.cols && parsedRows === this.terminalLastSize.rows) return;
     this.terminalLastSize = { cols: parsedCols, rows: parsedRows };
-    if (!this.terminalSessionReady || !window.shimejiApi?.terminalSessionResize) return;
+    if (!this.terminalSessionReady || !window.mochiApi?.terminalSessionResize) return;
     try {
-      await window.shimejiApi.terminalSessionResize({
-        shimejiId: this.id,
+      await window.mochiApi.terminalSessionResize({
+        mochiId: this.id,
         cols: parsedCols,
         rows: parsedRows
       });
@@ -2819,7 +2819,7 @@ class Shimeji {
   }
 
   handleTerminalSessionData(payload) {
-    if (!payload || payload.shimejiId !== this.id) return;
+    if (!payload || payload.mochiId !== this.id) return;
     if (!this.terminalView) return;
     const chunk = String(payload.data || '');
     if (!chunk) return;
@@ -2835,7 +2835,7 @@ class Shimeji {
   }
 
   handleTerminalSessionExit(payload) {
-    if (!payload || payload.shimejiId !== this.id) return;
+    if (!payload || payload.mochiId !== this.id) return;
     this.terminalSessionReady = false;
     this.clearTerminalAttentionState();
     const parsed = Number.parseInt(`${payload.code}`, 10);
@@ -2858,7 +2858,7 @@ class Shimeji {
   }
 
   handleTerminalSessionState(payload) {
-    if (!payload || payload.shimejiId !== this.id) return;
+    if (!payload || payload.mochiId !== this.id) return;
     const state = String(payload.state || '').toLowerCase();
     if (state === 'running') {
       this.terminalSessionReady = true;
@@ -2893,10 +2893,10 @@ class Shimeji {
     this.terminalSessionStarting = null;
     this.clearTerminalAttentionState();
     this.setTerminalStatus(t('Terminal disconnected', 'Terminal desconectado'));
-    if (window.shimejiApi?.terminalSessionStop) {
-      window.shimejiApi.terminalSessionStop({ shimejiId: this.id, reason }).catch(() => {});
-    } else if (window.shimejiApi?.terminalCloseSession) {
-      window.shimejiApi.terminalCloseSession({ shimejiId: this.id }).catch(() => {});
+    if (window.mochiApi?.terminalSessionStop) {
+      window.mochiApi.terminalSessionStop({ mochiId: this.id, reason }).catch(() => {});
+    } else if (window.mochiApi?.terminalCloseSession) {
+      window.mochiApi.terminalCloseSession({ mochiId: this.id }).catch(() => {});
     }
   }
 
@@ -3051,7 +3051,7 @@ class Shimeji {
 
   updateChatHeader() {
     if (this.elements.chatName) {
-      this.elements.chatName.textContent = `Shimeji #${this.getShimejiNumber()}`;
+      this.elements.chatName.textContent = `Mochi #${this.getMochiNumber()}`;
     }
     if (this.elements.chatTitle) {
       this.elements.chatTitle.textContent = this.getAiBrainLabel();
@@ -3064,9 +3064,9 @@ class Shimeji {
       return;
     }
     if (!this.elements.input) return;
-    if (window.shimejiApi?.setIgnoreMouseEvents) {
+    if (window.mochiApi?.setIgnoreMouseEvents) {
       isMouseOverInteractive = true;
-      window.shimejiApi.setIgnoreMouseEvents(false);
+      window.mochiApi.setIgnoreMouseEvents(false);
     }
     window.focus();
     requestAnimationFrame(() => {
@@ -3080,7 +3080,7 @@ class Shimeji {
     this.elements.wrapper.addEventListener('mousedown', (e) => this.onPointerDown(e));
     this.elements.wrapper.addEventListener('dblclick', (e) => {
       e.preventDefault();
-      // Double-click dismisses the shimeji and cancels the chat toggle.
+      // Double-click dismisses the mochi and cancels the chat toggle.
       this.state.suppressClickUntil = Date.now() + 420;
       if (this.chatClickTimeout) {
         clearTimeout(this.chatClickTimeout);
@@ -3096,12 +3096,12 @@ class Shimeji {
 
   showContextMenu(x, y) {
     this.clearContextMenu();
-    // Remove any stray context menu element (older instances from other shimejis)
-    const existing = document.getElementById('shimeji-context-menu');
+    // Remove any stray context menu element (older instances from other mochis)
+    const existing = document.getElementById('mochi-context-menu');
     if (existing) existing.remove();
 
     const menu = document.createElement('div');
-    menu.id = 'shimeji-context-menu';
+    menu.id = 'mochi-context-menu';
     menu.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:999999;background:#1a1a2e;border:1px solid #333;border-radius:6px;padding:4px 0;min-width:140px;box-shadow:0 4px 16px rgba(0,0,0,0.4);font-family:sans-serif;font-size:13px;`;
     this.contextMenuElement = menu;
     this.contextMenuOpen = true;
@@ -3184,7 +3184,7 @@ class Shimeji {
   getGroundY() {
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
-    // Use the work area bottom when available (Linux: puts shimejis on top of the
+    // Use the work area bottom when available (Linux: puts mochis on top of the
     // taskbar/panel instead of behind it; falls back to window.innerHeight on Mac/Windows).
     const bottom = screenWorkAreaBottom !== null ? screenWorkAreaBottom : window.innerHeight;
     return Math.max(0, bottom - size - this.getGroundOffsetPx());
@@ -3203,7 +3203,7 @@ class Shimeji {
       this.state.dragMoved = true;
       this.state.vx = 0;
       this.state.vy = 0;
-      this.state.currentState = SHIMEJI_STATES.RESISTING;
+      this.state.currentState = MOCHI_STATES.RESISTING;
       this.state.animFrame = 0;
       this.state.behaviorTimer = 0;
       this.state.onGround = false;
@@ -3238,7 +3238,7 @@ class Shimeji {
 
     // Switch between drag states based on speed
     if (this.state.dragMoved) {
-      this.state.currentState = speed > 3 ? SHIMEJI_STATES.DRAGGING_HEAVY : SHIMEJI_STATES.DRAGGING;
+      this.state.currentState = speed > 3 ? MOCHI_STATES.DRAGGING_HEAVY : MOCHI_STATES.DRAGGING;
     }
 
     this.state.x = nextX;
@@ -3274,14 +3274,14 @@ class Shimeji {
       this.state.vy = 0;
       this.state.onGround = true;
       if (Math.abs(this.state.vx) > 0.5) {
-        this.state.currentState = SHIMEJI_STATES.WALKING;
+        this.state.currentState = MOCHI_STATES.WALKING;
       } else {
-        this.state.currentState = SHIMEJI_STATES.IDLE;
+        this.state.currentState = MOCHI_STATES.IDLE;
         this.state.wanderUntil = 0;
       }
     } else {
       this.state.onGround = false;
-      this.state.currentState = SHIMEJI_STATES.FALLING;
+      this.state.currentState = MOCHI_STATES.FALLING;
     }
   }
 
@@ -3336,7 +3336,7 @@ class Shimeji {
     this.cancelMicAutoSend();
     this.stopVoiceInput();
     this.state.chatPoseUntil = 0;
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     if ([S.SITTING, S.SITTING_LOOK_UP, S.DANGLING_LEGS, S.HEAD_SPIN, S.SITTING_PC, S.SITTING_PC_DANGLE].includes(this.state.currentState)) {
       this.state.currentState = this.state.onGround ? S.IDLE : S.FALLING;
       this.state.animFrame = 0;
@@ -3347,8 +3347,8 @@ class Shimeji {
   }
 
   bringToFront() {
-    // Bring this shimeji's chat to highest z-index
-    shimejis.forEach(s => {
+    // Bring this mochi's chat to highest z-index
+    mochis.forEach(s => {
       if (s.elements.chat) {
         s.elements.chat.style.zIndex = s === this ? '3000' : '2000';
         s.elements.chat.classList.toggle('chat-front', s === this);
@@ -3402,13 +3402,13 @@ class Shimeji {
     if (!this.pendingImage || !this.elements.chatInputArea) return;
 
     const preview = document.createElement('div');
-    preview.className = 'shimeji-chat-image-preview';
+    preview.className = 'mochi-chat-image-preview';
 
     const img = document.createElement('img');
     img.src = this.pendingImage;
 
     const removeBtn = document.createElement('button');
-    removeBtn.className = 'shimeji-chat-image-preview-remove';
+    removeBtn.className = 'mochi-chat-image-preview-remove';
     removeBtn.textContent = '\u00D7';
     removeBtn.addEventListener('click', () => this.clearPendingImage());
 
@@ -3481,13 +3481,13 @@ class Shimeji {
 
     const fallbackResponses = isSpanishLocale()
       ? [
-          'Hola, soy tu compañero shimeji.',
+          'Hola, soy tu compañero mochi.',
           'Eso suena interesante. Cuéntame más.',
           'Te escucho.',
           'Estoy aquí para alegrarte el día.'
         ]
       : [
-          "Hello! I'm your shimeji companion!",
+          "Hello! I'm your mochi companion!",
           "That's interesting! Tell me more.",
           'I am listening.',
           "I'm here to brighten your day!"
@@ -3496,23 +3496,23 @@ class Shimeji {
     let finalText = '';
     let errored = false;
 
-    if (window.shimejiApi) {
+    if (window.mochiApi) {
       try {
         let result;
         if (isTerminalMode) {
-          if (!window.shimejiApi.terminalExec) {
+          if (!window.mochiApi.terminalExec) {
             throw new Error('TERMINAL_API_UNAVAILABLE');
           }
-          result = await window.shimejiApi.terminalExec({
-            shimejiId: this.id,
+          result = await window.mochiApi.terminalExec({
+            mochiId: this.id,
             command: prompt,
             terminalDistro: normalizeTerminalProfile(this.config.terminalDistro),
             terminalCwd: this.config.terminalCwd || '',
             terminalNotifyOnFinish: this.config.terminalNotifyOnFinish !== false
           });
         } else {
-          result = await window.shimejiApi.aiChatStream({
-            shimejiId: this.id,
+          result = await window.mochiApi.aiChatStream({
+            mochiId: this.id,
             messages: requestMessages,
             personality: this.config.personality || 'cryptid'
           });
@@ -3666,8 +3666,8 @@ class Shimeji {
     const value = String(text || '');
     if (!value) return false;
     try {
-      if (window.shimejiApi?.clipboardWriteText) {
-        window.shimejiApi.clipboardWriteText(value);
+      if (window.mochiApi?.clipboardWriteText) {
+        window.mochiApi.clipboardWriteText(value);
         return true;
       }
     } catch (err) {}
@@ -3703,7 +3703,7 @@ class Shimeji {
         const end = text.indexOf('`', i + 1);
         if (end > i + 1) {
           const codeEl = document.createElement('code');
-          codeEl.className = 'shimeji-chat-inline-code';
+          codeEl.className = 'mochi-chat-inline-code';
           codeEl.textContent = text.slice(i + 1, end);
           target.appendChild(codeEl);
           i = end + 1;
@@ -3747,7 +3747,7 @@ class Shimeji {
     paragraphs.forEach((paragraph) => {
       if (!paragraph) return;
       const paragraphEl = document.createElement('div');
-      paragraphEl.className = 'shimeji-chat-md-paragraph';
+      paragraphEl.className = 'mochi-chat-md-paragraph';
       const lines = paragraph.split('\n');
       lines.forEach((line, index) => {
         this.appendInlineMarkdown(paragraphEl, line);
@@ -3761,7 +3761,7 @@ class Shimeji {
 
   bindMarkdownCopyButtons(rootEl) {
     if (!rootEl) return;
-    rootEl.querySelectorAll('.shimeji-chat-code-copy').forEach((btn) => {
+    rootEl.querySelectorAll('.mochi-chat-code-copy').forEach((btn) => {
       if (btn.dataset.bound === '1') return;
       btn.dataset.bound = '1';
       btn.addEventListener('click', async (event) => {
@@ -3791,25 +3791,25 @@ class Shimeji {
       const rawLang = (match[1] || '').trim();
       const codeText = (match[2] || '').replace(/\n$/, '');
       const blockEl = document.createElement('div');
-      blockEl.className = 'shimeji-chat-code-block';
+      blockEl.className = 'mochi-chat-code-block';
 
       const headerEl = document.createElement('div');
-      headerEl.className = 'shimeji-chat-code-header';
+      headerEl.className = 'mochi-chat-code-header';
 
       const langEl = document.createElement('span');
-      langEl.className = 'shimeji-chat-code-lang';
+      langEl.className = 'mochi-chat-code-lang';
       langEl.textContent = rawLang || t('code', 'código');
 
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button';
-      copyBtn.className = 'shimeji-chat-code-copy';
+      copyBtn.className = 'mochi-chat-code-copy';
       copyBtn.textContent = t('Copy', 'Copiar');
       this.markdownCopyTextMap.set(copyBtn, codeText);
 
       const preEl = document.createElement('pre');
-      preEl.className = 'shimeji-chat-code-pre';
+      preEl.className = 'mochi-chat-code-pre';
       const codeEl = document.createElement('code');
-      codeEl.className = 'shimeji-chat-code';
+      codeEl.className = 'mochi-chat-code';
       codeEl.textContent = codeText;
       preEl.appendChild(codeEl);
 
@@ -3845,10 +3845,10 @@ class Shimeji {
 
   createTypingDotsElement() {
     const dots = document.createElement('span');
-    dots.className = 'shimeji-typing-dots';
+    dots.className = 'mochi-typing-dots';
     for (let i = 0; i < 3; i += 1) {
       const dot = document.createElement('span');
-      dot.className = 'shimeji-typing-dot';
+      dot.className = 'mochi-typing-dot';
       dot.style.animationDelay = `${i * 0.16}s`;
       dots.appendChild(dot);
     }
@@ -3894,7 +3894,7 @@ class Shimeji {
       if (isPendingEmptyAssistant) return;
 
       const msgEl = document.createElement('div');
-      msgEl.className = `shimeji-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
+      msgEl.className = `mochi-chat-msg ${msg.role === 'user' ? 'user' : 'ai'}`;
       if (msg.role === 'assistant') {
         this.renderMarkdownIntoMessage(msgEl, msg.content);
       } else if (Array.isArray(msg.content)) {
@@ -3902,7 +3902,7 @@ class Shimeji {
           if (part.type === 'image_url' && part.image_url?.url) {
             const img = document.createElement('img');
             img.src = part.image_url.url;
-            img.className = 'shimeji-chat-msg-image';
+            img.className = 'mochi-chat-msg-image';
             msgEl.appendChild(img);
           } else if (part.type === 'text' && part.text) {
             const span = document.createElement('span');
@@ -3918,7 +3918,7 @@ class Shimeji {
 
     if (this.isAssistantWaitingForFirstToken()) {
       const typingEl = document.createElement('div');
-      typingEl.className = 'shimeji-chat-msg ai shimeji-chat-typing';
+      typingEl.className = 'mochi-chat-msg ai mochi-chat-typing';
       typingEl.appendChild(this.createTypingDotsElement());
       this.elements.messagesArea.appendChild(typingEl);
     }
@@ -3932,9 +3932,9 @@ class Shimeji {
       this.state.vy = PHYSICS.jumpForce;
       this.state.vx = this.state.direction * (PHYSICS.walkSpeed * 2.4);
       this.state.onGround = false;
-      this.state.currentState = SHIMEJI_STATES.JUMPING;
+      this.state.currentState = MOCHI_STATES.JUMPING;
       this.state.jumpCooldown = 30;
-      console.log(`Shimeji ${this.id} jumped!`);
+      console.log(`Mochi ${this.id} jumped!`);
     }
   }
 
@@ -3945,13 +3945,13 @@ class Shimeji {
     const tolX = width * 0.9;
     const tolY = width * 0.45;
     const direction = this.state.direction || (this.state.vx >= 0 ? 1 : -1) || 1;
-    return shimejis.find((other) => {
+    return mochis.find((other) => {
       if (other === this || other.state.offScreen) return false;
       const dx = other.state.x - this.state.x;
       if (dx * direction <= 0) return false;
       if (Math.abs(dx) > tolX) return false;
       if (Math.abs(other.state.y - this.state.y) > tolY) return false;
-      if ([SHIMEJI_STATES.JUMPING, SHIMEJI_STATES.FALLING, SHIMEJI_STATES.WALKING_OFF, SHIMEJI_STATES.WALKING_ON].includes(other.state.currentState)) return false;
+      if ([MOCHI_STATES.JUMPING, MOCHI_STATES.FALLING, MOCHI_STATES.WALKING_OFF, MOCHI_STATES.WALKING_ON].includes(other.state.currentState)) return false;
       return true;
     }) || null;
   }
@@ -3985,7 +3985,7 @@ class Shimeji {
   }
 
   updateChatBehavior() {
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     const st = this.state;
     st.vx = 0;
     st.vy = 0;
@@ -4081,7 +4081,7 @@ class Shimeji {
     this.state.vx = 0;
     this.state.wanderTarget = clampedTarget;
     this.state.wanderUntil = Date.now() + 4000 + Math.random() * 2000;
-    this.setBehavior(SHIMEJI_STATES.WALKING_ON, 400);
+    this.setBehavior(MOCHI_STATES.WALKING_ON, 400);
     if (this.elements.wrapper) {
       this.elements.wrapper.style.display = 'flex';
     }
@@ -4094,7 +4094,7 @@ class Shimeji {
   dismiss() {
     if (this.state.offScreen) return;
     if (this.chatOpen) this.closeChat();
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     const scale = SPRITE_SCALES[this.config.size] || 1;
     const size = SPRITE_SIZE * scale;
     const maxX = window.innerWidth - size;
@@ -4139,7 +4139,7 @@ class Shimeji {
   }
 
   holdPositionForContextMenu() {
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     this.state.vx = 0;
     this.state.vy = 0;
     if (this.state.onGround && this.state.currentState !== S.IDLE) {
@@ -4157,7 +4157,7 @@ class Shimeji {
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
     const st = this.state;
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
 
     // States that defy gravity (attached to surfaces)
     const attachedStates = [S.CLIMBING_WALL, S.CLIMBING_CEILING, S.GRABBING_WALL, S.GRABBING_CEILING];
@@ -4264,7 +4264,7 @@ class Shimeji {
     const maxX = Math.max(0, window.innerWidth - size);
     const now = Date.now();
     const st = this.state;
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
 
     st.behaviorTimer++;
 
@@ -4302,7 +4302,7 @@ class Shimeji {
         }
       }
 
-      // Weighted random action selection (shimeji-ee style)
+      // Weighted random action selection (mochi-ee style)
       if (Math.random() < 0.012) {
         const choices = [];
 
@@ -4592,11 +4592,11 @@ class Shimeji {
   }
 
   updateAnimation() {
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     const frames = ANIMATION_FRAMES[this.state.currentState] || ANIMATION_FRAMES.idle;
     this.state.animTimer++;
 
-    // Frame durations tuned per state (inspired by shimeji-ee action durations)
+    // Frame durations tuned per state (inspired by mochi-ee action durations)
     const durations = {
       [S.IDLE]: 10,
       [S.WALKING]: 8,
@@ -4652,7 +4652,7 @@ class Shimeji {
   }
 
   updateSprite() {
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     const charPath = this.getCharacterPath();
 
     if (this.state.dragging) {
@@ -4682,7 +4682,7 @@ class Shimeji {
     this.elements.wrapper.style.left = `${this.state.x}px`;
     this.elements.wrapper.style.top = `${this.state.y}px`;
 
-    const S = SHIMEJI_STATES;
+    const S = MOCHI_STATES;
     const st = this.state;
     const isWallClimbing = st.currentState === S.CLIMBING_WALL || st.currentState === S.GRABBING_WALL;
     const isCeilingState = st.currentState === S.CLIMBING_CEILING || st.currentState === S.GRABBING_CEILING
@@ -4873,9 +4873,9 @@ class Shimeji {
   setGlobalUiTextScale(nextScale, persist = true) {
     const scale = normalizeUiTextScale(nextScale);
     globalConfig = { ...globalConfig, uiTextScale: scale };
-    shimejis.forEach((shimeji) => shimeji.applyUiTextScale());
-    if (persist && window.shimejiApi?.updateConfig) {
-      window.shimejiApi.updateConfig({ uiTextScale: scale });
+    mochis.forEach((mochi) => mochi.applyUiTextScale());
+    if (persist && window.mochiApi?.updateConfig) {
+      window.mochiApi.updateConfig({ uiTextScale: scale });
     }
   }
 
@@ -4888,8 +4888,8 @@ class Shimeji {
   }
 
   remove() {
-    document.removeEventListener('shimeji-relay', this.boundRelayHandler);
-    document.removeEventListener('shimeji-stop-mic', this.boundStopMicHandler);
+    document.removeEventListener('mochi-relay', this.boundRelayHandler);
+    document.removeEventListener('mochi-stop-mic', this.boundStopMicHandler);
     this.clearClosedChatActivityNotice();
     this.clearMicRestartTimer();
     if (this.terminalFitTimer) {
@@ -4909,11 +4909,11 @@ class Shimeji {
   }
 }
 
-function toPersistedShimejiConfig(shimeji, index) {
-  const cfg = shimeji.config || {};
+function toPersistedMochiConfig(mochi, index) {
+  const cfg = mochi.config || {};
   return {
-    id: `shimeji-${index + 1}`,
-    character: cfg.character || 'shimeji',
+    id: `mochi-${index + 1}`,
+    character: cfg.character || 'mochi',
     size: cfg.size || 'medium',
     personality: cfg.personality || 'cryptid',
     chatTheme: cfg.chatTheme || 'pastel',
@@ -4944,140 +4944,140 @@ function toPersistedShimejiConfig(shimeji, index) {
     ollamaModel: cfg.ollamaModel || 'gemma3:1b',
     openclawGatewayUrl: cfg.openclawGatewayUrl || 'ws://127.0.0.1:18789',
     openclawGatewayToken: cfg.openclawGatewayToken || '',
-    openclawAgentName: cfg.openclawAgentName || `desktop-shimeji-${index + 1}`,
+    openclawAgentName: cfg.openclawAgentName || `desktop-mochi-${index + 1}`,
     terminalDistro: normalizeTerminalProfile(cfg.terminalDistro),
     terminalCwd: cfg.terminalCwd || '',
     terminalNotifyOnFinish: cfg.terminalNotifyOnFinish !== false
   };
 }
 
-function persistShimejiConfig(shimejiId, nextConfig) {
-  const target = shimejis.find((item) => item.id === shimejiId);
+function persistMochiConfig(mochiId, nextConfig) {
+  const target = mochis.find((item) => item.id === mochiId);
   if (target && nextConfig && typeof nextConfig === 'object') {
     target.config = { ...target.config, ...nextConfig };
   }
-  if (!window.shimejiApi?.updateConfig) return;
-  const list = shimejis.map((item, index) => toPersistedShimejiConfig(item, index));
-  window.shimejiApi.updateConfig({
-    shimejiCount: list.length,
-    shimejis: list
+  if (!window.mochiApi?.updateConfig) return;
+  const list = mochis.map((item, index) => toPersistedMochiConfig(item, index));
+  window.mochiApi.updateConfig({
+    mochiCount: list.length,
+    mochis: list
   });
 }
 
-function createShimeji(id, config = {}) {
-  const shimeji = new Shimeji(id, config);
-  shimejis.push(shimeji);
-  return shimeji;
+function createMochi(id, config = {}) {
+  const mochi = new Mochi(id, config);
+  mochis.push(mochi);
+  return mochi;
 }
 
-function removeShimeji(shimeji) {
-  shimeji.remove();
-  const index = shimejis.indexOf(shimeji);
-  if (index > -1) shimejis.splice(index, 1);
+function removeMochi(mochi) {
+  mochi.remove();
+  const index = mochis.indexOf(mochi);
+  if (index > -1) mochis.splice(index, 1);
 }
 
 function getConfigForIndex(index) {
-  const list = Array.isArray(globalConfig.shimejis) ? globalConfig.shimejis : [];
+  const list = Array.isArray(globalConfig.mochis) ? globalConfig.mochis : [];
   if (list[index]) {
     return { ...list[index] };
   }
   return {
-    character: globalConfig[`shimeji${index + 1}_character`] || CHARACTERS[index % CHARACTERS.length].id,
-    size: globalConfig[`shimeji${index + 1}_size`] || 'medium',
-    personality: globalConfig[`shimeji${index + 1}_personality`] || 'cryptid',
-    chatTheme: globalConfig[`shimeji${index + 1}_chatTheme`] || 'pastel',
-    chatThemeColor: globalConfig[`shimeji${index + 1}_chatThemeColor`] || '#3b1a77',
-    chatBgColor: globalConfig[`shimeji${index + 1}_chatBgColor`] || '#f0e8ff',
-    chatBubbleStyle: globalConfig[`shimeji${index + 1}_chatBubbleStyle`] || 'glass',
-    chatThemePreset: globalConfig[`shimeji${index + 1}_chatThemePreset`] || 'pastel',
-    chatFontSize: globalConfig[`shimeji${index + 1}_chatFontSize`] || 'medium',
-    chatWidth: globalConfig[`shimeji${index + 1}_chatWidth`] || 'medium',
-    chatWidthPx: globalConfig[`shimeji${index + 1}_chatWidthPx`] || null,
-    chatHeightPx: globalConfig[`shimeji${index + 1}_chatHeightPx`] || DEFAULT_CHAT_HEIGHT,
-    ttsEnabled: globalConfig[`shimeji${index + 1}_ttsEnabled`] === true,
-    ttsVoiceProfile: globalConfig[`shimeji${index + 1}_ttsVoiceProfile`] || pickRandomTtsProfile(),
-    ttsVoiceId: globalConfig[`shimeji${index + 1}_ttsVoiceId`] || '',
-    openMicEnabled: globalConfig[`shimeji${index + 1}_openMicEnabled`] === true,
-    sttProvider: globalConfig[`shimeji${index + 1}_sttProvider`] || 'groq',
-    sttApiKey: globalConfig[`shimeji${index + 1}_sttApiKey`] || '',
-    relayEnabled: globalConfig[`shimeji${index + 1}_relayEnabled`] === true,
-    soundEnabled: globalConfig[`shimeji${index + 1}_soundEnabled`] !== false,
-    soundVolume: typeof globalConfig[`shimeji${index + 1}_soundVolume`] === 'number'
-      ? globalConfig[`shimeji${index + 1}_soundVolume`]
+    character: globalConfig[`mochi${index + 1}_character`] || CHARACTERS[index % CHARACTERS.length].id,
+    size: globalConfig[`mochi${index + 1}_size`] || 'medium',
+    personality: globalConfig[`mochi${index + 1}_personality`] || 'cryptid',
+    chatTheme: globalConfig[`mochi${index + 1}_chatTheme`] || 'pastel',
+    chatThemeColor: globalConfig[`mochi${index + 1}_chatThemeColor`] || '#3b1a77',
+    chatBgColor: globalConfig[`mochi${index + 1}_chatBgColor`] || '#f0e8ff',
+    chatBubbleStyle: globalConfig[`mochi${index + 1}_chatBubbleStyle`] || 'glass',
+    chatThemePreset: globalConfig[`mochi${index + 1}_chatThemePreset`] || 'pastel',
+    chatFontSize: globalConfig[`mochi${index + 1}_chatFontSize`] || 'medium',
+    chatWidth: globalConfig[`mochi${index + 1}_chatWidth`] || 'medium',
+    chatWidthPx: globalConfig[`mochi${index + 1}_chatWidthPx`] || null,
+    chatHeightPx: globalConfig[`mochi${index + 1}_chatHeightPx`] || DEFAULT_CHAT_HEIGHT,
+    ttsEnabled: globalConfig[`mochi${index + 1}_ttsEnabled`] === true,
+    ttsVoiceProfile: globalConfig[`mochi${index + 1}_ttsVoiceProfile`] || pickRandomTtsProfile(),
+    ttsVoiceId: globalConfig[`mochi${index + 1}_ttsVoiceId`] || '',
+    openMicEnabled: globalConfig[`mochi${index + 1}_openMicEnabled`] === true,
+    sttProvider: globalConfig[`mochi${index + 1}_sttProvider`] || 'groq',
+    sttApiKey: globalConfig[`mochi${index + 1}_sttApiKey`] || '',
+    relayEnabled: globalConfig[`mochi${index + 1}_relayEnabled`] === true,
+    soundEnabled: globalConfig[`mochi${index + 1}_soundEnabled`] !== false,
+    soundVolume: typeof globalConfig[`mochi${index + 1}_soundVolume`] === 'number'
+      ? globalConfig[`mochi${index + 1}_soundVolume`]
       : 0.7,
-    mode: globalConfig[`shimeji${index + 1}_mode`] || globalConfig.aiMode || 'standard',
-    standardProvider: globalConfig[`shimeji${index + 1}_standardProvider`] || 'openrouter',
-    openrouterModel: globalConfig[`shimeji${index + 1}_openrouterModel`] || globalConfig.openrouterModel || 'google/gemini-2.0-flash-001',
-    openrouterModelResolved: globalConfig[`shimeji${index + 1}_openrouterModelResolved`] || globalConfig.openrouterModelResolved || '',
-    ollamaModel: globalConfig[`shimeji${index + 1}_ollamaModel`] || globalConfig.ollamaModel || 'gemma3:1b',
-    ollamaUrl: globalConfig[`shimeji${index + 1}_ollamaUrl`] || globalConfig.ollamaUrl || 'http://127.0.0.1:11434',
-    openclawGatewayUrl: globalConfig[`shimeji${index + 1}_openclawGatewayUrl`]
+    mode: globalConfig[`mochi${index + 1}_mode`] || globalConfig.aiMode || 'standard',
+    standardProvider: globalConfig[`mochi${index + 1}_standardProvider`] || 'openrouter',
+    openrouterModel: globalConfig[`mochi${index + 1}_openrouterModel`] || globalConfig.openrouterModel || 'google/gemini-2.0-flash-001',
+    openrouterModelResolved: globalConfig[`mochi${index + 1}_openrouterModelResolved`] || globalConfig.openrouterModelResolved || '',
+    ollamaModel: globalConfig[`mochi${index + 1}_ollamaModel`] || globalConfig.ollamaModel || 'gemma3:1b',
+    ollamaUrl: globalConfig[`mochi${index + 1}_ollamaUrl`] || globalConfig.ollamaUrl || 'http://127.0.0.1:11434',
+    openclawGatewayUrl: globalConfig[`mochi${index + 1}_openclawGatewayUrl`]
       || globalConfig.openclawGatewayUrl
       || globalConfig.openclawUrl
       || 'ws://127.0.0.1:18789',
-    openclawGatewayToken: globalConfig[`shimeji${index + 1}_openclawGatewayToken`]
+    openclawGatewayToken: globalConfig[`mochi${index + 1}_openclawGatewayToken`]
       || globalConfig.openclawGatewayToken
       || globalConfig.openclawToken
       || '',
-    openclawAgentName: globalConfig[`shimeji${index + 1}_openclawAgentName`]
+    openclawAgentName: globalConfig[`mochi${index + 1}_openclawAgentName`]
       || globalConfig.openclawAgentName
-      || `desktop-shimeji-${index + 1}`,
-    terminalDistro: normalizeTerminalProfile(globalConfig[`shimeji${index + 1}_terminalDistro`]
+      || `desktop-mochi-${index + 1}`,
+    terminalDistro: normalizeTerminalProfile(globalConfig[`mochi${index + 1}_terminalDistro`]
       || globalConfig.terminalDistro
       || DEFAULT_TERMINAL_PROFILE),
-    terminalCwd: globalConfig[`shimeji${index + 1}_terminalCwd`]
+    terminalCwd: globalConfig[`mochi${index + 1}_terminalCwd`]
       || globalConfig.terminalCwd
       || '',
-    terminalNotifyOnFinish: globalConfig[`shimeji${index + 1}_terminalNotifyOnFinish`] !== undefined
-      ? globalConfig[`shimeji${index + 1}_terminalNotifyOnFinish`] !== false
+    terminalNotifyOnFinish: globalConfig[`mochi${index + 1}_terminalNotifyOnFinish`] !== undefined
+      ? globalConfig[`mochi${index + 1}_terminalNotifyOnFinish`] !== false
       : (globalConfig.terminalNotifyOnFinish !== false),
     enabled: globalConfig.enabled !== false
   };
 }
 
-function updateShimejiCount(count) {
-  const targetCount = Math.max(0, Math.min(count, MAX_SHIMEJIS));
+function updateMochiCount(count) {
+  const targetCount = Math.max(0, Math.min(count, MAX_MOCHIS));
 
-  while (shimejis.length < targetCount) {
-    const id = `shimeji-${shimejis.length + 1}`;
-    const config = getConfigForIndex(shimejis.length);
-    createShimeji(id, config);
+  while (mochis.length < targetCount) {
+    const id = `mochi-${mochis.length + 1}`;
+    const config = getConfigForIndex(mochis.length);
+    createMochi(id, config);
   }
 
-  while (shimejis.length > targetCount) {
-    removeShimeji(shimejis[shimejis.length - 1]);
+  while (mochis.length > targetCount) {
+    removeMochi(mochis[mochis.length - 1]);
   }
 
-  console.log(`Shimeji count updated: ${shimejis.length}`);
+  console.log(`Mochi count updated: ${mochis.length}`);
 }
 
-function applyShimejiList(list) {
+function applyMochiList(list) {
   if (!Array.isArray(list)) return;
-  updateShimejiCount(list.length);
-  shimejis.forEach((shimeji, index) => {
+  updateMochiCount(list.length);
+  mochis.forEach((mochi, index) => {
     const nextConfig = list[index];
     if (!nextConfig) return;
-    const prevChar = shimeji.config.character;
-    shimeji.setConfig(nextConfig);
+    const prevChar = mochi.config.character;
+    mochi.setConfig(nextConfig);
     if (nextConfig.character && nextConfig.character !== prevChar) {
-      shimeji.config.character = nextConfig.character;
-      shimeji.updateSprite();
+      mochi.config.character = nextConfig.character;
+      mochi.updateSprite();
     }
     if (nextConfig.enabled !== undefined) {
-      shimeji.config.enabled = nextConfig.enabled;
+      mochi.config.enabled = nextConfig.enabled;
     }
-    if (shimeji.elements.wrapper) {
-      shimeji.elements.wrapper.style.display = shimeji.config.enabled !== false ? 'flex' : 'none';
+    if (mochi.elements.wrapper) {
+      mochi.elements.wrapper.style.display = mochi.config.enabled !== false ? 'flex' : 'none';
     }
-    if (shimeji.config.enabled === false && shimeji.chatOpen) {
-      shimeji.closeChat();
+    if (mochi.config.enabled === false && mochi.chatOpen) {
+      mochi.closeChat();
     }
   });
 }
 
 function startAnimationLoop() {
   function loop() {
-    shimejis.forEach(shimeji => shimeji.update());
+    mochis.forEach(mochi => mochi.update());
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
@@ -5098,8 +5098,8 @@ function startCursorPolling() {
   if (cursorPollTimer) return;
   const poll = async () => {
     try {
-      if (!window.shimejiApi?.getCursorScreenPoint) return;
-      const point = await window.shimejiApi.getCursorScreenPoint();
+      if (!window.mochiApi?.getCursorScreenPoint) return;
+      const point = await window.mochiApi.getCursorScreenPoint();
       if (
         point
         && Number.isFinite(point.x)
@@ -5128,64 +5128,64 @@ function startMouseCaptureTracking() {
 startMouseCaptureTracking();
 
 function hasOpenChats() {
-  return shimejis.some((shimeji) => shimeji.chatOpen);
+  return mochis.some((mochi) => mochi.chatOpen);
 }
 
 function closeAllChats() {
   let closedAny = false;
-  shimejis.forEach((shimeji) => {
-    if (shimeji.chatOpen) {
-      shimeji.closeChat();
+  mochis.forEach((mochi) => {
+    if (mochi.chatOpen) {
+      mochi.closeChat();
       closedAny = true;
     }
   });
   return closedAny;
 }
 
-function checkMouseOverShimeji(x, y) {
-  // Check if mouse is over any shimeji or chat bubble
-  for (const shimeji of shimejis) {
-    if (!shimeji.elements.wrapper) continue;
+function checkMouseOverMochi(x, y) {
+  // Check if mouse is over any mochi or chat bubble
+  for (const mochi of mochis) {
+    if (!mochi.elements.wrapper) continue;
     
-    const rect = shimeji.elements.wrapper.getBoundingClientRect();
-    const isOverShimeji = x >= rect.left && x <= rect.right && 
+    const rect = mochi.elements.wrapper.getBoundingClientRect();
+    const isOverMochi = x >= rect.left && x <= rect.right && 
                           y >= rect.top && y <= rect.bottom;
     
-    if (shimeji.chatOpen && shimeji.elements.chat) {
-      const chatRect = shimeji.elements.chat.getBoundingClientRect();
+    if (mochi.chatOpen && mochi.elements.chat) {
+      const chatRect = mochi.elements.chat.getBoundingClientRect();
       const isOverChat = x >= chatRect.left && x <= chatRect.right && 
                          y >= chatRect.top && y <= chatRect.bottom;
       if (isOverChat) return true;
     }
     
-    if (isOverShimeji) return true;
+    if (isOverMochi) return true;
   }
   return false;
 }
 
 function updateMouseCapture(x, y) {
-  if (!window.shimejiApi?.setIgnoreMouseEvents) return;
+  if (!window.mochiApi?.setIgnoreMouseEvents) return;
   
   lastMouseX = x;
   lastMouseY = y;
-  const shouldCapture = checkMouseOverShimeji(x, y) || hasOpenChats();
+  const shouldCapture = checkMouseOverMochi(x, y) || hasOpenChats();
   
   if (shouldCapture !== isMouseOverInteractive) {
     isMouseOverInteractive = shouldCapture;
     // When shouldCapture is true, we DON'T ignore mouse events
     // When shouldCapture is false, we DO ignore mouse events (click-through)
-    window.shimejiApi.setIgnoreMouseEvents(!shouldCapture);
+    window.mochiApi.setIgnoreMouseEvents(!shouldCapture);
   }
 }
 
 async function init() {
-  console.log('Initializing Shimeji Desktop...');
+  console.log('Initializing Mochi Desktop...');
   syncUiLanguageFromConfig(globalConfig);
 
-  let container = document.getElementById('shimeji-container');
+  let container = document.getElementById('mochi-container');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'shimeji-container';
+    container.id = 'mochi-container';
     container.style.cssText = `
       position: fixed;
       top: 0;
@@ -5198,16 +5198,16 @@ async function init() {
     document.body.appendChild(container);
   }
 
-  // Always create at least one shimeji immediately
-  let shimejiCreated = false;
+  // Always create at least one mochi immediately
+  let mochiCreated = false;
   
   try {
-    if (window.shimejiApi) {
+    if (window.mochiApi) {
       setupUpdateListeners();
-      // Fetch screen geometry so shimejis walk on top of the taskbar/panel (Linux).
-      if (window.shimejiApi.getScreenInfo) {
+      // Fetch screen geometry so mochis walk on top of the taskbar/panel (Linux).
+      if (window.mochiApi.getScreenInfo) {
         try {
-          const screenInfo = await window.shimejiApi.getScreenInfo();
+          const screenInfo = await window.mochiApi.getScreenInfo();
           if (screenInfo && screenInfo.workArea) {
             screenWorkAreaBottom = screenInfo.workArea.y + screenInfo.workArea.height;
           }
@@ -5215,45 +5215,45 @@ async function init() {
       }
 
       console.log('Loading config from API...');
-      globalConfig = await window.shimejiApi.getConfig() || {};
+      globalConfig = await window.mochiApi.getConfig() || {};
       syncUiLanguageFromConfig(globalConfig);
       console.log('Config loaded:', globalConfig);
 
-      const list = Array.isArray(globalConfig.shimejis) ? globalConfig.shimejis : [];
-      const shimejiCount = globalConfig.shimejiCount || list.length || 1;
+      const list = Array.isArray(globalConfig.mochis) ? globalConfig.mochis : [];
+      const mochiCount = globalConfig.mochiCount || list.length || 1;
       const enabled = globalConfig.enabled !== false;
 
       if (enabled) {
-        const showShimejis = globalConfig.showShimejis !== false;
-        for (let i = 0; i < shimejiCount; i++) {
-          const id = `shimeji-${i + 1}`;
+        const showMochis = globalConfig.showMochis !== false;
+        for (let i = 0; i < mochiCount; i++) {
+          const id = `mochi-${i + 1}`;
           const config = list[i] || getConfigForIndex(i);
-          config.enabled = showShimejis;
-          createShimeji(id, config);
-          shimejiCreated = true;
+          config.enabled = showMochis;
+          createMochi(id, config);
+          mochiCreated = true;
         }
       }
 
-      window.shimejiApi.onConfigUpdated((next) => {
+      window.mochiApi.onConfigUpdated((next) => {
         const previousLanguage = getUiLanguage();
         globalConfig = { ...globalConfig, ...next };
         syncUiLanguageFromConfig(globalConfig);
         const languageChanged = previousLanguage !== getUiLanguage();
         console.log('Config updated:', globalConfig);
 
-        if (next.shimejis) {
-          applyShimejiList(next.shimejis);
-        } else if (next.shimejiCount !== undefined) {
-          updateShimejiCount(next.shimejiCount);
+        if (next.mochis) {
+          applyMochiList(next.mochis);
+        } else if (next.mochiCount !== undefined) {
+          updateMochiCount(next.mochiCount);
         }
 
         if (next.enabled !== undefined) {
-          shimejis.forEach(s => s.config.enabled = next.enabled);
+          mochis.forEach(s => s.config.enabled = next.enabled);
         }
 
-        if (next.showShimejis !== undefined) {
-          const show = next.showShimejis;
-          shimejis.forEach(s => {
+        if (next.showMochis !== undefined) {
+          const show = next.showMochis;
+          mochis.forEach(s => {
             s.config.enabled = show;
             if (s.elements.wrapper) {
               s.elements.wrapper.style.display = show ? 'flex' : 'none';
@@ -5265,109 +5265,109 @@ async function init() {
         }
 
         if (next.uiTextScale !== undefined) {
-          shimejis.forEach((shimeji) => shimeji.applyUiTextScale());
+          mochis.forEach((mochi) => mochi.applyUiTextScale());
         }
 
-        shimejis.forEach((shimeji, index) => {
-          if (next[`shimeji${index + 1}_character`] !== undefined) {
-            shimeji.config.character = next[`shimeji${index + 1}_character`];
-            shimeji.updateSprite();
+        mochis.forEach((mochi, index) => {
+          if (next[`mochi${index + 1}_character`] !== undefined) {
+            mochi.config.character = next[`mochi${index + 1}_character`];
+            mochi.updateSprite();
           }
-          if (next[`shimeji${index + 1}_size`] !== undefined) {
-            shimeji.setConfig({ size: next[`shimeji${index + 1}_size`] });
+          if (next[`mochi${index + 1}_size`] !== undefined) {
+            mochi.setConfig({ size: next[`mochi${index + 1}_size`] });
           }
-          if (next[`shimeji${index + 1}_personality`] !== undefined) {
-            shimeji.setConfig({ personality: next[`shimeji${index + 1}_personality`] });
+          if (next[`mochi${index + 1}_personality`] !== undefined) {
+            mochi.setConfig({ personality: next[`mochi${index + 1}_personality`] });
           }
-          if (next[`shimeji${index + 1}_chatTheme`] !== undefined) {
-            shimeji.setConfig({ chatTheme: next[`shimeji${index + 1}_chatTheme`] });
+          if (next[`mochi${index + 1}_chatTheme`] !== undefined) {
+            mochi.setConfig({ chatTheme: next[`mochi${index + 1}_chatTheme`] });
           }
-          if (next[`shimeji${index + 1}_chatThemePreset`] !== undefined) {
-            shimeji.setConfig({ chatThemePreset: next[`shimeji${index + 1}_chatThemePreset`] });
+          if (next[`mochi${index + 1}_chatThemePreset`] !== undefined) {
+            mochi.setConfig({ chatThemePreset: next[`mochi${index + 1}_chatThemePreset`] });
           }
-          if (next[`shimeji${index + 1}_chatThemeColor`] !== undefined) {
-            shimeji.setConfig({ chatThemeColor: next[`shimeji${index + 1}_chatThemeColor`] });
+          if (next[`mochi${index + 1}_chatThemeColor`] !== undefined) {
+            mochi.setConfig({ chatThemeColor: next[`mochi${index + 1}_chatThemeColor`] });
           }
-          if (next[`shimeji${index + 1}_chatBgColor`] !== undefined) {
-            shimeji.setConfig({ chatBgColor: next[`shimeji${index + 1}_chatBgColor`] });
+          if (next[`mochi${index + 1}_chatBgColor`] !== undefined) {
+            mochi.setConfig({ chatBgColor: next[`mochi${index + 1}_chatBgColor`] });
           }
-          if (next[`shimeji${index + 1}_chatBubbleStyle`] !== undefined) {
-            shimeji.setConfig({ chatBubbleStyle: next[`shimeji${index + 1}_chatBubbleStyle`] });
+          if (next[`mochi${index + 1}_chatBubbleStyle`] !== undefined) {
+            mochi.setConfig({ chatBubbleStyle: next[`mochi${index + 1}_chatBubbleStyle`] });
           }
-          if (next[`shimeji${index + 1}_chatFontSize`] !== undefined) {
-            shimeji.setConfig({ chatFontSize: next[`shimeji${index + 1}_chatFontSize`] });
+          if (next[`mochi${index + 1}_chatFontSize`] !== undefined) {
+            mochi.setConfig({ chatFontSize: next[`mochi${index + 1}_chatFontSize`] });
           }
-          if (next[`shimeji${index + 1}_chatWidth`] !== undefined) {
-            shimeji.setConfig({ chatWidth: next[`shimeji${index + 1}_chatWidth`] });
+          if (next[`mochi${index + 1}_chatWidth`] !== undefined) {
+            mochi.setConfig({ chatWidth: next[`mochi${index + 1}_chatWidth`] });
           }
-          if (next[`shimeji${index + 1}_chatWidthPx`] !== undefined) {
-            shimeji.setConfig({ chatWidthPx: next[`shimeji${index + 1}_chatWidthPx`] });
+          if (next[`mochi${index + 1}_chatWidthPx`] !== undefined) {
+            mochi.setConfig({ chatWidthPx: next[`mochi${index + 1}_chatWidthPx`] });
           }
-          if (next[`shimeji${index + 1}_chatHeightPx`] !== undefined) {
-            shimeji.setConfig({ chatHeightPx: next[`shimeji${index + 1}_chatHeightPx`] });
+          if (next[`mochi${index + 1}_chatHeightPx`] !== undefined) {
+            mochi.setConfig({ chatHeightPx: next[`mochi${index + 1}_chatHeightPx`] });
           }
-          if (next[`shimeji${index + 1}_ttsEnabled`] !== undefined) {
-            shimeji.setConfig({ ttsEnabled: next[`shimeji${index + 1}_ttsEnabled`] });
+          if (next[`mochi${index + 1}_ttsEnabled`] !== undefined) {
+            mochi.setConfig({ ttsEnabled: next[`mochi${index + 1}_ttsEnabled`] });
           }
-          if (next[`shimeji${index + 1}_ttsVoiceProfile`] !== undefined) {
-            shimeji.setConfig({ ttsVoiceProfile: next[`shimeji${index + 1}_ttsVoiceProfile`] });
+          if (next[`mochi${index + 1}_ttsVoiceProfile`] !== undefined) {
+            mochi.setConfig({ ttsVoiceProfile: next[`mochi${index + 1}_ttsVoiceProfile`] });
           }
-          if (next[`shimeji${index + 1}_ttsVoiceId`] !== undefined) {
-            shimeji.setConfig({ ttsVoiceId: next[`shimeji${index + 1}_ttsVoiceId`] });
+          if (next[`mochi${index + 1}_ttsVoiceId`] !== undefined) {
+            mochi.setConfig({ ttsVoiceId: next[`mochi${index + 1}_ttsVoiceId`] });
           }
-          if (next[`shimeji${index + 1}_openMicEnabled`] !== undefined) {
-            shimeji.setConfig({ openMicEnabled: next[`shimeji${index + 1}_openMicEnabled`] });
+          if (next[`mochi${index + 1}_openMicEnabled`] !== undefined) {
+            mochi.setConfig({ openMicEnabled: next[`mochi${index + 1}_openMicEnabled`] });
           }
-          if (next[`shimeji${index + 1}_sttProvider`] !== undefined) {
-            shimeji.setConfig({ sttProvider: next[`shimeji${index + 1}_sttProvider`] });
+          if (next[`mochi${index + 1}_sttProvider`] !== undefined) {
+            mochi.setConfig({ sttProvider: next[`mochi${index + 1}_sttProvider`] });
           }
-          if (next[`shimeji${index + 1}_sttApiKey`] !== undefined) {
-            shimeji.setConfig({ sttApiKey: next[`shimeji${index + 1}_sttApiKey`] });
+          if (next[`mochi${index + 1}_sttApiKey`] !== undefined) {
+            mochi.setConfig({ sttApiKey: next[`mochi${index + 1}_sttApiKey`] });
           }
-          if (next[`shimeji${index + 1}_relayEnabled`] !== undefined) {
-            shimeji.setConfig({ relayEnabled: next[`shimeji${index + 1}_relayEnabled`] });
+          if (next[`mochi${index + 1}_relayEnabled`] !== undefined) {
+            mochi.setConfig({ relayEnabled: next[`mochi${index + 1}_relayEnabled`] });
           }
-          if (next[`shimeji${index + 1}_soundEnabled`] !== undefined) {
-            shimeji.setConfig({ soundEnabled: next[`shimeji${index + 1}_soundEnabled`] });
+          if (next[`mochi${index + 1}_soundEnabled`] !== undefined) {
+            mochi.setConfig({ soundEnabled: next[`mochi${index + 1}_soundEnabled`] });
           }
-          if (next[`shimeji${index + 1}_soundVolume`] !== undefined) {
-            shimeji.setConfig({ soundVolume: next[`shimeji${index + 1}_soundVolume`] });
+          if (next[`mochi${index + 1}_soundVolume`] !== undefined) {
+            mochi.setConfig({ soundVolume: next[`mochi${index + 1}_soundVolume`] });
           }
-          if (next[`shimeji${index + 1}_mode`] !== undefined) {
-            shimeji.setConfig({ mode: next[`shimeji${index + 1}_mode`] });
+          if (next[`mochi${index + 1}_mode`] !== undefined) {
+            mochi.setConfig({ mode: next[`mochi${index + 1}_mode`] });
           }
-          if (next[`shimeji${index + 1}_standardProvider`] !== undefined) {
-            shimeji.setConfig({ standardProvider: next[`shimeji${index + 1}_standardProvider`] });
+          if (next[`mochi${index + 1}_standardProvider`] !== undefined) {
+            mochi.setConfig({ standardProvider: next[`mochi${index + 1}_standardProvider`] });
           }
-          if (next[`shimeji${index + 1}_openrouterModel`] !== undefined) {
-            shimeji.setConfig({ openrouterModel: next[`shimeji${index + 1}_openrouterModel`] });
+          if (next[`mochi${index + 1}_openrouterModel`] !== undefined) {
+            mochi.setConfig({ openrouterModel: next[`mochi${index + 1}_openrouterModel`] });
           }
-          if (next[`shimeji${index + 1}_openrouterModelResolved`] !== undefined) {
-            shimeji.setConfig({ openrouterModelResolved: next[`shimeji${index + 1}_openrouterModelResolved`] });
+          if (next[`mochi${index + 1}_openrouterModelResolved`] !== undefined) {
+            mochi.setConfig({ openrouterModelResolved: next[`mochi${index + 1}_openrouterModelResolved`] });
           }
-          if (next[`shimeji${index + 1}_ollamaUrl`] !== undefined) {
-            shimeji.setConfig({ ollamaUrl: next[`shimeji${index + 1}_ollamaUrl`] });
+          if (next[`mochi${index + 1}_ollamaUrl`] !== undefined) {
+            mochi.setConfig({ ollamaUrl: next[`mochi${index + 1}_ollamaUrl`] });
           }
-          if (next[`shimeji${index + 1}_ollamaModel`] !== undefined) {
-            shimeji.setConfig({ ollamaModel: next[`shimeji${index + 1}_ollamaModel`] });
+          if (next[`mochi${index + 1}_ollamaModel`] !== undefined) {
+            mochi.setConfig({ ollamaModel: next[`mochi${index + 1}_ollamaModel`] });
           }
-          if (next[`shimeji${index + 1}_openclawGatewayUrl`] !== undefined) {
-            shimeji.setConfig({ openclawGatewayUrl: next[`shimeji${index + 1}_openclawGatewayUrl`] });
+          if (next[`mochi${index + 1}_openclawGatewayUrl`] !== undefined) {
+            mochi.setConfig({ openclawGatewayUrl: next[`mochi${index + 1}_openclawGatewayUrl`] });
           }
-          if (next[`shimeji${index + 1}_openclawGatewayToken`] !== undefined) {
-            shimeji.setConfig({ openclawGatewayToken: next[`shimeji${index + 1}_openclawGatewayToken`] });
+          if (next[`mochi${index + 1}_openclawGatewayToken`] !== undefined) {
+            mochi.setConfig({ openclawGatewayToken: next[`mochi${index + 1}_openclawGatewayToken`] });
           }
-          if (next[`shimeji${index + 1}_openclawAgentName`] !== undefined) {
-            shimeji.setConfig({ openclawAgentName: next[`shimeji${index + 1}_openclawAgentName`] });
+          if (next[`mochi${index + 1}_openclawAgentName`] !== undefined) {
+            mochi.setConfig({ openclawAgentName: next[`mochi${index + 1}_openclawAgentName`] });
           }
-          if (next[`shimeji${index + 1}_terminalDistro`] !== undefined) {
-            shimeji.setConfig({ terminalDistro: next[`shimeji${index + 1}_terminalDistro`] });
+          if (next[`mochi${index + 1}_terminalDistro`] !== undefined) {
+            mochi.setConfig({ terminalDistro: next[`mochi${index + 1}_terminalDistro`] });
           }
-          if (next[`shimeji${index + 1}_terminalCwd`] !== undefined) {
-            shimeji.setConfig({ terminalCwd: next[`shimeji${index + 1}_terminalCwd`] });
+          if (next[`mochi${index + 1}_terminalCwd`] !== undefined) {
+            mochi.setConfig({ terminalCwd: next[`mochi${index + 1}_terminalCwd`] });
           }
-          if (next[`shimeji${index + 1}_terminalNotifyOnFinish`] !== undefined) {
-            shimeji.setConfig({ terminalNotifyOnFinish: next[`shimeji${index + 1}_terminalNotifyOnFinish`] });
+          if (next[`mochi${index + 1}_terminalNotifyOnFinish`] !== undefined) {
+            mochi.setConfig({ terminalNotifyOnFinish: next[`mochi${index + 1}_terminalNotifyOnFinish`] });
           }
         });
 
@@ -5381,36 +5381,36 @@ async function init() {
           || next.terminalDistro !== undefined
           || next.terminalCwd !== undefined
         ) {
-          shimejis.forEach((shimeji) => shimeji.updateChatHeader());
+          mochis.forEach((mochi) => mochi.updateChatHeader());
         }
 
         if (languageChanged) {
-          shimejis.forEach((shimeji) => shimeji.onLanguageChanged());
+          mochis.forEach((mochi) => mochi.onLanguageChanged());
         }
       });
 
-      if (window.shimejiApi.onAiStreamDelta) {
-        window.shimejiApi.onAiStreamDelta((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onAiStreamDelta) {
+        window.mochiApi.onAiStreamDelta((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target) return;
           target.applyStreamDelta(payload.delta || '', payload.accumulated || '');
         });
       }
 
-      if (window.shimejiApi.onTerminalStreamDelta) {
-        window.shimejiApi.onTerminalStreamDelta((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onTerminalStreamDelta) {
+        window.mochiApi.onTerminalStreamDelta((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target) return;
           target.applyStreamDelta(payload.delta || '', payload.accumulated || '');
         });
       }
 
-      if (window.shimejiApi.onTerminalStreamError) {
-        window.shimejiApi.onTerminalStreamError((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onTerminalStreamError) {
+        window.mochiApi.onTerminalStreamError((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target || target.pendingAssistantIndex === null) return;
           const errorText = `Error: ${payload.error || 'TERMINAL_ERROR'}`;
           target.messages[target.pendingAssistantIndex] = { role: 'assistant', content: errorText };
@@ -5420,68 +5420,68 @@ async function init() {
         });
       }
 
-      if (window.shimejiApi.onTerminalSessionData) {
-        window.shimejiApi.onTerminalSessionData((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onTerminalSessionData) {
+        window.mochiApi.onTerminalSessionData((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target) return;
           target.handleTerminalSessionData(payload);
         });
       }
 
-      if (window.shimejiApi.onTerminalSessionExit) {
-        window.shimejiApi.onTerminalSessionExit((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onTerminalSessionExit) {
+        window.mochiApi.onTerminalSessionExit((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target) return;
           target.handleTerminalSessionExit(payload);
         });
       }
 
-      if (window.shimejiApi.onTerminalSessionState) {
-        window.shimejiApi.onTerminalSessionState((payload) => {
-          if (!payload || !payload.shimejiId) return;
-          const target = shimejis.find((s) => s.id === payload.shimejiId);
+      if (window.mochiApi.onTerminalSessionState) {
+        window.mochiApi.onTerminalSessionState((payload) => {
+          if (!payload || !payload.mochiId) return;
+          const target = mochis.find((s) => s.id === payload.mochiId);
           if (!target) return;
           target.handleTerminalSessionState(payload);
         });
       }
 
-      if (window.shimejiApi.onCallBack) {
-        window.shimejiApi.onCallBack((payload) => {
+      if (window.mochiApi.onCallBack) {
+        window.mochiApi.onCallBack((payload) => {
           if (!payload) return;
           if (payload.all) {
-            shimejis.forEach((s) => { if (s.isOffScreen()) s.callBack(); });
-          } else if (payload.shimejiId) {
-            const target = shimejis.find((s) => s.id === payload.shimejiId);
+            mochis.forEach((s) => { if (s.isOffScreen()) s.callBack(); });
+          } else if (payload.mochiId) {
+            const target = mochis.find((s) => s.id === payload.mochiId);
             if (target && target.isOffScreen()) target.callBack();
           }
         });
       }
 
-      if (window.shimejiApi.onDismiss) {
-        window.shimejiApi.onDismiss((payload) => {
+      if (window.mochiApi.onDismiss) {
+        window.mochiApi.onDismiss((payload) => {
           if (!payload) return;
           if (payload.all) {
-            shimejis.forEach((s) => { if (!s.isOffScreen()) s.dismiss(); });
-          } else if (payload.shimejiId) {
-            const target = shimejis.find((s) => s.id === payload.shimejiId);
+            mochis.forEach((s) => { if (!s.isOffScreen()) s.dismiss(); });
+          } else if (payload.mochiId) {
+            const target = mochis.find((s) => s.id === payload.mochiId);
             if (target && !target.isOffScreen()) target.dismiss();
           }
         });
       }
     } else {
-      console.log('No API available, creating default shimeji...');
+      console.log('No API available, creating default mochi...');
     }
   } catch (error) {
     console.error('Error loading config:', error);
   }
 
-    // Create default shimeji if none were created
-    if (!shimejiCreated) {
-      console.log('Creating default shimeji...');
-      createShimeji('shimeji-1', { 
-        character: 'shimeji', 
+    // Create default mochi if none were created
+    if (!mochiCreated) {
+      console.log('Creating default mochi...');
+      createMochi('mochi-1', { 
+        character: 'mochi', 
         enabled: true, 
         personality: 'random', 
         chatTheme: 'pastel',
@@ -5510,14 +5510,14 @@ async function init() {
     }
 
   startAnimationLoop();
-  console.log('Shimeji Desktop initialized with', shimejis.length, 'shimeji(s)');
+  console.log('Mochi Desktop initialized with', mochis.length, 'mochi(s)');
 
   // Global click handler to close all chats when clicking outside
   document.addEventListener('mousedown', (e) => {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
 
-    if (checkMouseOverShimeji(e.clientX, e.clientY)) {
+    if (checkMouseOverMochi(e.clientX, e.clientY)) {
       return;
     }
 
@@ -5526,9 +5526,9 @@ async function init() {
     closeAllChats();
 
     // Best-effort passthrough: switch back to click-through immediately.
-    if (window.shimejiApi?.setIgnoreMouseEvents) {
+    if (window.mochiApi?.setIgnoreMouseEvents) {
       isMouseOverInteractive = false;
-      window.shimejiApi.setIgnoreMouseEvents(true);
+      window.mochiApi.setIgnoreMouseEvents(true);
       setTimeout(() => updateMouseCapture(lastMouseX, lastMouseY), 0);
     }
   });
@@ -5536,17 +5536,17 @@ async function init() {
   window.addEventListener('blur', () => {
     if (!hasOpenChats()) return;
     closeAllChats();
-    if (window.shimejiApi?.setIgnoreMouseEvents) {
+    if (window.mochiApi?.setIgnoreMouseEvents) {
       isMouseOverInteractive = false;
-      window.shimejiApi.setIgnoreMouseEvents(true);
+      window.mochiApi.setIgnoreMouseEvents(true);
     }
   });
 
   window.addEventListener('resize', () => {
-    shimejis.forEach((shimeji) => {
-      if (!shimeji.chatOpen) return;
-      shimeji.positionChatBubble();
-      shimeji.scheduleTerminalFit(0);
+    mochis.forEach((mochi) => {
+      if (!mochi.chatOpen) return;
+      mochi.positionChatBubble();
+      mochi.scheduleTerminalFit(0);
     });
   });
 }

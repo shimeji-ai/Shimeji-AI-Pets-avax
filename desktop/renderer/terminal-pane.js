@@ -1,4 +1,4 @@
-(function exposeShimejiTerminalPane() {
+(function exposeMochiTerminalPane() {
   const DEFAULT_MAX_LINES = 4000;
   const LINK_MATCHER = /https?:\/\/[^\s'"]+/i;
 
@@ -10,7 +10,7 @@
     return String(raw || '').replace(/\r\n/g, '\n');
   }
 
-  class ShimejiTerminalPane {
+  class MochiTerminalPane {
     constructor(container, options = {}) {
       this.container = container;
       this.options = options || {};
@@ -150,7 +150,7 @@
 
     mountFallback() {
       const pre = document.createElement('pre');
-      pre.className = 'shimeji-chat-terminal-output';
+      pre.className = 'mochi-chat-terminal-output';
       pre.textContent = '';
       this.container.appendChild(pre);
       this.fallbackPre = pre;
@@ -240,8 +240,8 @@
       const value = String(text || '');
       if (!value) return;
       try {
-        if (window.shimejiApi?.clipboardWriteText) {
-          window.shimejiApi.clipboardWriteText(value);
+        if (window.mochiApi?.clipboardWriteText) {
+          window.mochiApi.clipboardWriteText(value);
           return;
         }
       } catch {}
@@ -260,8 +260,8 @@
       if (!this.term && !isFunction(this.options.onData)) return;
       try {
         let text = '';
-        if (window.shimejiApi?.clipboardReadText) {
-          text = window.shimejiApi.clipboardReadText();
+        if (window.mochiApi?.clipboardReadText) {
+          text = window.mochiApi.clipboardReadText();
         } else if (navigator.clipboard?.readText) {
           // Fallback (may not work on Windows Electron)
           navigator.clipboard.readText().then((t) => {
@@ -290,8 +290,8 @@
         context: 'terminal-link',
         skipDialog: true
       };
-      if (window.shimejiApi?.openUrlWithBrowserChoice) {
-        window.shimejiApi.openUrlWithBrowserChoice(payload).catch(() => {
+      if (window.mochiApi?.openUrlWithBrowserChoice) {
+        window.mochiApi.openUrlWithBrowserChoice(payload).catch(() => {
           window.open(url, '_blank', 'noopener,noreferrer');
         });
         return;
@@ -306,7 +306,7 @@
 
       const selected = this.getSelectedText();
       const menu = document.createElement('div');
-      menu.className = 'shimeji-terminal-context-menu';
+      menu.className = 'mochi-terminal-context-menu';
       menu.style.cssText = `
         position: fixed; z-index: 99999;
         left: ${event.clientX}px; top: ${event.clientY}px;
@@ -427,5 +427,5 @@
     }
   }
 
-  window.ShimejiTerminalPane = ShimejiTerminalPane;
+  window.MochiTerminalPane = MochiTerminalPane;
 })();

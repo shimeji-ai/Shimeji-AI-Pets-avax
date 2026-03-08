@@ -1,4 +1,4 @@
-# Shimeji AI Pets 🐱🐰
+# Mochi 🐱🐰
 
 Animated desktop pets with AI chat plus an Avalanche marketplace stack.
 
@@ -39,7 +39,8 @@ The Avalanche marketplace stack integrates with:
 
 | Directory | Description |
 |---|---|
-| [shimeji-avax](./shimeji-avax/README.md) | Next.js marketplace dapp + Foundry smart contracts |
+| [nextjs](./nextjs/README.md) | Next.js marketplace dapp and web APIs |
+| [foundry](./foundry/README.md) | Foundry smart contracts, tests, and deploy scripts |
 | [chrome-extension](./chrome-extension/) | Browser runtime and chat UI |
 | [firefox-extension](./firefox-extension/) | Firefox browser runtime and chat UI |
 | [desktop](./desktop/) | Electron desktop app |
@@ -49,10 +50,18 @@ The Avalanche marketplace stack integrates with:
 ## Quick Start (Avalanche)
 
 ```bash
-./shimeji-avax/launch.sh
+./launch.sh
 ```
 
 Unified launcher for local, Fuji, and mainnet deployment.
+
+Direct root-level commands:
+
+```bash
+pnpm chain
+pnpm deploy:local
+pnpm start
+```
 
 ## Quick Start (Runtimes)
 

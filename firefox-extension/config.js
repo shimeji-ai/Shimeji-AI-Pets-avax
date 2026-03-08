@@ -1,4 +1,4 @@
-// config.js for Shimeji Extension
+// config.js for Mochi Extension
 // Add any specific configuration logic here later if needed.
 console.log("Config page loaded.");
 
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (goToDappButton) {
     goToDappButton.addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://shimeji-avax.vercel.app/my-profile' });
+      chrome.tabs.create({ url: 'https://mochi.vercel.app/my-profile' });
     });
   }
 });

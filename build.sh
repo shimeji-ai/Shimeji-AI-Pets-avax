@@ -7,10 +7,10 @@ DIST_DIR="$ROOT_DIR/dist"
 DESKTOP_BUILD_SCRIPT="$ROOT_DIR/desktop/scripts/build.sh"
 CHROME_DIR="$ROOT_DIR/chrome-extension"
 FIREFOX_DIR="$ROOT_DIR/firefox-extension"
-CHROME_ZIP="$DIST_DIR/shimeji-chrome-extension.zip"
-FIREFOX_ZIP="$DIST_DIR/shimeji-firefox-extension.zip"
-CHROME_RELEASE="$ROOT_DIR/shimeji-eth/packages/nextjs/public/shimeji-chrome-extension.zip"
-FIREFOX_RELEASE="$ROOT_DIR/shimeji-eth/packages/nextjs/public/shimeji-firefox-extension.zip"
+CHROME_ZIP="$DIST_DIR/mochi-chrome-extension.zip"
+FIREFOX_ZIP="$DIST_DIR/mochi-firefox-extension.zip"
+CHROME_RELEASE="$ROOT_DIR/mochi-eth/packages/nextjs/public/mochi-chrome-extension.zip"
+FIREFOX_RELEASE="$ROOT_DIR/mochi-eth/packages/nextjs/public/mochi-firefox-extension.zip"
 CORE_SYNCED=0
 
 ensure_dist() {

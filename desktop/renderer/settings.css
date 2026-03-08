@@ -42,11 +42,11 @@ body[data-theme="kawaii"] .desktop-note {
   color: rgba(42, 31, 78, 0.75);
 }
 
-.shimeji-grid {
+.mochi-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.shimeji-grid .full-width {
+.mochi-grid .full-width {
   grid-column: 1 / -1;
 }
 
@@ -111,7 +111,7 @@ body[data-theme="kawaii"] .desktop-note {
 }
 
 @media (max-width: 720px) {
-  .shimeji-grid,
+  .mochi-grid,
   .chat-style-grid {
     grid-template-columns: 1fr;
   }

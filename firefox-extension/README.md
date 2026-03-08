@@ -1,6 +1,6 @@
-# Shimeji Firefox Extension 🦊🐱
+# Mochi Firefox Extension 🦊🐱
 
-A lightweight Firefox add-on that drops a digital mascot (a "shimeji") onto every page. The mascot follows your pointer while you move and wanders when idle. Connect an EVM wallet (MetaMask, Core, or WalletConnect) to sync your account and unlock NFT characters.
+A lightweight Firefox add-on that drops a digital mascot (a "mochi") onto every page. The mascot follows your pointer while you move and wanders when idle. Connect an EVM wallet (MetaMask, Core, or WalletConnect) to sync your account and unlock NFT characters.
 
 ## Features
 
@@ -12,14 +12,14 @@ A lightweight Firefox add-on that drops a digital mascot (a "shimeji") onto ever
 
 1. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
 2. Click **Load Temporary Add-on** and select `manifest.json` from this folder.
-3. Visit https://shimeji-avax.vercel.app (or enable the addon from the toolbar entry) to see the mascot appear.
+3. Visit https://mochi.vercel.app (or enable the addon from the toolbar entry) to see the mascot appear.
 
 ## How it works (high level)
 
 - Background script (`background.js`) listens for UI events and manages extension state.
 - Content scripts (`content.js`, `dapp_content_script.js`) inject the mascot and handle pointer/wander behavior.
 - `config.html` and `popup.html` provide a simple UI for toggling mascots and settings.
-- Wallet connection is handled on the hosted profile page (https://shimeji-avax.vercel.app/my-profile).
+- Wallet connection is handled on the hosted profile page (https://mochi.vercel.app/my-profile).
 
 ## Five testable milestones
 
@@ -27,7 +27,7 @@ Follow these steps to verify core functionality locally. Each milestone includes
 
 - **Milestone 1 — Install and show default mascot:**
 
-  - Steps: Install the extension using the Quick install steps above. Open https://shimeji-avax.vercel.app (or enable it for your current site in the popup).
+  - Steps: Install the extension using the Quick install steps above. Open https://mochi.vercel.app (or enable it for your current site in the popup).
   - Expected result: A mascot appears on the page and wanders around.
   - Files: See [content.js](content.js) and [manifest.json](manifest.json).
 
@@ -79,7 +79,7 @@ My Profile (web) <-> dapp_content_script.js (injected) <-> background.js (extens
 - **Background script:** [background.js](background.js) — handles extension-wide events and wallet connection state.
 - **Content injection & behavior:** [content.js](content.js) (mascot rendering) and [dapp_content_script.js](dapp_content_script.js) (message bridge for hosted web page).
 - **Popup UI:** [popup.html](popup.html) + [popup.js](popup.js) + [popup.css](popup.css).
-- **Config / test UI:** [config.html](config.html) + [config.js](config.js) (opens https://shimeji-avax.vercel.app/my-profile).
+- **Config / test UI:** [config.html](config.html) + [config.js](config.js) (opens https://mochi.vercel.app/my-profile).
 - **Manifest:** [manifest.json](manifest.json) — permissions and content script definitions.
 
 ## Testing tips
