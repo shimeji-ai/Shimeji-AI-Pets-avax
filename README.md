@@ -2,12 +2,38 @@
 
 Animated desktop pets with AI chat plus an Avalanche marketplace stack.
 
+## Technical Overview
+
+### Tech stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, Radix UI
+- **Backend:** Next.js Route Handlers on Node.js
+- **Database:** PostgreSQL with Prisma ORM
+- **Blockchain:** Avalanche C-Chain / Fuji, wagmi, viem, RainbowKit, SIWE
+- **Smart contracts:** Solidity 0.8.28, Foundry, OpenZeppelin
+- **AI:** OpenRouter, Ollama, OpenClaw, Bitte AI
+- **Storage:** IPFS via Pinata for NFT metadata and asset bundles
+- **Clients:** Web app, Electron desktop app, Chrome extension, Firefox extension
+
+### Architecture decisions
+
+- **Shared runtime core:** `runtime-core/` is the canonical source for characters, personalities, assets, and shared runtime logic. Desktop and browser clients sync from it so behavior stays consistent across every surface.
+- **Off-chain AI, on-chain ownership:** AI inference runs off-chain for speed and flexibility, while Avalanche is used for verifiable ownership, minting, listings, auctions, swaps, and commission settlement.
+- **Pluggable provider model:** Chat and agent features use a unified provider layer so hosted models, local models, and agent gateways can all plug into the same product flow.
+- **Hybrid persistence model:** Trust-critical state lives on-chain, operational app state lives in Postgres, and heavy media/metadata assets live on IPFS.
+- **Feature-specific contract design:** Separate contracts handle NFTs, marketplace sales, auctions, commissions, and escrow-style flows instead of forcing all logic into a single contract.
+
+### Implementation approach
+
+The project is built as a multi-surface product. The web app is the main orchestration layer for wallet connection, creator tooling, marketplace actions, AI chat, metadata packaging, and IPFS upload. The desktop app and browser extensions reuse the same runtime assets and animation logic through `runtime-core/`.
+
+On the blockchain side, Solidity contracts on Avalanche manage NFT minting, sales, auctions, swaps, and commission flows. On the AI side, provider-specific integrations are wrapped behind a shared interface so users can switch between cloud, local, and agent-based modes without changing the rest of the system.
+
 ## Integrations
 
 The Avalanche marketplace stack integrates with:
 
 - **[Chainlink](https://chain.link/)** — AVAX/USD price feed support for cross-currency marketplace and auction flows.
-- **[Trustless Work](https://www.trustlesswork.com)** — Escrow-as-a-service protocol used by auction and marketplace commission flows.
 
 ## Structure
 

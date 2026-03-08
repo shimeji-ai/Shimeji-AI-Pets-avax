@@ -10,6 +10,7 @@ export type RuntimeCoreCharacterCatalogEntry = {
   key: string;
   label: string;
   iconUrl: string;
+  spritesBaseUri?: string | null;
 };
 
 export type RuntimeCorePersonalityCatalogEntry = {
@@ -40,6 +41,7 @@ const RUNTIME_CORE_PERSONALITIES_DIR = path.join(RUNTIME_CORE_ROOT, "personaliti
 
 const SAFE_SEGMENT_RE = /^[a-z0-9_-]+$/i;
 const SAFE_FILE_RE = /^[a-z0-9._-]+$/i;
+const NFT_GATED_CHARACTER_KEYS = new Set(["bunny", "lobster", "egg", "mushroom"]);
 
 const ALLOWED_SITE_SPRITE_FILES = new Set([
   "icon.png",
@@ -89,13 +91,19 @@ function assertSafeFileName(fileName: string) {
 async function loadCharacters(): Promise<RuntimeCoreCharacterCatalogEntry[]> {
   const dirEntries = await readdir(RUNTIME_CORE_CHARACTERS_DIR, { withFileTypes: true });
   return dirEntries
-    .filter((entry) => entry.isDirectory() && SAFE_SEGMENT_RE.test(entry.name))
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        SAFE_SEGMENT_RE.test(entry.name) &&
+        !NFT_GATED_CHARACTER_KEYS.has(entry.name),
+    )
     .map((entry) => {
       const key = entry.name;
       return {
         key,
         label: normalizeLabelFromKey(key),
         iconUrl: `/api/site-shimeji/sprite/${encodeURIComponent(key)}/icon.png`,
+        spritesBaseUri: null,
       };
     })
     .sort((a, b) => a.label.localeCompare(b.label));
@@ -181,5 +189,6 @@ export function getRuntimeCorePathsForDiagnostics() {
     root: RUNTIME_CORE_ROOT,
     charactersDir: RUNTIME_CORE_CHARACTERS_DIR,
     personalitiesDir: RUNTIME_CORE_PERSONALITIES_DIR,
+    nftGatedCharacters: Array.from(NFT_GATED_CHARACTER_KEYS),
   };
 }

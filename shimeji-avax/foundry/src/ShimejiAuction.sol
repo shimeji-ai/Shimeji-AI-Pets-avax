@@ -17,8 +17,7 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
     }
 
     enum EscrowProvider {
-        Internal,
-        TrustlessWork
+        Internal
     }
 
     struct AuctionInfo {
@@ -53,8 +52,6 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
     IERC20 public immutable usdc;
     IPriceOracleLike public oracle;
     EscrowProvider public escrowProvider = EscrowProvider.Internal;
-    address payable public trustlessEscrowAvax;
-    address public trustlessEscrowUsdc;
     uint256 public nextAuctionId;
 
     mapping(uint256 => AuctionInfo) public auctions;
@@ -68,8 +65,6 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
         nft = ShimejiNFT(nftAddress);
         usdc = IERC20(usdcAddress);
         oracle = IPriceOracleLike(oracleAddress);
-        trustlessEscrowAvax = payable(initialOwner);
-        trustlessEscrowUsdc = initialOwner;
     }
 
     function configureOracle(address nextOracle) external onlyOwner {
@@ -78,12 +73,6 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
 
     function configureInternalEscrow() external onlyOwner {
         escrowProvider = EscrowProvider.Internal;
-    }
-
-    function configureTrustlessEscrow(address payable avaxDestination, address usdcDestination) external onlyOwner {
-        trustlessEscrowAvax = avaxDestination;
-        trustlessEscrowUsdc = usdcDestination;
-        escrowProvider = EscrowProvider.TrustlessWork;
     }
 
     function createItemAuction(
@@ -138,12 +127,7 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
             return;
         }
 
-        if (auction.escrowProvider == EscrowProvider.Internal) {
-            _payoutInternal(bid, auction.seller);
-        } else {
-            _routeToTrustlessEscrow(bid);
-            auction.escrowSettled = true;
-        }
+        _payoutInternal(bid, auction.seller);
 
         nft.transferFrom(address(this), bid.bidder, auction.tokenId);
         emit AuctionFinalized(auctionId, bid.bidder, bid.amount, bid.currency);
@@ -198,15 +182,6 @@ contract ShimejiAuction is Ownable, ReentrancyGuard {
             require(ok, "avax payout failed");
         } else {
             usdc.transfer(seller, bid.amount);
-        }
-    }
-
-    function _routeToTrustlessEscrow(BidInfo memory bid) internal {
-        if (bid.currency == Currency.Avax) {
-            (bool ok,) = trustlessEscrowAvax.call{value: bid.amount}("");
-            require(ok, "avax escrow route failed");
-        } else {
-            usdc.transfer(trustlessEscrowUsdc, bid.amount);
         }
     }
 

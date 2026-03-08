@@ -8,12 +8,15 @@
     { "trait_type": "network", "value": "testnet" },
     { "trait_type": "character", "value": "mushroom" },
     { "trait_type": "sprite_state", "value": "idle" },
+    { "trait_type": "unlock_type", "value": "swap_complete" },
     { "trait_type": "edition_mode", "value": "unique" },
     { "trait_type": "edition_size", "value": "1" }
   ],
   "properties": {
     "shimeji": {
       "schema": "shimeji_nft_v1",
+      "unlocksAppearance": true,
+      "spritesBaseUri": "https://www.shimeji.dev/api/site-shimeji/sprite/mushroom",
       "editionMode": "unique",
       "copies": 1
     }

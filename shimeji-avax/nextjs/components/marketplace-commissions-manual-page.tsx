@@ -116,36 +116,9 @@ export function MarketplaceCommissionsManualPageClient({
               )}
             </li>
             <li>
-              {effectiveIsSpanish ? (
-                <>
-                  {"Aclaración técnica: cuando hay un endpoint de escrow compatible con "}
-                  <a
-                    href="https://www.trustlesswork.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-foreground"
-                  >
-                    Trustless Work
-                  </a>
-                  {
-                    ", los fondos en custodia de la comisión se guardan allí cuando está disponible."
-                  }
-                </>
-              ) : (
-                <>
-                  {"Technical note: when a "}
-                  <a
-                    href="https://www.trustlesswork.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-foreground"
-                  >
-                    Trustless Work
-                  </a>
-                  {
-                    " compatible escrow endpoint is available, commission funds in custody are held there."
-                  }
-                </>
+              {t(
+                "Technical note: commission custody can be routed through an external escrow endpoint when configured, otherwise it stays in the internal escrow flow.",
+                "Aclaración técnica: la custodia de una comisión puede enviarse a un endpoint de escrow externo cuando está configurado; si no, queda dentro del flujo de escrow interno.",
               )}
             </li>
             <li>

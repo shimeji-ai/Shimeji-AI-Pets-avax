@@ -6,8 +6,8 @@ import {
   type MarketplaceFeedItem,
   type MarketplaceFeedResponse,
 } from "@/lib/marketplace-hub-types";
-import { fetchListings, fetchSwapListings } from "@/lib/marketplace";
-import { fetchNftTokensByIds } from "@/lib/nft-read";
+import { fetchEditionListings, fetchListings, fetchSwapListings } from "@/lib/marketplace";
+import { fetchEditionTokenById, fetchNftTokensByIds } from "@/lib/nft-read";
 
 export const runtime = "nodejs";
 
@@ -64,10 +64,15 @@ export async function GET(request: NextRequest) {
   const warnings: string[] = [];
 
   try {
-    const [listings, auctions, swapListings] = await Promise.all([
+    const [listings, editionListings, auctions, swapListings] = await Promise.all([
       fetchListings().catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
         warnings.push(`Failed to load marketplace listings. ${message}`);
+        return [];
+      }),
+      fetchEditionListings().catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        warnings.push(`Failed to load marketplace edition listings. ${message}`);
         return [];
       }),
       fetchAuctions({ includeEnded: false, limit: 100 }).catch((error) => {
@@ -98,6 +103,17 @@ export async function GET(request: NextRequest) {
       return [];
     });
     const tokenById = new Map(tokenRecords.map((record) => [record.tokenId, record]));
+    const editionRecords = await Promise.all(
+      editionListings.map((listing) => fetchEditionTokenById(listing.editionId)),
+    ).catch(() => {
+      warnings.push("Failed to enrich edition listings with metadata.");
+      return [];
+    });
+    const editionById = new Map(
+      editionRecords
+        .filter((record): record is NonNullable<typeof record> => Boolean(record))
+        .map((record) => [record.editionId, record]),
+    );
 
     const sellerProfiles: Record<string, ArtistProfile> = await getArtistProfilesByWallets(
       [
@@ -125,6 +141,8 @@ export async function GET(request: NextRequest) {
         status: listing.active ? "active" : "cancelled",
         tokenId: listing.tokenId,
         tokenUri: token?.tokenUri ?? null,
+        tokenStandard: "ERC721",
+        quantityAvailable: 1,
         sellerWallet: listing.seller,
         sellerProfile,
         price: listing.price.toString(),
@@ -138,6 +156,30 @@ export async function GET(request: NextRequest) {
               styleTags: sellerProfile?.styleTags ?? [],
             }
           : null,
+        createdAt: null,
+        updatedAt: null,
+      };
+    });
+
+    const editionListingItems: MarketplaceFeedItem[] = editionListings.map((listing) => {
+      const token = editionById.get(listing.editionId) ?? null;
+      const sellerProfile = sellerProfiles[listing.seller] ?? null;
+      return {
+        id: `edition_listing:${listing.listingId}`,
+        source: "marketplace",
+        assetKind: "nft",
+        saleKind: "fixed_price",
+        status: listing.active ? "active" : "cancelled",
+        tokenId: listing.editionId,
+        tokenUri: token?.tokenUri ?? null,
+        tokenStandard: "ERC1155",
+        quantityAvailable: listing.remainingAmount,
+        sellerWallet: listing.seller,
+        sellerProfile,
+        price: listing.price.toString(),
+        currency: listing.currency,
+        auction: null,
+        commissionMeta: null,
         createdAt: null,
         updatedAt: null,
       };
@@ -162,6 +204,8 @@ export async function GET(request: NextRequest) {
         status: auction.finalized || auction.endTime <= now ? "ended" : "active",
         tokenId: isItemAuction ? (auction.tokenId ?? null) : null,
         tokenUri: token?.tokenUri ?? auction.tokenUri ?? null,
+        tokenStandard: "ERC721",
+        quantityAvailable: 1,
         sellerWallet,
         sellerProfile,
         price: auction.startingPrice.toString(),
@@ -202,6 +246,8 @@ export async function GET(request: NextRequest) {
         status: listing.active ? "active" : "cancelled",
         tokenId: listing.offeredTokenId,
         tokenUri: token?.tokenUri ?? null,
+        tokenStandard: "ERC721",
+        quantityAvailable: 1,
         sellerWallet: listing.creator,
         sellerProfile,
         price: null,
@@ -221,7 +267,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    let items = [...auctionItems, ...listingItems, ...swapListingItems];
+    let items = [...auctionItems, ...listingItems, ...editionListingItems, ...swapListingItems];
 
     if (assetKindFilter === "nft" || assetKindFilter === "commission_egg") {
       items = items.filter((item) => item.assetKind === assetKindFilter);

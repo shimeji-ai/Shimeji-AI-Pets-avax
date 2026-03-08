@@ -2,17 +2,10 @@ const MAX_SHIMEJIS = 5;
 
 const CHARACTER_OPTIONS = [
   { id: 'shimeji', labelEn: 'Shimeji', labelEs: 'Shimeji' },
-  { id: 'bunny', labelEn: 'Bunny', labelEs: 'Conejo' },
   { id: 'kitten', labelEn: 'Kitten', labelEs: 'Gatito' },
   { id: 'ghost', labelEn: 'Ghost', labelEs: 'Fantasma' },
   { id: 'blob', labelEn: 'Blob', labelEs: 'Blob' },
-  { id: 'lobster', labelEn: 'Lobster', labelEs: 'Langosta' },
-  { id: 'mushroom', labelEn: 'Mushroom', labelEs: 'Hongo' },
   { id: 'penguin', labelEn: 'Penguin', labelEs: 'Pingüino' }
-];
-
-const BUILTIN_NFT_CHARACTERS = [
-  { id: 'egg', name: 'Egg' }
 ];
 
 const PERSONALITY_OPTIONS = [
@@ -101,8 +94,8 @@ let selectedShimejiIndex = 0;
 let currentConfig = {};
 let uiLanguage = null;
 let resolvedPopupTheme = 'neural';
-let nftCharacters = [...BUILTIN_NFT_CHARACTERS];
-let nftCharacterIds = new Set(BUILTIN_NFT_CHARACTERS.map((item) => item.id).filter(Boolean));
+let nftCharacters = [];
+let nftCharacterIds = new Set();
 
 const enabledToggle = document.getElementById('all-sites-toggle');
 const enabledToggleRow = document.getElementById('all-sites-toggle-row');
@@ -179,9 +172,6 @@ function appendProviderHelpLink(container, providerId) {
 
 function refreshNftCharacterCatalog(rawNfts) {
   const mergedMap = new Map();
-  BUILTIN_NFT_CHARACTERS.forEach((item) => {
-    if (item?.id) mergedMap.set(item.id, item);
-  });
   const synced = Array.isArray(rawNfts) ? rawNfts : [];
   synced.forEach((item) => {
     if (item?.id) mergedMap.set(item.id, item);

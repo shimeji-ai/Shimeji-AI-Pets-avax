@@ -3,18 +3,20 @@ pragma solidity ^0.8.28;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC1155} from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import {ERC1155Holder} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ShimejiNFT} from "./ShimejiNFT.sol";
+import {ShimejiEditions} from "./ShimejiEditions.sol";
 
-contract ShimejiMarketplace is Ownable, ReentrancyGuard {
+contract ShimejiMarketplace is Ownable, ReentrancyGuard, ERC1155Holder {
     enum Currency {
         Avax,
         Usdc
     }
 
     enum EscrowProvider {
-        Internal,
-        TrustlessWork
+        Internal
     }
 
     enum CommissionOrderStatus {
@@ -31,6 +33,15 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
         Currency currency;
         uint64 commissionEtaDays;
         bool isCommissionEgg;
+        bool active;
+    }
+
+    struct EditionListingInfo {
+        address seller;
+        uint256 editionId;
+        uint256 remainingAmount;
+        uint256 price;
+        Currency currency;
         bool active;
     }
 
@@ -82,17 +93,18 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
     uint64 public constant COMMISSION_AUTO_RELEASE_AFTER_DELIVERY_SECS = 7 days;
 
     ShimejiNFT public immutable nft;
+    ShimejiEditions public immutable editions;
     IERC20 public immutable usdc;
     EscrowProvider public escrowProvider = EscrowProvider.Internal;
-    address payable public trustlessEscrowAvax;
-    address public trustlessEscrowUsdc;
 
     uint256 public nextListingId;
+    uint256 public nextEditionListingId;
     uint256 public nextSwapListingId;
     uint256 public nextSwapBidId;
     uint256 public nextCommissionOrderId;
 
     mapping(uint256 => ListingInfo) public listings;
+    mapping(uint256 => EditionListingInfo) public editionListings;
     mapping(uint256 => SwapListing) public swapListings;
     mapping(uint256 => SwapBid) public swapBids;
     mapping(uint256 => CommissionOrder) public commissionOrders;
@@ -101,25 +113,20 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
 
     event ListingCreated(uint256 indexed listingId, address indexed seller, uint256 indexed tokenId, bool commissionEgg);
     event ListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 indexed tokenId, Currency currency, bool commissionEgg);
+    event EditionListingCreated(uint256 indexed listingId, address indexed seller, uint256 indexed editionId, uint256 amount, Currency currency);
+    event EditionListingPurchased(uint256 indexed listingId, address indexed buyer, uint256 indexed editionId, Currency currency, uint256 remainingAmount);
     event SwapListingCreated(uint256 indexed listingId, address indexed creator, uint256 indexed tokenId);
     event SwapBidPlaced(uint256 indexed bidId, uint256 indexed listingId, address indexed bidder, uint256 bidderTokenId);
     event CommissionOrderCreated(uint256 indexed orderId, uint256 indexed listingId, address indexed buyer, uint256 tokenId);
 
-    constructor(address initialOwner, address nftAddress, address usdcAddress) Ownable(initialOwner) {
+    constructor(address initialOwner, address nftAddress, address editionsAddress, address usdcAddress) Ownable(initialOwner) {
         nft = ShimejiNFT(nftAddress);
+        editions = ShimejiEditions(editionsAddress);
         usdc = IERC20(usdcAddress);
-        trustlessEscrowAvax = payable(initialOwner);
-        trustlessEscrowUsdc = initialOwner;
     }
 
     function configureInternalEscrow() external onlyOwner {
         escrowProvider = EscrowProvider.Internal;
-    }
-
-    function configureTrustlessEscrow(address payable avaxDestination, address usdcDestination) external onlyOwner {
-        trustlessEscrowAvax = avaxDestination;
-        trustlessEscrowUsdc = usdcDestination;
-        escrowProvider = EscrowProvider.TrustlessWork;
     }
 
     function listForSale(uint256 tokenId, uint256 price, Currency currency) external returns (uint256 listingId) {
@@ -131,6 +138,25 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
         require(sellerOpenCommissionOrder[msg.sender] == 0, "seller has open order");
         listingId = _createListing(tokenId, price, currency, commissionEtaDays, true);
         sellerActiveCommissionEggListing[msg.sender] = listingId + 1;
+    }
+
+    function listEditionForSale(uint256 editionId, uint256 amount, uint256 price, Currency currency) external returns (uint256 listingId) {
+        require(price > 0, "price=0");
+        require(amount > 0, "amount=0");
+        require(editions.balanceOf(msg.sender, editionId) >= amount, "insufficient balance");
+
+        IERC1155(address(editions)).safeTransferFrom(msg.sender, address(this), editionId, amount, "");
+
+        listingId = nextEditionListingId++;
+        editionListings[listingId] = EditionListingInfo({
+            seller: msg.sender,
+            editionId: editionId,
+            remainingAmount: amount,
+            price: price,
+            currency: currency,
+            active: true
+        });
+        emit EditionListingCreated(listingId, msg.sender, editionId, amount, currency);
     }
 
     function buyAvax(uint256 listingId) external payable nonReentrant {
@@ -159,6 +185,18 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
         _buy(listingId, Currency.Usdc, listing.price, intention, referenceImageUrl);
     }
 
+    function buyEditionAvax(uint256 listingId) external payable nonReentrant {
+        _buyEdition(listingId, Currency.Avax, msg.value);
+    }
+
+    function buyEditionUsdc(uint256 listingId) external nonReentrant {
+        EditionListingInfo memory listing = editionListings[listingId];
+        require(listing.active, "listing inactive");
+        require(listing.currency == Currency.Usdc, "currency mismatch");
+        usdc.transferFrom(msg.sender, address(this), listing.price);
+        _buyEdition(listingId, Currency.Usdc, listing.price);
+    }
+
     function cancelListing(uint256 listingId) external nonReentrant {
         ListingInfo storage listing = listings[listingId];
         require(listing.active, "listing inactive");
@@ -168,6 +206,17 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
             sellerActiveCommissionEggListing[msg.sender] = 0;
         }
         nft.transferFrom(address(this), msg.sender, listing.tokenId);
+    }
+
+    function cancelEditionListing(uint256 listingId) external nonReentrant {
+        EditionListingInfo storage listing = editionListings[listingId];
+        require(listing.active, "listing inactive");
+        require(listing.seller == msg.sender, "not seller");
+
+        uint256 remainingAmount = listing.remainingAmount;
+        listing.active = false;
+        listing.remainingAmount = 0;
+        IERC1155(address(editions)).safeTransferFrom(address(this), msg.sender, listing.editionId, remainingAmount, "");
     }
 
     function createSwapListing(uint256 offeredTokenId, string calldata intention) external returns (uint256 listingId) {
@@ -287,6 +336,10 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
         return nextListingId;
     }
 
+    function totalEditionListings() external view returns (uint256) {
+        return nextEditionListingId;
+    }
+
     function totalSwapListings() external view returns (uint256) {
         return nextSwapListingId;
     }
@@ -301,6 +354,10 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
 
     function getListing(uint256 listingId) external view returns (ListingInfo memory) {
         return listings[listingId];
+    }
+
+    function getEditionListing(uint256 listingId) external view returns (EditionListingInfo memory) {
+        return editionListings[listingId];
     }
 
     function getSwapListing(uint256 listingId) external view returns (SwapListing memory) {
@@ -351,6 +408,23 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
         emit ListingPurchased(listingId, msg.sender, listing.tokenId, paymentCurrency, listing.isCommissionEgg);
     }
 
+    function _buyEdition(uint256 listingId, Currency paymentCurrency, uint256 amount) internal {
+        EditionListingInfo storage listing = editionListings[listingId];
+        require(listing.active, "listing inactive");
+        require(listing.currency == paymentCurrency, "currency mismatch");
+        require(amount == listing.price, "incorrect payment");
+        require(listing.remainingAmount > 0, "sold out");
+
+        listing.remainingAmount -= 1;
+        if (listing.remainingAmount == 0) {
+            listing.active = false;
+        }
+
+        _payout(listing.seller, paymentCurrency, amount);
+        IERC1155(address(editions)).safeTransferFrom(address(this), msg.sender, listing.editionId, 1, "");
+        emit EditionListingPurchased(listingId, msg.sender, listing.editionId, paymentCurrency, listing.remainingAmount);
+    }
+
     function _createCommissionOrder(
         uint256 listingId,
         ListingInfo memory listing,
@@ -365,10 +439,6 @@ contract ShimejiMarketplace is Ownable, ReentrancyGuard {
 
         address escrowHolder = address(this);
         EscrowProvider provider = escrowProvider;
-        if (provider == EscrowProvider.TrustlessWork && escrow > 0) {
-            escrowHolder = paymentCurrency == Currency.Avax ? trustlessEscrowAvax : trustlessEscrowUsdc;
-            _payout(escrowHolder, paymentCurrency, escrow);
-        }
 
         uint256 orderId = nextCommissionOrderId++;
         commissionOrders[orderId] = CommissionOrder({

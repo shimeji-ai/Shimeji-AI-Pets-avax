@@ -579,12 +579,9 @@ const presenceTitle = document.getElementById("presence-title");
 
   const CHARACTER_OPTIONS = [
     { value: "shimeji", labelEn: "Shimeji", labelEs: "Shimeji" },
-    { value: "bunny", labelEn: "Bunny", labelEs: "Conejo" },
     { value: "kitten", labelEn: "Kitten", labelEs: "Gatito" },
     { value: "ghost", labelEn: "Ghost", labelEs: "Fantasma" },
     { value: "blob", labelEn: "Blob", labelEs: "Blob" },
-    { value: "lobster", labelEn: "Lobster", labelEs: "Langosta" },
-    { value: "mushroom", labelEn: "Mushroom", labelEs: "Hongo" },
     { value: "penguin", labelEn: "Penguin", labelEs: "Pingüino" },
   ];
 
@@ -615,10 +612,6 @@ let lastOpenrouterApiKeyPlain = "";
 let lastStandardProvider = "openrouter";
 let lastOpenrouterModel = "random";
 let previewIntervals = [];
-
-const BUILTIN_NFT_CHARACTERS = [
-  { id: "egg", name: "Egg" }
-];
 
 const PREVIEW_FRAMES = [
   "stand-neutral.png",
@@ -2914,9 +2907,6 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
       const nfts = data.nftCharacters || [];
       const synced = Array.isArray(nfts) ? nfts : [];
       const mergedMap = new Map();
-      BUILTIN_NFT_CHARACTERS.forEach((item) => {
-        if (item?.id) mergedMap.set(item.id, item);
-      });
       synced.forEach((item) => {
         if (item?.id) mergedMap.set(item.id, item);
       });
@@ -2948,13 +2938,15 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         const preview = document.createElement("div");
         preview.className = "nft-card-preview";
         const nftId = nft?.id || "";
-        const isBuiltinEgg = String(nftId).toLowerCase() === "egg";
-        if (isBuiltinEgg) {
+        const previewImage = String(nft?.imageUrl || "").trim();
+        if (String(nftId).toLowerCase() === "egg") {
           card.classList.add("nft-card-egg");
+        }
+        if (previewImage) {
           const img = document.createElement("img");
           img.className = "nft-card-preview-img";
-          img.alt = "";
-          img.src = chrome.runtime.getURL("characters/egg/stand-neutral.png");
+          img.alt = nft.name || nft.id || "NFT";
+          img.src = previewImage;
           preview.appendChild(img);
         } else {
           preview.textContent = (nft.name || "?")[0].toUpperCase();
@@ -2964,12 +2956,13 @@ const onboardingActive = new URLSearchParams(window.location.search || "").get("
         name.textContent = nft.name || t("Unknown", "Desconocido");
         const id = document.createElement("div");
         id.className = "nft-card-id";
-        id.textContent = nft.id || "";
+        const copies = Number(nft?.tokenCount || 0);
+        id.textContent = copies > 1
+          ? `${nft.id || ""} · ${copies}x`
+          : (nft.id || "");
         card.appendChild(preview);
-        if (!isBuiltinEgg) {
-          card.appendChild(name);
-          card.appendChild(id);
-        }
+        card.appendChild(name);
+        card.appendChild(id);
         nftListEl.appendChild(card);
       });
       renderShimejis();

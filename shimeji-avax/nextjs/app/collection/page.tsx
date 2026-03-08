@@ -10,6 +10,10 @@ import { Wallet, Download, Loader2 } from "lucide-react";
 type NftCharacter = {
   id: string;
   name: string;
+  tokenCount?: number;
+  imageUrl?: string | null;
+  spritesBaseUri?: string | null;
+  isCommissionEgg?: boolean;
 };
 
 function sendExtensionMessage(type: string, payload?: Record<string, unknown>): Promise<unknown> {
@@ -61,20 +65,33 @@ export default function CollectionPage() {
   const fetchNfts = useCallback(async () => {
     setLoadingNfts(true);
     try {
-      const result = await sendExtensionMessage("getNftCharacters");
-      setNftCharacters(Array.isArray(result) ? result : []);
+      if (!publicKey) {
+        setNftCharacters([]);
+        return;
+      }
+
+      const response = await fetch(`/api/collection/nft-characters?wallet=${encodeURIComponent(publicKey)}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as { characters?: NftCharacter[] };
+      const characters = Array.isArray(payload.characters) ? payload.characters : [];
+      setNftCharacters(characters);
+
+      if (extensionDetected) {
+        await sendExtensionMessage("setNftCharacters", { characters });
+      }
     } catch {
       setNftCharacters([]);
     } finally {
       setLoadingNfts(false);
     }
-  }, []);
+  }, [extensionDetected, publicKey]);
 
   useEffect(() => {
-    if (extensionDetected && isConnected) {
+    if (mounted && isConnected && publicKey) {
       fetchNfts();
     }
-  }, [extensionDetected, isConnected, fetchNfts]);
+  }, [mounted, isConnected, publicKey, fetchNfts]);
 
   return (
     <main className="min-h-screen overflow-x-hidden neural-shell">
@@ -201,14 +218,37 @@ export default function CollectionPage() {
                       key={nft.id}
                       className="rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col items-center gap-3"
                     >
-                      <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-lg font-bold text-foreground">
-                        {(nft.name || "?")[0].toUpperCase()}
+                      <div className="w-20 h-20 rounded-2xl bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                        {nft.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={nft.imageUrl}
+                            alt={nft.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-foreground">
+                            {(nft.name || "?")[0].toUpperCase()}
+                          </span>
+                        )}
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-semibold text-foreground">
-                          {nft.name}
-                        </p>
+                        <p className="text-sm font-semibold text-foreground">{nft.name}</p>
                         <p className="text-xs text-muted-foreground">{nft.id}</p>
+                        {typeof nft.tokenCount === "number" && nft.tokenCount > 1 ? (
+                          <p className="text-[11px] text-muted-foreground/80">
+                            {isSpanish ? `${nft.tokenCount} copias` : `${nft.tokenCount} copies`}
+                          </p>
+                        ) : null}
+                        <p className="text-[11px] text-muted-foreground/80">
+                          {nft.isCommissionEgg
+                            ? isSpanish
+                              ? "Desbloquea apariencia de comisión"
+                              : "Unlocks commission appearance"
+                            : isSpanish
+                              ? "Desbloquea apariencia usable"
+                              : "Unlocks usable appearance"}
+                        </p>
                       </div>
                     </div>
                   ))}

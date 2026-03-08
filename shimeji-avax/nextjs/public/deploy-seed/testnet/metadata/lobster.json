@@ -8,12 +8,15 @@
     { "trait_type": "network", "value": "testnet" },
     { "trait_type": "character", "value": "lobster" },
     { "trait_type": "sprite_state", "value": "idle" },
+    { "trait_type": "unlock_type", "value": "auction_win" },
     { "trait_type": "edition_mode", "value": "unique" },
     { "trait_type": "edition_size", "value": "1" }
   ],
   "properties": {
     "shimeji": {
       "schema": "shimeji_nft_v1",
+      "unlocksAppearance": true,
+      "spritesBaseUri": "https://www.shimeji.dev/api/site-shimeji/sprite/lobster",
       "editionMode": "unique",
       "copies": 1
     }

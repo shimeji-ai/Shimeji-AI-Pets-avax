@@ -108,12 +108,20 @@ sync_vercel_envs_if_requested() {
   "$SCRIPT_DIR/vercel-env-sync.sh" "$network" "$environment"
 }
 
+refresh_pending_nonce() {
+  local rpc_url="$1"
+  local deployer_address="$2"
+  CURRENT_NONCE="$(cast nonce --block pending --rpc-url "$rpc_url" "$deployer_address")"
+}
+
 deploy_contract() {
   local rpc_url="$1"
   local private_key="$2"
+  local deployer_address
   local contract="$3"
   shift 3
   local out nonce next
+  deployer_address="$(cast wallet address --private-key "$private_key")"
   while true; do
     nonce="$(next_nonce)"
     out="$(cd "$FOUNDRY_DIR" && forge create "$contract" --rpc-url "$rpc_url" --private-key "$private_key" --broadcast --nonce "$nonce" --json "$@" 2>&1)" && {
@@ -126,6 +134,11 @@ deploy_contract() {
       echo "Retrying deploy for $contract with nonce $CURRENT_NONCE..." >&2
       continue
     fi
+    if printf '%s' "$out" | grep -qi 'nonce too low'; then
+      refresh_pending_nonce "$rpc_url" "$deployer_address"
+      echo "Retrying deploy for $contract with refreshed nonce $CURRENT_NONCE..." >&2
+      continue
+    fi
     echo "$out" >&2
     return 1
   done
@@ -134,10 +147,12 @@ deploy_contract() {
 send_transaction() {
   local rpc_url="$1"
   local private_key="$2"
+  local deployer_address
   local to="$3"
   local signature="$4"
   shift 4
   local nonce out next
+  deployer_address="$(cast wallet address --private-key "$private_key")"
   while true; do
     nonce="$(next_nonce)"
     out="$(cast send --rpc-url "$rpc_url" --private-key "$private_key" --nonce "$nonce" "$to" "$signature" "$@" 2>&1)" && return 0
@@ -145,6 +160,11 @@ send_transaction() {
     if [ -n "$next" ]; then
       CURRENT_NONCE="$next"
       echo "Retrying transaction $signature with nonce $CURRENT_NONCE..." >&2
+      continue
+    fi
+    if printf '%s' "$out" | grep -qi 'nonce too low'; then
+      refresh_pending_nonce "$rpc_url" "$deployer_address"
+      echo "Retrying transaction $signature with refreshed nonce $CURRENT_NONCE..." >&2
       continue
     fi
     echo "$out" >&2
@@ -155,11 +175,13 @@ send_transaction() {
 send_value_transaction() {
   local rpc_url="$1"
   local private_key="$2"
+  local deployer_address
   local value="$3"
   local to="$4"
   local signature="$5"
   shift 5
   local nonce out next
+  deployer_address="$(cast wallet address --private-key "$private_key")"
   while true; do
     nonce="$(next_nonce)"
     out="$(cast send --rpc-url "$rpc_url" --private-key "$private_key" --nonce "$nonce" --value "$value" "$to" "$signature" "$@" 2>&1)" && return 0
@@ -167,6 +189,11 @@ send_value_transaction() {
     if [ -n "$next" ]; then
       CURRENT_NONCE="$next"
       echo "Retrying payable transaction $signature with nonce $CURRENT_NONCE..." >&2
+      continue
+    fi
+    if printf '%s' "$out" | grep -qi 'nonce too low'; then
+      refresh_pending_nonce "$rpc_url" "$deployer_address"
+      echo "Retrying payable transaction $signature with refreshed nonce $CURRENT_NONCE..." >&2
       continue
     fi
     echo "$out" >&2
@@ -188,53 +215,63 @@ next_nonce() {
   printf '%s' "$nonce"
 }
 
-seed_fuji_sample_data() {
+seed_showcase_data() {
   local rpc_url="$1"
   local private_key="$2"
   local nft_address="$3"
-  local auction_address="$4"
-  local marketplace_address="$5"
+  local editions_address="$4"
+  local auction_address="$5"
+  local marketplace_address="$6"
 
-  local sale_token_uri="${FUJI_SAMPLE_SALE_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/bunny-hero.png}"
-  local auction_token_uri="${FUJI_SAMPLE_AUCTION_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/runtime-core/characters/penguin/stand-neutral.png}"
-  local swap_token_uri="${FUJI_SAMPLE_SWAP_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/runtime-core/characters/kitten/stand-neutral.png}"
-  local commission_listing_uri="${FUJI_SAMPLE_COMMISSION_LISTING_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/egg-sit.png}"
-  local commission_order_uri="${FUJI_SAMPLE_COMMISSION_ORDER_TOKEN_URI:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/egg-sit.png}"
-  local sample_reference_url="${FUJI_SAMPLE_REFERENCE_URL:-https://www.shimeji.dev/mascota-shimeji-2.png}"
+  local default_base_url
+  if [ "$rpc_url" = "$LOCAL_RPC_URL" ]; then
+    default_base_url="${SHOWCASE_LOCAL_BASE_URL:-http://localhost:3000/deploy-seed/local/metadata}"
+  else
+    default_base_url="${SHOWCASE_REMOTE_BASE_URL:-https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/shimeji-avax/nextjs/public/deploy-seed/testnet/metadata}"
+  fi
 
-  local sale_price_wei auction_start_price_wei commission_listing_price_wei commission_order_price_wei
+  local bunny_token_uri="${SHOWCASE_BUNNY_TOKEN_URI:-$default_base_url/bunny.json}"
+  local lobster_token_uri="${SHOWCASE_LOBSTER_TOKEN_URI:-$default_base_url/lobster.json}"
+  local mushroom_token_uri="${SHOWCASE_MUSHROOM_TOKEN_URI:-$default_base_url/mushroom.json}"
+  local egg_token_uri="${SHOWCASE_EGG_TOKEN_URI:-$default_base_url/egg.json}"
+
+  local bunny_copies="${SHOWCASE_BUNNY_COPIES:-100}"
+  local bunny_price_wei lobster_auction_start_price_wei egg_listing_price_wei
   local auction_duration_seconds
 
-  sale_price_wei="$(cast --to-wei "${FUJI_SAMPLE_SALE_PRICE_AVAX:-0.12}" ether)"
-  auction_start_price_wei="$(cast --to-wei "${FUJI_SAMPLE_AUCTION_START_PRICE_AVAX:-0.08}" ether)"
-  commission_listing_price_wei="$(cast --to-wei "${FUJI_SAMPLE_COMMISSION_LISTING_PRICE_AVAX:-0.18}" ether)"
-  commission_order_price_wei="$(cast --to-wei "${FUJI_SAMPLE_COMMISSION_ORDER_PRICE_AVAX:-0.14}" ether)"
-  auction_duration_seconds="${FUJI_SAMPLE_AUCTION_DURATION_SECONDS:-604800}"
+  bunny_price_wei="$(cast --to-wei "${SHOWCASE_BUNNY_PRICE_AVAX:-0.03}" ether)"
+  lobster_auction_start_price_wei="$(cast --to-wei "${SHOWCASE_LOBSTER_AUCTION_START_PRICE_AVAX:-0.08}" ether)"
+  egg_listing_price_wei="$(cast --to-wei "${SHOWCASE_EGG_COMMISSION_PRICE_AVAX:-0.18}" ether)"
+  auction_duration_seconds="${SHOWCASE_AUCTION_DURATION_SECONDS:-604800}"
 
-  echo "Seeding Fuji sample data..."
+  echo "Seeding showcase marketplace data..."
 
-  send_transaction "$rpc_url" "$private_key" "$nft_address" "createFinishedNft(string)" "$sale_token_uri"
-  send_transaction "$rpc_url" "$private_key" "$nft_address" "createFinishedNft(string)" "$auction_token_uri"
-  send_transaction "$rpc_url" "$private_key" "$nft_address" "createFinishedNft(string)" "$swap_token_uri"
-  send_transaction "$rpc_url" "$private_key" "$nft_address" "createCommissionEgg(string)" "$commission_listing_uri"
-  send_transaction "$rpc_url" "$private_key" "$nft_address" "createCommissionEgg(string)" "$commission_order_uri"
+  local deployer_address
+  deployer_address="$(cast wallet address --private-key "$private_key")"
+
+  send_transaction "$rpc_url" "$private_key" "$editions_address" "createEdition(address,uint256,string,address)" "$deployer_address" "$bunny_copies" "$bunny_token_uri" "$deployer_address"
+  send_transaction "$rpc_url" "$private_key" "$nft_address" "createFinishedNft(string)" "$lobster_token_uri"
+  send_transaction "$rpc_url" "$private_key" "$nft_address" "createFinishedNft(string)" "$mushroom_token_uri"
+  send_transaction "$rpc_url" "$private_key" "$nft_address" "createCommissionEgg(string)" "$egg_token_uri"
 
   send_transaction "$rpc_url" "$private_key" "$nft_address" "setApprovalForAll(address,bool)" "$marketplace_address" true
   send_transaction "$rpc_url" "$private_key" "$nft_address" "setApprovalForAll(address,bool)" "$auction_address" true
+  send_transaction "$rpc_url" "$private_key" "$editions_address" "setApprovalForAll(address,bool)" "$marketplace_address" true
+  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "listEditionForSale(uint256,uint256,uint256,uint8)" 0 "$bunny_copies" "$bunny_price_wei" 0
 
-  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "listForSale(uint256,uint256,uint8)" 0 "$sale_price_wei" 0
-  send_transaction "$rpc_url" "$private_key" "$auction_address" "createItemAuction(uint256,uint256,uint8,uint64)" 1 "$auction_start_price_wei" 0 "$auction_duration_seconds"
-  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "createSwapListing(uint256,string)" 2 "${FUJI_SAMPLE_SWAP_INTENTION:-Looking to trade for another animated Shimeji with a distinct idle loop.}"
-  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "listCommissionEgg(uint256,uint256,uint8,uint64)" 3 "$commission_listing_price_wei" 0 "${FUJI_SAMPLE_COMMISSION_LISTING_ETA_DAYS:-14}"
-  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "listCommissionEgg(uint256,uint256,uint8,uint64)" 4 "$commission_order_price_wei" 0 "${FUJI_SAMPLE_COMMISSION_ORDER_ETA_DAYS:-10}"
-  send_value_transaction "$rpc_url" "$private_key" "$commission_order_price_wei" "$marketplace_address" "buyCommissionAvax(uint256,string,string)" 2 "${FUJI_SAMPLE_COMMISSION_ORDER_INTENTION:-A sleepy fox Shimeji with pastel accessories.}" "$sample_reference_url"
+  local lobster_token_id=0
+  local mushroom_token_id=1
+  local egg_token_id=2
 
-  echo "Seeded Fuji samples:"
-  echo "  Marketplace sale listing: listing #0, token #0"
-  echo "  Marketplace commission egg listing: listing #1, token #3"
-  echo "  Marketplace commission order: order #0 from listing #2, token #4"
-  echo "  Auction: auction #0, token #1"
-  echo "  Open swap listing: swap listing #0, token #2"
+  send_transaction "$rpc_url" "$private_key" "$auction_address" "createItemAuction(uint256,uint256,uint8,uint64)" "$lobster_token_id" "$lobster_auction_start_price_wei" 0 "$auction_duration_seconds"
+  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "createSwapListing(uint256,string)" "$mushroom_token_id" "${SHOWCASE_MUSHROOM_SWAP_INTENTION:-Looking to swap this Mushroom Shimeji for another rare animated companion.}"
+  send_transaction "$rpc_url" "$private_key" "$marketplace_address" "listCommissionEgg(uint256,uint256,uint8,uint64)" "$egg_token_id" "$egg_listing_price_wei" 0 "${SHOWCASE_EGG_COMMISSION_ETA_DAYS:-14}"
+
+  echo "Seeded showcase data:"
+  echo "  Marketplace Bunny edition listing: edition #0 with ${bunny_copies} copies (edition listing #0)"
+  echo "  Auction showcase: Lobster (token #${lobster_token_id}, auction #0)"
+  echo "  Swap showcase: Mushroom (token #${mushroom_token_id}, swap listing #0)"
+  echo "  Commission showcase: Egg (token #${egg_token_id}, listing #0)"
 }
 
 write_env_file() {
@@ -245,11 +282,12 @@ write_env_file() {
   local usdc_address="$5"
   local oracle_address="$6"
   local nft_address="$7"
-  local auction_address="$8"
-  local marketplace_address="$9"
-  local commission_address="${10}"
-  local escrow_address="${11}"
-  local deployer_address="${12}"
+  local editions_address="$8"
+  local auction_address="$9"
+  local marketplace_address="${10}"
+  local commission_address="${11}"
+  local escrow_address="${12}"
+  local deployer_address="${13}"
   mkdir -p "$DEPLOY_ENV_DIR"
   cat > "$DEPLOY_ENV_DIR/$network.env" <<ENVVARS
 NEXT_PUBLIC_NETWORK=$network
@@ -259,6 +297,7 @@ NEXT_PUBLIC_BLOCK_EXPLORER_URL=$explorer_url
 NEXT_PUBLIC_USDC_ADDRESS=$usdc_address
 NEXT_PUBLIC_AVAX_USD_ORACLE_ADDRESS=$oracle_address
 NEXT_PUBLIC_NFT_CONTRACT_ADDRESS=$nft_address
+NEXT_PUBLIC_EDITIONS_CONTRACT_ADDRESS=$editions_address
 NEXT_PUBLIC_AUCTION_CONTRACT_ADDRESS=$auction_address
 NEXT_PUBLIC_MARKETPLACE_CONTRACT_ADDRESS=$marketplace_address
 NEXT_PUBLIC_COMMISSION_CONTRACT_ADDRESS=$commission_address
@@ -316,11 +355,15 @@ if [ "$NETWORK" = "local" ]; then
   NFT_ADDRESS="$(printf '%s' "$NFT_JSON" | extract_address)"
   NFT_TX="$(printf '%s' "$NFT_JSON" | extract_tx_hash)"
 
+  EDITIONS_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiEditions.sol:ShimejiEditions --constructor-args "$DEPLOYER_ADDRESS")"
+  EDITIONS_ADDRESS="$(printf '%s' "$EDITIONS_JSON" | extract_address)"
+  EDITIONS_TX="$(printf '%s' "$EDITIONS_JSON" | extract_tx_hash)"
+
   AUCTION_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiAuction.sol:ShimejiAuction --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$MOCK_USDC_ADDRESS" "$ORACLE_ADDRESS")"
   AUCTION_ADDRESS="$(printf '%s' "$AUCTION_JSON" | extract_address)"
   AUCTION_TX="$(printf '%s' "$AUCTION_JSON" | extract_tx_hash)"
 
-  MARKETPLACE_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiMarketplace.sol:ShimejiMarketplace --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$MOCK_USDC_ADDRESS")"
+  MARKETPLACE_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiMarketplace.sol:ShimejiMarketplace --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$MOCK_USDC_ADDRESS")"
   MARKETPLACE_ADDRESS="$(printf '%s' "$MARKETPLACE_JSON" | extract_address)"
   MARKETPLACE_TX="$(printf '%s' "$MARKETPLACE_JSON" | extract_tx_hash)"
 
@@ -339,12 +382,17 @@ if [ "$NETWORK" = "local" ]; then
     cast send "$MOCK_USDC_ADDRESS" "mint(address,uint256)" "$account" 1000000000000 --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" >/dev/null
   done
 
-  write_env_file "$NETWORK" "$CHAIN_ID" "$RPC_URL" "$EXPLORER_URL" "$MOCK_USDC_ADDRESS" "$ORACLE_ADDRESS" "$NFT_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS" "$COMMISSION_ADDRESS" "$ESCROW_ADDRESS" "$DEPLOYER_ADDRESS"
+  if [ "${LOCAL_SEED_SHOWCASE_DATA:-1}" = "1" ]; then
+    seed_showcase_data "$RPC_URL" "$PRIVATE_KEY" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS"
+  fi
+
+  write_env_file "$NETWORK" "$CHAIN_ID" "$RPC_URL" "$EXPLORER_URL" "$MOCK_USDC_ADDRESS" "$ORACLE_ADDRESS" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS" "$COMMISSION_ADDRESS" "$ESCROW_ADDRESS" "$DEPLOYER_ADDRESS"
 
   print_deploy_summary "$RPC_URL" \
     "MockUSDC:      $MOCK_USDC_ADDRESS ($MOCK_USDC_TX)" \
     "Oracle:        $ORACLE_ADDRESS ($ORACLE_TX)" \
     "NFT:           $NFT_ADDRESS ($NFT_TX)" \
+    "Editions:      $EDITIONS_ADDRESS ($EDITIONS_TX)" \
     "Auction:       $AUCTION_ADDRESS ($AUCTION_TX)" \
     "Marketplace:   $MARKETPLACE_ADDRESS ($MARKETPLACE_TX)" \
     "Commission:    $COMMISSION_ADDRESS ($COMMISSION_TX)" \
@@ -391,11 +439,15 @@ NFT_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiNFT.sol:Shimeji
 NFT_ADDRESS="$(printf '%s' "$NFT_JSON" | extract_address)"
 NFT_TX="$(printf '%s' "$NFT_JSON" | extract_tx_hash)"
 
+EDITIONS_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiEditions.sol:ShimejiEditions --constructor-args "$DEPLOYER_ADDRESS")"
+EDITIONS_ADDRESS="$(printf '%s' "$EDITIONS_JSON" | extract_address)"
+EDITIONS_TX="$(printf '%s' "$EDITIONS_JSON" | extract_tx_hash)"
+
 AUCTION_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiAuction.sol:ShimejiAuction --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$USDC_ADDRESS" "$ORACLE_ADDRESS")"
 AUCTION_ADDRESS="$(printf '%s' "$AUCTION_JSON" | extract_address)"
 AUCTION_TX="$(printf '%s' "$AUCTION_JSON" | extract_tx_hash)"
 
-MARKETPLACE_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiMarketplace.sol:ShimejiMarketplace --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$USDC_ADDRESS")"
+MARKETPLACE_JSON="$(deploy_contract "$RPC_URL" "$PRIVATE_KEY" src/ShimejiMarketplace.sol:ShimejiMarketplace --constructor-args "$DEPLOYER_ADDRESS" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$USDC_ADDRESS")"
 MARKETPLACE_ADDRESS="$(printf '%s' "$MARKETPLACE_JSON" | extract_address)"
 MARKETPLACE_TX="$(printf '%s' "$MARKETPLACE_JSON" | extract_tx_hash)"
 
@@ -408,14 +460,15 @@ ESCROW_ADDRESS="$(printf '%s' "$ESCROW_JSON" | extract_address)"
 ESCROW_TX="$(printf '%s' "$ESCROW_JSON" | extract_tx_hash)"
 
 if [ "$NETWORK" = "fuji" ] && [ "${FUJI_SEED_SAMPLE_DATA:-1}" = "1" ]; then
-  seed_fuji_sample_data "$RPC_URL" "$PRIVATE_KEY" "$NFT_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS"
+  seed_showcase_data "$RPC_URL" "$PRIVATE_KEY" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS"
 fi
 
-write_env_file "$NETWORK" "$CHAIN_ID" "$RPC_URL" "$EXPLORER_URL" "$USDC_ADDRESS" "$ORACLE_ADDRESS" "$NFT_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS" "$COMMISSION_ADDRESS" "$ESCROW_ADDRESS" "$DEPLOYER_ADDRESS"
+write_env_file "$NETWORK" "$CHAIN_ID" "$RPC_URL" "$EXPLORER_URL" "$USDC_ADDRESS" "$ORACLE_ADDRESS" "$NFT_ADDRESS" "$EDITIONS_ADDRESS" "$AUCTION_ADDRESS" "$MARKETPLACE_ADDRESS" "$COMMISSION_ADDRESS" "$ESCROW_ADDRESS" "$DEPLOYER_ADDRESS"
 sync_vercel_envs_if_requested "$NETWORK" "$SYNC_VERCEL" "$VERCEL_ENVIRONMENT"
 
 print_deploy_summary "$RPC_URL" \
   "NFT:           $NFT_ADDRESS ($NFT_TX)" \
+  "Editions:      $EDITIONS_ADDRESS ($EDITIONS_TX)" \
   "Auction:       $AUCTION_ADDRESS ($AUCTION_TX)" \
   "Marketplace:   $MARKETPLACE_ADDRESS ($MARKETPLACE_TX)" \
   "Commission:    $COMMISSION_ADDRESS ($COMMISSION_TX)" \

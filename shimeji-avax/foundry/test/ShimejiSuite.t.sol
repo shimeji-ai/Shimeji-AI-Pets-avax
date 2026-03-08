@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {MockUSDC} from "../src/MockUSDC.sol";
 import {MockPriceOracle} from "../src/MockPriceOracle.sol";
 import {ShimejiNFT} from "../src/ShimejiNFT.sol";
+import {ShimejiEditions} from "../src/ShimejiEditions.sol";
 import {ShimejiAuction} from "../src/ShimejiAuction.sol";
 import {ShimejiMarketplace} from "../src/ShimejiMarketplace.sol";
 import {ShimejiCommission} from "../src/ShimejiCommission.sol";
@@ -19,6 +20,7 @@ contract ShimejiSuiteTest is Test {
     MockUSDC internal usdc;
     MockPriceOracle internal oracle;
     ShimejiNFT internal nft;
+    ShimejiEditions internal editions;
     ShimejiAuction internal auction;
     ShimejiMarketplace internal marketplace;
     ShimejiCommission internal commission;
@@ -34,8 +36,9 @@ contract ShimejiSuiteTest is Test {
         usdc = new MockUSDC(owner);
         oracle = new MockPriceOracle(owner, 2_500 * 1e8);
         nft = new ShimejiNFT(owner);
+        editions = new ShimejiEditions(owner);
         auction = new ShimejiAuction(owner, address(nft), address(usdc), address(oracle));
-        marketplace = new ShimejiMarketplace(owner, address(nft), address(usdc));
+        marketplace = new ShimejiMarketplace(owner, address(nft), address(editions), address(usdc));
         commission = new ShimejiCommission(owner, address(usdc));
         usdc.mint(buyer, 1_000_000 * 1e6);
         usdc.mint(bidder, 1_000_000 * 1e6);
@@ -74,6 +77,31 @@ contract ShimejiSuiteTest is Test {
         ShimejiMarketplace.ListingInfo memory listing = marketplace.getListing(listingId);
         assertEq(listing.seller, seller);
         assertFalse(listing.active);
+    }
+
+    function testMarketplaceEditionSaleWithUsdc() public {
+        vm.startPrank(owner);
+        uint256 editionId = editions.createEdition(seller, 100, "ipfs://bunny-edition", seller);
+        vm.stopPrank();
+
+        vm.startPrank(seller);
+        editions.setApprovalForAll(address(marketplace), true);
+        uint256 listingId = marketplace.listEditionForSale(editionId, 100, 15 * 1e6, ShimejiMarketplace.Currency.Usdc);
+        vm.stopPrank();
+
+        vm.startPrank(buyer);
+        usdc.approve(address(marketplace), type(uint256).max);
+        marketplace.buyEditionUsdc(listingId);
+        vm.stopPrank();
+
+        assertEq(editions.balanceOf(buyer, editionId), 1);
+        assertEq(editions.balanceOf(address(marketplace), editionId), 99);
+        assertEq(usdc.balanceOf(seller), 15 * 1e6);
+
+        ShimejiMarketplace.EditionListingInfo memory listing = marketplace.getEditionListing(listingId);
+        assertEq(listing.editionId, editionId);
+        assertEq(listing.remainingAmount, 99);
+        assertTrue(listing.active);
     }
 
     function testMarketplaceCommissionOrderLifecycle() public {

@@ -321,7 +321,14 @@ export function MarketplaceHubMarketplaceTab({
             const isAuction = item.saleKind === "auction";
             const isSwap = item.saleKind === "swap";
             const isCommissionEgg = item.assetKind === "commission_egg";
-            const itemDetailHref = item.tokenId !== null ? `/marketplace/shimeji/${item.tokenId}` : null;
+            const isEdition = item.tokenStandard === "ERC1155";
+            const itemDetailHref = isEdition
+              ? item.id.startsWith("edition_listing:")
+                ? `/marketplace/edition/${item.id.split(":")[1]}`
+                : null
+              : item.tokenId !== null
+                ? `/marketplace/shimeji/${item.tokenId}`
+                : null;
             const preview = item.tokenUri ? tokenPreviews[item.tokenUri] : null;
             const commissionPlaceholderImageUrl = isCommissionEgg
               ? (item.sellerProfile?.bannerUrl || item.sellerProfile?.avatarUrl || null)
@@ -330,7 +337,7 @@ export function MarketplaceHubMarketplaceTab({
             const title =
               preview?.name ||
               (item.tokenId !== null
-                ? `${isCommissionEgg ? t("Commission Egg", "Huevo de comision") : "Shimeji NFT"} #${item.tokenId}`
+                ? `${isCommissionEgg ? t("Commission Egg", "Huevo de comision") : isEdition ? t("Edition", "Edición") : "Shimeji NFT"} #${item.tokenId}`
                 : `${t("Auction", "Subasta")} #${item.auction?.auctionId ?? "?"}`);
             const sellerDisplayName = item.sellerProfile?.displayName
               ? item.sellerProfile.displayName
@@ -389,6 +396,11 @@ export function MarketplaceHubMarketplaceTab({
                       {saleTypeLabel}
                     </span>
                   </div>
+                  {isEdition && typeof item.quantityAvailable === "number" ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t("Copies available", "Copias disponibles")}: {item.quantityAvailable}
+                    </p>
+                  ) : null}
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-black/40 text-white">
                       {item.sellerProfile?.avatarUrl ? (

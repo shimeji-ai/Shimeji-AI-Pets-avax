@@ -155,7 +155,11 @@ function getNearestEdge(
   return distances[0].edge;
 }
 
-function buildSpriteSrc(characterKey: string, fileName: string) {
+function buildSpriteSrc(characterKey: string, fileName: string, spritesBaseUri?: string | null) {
+  const remoteBase = String(spritesBaseUri || "").trim();
+  if (remoteBase) {
+    return `${remoteBase.replace(/\/+$/, "")}/${encodeURIComponent(fileName)}`;
+  }
   return `/api/site-shimeji/sprite/${encodeURIComponent(characterKey)}/${encodeURIComponent(fileName)}`;
 }
 
@@ -289,34 +293,37 @@ export function SiteShimejiMascot() {
     };
   }, []);
 
+  const selectedCharacter = catalog?.characters.find((entry) => entry.key === config.character);
+  const selectedPersonality = catalog?.personalities.find((entry) => entry.key === config.personality);
+
   const frames = useMemo(
     () => ({
-      stand: buildSpriteSrc(config.character, "stand-neutral.png"),
+      stand: buildSpriteSrc(config.character, "stand-neutral.png", selectedCharacter?.spritesBaseUri),
       walk: [
-        buildSpriteSrc(config.character, "walk-step-left.png"),
-        buildSpriteSrc(config.character, "stand-neutral.png"),
-        buildSpriteSrc(config.character, "walk-step-right.png"),
-        buildSpriteSrc(config.character, "stand-neutral.png"),
+        buildSpriteSrc(config.character, "walk-step-left.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "stand-neutral.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "walk-step-right.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "stand-neutral.png", selectedCharacter?.spritesBaseUri),
       ],
       wallClimb: [
-        buildSpriteSrc(config.character, "grab-wall.png"),
-        buildSpriteSrc(config.character, "climb-wall-frame-1.png"),
-        buildSpriteSrc(config.character, "grab-wall.png"),
-        buildSpriteSrc(config.character, "climb-wall-frame-2.png"),
+        buildSpriteSrc(config.character, "grab-wall.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "climb-wall-frame-1.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "grab-wall.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "climb-wall-frame-2.png", selectedCharacter?.spritesBaseUri),
       ],
       ceilingWalk: [
-        buildSpriteSrc(config.character, "grab-ceiling.png"),
-        buildSpriteSrc(config.character, "climb-ceiling-frame-1.png"),
-        buildSpriteSrc(config.character, "grab-ceiling.png"),
-        buildSpriteSrc(config.character, "climb-ceiling-frame-2.png"),
+        buildSpriteSrc(config.character, "grab-ceiling.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "climb-ceiling-frame-1.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "grab-ceiling.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "climb-ceiling-frame-2.png", selectedCharacter?.spritesBaseUri),
       ],
       usingComputer: [
-        buildSpriteSrc(config.character, "sit-pc-edge-legs-down.png"),
-        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-1.png"),
-        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-2.png"),
+        buildSpriteSrc(config.character, "sit-pc-edge-legs-down.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-1.png", selectedCharacter?.spritesBaseUri),
+        buildSpriteSrc(config.character, "sit-pc-edge-dangle-frame-2.png", selectedCharacter?.spritesBaseUri),
       ],
     }),
-    [config.character],
+    [config.character, selectedCharacter?.spritesBaseUri],
   );
 
   const triggerJumpBurst = () => {
@@ -683,8 +690,6 @@ export function SiteShimejiMascot() {
     }
   }, [config.enabled]);
 
-  const selectedCharacter = catalog?.characters.find((entry) => entry.key === config.character);
-  const selectedPersonality = catalog?.personalities.find((entry) => entry.key === config.personality);
   const providerLabel =
     config.provider === "site"
       ? isSpanish

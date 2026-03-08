@@ -12,7 +12,7 @@ export interface AuctionInfo {
   startingPrice: bigint;
   currency: "Avax" | "Usdc";
   finalized: boolean;
-  escrowProvider: "Internal" | "TrustlessWork" | string | null;
+  escrowProvider: "Internal" | string | null;
   escrowSettled: boolean;
 }
 
@@ -32,8 +32,8 @@ function mapCurrency(value: number | bigint): "Avax" | "Usdc" {
   return Number(value) === 1 ? "Usdc" : "Avax";
 }
 
-function mapEscrowProvider(value: number | bigint): "Internal" | "TrustlessWork" {
-  return Number(value) === 1 ? "TrustlessWork" : "Internal";
+function mapEscrowProvider(_value: number | bigint): "Internal" {
+  return "Internal";
 }
 
 function mapAuctionInfo(raw: any): AuctionInfo {

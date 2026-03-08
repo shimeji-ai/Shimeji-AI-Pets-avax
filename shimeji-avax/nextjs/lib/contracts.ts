@@ -8,6 +8,7 @@ function envTrim(value: unknown): string {
 }
 
 export const NFT_CONTRACT_ADDRESS = envTrim(process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS);
+export const EDITIONS_CONTRACT_ADDRESS = envTrim(process.env.NEXT_PUBLIC_EDITIONS_CONTRACT_ADDRESS);
 export const AUCTION_CONTRACT_ADDRESS = envTrim(process.env.NEXT_PUBLIC_AUCTION_CONTRACT_ADDRESS);
 export const MARKETPLACE_CONTRACT_ADDRESS = envTrim(process.env.NEXT_PUBLIC_MARKETPLACE_CONTRACT_ADDRESS);
 export const COMMISSION_CONTRACT_ADDRESS = envTrim(process.env.NEXT_PUBLIC_COMMISSION_CONTRACT_ADDRESS);
@@ -179,6 +180,67 @@ export const nftAbi = [
   },
 ] as const satisfies Abi;
 
+export const editionsAbi = [
+  {
+    type: "function",
+    name: "totalEditions",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "uri",
+    stateMutability: "view",
+    inputs: [{ name: "editionId", type: "uint256" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "account", type: "address" },
+      { name: "editionId", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "totalSupplyOf",
+    stateMutability: "view",
+    inputs: [{ name: "editionId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "creatorOf",
+    stateMutability: "view",
+    inputs: [{ name: "editionId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "setApprovalForAll",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "operator", type: "address" },
+      { name: "approved", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "isApprovedForAll",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "operator", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const satisfies Abi;
+
 export const auctionAbi = [
   {
     type: "function",
@@ -273,6 +335,7 @@ export const auctionAbi = [
 
 export const marketplaceAbi = [
   { type: "function", name: "totalListings", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "totalEditionListings", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "totalSwapListings", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "totalSwapBids", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "totalCommissionOrders", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
@@ -284,6 +347,15 @@ export const marketplaceAbi = [
       { name: "currency", type: "uint8" },
       { name: "commissionEtaDays", type: "uint64" },
       { name: "isCommissionEgg", type: "bool" },
+      { name: "active", type: "bool" }
+    ]}] },
+  {
+    type: "function", name: "getEditionListing", stateMutability: "view", inputs: [{ name: "listingId", type: "uint256" }], outputs: [{ name: "listing", type: "tuple", components: [
+      { name: "seller", type: "address" },
+      { name: "editionId", type: "uint256" },
+      { name: "remainingAmount", type: "uint256" },
+      { name: "price", type: "uint256" },
+      { name: "currency", type: "uint8" },
       { name: "active", type: "bool" }
     ]}] },
   {
@@ -327,12 +399,16 @@ export const marketplaceAbi = [
       { name: "resolvedAt", type: "uint64" }
     ]}] },
   { type: "function", name: "listForSale", stateMutability: "nonpayable", inputs: [{ name: "tokenId", type: "uint256" }, { name: "price", type: "uint256" }, { name: "currency", type: "uint8" }], outputs: [{ name: "", type: "uint256" }] },
+  { type: "function", name: "listEditionForSale", stateMutability: "nonpayable", inputs: [{ name: "editionId", type: "uint256" }, { name: "amount", type: "uint256" }, { name: "price", type: "uint256" }, { name: "currency", type: "uint8" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "listCommissionEgg", stateMutability: "nonpayable", inputs: [{ name: "tokenId", type: "uint256" }, { name: "price", type: "uint256" }, { name: "currency", type: "uint8" }, { name: "commissionEtaDays", type: "uint64" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "buyAvax", stateMutability: "payable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
   { type: "function", name: "buyUsdc", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
+  { type: "function", name: "buyEditionAvax", stateMutability: "payable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
+  { type: "function", name: "buyEditionUsdc", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
   { type: "function", name: "buyCommissionAvax", stateMutability: "payable", inputs: [{ name: "listingId", type: "uint256" }, { name: "intention", type: "string" }, { name: "referenceImageUrl", type: "string" }], outputs: [] },
   { type: "function", name: "buyCommissionUsdc", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }, { name: "intention", type: "string" }, { name: "referenceImageUrl", type: "string" }], outputs: [] },
   { type: "function", name: "cancelListing", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
+  { type: "function", name: "cancelEditionListing", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }], outputs: [] },
   { type: "function", name: "createSwapListing", stateMutability: "nonpayable", inputs: [{ name: "offeredTokenId", type: "uint256" }, { name: "intention", type: "string" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "placeSwapBid", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }, { name: "bidderTokenId", type: "uint256" }], outputs: [{ name: "", type: "uint256" }] },
   { type: "function", name: "acceptSwapBid", stateMutability: "nonpayable", inputs: [{ name: "listingId", type: "uint256" }, { name: "bidId", type: "uint256" }], outputs: [] },
@@ -376,6 +452,7 @@ export const erc20Abi = [
 
 export function getAbiForContract(contract: ContractKey): Abi {
   if (contract === "nft") return nftAbi;
+  if (contract === "editions") return editionsAbi;
   if (contract === "auction") return auctionAbi;
   if (contract === "marketplace") return marketplaceAbi;
   return commissionAbi;
@@ -385,7 +462,9 @@ export function getAddressForContract(contract: ContractKey): Address {
   const raw =
     contract === "nft"
       ? NFT_CONTRACT_ADDRESS
-      : contract === "auction"
+      : contract === "editions"
+        ? EDITIONS_CONTRACT_ADDRESS
+        : contract === "auction"
         ? AUCTION_CONTRACT_ADDRESS
         : contract === "marketplace"
           ? MARKETPLACE_CONTRACT_ADDRESS
@@ -410,4 +489,8 @@ export function getCommissionContract() {
 
 export function getNftContract() {
   return { address: getAddressForContract("nft"), abi: nftAbi };
+}
+
+export function getEditionsContract() {
+  return { address: getAddressForContract("editions"), abi: editionsAbi };
 }

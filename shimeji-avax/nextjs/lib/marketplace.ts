@@ -13,6 +13,16 @@ export interface ListingInfo {
   active: boolean;
 }
 
+export interface EditionListingInfo {
+  listingId: number;
+  seller: string;
+  editionId: number;
+  remainingAmount: number;
+  price: bigint;
+  currency: "Avax" | "Usdc";
+  active: boolean;
+}
+
 export interface SwapListing {
   listingId: number;
   creator: string;
@@ -83,6 +93,27 @@ export async function fetchListings(): Promise<ListingInfo[]> {
       currency: mapCurrency(data.currency),
       commissionEtaDays: Number(data.commissionEtaDays),
       isCommissionEgg: Boolean(data.isCommissionEgg),
+      active: Boolean(data.active),
+    });
+  }
+  return listings;
+}
+
+export async function fetchEditionListings(): Promise<EditionListingInfo[]> {
+  const client = getPublicClient();
+  const contract = getMarketplaceContract();
+  const total = Number(await client.readContract({ ...contract, functionName: "totalEditionListings" }));
+  const listings: EditionListingInfo[] = [];
+  for (let i = 0; i < total; i += 1) {
+    const data: any = await client.readContract({ ...contract, functionName: "getEditionListing", args: [BigInt(i)] });
+    if (!data.active || Number(data.remainingAmount) <= 0) continue;
+    listings.push({
+      listingId: i,
+      seller: getAddress(data.seller),
+      editionId: Number(data.editionId),
+      remainingAmount: Number(data.remainingAmount),
+      price: BigInt(data.price),
+      currency: mapCurrency(data.currency),
       active: Boolean(data.active),
     });
   }
@@ -168,6 +199,15 @@ export async function buildListForSaleTx(_sellerPublicKey: string, tokenId: numb
   return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "listForSale", args: [BigInt(tokenId).toString(), price.toString(), currency === "Usdc" ? 1 : 0] });
 }
 
+export async function buildListEditionForSaleTx(_sellerPublicKey: string, editionId: number, amount: number, price: bigint, currency: "Avax" | "Usdc") {
+  return encodeTxRequest({
+    kind: "contract",
+    contract: "marketplace",
+    functionName: "listEditionForSale",
+    args: [BigInt(editionId).toString(), BigInt(amount).toString(), price.toString(), currency === "Usdc" ? 1 : 0],
+  });
+}
+
 export async function buildListCommissionEggTx(_sellerPublicKey: string, tokenId: number, price: bigint, currency: "Avax" | "Usdc", commissionEtaDays: number) {
   return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "listCommissionEgg", args: [BigInt(tokenId).toString(), price.toString(), currency === "Usdc" ? 1 : 0, commissionEtaDays] });
 }
@@ -191,6 +231,18 @@ export async function buildBuyCommissionAvaxTx(_buyerPublicKey: string, listingI
 
 export async function buildBuyUsdcTx(_buyerPublicKey: string, listingId: number) {
   return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "buyUsdc", args: [BigInt(listingId).toString()] });
+}
+
+export async function buildBuyEditionAvaxTx(_buyerPublicKey: string, listingId: number) {
+  const client = getPublicClient();
+  const contract = getMarketplaceContract();
+  const listing: any = await client.readContract({ ...contract, functionName: "getEditionListing", args: [BigInt(listingId)] });
+  const price = BigInt(listing.price ?? 0n);
+  return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "buyEditionAvax", args: [BigInt(listingId).toString()], value: price.toString() });
+}
+
+export async function buildBuyEditionUsdcTx(_buyerPublicKey: string, listingId: number) {
+  return encodeTxRequest({ kind: "contract", contract: "marketplace", functionName: "buyEditionUsdc", args: [BigInt(listingId).toString()] });
 }
 
 export async function buildBuyCommissionUsdcTx(_buyerPublicKey: string, listingId: number, intention: string, referenceImageUrl: string) {

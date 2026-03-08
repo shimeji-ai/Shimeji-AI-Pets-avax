@@ -1,4 +1,4 @@
-export type ContractKey = "nft" | "auction" | "marketplace" | "commission";
+export type ContractKey = "nft" | "editions" | "auction" | "marketplace" | "commission";
 
 export type ContractTxRequest = {
   kind: "contract";

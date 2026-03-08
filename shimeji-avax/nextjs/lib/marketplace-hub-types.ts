@@ -54,6 +54,8 @@ export type MarketplaceFeedItem = {
   status: "active" | "ended" | "sold" | "cancelled";
   tokenId: number | null;
   tokenUri: string | null;
+  tokenStandard?: "ERC721" | "ERC1155" | null;
+  quantityAvailable?: number | null;
   sellerWallet: string | null;
   sellerProfile: ArtistProfile | null;
   /** Primary display price (formatted units string). */
