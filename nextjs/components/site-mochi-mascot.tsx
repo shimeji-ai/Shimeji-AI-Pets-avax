@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./site-mochi-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
@@ -164,6 +165,7 @@ function buildSpriteSrc(characterKey: string, fileName: string, spritesBaseUri?:
 }
 
 export function SiteMochiMascot() {
+  const router = useRouter();
   const { isSpanish, language } = useLanguage();
   const {
     config,
@@ -1605,8 +1607,8 @@ export function SiteMochiMascot() {
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  console.log("Settings button clicked, openConfig:", openConfig);
-                  openConfig();
+                  setOpen(false);
+                  router.push("/settings");
                 }}
                 title={isSpanish ? "Abrir configuración del mochi" : "Open mochi settings"}
                 aria-label={isSpanish ? "Abrir configuración" : "Open settings"}
