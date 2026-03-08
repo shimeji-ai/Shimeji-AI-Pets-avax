@@ -2,20 +2,15 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REPO="${GITHUB_REPOSITORY:-luloxi/Mochi}"
+REPO="${GITHUB_REPOSITORY:-shimeji-ai/Mochi}"
 TAG="${1:-desktop-assets-$(date +%Y%m%d-%H%M%S)}"
 TITLE="${2:-Desktop assets ${TAG}}"
 
-WIN_ASSET="${ROOT_DIR}/desktop/dist/Mochi-Desktop-Portable-0.1.0.exe"
-LINUX_ASSET_DASH="${ROOT_DIR}/desktop/dist/Mochi Desktop-0.1.0.AppImage"
-LINUX_ASSET_DOT="${ROOT_DIR}/desktop/dist/Mochi.Desktop-0.1.0.AppImage"
-MAC_ASSET_X64="${ROOT_DIR}/desktop/dist/Mochi Desktop-0.1.0-mac.zip"
-MAC_ASSET_ARM64="${ROOT_DIR}/desktop/dist/Mochi Desktop-0.1.0-arm64-mac.zip"
-MAC_ASSET_UNIVERSAL="${ROOT_DIR}/desktop/dist/Mochi Desktop-0.1.0-mac-universal.zip"
+DESKTOP_DIST_DIR="${ROOT_DIR}/desktop/dist"
 EXT_SOURCE_DIR="${ROOT_DIR}/chrome-extension"
 FF_EXT_SOURCE_DIR="${ROOT_DIR}/firefox-extension"
 TEMP_DIR="$(mktemp -d)"
-WIN_CANONICAL="${TEMP_DIR}/mochi-desktop-windows-portable.exe"
+WIN_CANONICAL="${TEMP_DIR}/mochi-desktop-windows.zip"
 LINUX_CANONICAL="${TEMP_DIR}/mochi-desktop-linux.AppImage"
 MAC_CANONICAL="${TEMP_DIR}/mochi-desktop-macos.zip"
 EXT_ZIP="${TEMP_DIR}/mochi-chrome-extension.zip"
@@ -28,30 +23,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ -f "$LINUX_ASSET_DASH" ]]; then
-  LINUX_ASSET="$LINUX_ASSET_DASH"
-elif [[ -f "$LINUX_ASSET_DOT" ]]; then
-  LINUX_ASSET="$LINUX_ASSET_DOT"
-else
-  LINUX_ASSET=""
+find_first_match() {
+  local pattern="$1"
+  find "$DESKTOP_DIST_DIR" -maxdepth 1 -type f -iname "$pattern" | sort | head -n 1
+}
+
+WIN_ASSET="$(find_first_match 'Mochi-Desktop-Portable-*.exe')"
+WIN_UNPACKED_DIR="${DESKTOP_DIST_DIR}/win-unpacked"
+LINUX_ASSET="$(find_first_match 'Mochi-Desktop-*.AppImage')"
+MAC_ASSET="$(find_first_match 'Mochi-Desktop-*-universal.zip')"
+
+if [[ -z "$MAC_ASSET" ]]; then
+  MAC_ASSET="$(find_first_match 'Mochi-Desktop-*-arm64.zip')"
 fi
 
-if [[ -f "$MAC_ASSET_UNIVERSAL" ]]; then
-  MAC_ASSET="$MAC_ASSET_UNIVERSAL"
-elif [[ -f "$MAC_ASSET_ARM64" ]]; then
-  MAC_ASSET="$MAC_ASSET_ARM64"
-elif [[ -f "$MAC_ASSET_X64" ]]; then
-  MAC_ASSET="$MAC_ASSET_X64"
-else
-  MAC_ASSET=""
+if [[ -z "$MAC_ASSET" ]]; then
+  MAC_ASSET="$(find_first_match 'Mochi-Desktop-*-x64.zip')"
 fi
 
-for file in "$WIN_ASSET" "$LINUX_ASSET"; do
-  if [[ ! -f "$file" ]]; then
-    echo "Missing asset: $file" >&2
+for required_name in LINUX_ASSET; do
+  if [[ -z "${!required_name}" ]] || [[ ! -f "${!required_name}" ]]; then
+    echo "Missing required asset in ${DESKTOP_DIST_DIR}: ${required_name}" >&2
     exit 1
   fi
 done
+
+if [[ ! -f "$WIN_ASSET" ]] && [[ ! -d "$WIN_UNPACKED_DIR" ]]; then
+  echo "Missing required Windows asset in ${DESKTOP_DIST_DIR}: portable exe or win-unpacked/" >&2
+  exit 1
+fi
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "GitHub CLI (gh) is required. Install it and run 'gh auth login' first." >&2
@@ -94,13 +94,27 @@ rm -f "$FF_EXT_ZIP"
   zip -rq "$FF_EXT_ZIP" . -x ".git/*" "node_modules/*"
 )
 
-cp -f "$WIN_ASSET" "$WIN_CANONICAL"
+if [[ -d "$WIN_UNPACKED_DIR" ]]; then
+  rm -f "$WIN_CANONICAL"
+  (
+    cd "$WIN_UNPACKED_DIR"
+    zip -rq "$WIN_CANONICAL" .
+  )
+elif [[ -f "$WIN_ASSET" ]]; then
+  cp -f "$WIN_ASSET" "$WIN_CANONICAL"
+fi
+
 cp -f "$LINUX_ASSET" "$LINUX_CANONICAL"
 if [[ -n "$MAC_ASSET" ]]; then
   cp -f "$MAC_ASSET" "$MAC_CANONICAL"
 fi
-cp -f "$EXT_ZIP" "$EXT_CANONICAL"
-cp -f "$FF_EXT_ZIP" "$FF_EXT_CANONICAL"
+if [[ "$EXT_ZIP" != "$EXT_CANONICAL" ]]; then
+  cp -f "$EXT_ZIP" "$EXT_CANONICAL"
+fi
+
+if [[ "$FF_EXT_ZIP" != "$FF_EXT_CANONICAL" ]]; then
+  cp -f "$FF_EXT_ZIP" "$FF_EXT_CANONICAL"
+fi
 
 if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
   gh release create "$TAG" -R "$REPO" --title "$TITLE" --notes "Automated desktop asset upload."
@@ -123,7 +137,7 @@ fi
 gh release upload "${UPLOAD_ARGS[@]}"
 
 echo "Uploaded assets to release ${TAG}"
-echo "Windows: https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-windows-portable.exe"
+echo "Windows: https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-windows.zip"
 echo "Linux:   https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-linux.AppImage"
 if [[ -n "$MAC_ASSET" ]]; then
   echo "macOS:   https://github.com/${REPO}/releases/download/${TAG}/mochi-desktop-macos.zip"

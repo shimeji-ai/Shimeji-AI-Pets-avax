@@ -5,11 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
 const WIN_RELEASE_URL =
-  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-windows-portable.exe";
+  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-windows.zip";
 const LINUX_RELEASE_URL =
   "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-linux.AppImage";
-const MAC_RELEASE_URL =
-  "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-desktop-macos.zip";
 const CHROME_RELEASE_URL =
   "https://github.com/shimeji-ai/Mochi/releases/latest/download/mochi-chrome-extension.zip";
 const FIREFOX_RELEASE_URL =
@@ -81,8 +79,8 @@ export function DownloadSection() {
                 </p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Versión portable en .zip (sin instalador). Descargá, descomprimí y ejecutá Mochi Desktop.exe. Si Windows pregunta por seguridad, permite la ejecución."
-                    : "Portable .zip build (no installer needed). Download, extract, and run Mochi Desktop.exe. If Windows shows a security prompt, allow execution."}
+                    ? "Versión portable en .zip. Descargá, descomprimí y ejecutá `Mochi Desktop.exe`. Si Windows pregunta por seguridad, permite la ejecución."
+                    : "Portable .zip build with no installer required. Download, extract, and run `Mochi Desktop.exe`. If Windows shows a security prompt, allow execution."}
                 </div>
                 <div className="mt-3">
                   <Button asChild className="neural-button w-full">
@@ -96,14 +94,12 @@ export function DownloadSection() {
                 <p className="mb-2 text-muted-foreground font-medium">{isSpanish ? "macOS" : "macOS"}</p>
                 <div className="text-sm text-muted-foreground">
                   {isSpanish
-                    ? "Build macOS en formato .zip. Descargá, descomprimí y abrí la app. Si Gatekeeper bloquea la app, permitila desde Configuración > Privacidad y seguridad."
-                    : "macOS build in .zip format. Download, extract, and open the app. If Gatekeeper blocks it, allow it from Settings > Privacy & Security."}
+                    ? "La descarga para macOS todavía no está publicada desde este pipeline. Cuando haya un artefacto firmado y probado, aparecerá acá."
+                    : "The macOS download is not published from this pipeline yet. It will appear here once a tested macOS artifact is available."}
                 </div>
                 <div className="mt-3">
-                  <Button asChild className="neural-button w-full">
-                    <a href={MAC_RELEASE_URL} target="_blank" rel="noopener noreferrer">
-                      {isSpanish ? "Descargar macOS (.zip)" : "Download macOS (.zip)"}
-                    </a>
+                  <Button className="neural-button w-full" disabled>
+                    {isSpanish ? "macOS (próximamente)" : "macOS (coming soon)"}
                   </Button>
                 </div>
               </div>
