@@ -35,6 +35,14 @@ const sections: GuideSection[] = [
     frames: PREVIEW_ANIMATION_SETS.jump,
   },
   {
+    key: "drag",
+    title: "Arrastre y resistencia",
+    description: "tilt-left / tilt-right + resist-frame-1 / resist-frame-2",
+    explanation:
+      "Cuando arrastrás al shimeji, primero cambia a inclinaciones suaves o fuertes según la dirección y la tensión del drag. Si se estira o resiste, alterna entre resist-frame-1 y resist-frame-2.",
+    frames: PREVIEW_ANIMATION_SETS.drag,
+  },
+  {
     key: "wall-ceiling",
     title: "Pared y techo",
     description: "grab-wall / climb-wall y grab-ceiling / climb-ceiling",
@@ -73,8 +81,8 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
   const activeFrame = frames[frameIndex] || frames[0];
 
   return (
-    <div className="rounded-[1.5rem] border border-cyan-300/15 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.16),transparent_58%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015))] p-5">
-      <div className="flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/10 bg-black/25 p-5">
+    <div className="rounded-[1.5rem] border border-cyan-300/20 bg-[radial-gradient(circle_at_top,rgba(103,232,249,0.18),transparent_58%),linear-gradient(180deg,rgba(4,10,20,0.9),rgba(12,18,32,0.82))] p-5">
+      <div className="flex min-h-[230px] items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/12 bg-[#07111f] p-5">
         <img
           src={animationReferenceSpriteUrl(activeFrame)}
           alt={`${title} - ${activeFrame}`}
@@ -88,7 +96,7 @@ function FrameLoop({ frames, title }: { frames: string[]; title: string }) {
             className={`rounded-full border px-2.5 py-1 text-[10px] ${
               frame === activeFrame
                 ? "border-cyan-300/30 bg-cyan-400/20 text-foreground"
-                : "border-white/10 bg-white/5 text-muted-foreground"
+                : "border-white/12 bg-white/5 text-foreground/80"
             }`}
           >
             {frame}
@@ -111,7 +119,7 @@ export function AnimationGuideView() {
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
               Guia visual de animacion
             </h1>
-            <p className="mt-4 text-sm leading-7 text-muted-foreground sm:text-base">
+            <p className="mt-4 text-sm leading-7 text-foreground/80 sm:text-base">
               Esta guía muestra los sprites reales, explica para qué sirve cada secuencia y reproduce un loop simple para que puedas validar el ritmo visual antes de mintear.
             </p>
           </div>
@@ -144,17 +152,17 @@ export function AnimationGuideView() {
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="neural-card rounded-3xl border border-fuchsia-300/15 p-6">
           <h2 className="text-2xl font-semibold text-foreground">Como funciona</h2>
-          <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mt-4 space-y-3 text-sm text-foreground/80">
+            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
               1. Cargás portada y carpeta de sprites en local.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
               2. Revisás el preview del personaje y el checklist de frames requeridos.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
               3. Si falta un sprite, no se sube nada y seguís corrigiendo en local.
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div className="rounded-2xl border border-white/12 bg-[#0a1322] p-4">
               4. Cuando el set está completo, podés mintear y después publicar o subastar con el flujo actual.
             </div>
           </div>
@@ -162,7 +170,7 @@ export function AnimationGuideView() {
 
         <div className="neural-card rounded-3xl border border-cyan-300/15 p-6">
           <h2 className="text-2xl font-semibold text-foreground">Pack descargable</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-foreground/80">
             Bajá el ZIP con los nombres correctos y usalo como base para armar tu personaje. El creador valida ese pack antes de habilitar IPFS y mint.
           </p>
           <div className="mt-6">
@@ -183,16 +191,16 @@ export function AnimationGuideView() {
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
               <div>
                 <h2 className="text-2xl font-semibold text-foreground">{section.title}</h2>
-                <p className="mt-2 text-sm font-medium text-cyan-100/80">{section.description}</p>
-                <p className="mt-4 text-sm leading-7 text-muted-foreground">{section.explanation}</p>
+                <p className="mt-2 text-sm font-medium text-cyan-100">{section.description}</p>
+                <p className="mt-4 text-sm leading-7 text-foreground/80">{section.explanation}</p>
               </div>
               <FrameLoop frames={section.frames} title={section.title} />
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {section.frames.map((frame, index) => (
-                <div key={`${section.key}-${frame}-${index}`} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="flex aspect-square items-center justify-center rounded-xl border border-white/10 bg-white/5 p-3">
+                <div key={`${section.key}-${frame}-${index}`} className="rounded-2xl border border-white/12 bg-[#0a1322] p-3">
+                  <div className="flex aspect-square items-center justify-center rounded-xl border border-white/12 bg-white/5 p-3">
                     <img
                       src={animationReferenceSpriteUrl(frame)}
                       alt={frame}
@@ -200,7 +208,7 @@ export function AnimationGuideView() {
                       loading="lazy"
                     />
                   </div>
-                  <p className="mt-2 break-all text-[11px] text-foreground/90">{frame}</p>
+                  <p className="mt-2 break-all text-[11px] text-foreground">{frame}</p>
                 </div>
               ))}
             </div>
@@ -208,7 +216,7 @@ export function AnimationGuideView() {
         ))}
       </div>
 
-      <div className="neural-card rounded-3xl border border-amber-300/15 p-6 text-sm text-muted-foreground">
+      <div className="neural-card rounded-3xl border border-amber-300/15 p-6 text-sm text-foreground/80">
         Mantener mismo canvas, misma baseline y fondo transparente sigue siendo obligatorio para evitar jitter entre frames.
       </div>
     </div>

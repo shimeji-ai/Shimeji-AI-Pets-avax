@@ -56,6 +56,14 @@ export const PREVIEW_ANIMATION_SETS = {
     "bounce-recover.png",
     "stand-neutral.png",
   ],
+  drag: [
+    "dragged-tilt-left-light.png",
+    "dragged-tilt-left-heavy.png",
+    "resist-frame-1.png",
+    "resist-frame-2.png",
+    "dragged-tilt-right-light.png",
+    "dragged-tilt-right-heavy.png",
+  ],
   wall: [
     "grab-wall.png",
     "climb-wall-frame-1.png",

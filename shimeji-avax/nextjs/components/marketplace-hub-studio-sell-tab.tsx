@@ -83,6 +83,25 @@ function buildSpritePreviewMap(files: File[]) {
   return previewMap;
 }
 
+function mergeSpriteFiles(existing: File[], incoming: File[]) {
+  const byName = new Map<string, File>();
+  for (const file of existing) {
+    const fileName = normalizeSpriteFileName(spriteRelativePath(file) || file.name);
+    if (!fileName) continue;
+    byName.set(fileName, file);
+  }
+  for (const file of incoming) {
+    const fileName = normalizeSpriteFileName(spriteRelativePath(file) || file.name);
+    if (!fileName) continue;
+    byName.set(fileName, file);
+  }
+  return Array.from(byName.values()).sort((a, b) => {
+    const aName = normalizeSpriteFileName(spriteRelativePath(a) || a.name);
+    const bName = normalizeSpriteFileName(spriteRelativePath(b) || b.name);
+    return aName.localeCompare(bName);
+  });
+}
+
 export function MarketplaceHubStudioSellTab({
   t,
   studio,
@@ -242,8 +261,8 @@ export function MarketplaceHubStudioSellTab({
     if (mintSpriteFiles.length === 0) {
       setMintFormError(
         t(
-          "Sprite folder is required for animated Shimeji NFTs.",
-          "La carpeta de sprites es obligatoria para NFTs Shimeji animados.",
+          "Sprite files are required for animated Shimeji NFTs.",
+          "Los archivos de sprites son obligatorios para NFTs Shimeji animados.",
         ),
       );
       return;
@@ -479,12 +498,12 @@ export function MarketplaceHubStudioSellTab({
 
                 <div>
                   <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                    {t("Sprite Folder (Required)", "Carpeta de sprites (Obligatoria)")}
+                    {t("Sprites (folder or individual files)", "Sprites (carpeta o archivos individuales)")}
                   </label>
                   <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-border bg-white/5 px-3 py-2 text-xs text-muted-foreground hover:bg-white/10">
                     <span className="inline-flex items-center gap-2">
                       <Upload className="h-4 w-4" />
-                      {t("Choose folder", "Elegir carpeta")}
+                      {t("Import sprite folder", "Importar carpeta de sprites")}
                     </span>
                     <input
                       ref={spriteFolderInputRef}
@@ -492,7 +511,7 @@ export function MarketplaceHubStudioSellTab({
                       multiple
                       className="hidden"
                       onChange={(event) => {
-                        setMintSpriteFiles(Array.from(event.target.files || []));
+                        setMintSpriteFiles((current) => mergeSpriteFiles(current, Array.from(event.target.files || [])));
                       }}
                     />
                   </label>
@@ -504,6 +523,56 @@ export function MarketplaceHubStudioSellTab({
                           "Todo queda local mientras editás. Los archivos se suben solo cuando minteás.",
                         )}
                   </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-white/5 p-3">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-semibold text-foreground">
+                      {t("Upload each sprite manually", "Subí cada sprite manualmente")}
+                    </h4>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t(
+                        "Useful if you are building the character step by step. Each file stays local until mint.",
+                        "Útil si estás armando el personaje paso a paso. Cada archivo queda local hasta el mint.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {REQUIRED_SHIMEJI_SPRITES.map((fileName) => {
+                    const present = Boolean(mintSpritePreviewMap[fileName]);
+                    return (
+                      <label
+                        key={`manual-upload-${fileName}`}
+                        className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-[11px] transition ${
+                          present
+                            ? "border-emerald-300/25 bg-emerald-400/10 text-foreground"
+                            : "border-white/10 bg-black/20 text-muted-foreground hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{fileName}</span>
+                        <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-1">
+                          {present ? t("Replace", "Reemplazar") : t("Upload", "Subir")}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0];
+                            if (!selected) return;
+                            const renamed = new File([selected], fileName, {
+                              type: selected.type,
+                              lastModified: selected.lastModified,
+                            });
+                            setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
