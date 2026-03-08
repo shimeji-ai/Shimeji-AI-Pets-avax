@@ -27,12 +27,12 @@ const features = [
       "Hacé preguntas, conseguí respuestas y conversá en profundidad — con tu propio OpenRouter u Ollama.",
   },
   {
-    titleEn: "Autonomous agent mode",
-    titleEs: "Modo agente autónomo",
+    titleEn: "Onchain-native AI brain",
+    titleEs: "Cerebro AI nativo onchain",
     descriptionEn:
-      "Delegate real tasks: browse pages, interact with web tools, and execute onchain actions through OpenClaw.",
+      "Bitte AI is a provider that reasons about wallets, tokens, and transactions — ask your Shimeji to swap, check balances, or call contracts. Agent mode via OpenClaw goes even further with full tool access.",
     descriptionEs:
-      "Delegá tareas reales: navegar páginas, interactuar con herramientas web y ejecutar acciones onchain via OpenClaw.",
+      "Bitte AI es un proveedor que razona sobre wallets, tokens y transacciones — pedile a tu Shimeji que haga swaps, consulte balances o llame contratos. El modo agente via OpenClaw va aún más lejos con acceso completo a herramientas.",
   },
   {
     titleEn: "Built for vibecoding",
