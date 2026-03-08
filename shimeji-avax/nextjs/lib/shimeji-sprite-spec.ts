@@ -1,5 +1,6 @@
 export const ANIMATION_GUIDE_PATH = "/animation-guide";
-export const CHARACTER_CREATOR_PATH = "/marketplace#create-character-app";
+export const CHARACTER_CREATOR_PATH = "/character-creator";
+export const REQUIRED_SPRITES_ZIP_PATH = "/downloads/shimeji-runtime-required.zip";
 
 export const REQUIRED_SHIMEJI_SPRITES = [
   "stand-neutral.png",
@@ -29,6 +30,9 @@ export const REQUIRED_SHIMEJI_SPRITES = [
   "sit-edge-legs-down.png",
   "sit-edge-dangle-frame-1.png",
   "sit-edge-dangle-frame-2.png",
+  "sit-pc-edge-legs-down.png",
+  "sit-pc-edge-dangle-frame-1.png",
+  "sit-pc-edge-dangle-frame-2.png",
   "spin-head-frame-1.png",
   "spin-head-frame-2.png",
   "spin-head-frame-3.png",
@@ -75,6 +79,12 @@ export const PREVIEW_ANIMATION_SETS = {
     "spin-head-frame-6.png",
     "sit.png",
   ],
+  usingComputer: [
+    "sit-pc-edge-legs-down.png",
+    "sit-pc-edge-dangle-frame-1.png",
+    "sit-pc-edge-dangle-frame-2.png",
+    "sit-pc-edge-dangle-frame-1.png",
+  ],
 } as const;
 
 export type PreviewAnimationKey = keyof typeof PREVIEW_ANIMATION_SETS;
@@ -105,5 +115,5 @@ export function findMissingRequiredSprites(paths: string[]) {
 
 export function animationReferenceSpriteUrl(fileName: string) {
   const safeName = encodeURIComponent(normalizeSpriteFileName(fileName));
-  return `https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/animation-reference/runtime-required/${safeName}`;
+  return `https://raw.githubusercontent.com/shimeji-ai/Shimeji-AI-Pets-avax/main/runtime-core/characters/shimeji/${safeName}`;
 }

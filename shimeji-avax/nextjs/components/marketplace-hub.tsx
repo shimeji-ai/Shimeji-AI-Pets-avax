@@ -50,7 +50,7 @@ import {
   Tag,
 } from "lucide-react";
 
-type MarketplaceHubMode = "all" | "marketplace" | "settings";
+type MarketplaceHubMode = "all" | "marketplace" | "settings" | "creator";
 
 type MarketplaceHubProps = {
   mode?: MarketplaceHubMode;
@@ -83,6 +83,28 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const [auctionBidAmount, setAuctionBidAmount] = useState("");
   const [txBusy, setTxBusy] = useState(false);
   const [txMessage, setTxMessage] = useState("");
+  const localCreatorStudio: MarketplaceMyStudioResponse = {
+    wallet: publicKey || "",
+    profile: null,
+    ownedNfts: [],
+    myListings: [],
+    myCommissionOrdersAsArtist: [],
+    myCommissionOrdersAsBuyer: [],
+    mySwapListings: [],
+    incomingSwapBidsForMyListings: [],
+    myOutgoingSwapBids: [],
+    commissionEggLock: {
+      canListNewCommissionEgg: false,
+      reason: t("Connect a wallet to create commission egg listings.", "Conecta una wallet para crear publicaciones de huevos de comisión."),
+      activeCommissionEggListingId: null,
+      blockingOrderId: null,
+    },
+    auctionCapability: {
+      itemAuctionsAvailable: true,
+      reason: "",
+    },
+    generatedAt: Date.now(),
+  };
 
   async function loadFeed() {
     setFeedLoading(true);
@@ -160,6 +182,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   const marketplaceGridItems = feed?.items || [];
   const isMarketplaceOnlyMode = mode === "marketplace";
   const isSettingsOnlyMode = mode === "settings";
+  const isCreatorOnlyMode = mode === "creator";
 
   useEffect(() => {
     const tokenUris = Array.from(
@@ -736,7 +759,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
   return (
     <div
       className={`mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 ${
-        isSettingsOnlyMode ? "pt-4" : "pt-28"
+        isSettingsOnlyMode || isCreatorOnlyMode ? "pt-4" : "pt-28"
       } md:px-6 lg:px-8`}
     >
       {!isSettingsOnlyMode ? (
@@ -786,7 +809,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           ) : null}
 
           {/* Browse tab */}
-          {!isMarketplaceOnlyMode || marketplaceSellTab === "explore" ? (
+          {(!isMarketplaceOnlyMode && !isCreatorOnlyMode) || marketplaceSellTab === "explore" ? (
             <MarketplaceHubMarketplaceTab
               t={t}
               feedSearch={feedSearch}
@@ -884,12 +907,12 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
           ) : null}
 
           {/* Creators tab */}
-          {isMarketplaceOnlyMode && marketplaceSellTab === "creators" ? (
+          {(isMarketplaceOnlyMode && marketplaceSellTab === "creators") || isCreatorOnlyMode ? (
             <section className="config-contrast-panel rounded-3xl border border-border bg-white/10 p-4 md:p-6">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
                   <ArrowLeftRight className="h-5 w-5 text-fuchsia-300" />
-                  {t("Creators Studio", "Estudio de Creadores")}
+                  {isCreatorOnlyMode ? t("Character Creator Studio", "Estudio creador de personajes") : t("Creators Studio", "Estudio de Creadores")}
                 </h2>
                 {publicKey ? (
                   <Button
@@ -932,6 +955,27 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                 </button>
               </div>
               {!isConnected || !publicKey ? (
+                creatorsStudioTab === "create" ? (
+                  <MarketplaceHubStudioSellTab
+                    t={t}
+                    studio={localCreatorStudio}
+                    tokenPreviews={tokenPreviews}
+                    txBusy={txBusy}
+                    publicKey={publicKey}
+                    showCreatePanel
+                    showTradePanel={false}
+                    onCreateListing={(tokenId, price, currency) => void handleCreateListing(tokenId, price, currency)}
+                    onCreateAuction={(tokenId, priceAvax, priceUsdc, durationHours) =>
+                      void handleCreateItemAuction(tokenId, priceAvax, priceUsdc, durationHours)
+                    }
+                    onCreateNftPackage={(request) => void handleCreateNftPackage(request)}
+                    onCancelListing={(listingId) => void handleCancelListing(listingId)}
+                    onCreateSwapOffer={(tokenId, intention) => void handleCreateSwapOffer(tokenId, intention)}
+                    onAcceptSwapBid={(listingId, bidId) => handleAcceptSwapBid(listingId, bidId)}
+                    onCancelSwapListing={(listingId) => handleCancelSwapListing(listingId)}
+                    onCancelSwapBid={(bidId) => handleCancelSwapBid(bidId)}
+                  />
+                ) : (
                 <div className="rounded-2xl border border-dashed border-border bg-white/5 p-6 text-center text-sm text-muted-foreground">
                   <div className="flex flex-col items-center gap-3">
                     <p>
@@ -952,6 +996,7 @@ export function MarketplaceHub({ mode = "all" }: MarketplaceHubProps) {
                     </Button>
                   </div>
                 </div>
+                )
               ) : studioLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

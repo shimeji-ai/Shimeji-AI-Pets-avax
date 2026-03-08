@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import {
   CHARACTER_CREATOR_PATH,
   PREVIEW_ANIMATION_SETS,
-  REQUIRED_SHIMEJI_SPRITES,
+  REQUIRED_SPRITES_ZIP_PATH,
   animationReferenceSpriteUrl,
 } from "@/lib/shimeji-sprite-spec";
 
@@ -49,6 +49,14 @@ const sections: GuideSection[] = [
     explanation:
       "Este bloque hace que el personaje siga vivo cuando no está caminando. El spin-head necesita una progresión consistente para que el loop cierre limpio.",
     frames: PREVIEW_ANIMATION_SETS.idle,
+  },
+  {
+    key: "using-computer",
+    title: "Usando computadora",
+    description: "sit-pc-edge-legs-down -> dangle-1 -> dangle-2 -> dangle-1",
+    explanation:
+      "Este es el loop que usa el shimeji web cuando la burbuja de chat está abierta y el personaje queda apoyado en el borde de la interfaz como si estuviera usando la compu.",
+    frames: PREVIEW_ANIMATION_SETS.usingComputer,
   },
 ];
 
@@ -122,33 +130,18 @@ export function AnimationGuideView() {
             >
               Ver animation-reference del repo
             </a>
+            <a
+              href={REQUIRED_SPRITES_ZIP_PATH}
+              download
+              className="rounded-full border border-amber-300/20 bg-amber-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-400/25"
+            >
+              Descargar ZIP de sprites
+            </a>
           </div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="neural-card rounded-3xl border border-white/10 p-6">
-          <h2 className="text-2xl font-semibold text-foreground">Sprites requeridos</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Este es el set que el creador valida antes de habilitar la subida a IPFS y el flujo NFT.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {REQUIRED_SHIMEJI_SPRITES.map((fileName) => (
-              <div key={fileName} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                <div className="flex aspect-square items-center justify-center rounded-xl border border-white/10 bg-white/5 p-3">
-                  <img
-                    src={animationReferenceSpriteUrl(fileName)}
-                    alt={fileName}
-                    className="h-20 w-20 object-contain"
-                    loading="lazy"
-                  />
-                </div>
-                <p className="mt-2 break-all text-[11px] text-foreground/90">{fileName}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div className="neural-card rounded-3xl border border-fuchsia-300/15 p-6">
           <h2 className="text-2xl font-semibold text-foreground">Como funciona</h2>
           <div className="mt-4 space-y-3 text-sm text-muted-foreground">
@@ -164,6 +157,22 @@ export function AnimationGuideView() {
             <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
               4. Cuando el set está completo, podés mintear y después publicar o subastar con el flujo actual.
             </div>
+          </div>
+        </div>
+
+        <div className="neural-card rounded-3xl border border-cyan-300/15 p-6">
+          <h2 className="text-2xl font-semibold text-foreground">Pack descargable</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Bajá el ZIP con los nombres correctos y usalo como base para armar tu personaje. El creador valida ese pack antes de habilitar IPFS y mint.
+          </p>
+          <div className="mt-6">
+            <a
+              href={REQUIRED_SPRITES_ZIP_PATH}
+              download
+              className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-400/15 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-cyan-400/25"
+            >
+              Descargar ZIP requerido
+            </a>
           </div>
         </div>
       </div>
