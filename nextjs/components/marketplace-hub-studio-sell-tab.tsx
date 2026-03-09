@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import type { DragEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeftRight, Check, ChevronDown, ChevronUp, Gavel, ImageIcon, Loader2, Tag, Upload, X } from "lucide-react";
+import { ArrowLeftRight, Check, Gavel, ImageIcon, Loader2, Tag, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { HubTranslateFn, TokenPreview } from "@/components/marketplace-hub-shared";
 import { formatMarketplaceTokenAmount, walletShort } from "@/components/marketplace-hub-shared";
@@ -153,9 +154,9 @@ export function MarketplaceHubStudioSellTab({
   const [mintSpritePreviewMap, setMintSpritePreviewMap] = useState<Record<string, string>>({});
   const [previewAnimation, setPreviewAnimation] = useState<PreviewAnimationKey>("walk");
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
+  const [dragTargetSpriteName, setDragTargetSpriteName] = useState<string | null>(null);
   const [mintUploadBusy, setMintUploadBusy] = useState(false);
   const [mintFormError, setMintFormError] = useState("");
-  const [showMissingSprites, setShowMissingSprites] = useState(false);
   const spriteFolderInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -209,7 +210,8 @@ export function MarketplaceHubStudioSellTab({
   const missingRequiredSprites = findMissingRequiredSprites(spritePaths);
   const hasRequiredSpriteSet = missingRequiredSprites.length === 0;
   const previewFrames = PREVIEW_ANIMATION_SETS[previewAnimation];
-  const activePreviewSpriteName = previewFrames[previewFrameIndex % previewFrames.length];
+  const activePreviewFrameSequenceIndex = previewFrameIndex % previewFrames.length;
+  const activePreviewSpriteName = previewFrames[activePreviewFrameSequenceIndex];
   const activePreviewSpriteUrl = mintSpritePreviewMap[activePreviewSpriteName] || null;
   const creatorReadyForUpload =
     Boolean(mintTitle.trim()) &&
@@ -223,6 +225,22 @@ export function MarketplaceHubStudioSellTab({
     } else {
       setSelectedTokenId(tokenId);
     }
+  }
+
+  function assignSpriteFile(targetFileName: string, selected: File | null | undefined) {
+    if (!selected) return;
+    const renamed = new File([selected], targetFileName, {
+      type: selected.type,
+      lastModified: selected.lastModified,
+    });
+    setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
+  }
+
+  function handleSpriteTileDrop(fileName: string, event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setDragTargetSpriteName((current) => (current === fileName ? null : current));
+    const droppedFile = Array.from(event.dataTransfer.files || []).find((file) => file.type.startsWith("image/"));
+    assignSpriteFile(fileName, droppedFile);
   }
 
   function handleSubmit() {
@@ -383,7 +401,7 @@ export function MarketplaceHubStudioSellTab({
   return (
     <div className="config-contrast-panel space-y-4">
       {showCreatePanel ? (
-        <div id="create-character-app" className="scroll-mt-28 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.03] p-4 md:p-6">
+        <div id="create-character-app" className="creator-upload-panel scroll-mt-28 rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.03] p-4 md:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h3 className="text-sm font-semibold text-foreground">{t("Character Creator", "Creador de personajes")}</h3>
@@ -437,7 +455,11 @@ export function MarketplaceHubStudioSellTab({
                 <div className="mt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">{t("Required sprites", "Sprites requeridos")}</span>
-                    <span className={`font-mono text-[11px] font-semibold ${hasRequiredSpriteSet ? "text-emerald-400" : "text-amber-400"}`}>
+                    <span
+                      className={`creator-sprite-progress-count font-mono text-[11px] font-semibold ${
+                        hasRequiredSpriteSet ? "creator-sprite-progress-count-ready" : "creator-sprite-progress-count-missing"
+                      }`}
+                    >
                       {REQUIRED_MOCHI_SPRITES.length - missingRequiredSprites.length}/{REQUIRED_MOCHI_SPRITES.length}
                     </span>
                   </div>
@@ -448,9 +470,11 @@ export function MarketplaceHubStudioSellTab({
                     />
                   </div>
                   {hasRequiredSpriteSet ? (
-                    <p className="mt-1.5 text-[10px] text-emerald-400">{t("All sprites loaded!", "¡Todos los sprites cargados!")}</p>
+                    <p className="creator-sprite-progress-note creator-sprite-progress-note-ready mt-1.5 text-[10px]">
+                      {t("All sprites loaded!", "¡Todos los sprites cargados!")}
+                    </p>
                   ) : (
-                    <p className="mt-1.5 text-[10px] text-amber-400/80">
+                    <p className="creator-sprite-progress-note creator-sprite-progress-note-missing mt-1.5 text-[10px]">
                       {t(`${missingRequiredSprites.length} missing`, `Faltan ${missingRequiredSprites.length}`)}
                     </p>
                   )}
@@ -461,73 +485,6 @@ export function MarketplaceHubStudioSellTab({
                 </p>
               </div>
 
-              {/* Collapsible individual upload */}
-              <div className="neural-card rounded-2xl border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setShowMissingSprites((v) => !v)}
-                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-xs"
-                >
-                  <div>
-                    <span className="font-semibold text-foreground">{t("Upload individually", "Subir individualmente")}</span>
-                    <span className="ml-2 text-muted-foreground">{t("(step by step)", "(paso a paso)")}</span>
-                  </div>
-                  {showMissingSprites ? (
-                    <ChevronUp className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  )}
-                </button>
-                {showMissingSprites ? (
-                  <div className="border-t border-white/10 p-3">
-                    {missingRequiredSprites.length > 0 ? (
-                      <>
-                        <p className="mb-2 text-[11px] font-medium text-amber-400">{t("Missing", "Faltantes")}:</p>
-                        <div className="mb-3 grid gap-1.5 sm:grid-cols-2">
-                          {missingRequiredSprites.map((fileName) => (
-                            <label
-                              key={`missing-${fileName}`}
-                              className="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-amber-300/20 bg-amber-400/5 px-3 py-2 text-[11px] text-amber-200/80 transition hover:bg-amber-400/10"
-                            >
-                              <span className="min-w-0 flex-1 truncate">{fileName}</span>
-                              <span className="shrink-0 rounded-full border border-amber-300/20 bg-amber-400/10 px-2 py-0.5 text-[10px]">{t("Upload", "Subir")}</span>
-                              <input type="file" accept="image/*" className="hidden" onChange={(event) => {
-                                const selected = event.target.files?.[0];
-                                if (!selected) return;
-                                const renamed = new File([selected], fileName, { type: selected.type, lastModified: selected.lastModified });
-                                setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
-                              }} />
-                            </label>
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-                    {REQUIRED_MOCHI_SPRITES.filter((f) => Boolean(mintSpritePreviewMap[f])).length > 0 ? (
-                      <>
-                        <p className="mb-2 text-[11px] font-medium text-emerald-400">{t("Loaded", "Cargados")}:</p>
-                        <div className="grid gap-1.5 sm:grid-cols-2">
-                          {REQUIRED_MOCHI_SPRITES.filter((f) => Boolean(mintSpritePreviewMap[f])).map((fileName) => (
-                            <label
-                              key={`present-${fileName}`}
-                              className="flex cursor-pointer items-center gap-2 rounded-lg border border-emerald-300/20 bg-emerald-400/[0.06] px-3 py-2 text-[11px] text-foreground/80 transition hover:bg-emerald-400/10"
-                            >
-                              <Check className="h-3 w-3 shrink-0 text-emerald-400" />
-                              <span className="min-w-0 flex-1 truncate">{fileName}</span>
-                              <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground">{t("Replace", "Reemplazar")}</span>
-                              <input type="file" accept="image/*" className="hidden" onChange={(event) => {
-                                const selected = event.target.files?.[0];
-                                if (!selected) return;
-                                const renamed = new File([selected], fileName, { type: selected.type, lastModified: selected.lastModified });
-                                setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
-                              }} />
-                            </label>
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
             </div>
 
             {/* Right: live animation preview (large, prominent) */}
@@ -584,7 +541,7 @@ export function MarketplaceHubStudioSellTab({
                   <span
                     key={`${previewAnimation}-${frame}-${index}`}
                     className={`rounded-full border px-2.5 py-1 text-[10px] transition-colors ${
-                      frame === activePreviewSpriteName
+                      index === activePreviewFrameSequenceIndex
                         ? "border-cyan-300/30 bg-cyan-400/20 text-cyan-100"
                         : "border-white/10 bg-white/[0.04] text-muted-foreground"
                     }`}
@@ -596,22 +553,41 @@ export function MarketplaceHubStudioSellTab({
 
               {/* Upload frames for this animation */}
               <div className="mt-4 border-t border-white/10 pt-4">
-                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="creator-frame-section-title mb-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {t("Upload frames for this animation", "Subir frames de esta animación")}
+                </p>
+                <p className="mb-3 text-[11px] text-muted-foreground">
+                  {t("Click a tile or drop an image onto it.", "Hacé click en un cuadro o soltá una imagen encima.")}
                 </p>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                   {Array.from(new Set(previewFrames)).map((fileName) => {
                     const loaded = Boolean(mintSpritePreviewMap[fileName]);
                     const previewUrl = mintSpritePreviewMap[fileName];
                     const label = fileName.replace(".png", "").replace(/-/g, " ");
+                    const isDragTarget = dragTargetSpriteName === fileName;
                     return (
                       <label
                         key={`anim-upload-${fileName}`}
-                        className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-all ${
+                        className={`creator-frame-upload-item flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border-2 p-2 text-center transition-all ${
+                          isDragTarget
+                            ? "creator-frame-upload-item-active scale-[1.02]"
+                            : ""
+                        } ${
                           loaded
-                            ? "border-emerald-300/25 bg-emerald-400/[0.06] hover:bg-emerald-400/10"
-                            : "border-amber-300/20 bg-amber-400/[0.04] hover:bg-amber-400/10"
+                            ? "border-emerald-300/35 bg-emerald-400/[0.08] hover:bg-emerald-400/12"
+                            : "border-amber-300/35 bg-amber-400/[0.06] hover:bg-amber-400/12"
                         }`}
+                        onDragEnter={() => setDragTargetSpriteName(fileName)}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          if (dragTargetSpriteName !== fileName) setDragTargetSpriteName(fileName);
+                        }}
+                        onDragLeave={(event) => {
+                          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                            setDragTargetSpriteName((current) => (current === fileName ? null : current));
+                          }
+                        }}
+                        onDrop={(event) => handleSpriteTileDrop(fileName, event)}
                       >
                         <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]">
                           {previewUrl ? (
@@ -625,7 +601,7 @@ export function MarketplaceHubStudioSellTab({
                             </div>
                           )}
                         </div>
-                        <span className={`line-clamp-2 text-[10px] capitalize leading-tight ${loaded ? "text-foreground/70" : "text-amber-200/60"}`}>
+                        <span className={`creator-frame-upload-label line-clamp-2 text-[10px] capitalize leading-tight ${loaded ? "text-foreground/70" : "text-amber-200/60"}`}>
                           {label}
                         </span>
                         <input
@@ -633,10 +609,7 @@ export function MarketplaceHubStudioSellTab({
                           accept="image/*"
                           className="hidden"
                           onChange={(event) => {
-                            const selected = event.target.files?.[0];
-                            if (!selected) return;
-                            const renamed = new File([selected], fileName, { type: selected.type, lastModified: selected.lastModified });
-                            setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
+                            assignSpriteFile(fileName, event.target.files?.[0]);
                           }}
                         />
                       </label>

@@ -147,7 +147,7 @@ export function CharacterCreatorPageClient() {
 
   return (
     <>
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 md:px-6 lg:px-8">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-28 md:px-6 lg:px-8">
         <MarketplaceHubStudioSellTab
           t={t}
           studio={studio}

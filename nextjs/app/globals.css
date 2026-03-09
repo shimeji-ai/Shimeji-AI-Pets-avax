@@ -1070,11 +1070,133 @@ body[data-theme="kawaii"] .text-muted-foreground\/80 {
   color: #fff;
 }
 
+/* Character creator upload contrast layer */
+.creator-upload-panel {
+  --creator-upload-title: color-mix(in oklab, var(--foreground) 94%, var(--background) 6%);
+  --creator-upload-muted: color-mix(in oklab, var(--foreground) 74%, var(--background) 26%);
+  --creator-upload-border: color-mix(in oklab, var(--border) 88%, transparent);
+  --creator-upload-panel-bg: color-mix(in oklab, var(--card) 92%, var(--background) 8%);
+  --creator-upload-warning-text: color-mix(in oklab, #ffd166 40%, var(--foreground) 60%);
+  --creator-upload-warning-strong: color-mix(in oklab, #ffb347 50%, var(--foreground) 50%);
+  --creator-upload-warning-bg: color-mix(in oklab, #ffb347 12%, var(--card) 88%);
+  --creator-upload-warning-border: color-mix(in oklab, #ffb347 28%, var(--border) 72%);
+  --creator-upload-success-text: color-mix(in oklab, #6ee7b7 34%, var(--foreground) 66%);
+  --creator-upload-success-strong: color-mix(in oklab, #34d399 42%, var(--foreground) 58%);
+  --creator-upload-success-bg: color-mix(in oklab, #34d399 12%, var(--card) 88%);
+  --creator-upload-success-border: color-mix(in oklab, #34d399 26%, var(--border) 74%);
+  background: var(--creator-upload-panel-bg);
+  border-color: var(--creator-upload-border);
+}
+
+.creator-upload-toggle-title,
+.creator-frame-section-title {
+  color: var(--creator-upload-title) !important;
+}
+
+.creator-upload-toggle-subtitle,
+.creator-upload-panel .text-muted-foreground {
+  color: var(--creator-upload-muted) !important;
+}
+
+.creator-upload-item,
+.creator-frame-upload-item,
+.creator-frame-upload-label {
+  color: var(--creator-upload-title) !important;
+}
+
+.creator-frame-upload-item {
+  border-color: color-mix(in oklab, var(--creator-upload-border) 72%, var(--foreground) 28%) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.creator-frame-upload-item:hover {
+  border-color: color-mix(in oklab, var(--foreground) 30%, var(--creator-upload-border) 70%) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--foreground) 16%, transparent),
+    0 8px 20px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.creator-frame-upload-item-active {
+  border-color: color-mix(in oklab, var(--foreground) 46%, var(--creator-upload-border) 54%) !important;
+  background: color-mix(in oklab, var(--card) 82%, var(--foreground) 18%) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--foreground) 28%, transparent),
+    0 0 0 3px color-mix(in oklab, var(--foreground) 14%, transparent),
+    0 12px 24px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+.creator-upload-item-missing {
+  background: var(--creator-upload-warning-bg) !important;
+  border-color: var(--creator-upload-warning-border) !important;
+  color: var(--creator-upload-warning-text) !important;
+}
+
+.creator-upload-item-loaded {
+  background: var(--creator-upload-success-bg) !important;
+  border-color: var(--creator-upload-success-border) !important;
+  color: var(--creator-upload-success-text) !important;
+}
+
+.creator-upload-item-chip {
+  color: var(--creator-upload-title) !important;
+  background: color-mix(in oklab, var(--card) 78%, var(--background) 22%) !important;
+  border-color: color-mix(in oklab, var(--border) 78%, transparent) !important;
+}
+
+.creator-upload-section-label-missing,
+.creator-sprite-progress-count-missing,
+.creator-sprite-progress-note-missing {
+  color: var(--creator-upload-warning-strong) !important;
+}
+
+.creator-upload-section-label-loaded,
+.creator-sprite-progress-count-ready,
+.creator-sprite-progress-note-ready {
+  color: var(--creator-upload-success-strong) !important;
+}
+
+body[data-theme="pink"] .creator-upload-panel {
+  --creator-upload-warning-text: #ffe7b3;
+  --creator-upload-warning-strong: #ffd166;
+  --creator-upload-success-text: #def7ec;
+  --creator-upload-success-strong: #6ee7b7;
+}
+
 body[data-theme="kawaii"] .auction-mochi-id {
   color: #1a1a2e;
 }
 
+body[data-theme="kawaii"] .creator-upload-panel {
+  --creator-upload-title: #2a1f4e;
+  --creator-upload-muted: rgba(42, 31, 78, 0.74);
+  --creator-upload-border: rgba(42, 31, 78, 0.2);
+  --creator-upload-panel-bg: rgba(255, 255, 255, 0.78);
+  --creator-upload-warning-text: #6f4600;
+  --creator-upload-warning-strong: #7b4b00;
+  --creator-upload-warning-bg: rgba(255, 214, 102, 0.2);
+  --creator-upload-warning-border: rgba(176, 112, 0, 0.28);
+  --creator-upload-success-text: #155b43;
+  --creator-upload-success-strong: #0f6b4f;
+  --creator-upload-success-bg: rgba(52, 211, 153, 0.14);
+  --creator-upload-success-border: rgba(5, 150, 105, 0.24);
+}
+
 /* ── Pastel theme overrides (light theme, lavender/pink/blue) ── */
+
+body[data-theme="pastel"] .creator-upload-panel {
+  --creator-upload-title: #3d2b52;
+  --creator-upload-muted: rgba(61, 43, 82, 0.72);
+  --creator-upload-border: rgba(107, 80, 141, 0.2);
+  --creator-upload-panel-bg: rgba(255, 255, 255, 0.72);
+  --creator-upload-warning-text: #714700;
+  --creator-upload-warning-strong: #7d4e00;
+  --creator-upload-warning-bg: rgba(255, 214, 102, 0.18);
+  --creator-upload-warning-border: rgba(176, 112, 0, 0.24);
+  --creator-upload-success-text: #195a49;
+  --creator-upload-success-strong: #0f6b56;
+  --creator-upload-success-bg: rgba(52, 211, 153, 0.12);
+  --creator-upload-success-border: rgba(5, 150, 105, 0.22);
+}
 
 body[data-theme="pastel"] .text-foreground {
   color: #3d2b52 !important;
