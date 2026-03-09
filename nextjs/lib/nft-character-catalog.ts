@@ -7,6 +7,11 @@ import {
   resolveIpfsHttpUrl,
 } from "@/lib/ipfs";
 
+// Characters that have canonical local sprites bundled in the runtime-core.
+// For these, we ignore any spritesBaseUri from NFT metadata and serve sprites
+// locally, since the IPFS copies may be absent or unreachable.
+const CHARACTERS_WITH_LOCAL_SPRITES = new Set(["bunny", "lobster", "egg", "mushroom"]);
+
 export type NftCharacterCatalogEntry = {
   id: string;
   name: string;
@@ -132,8 +137,9 @@ export async function buildOwnedNftCharacterCatalog(walletAddress: string): Prom
       metadata?.properties && typeof metadata.properties === "object" && !Array.isArray(metadata.properties)
         ? (metadata.properties as Record<string, unknown>).mochi
         : null;
-    const spritesBaseUri =
-      mochiProps && typeof mochiProps === "object" && !Array.isArray(mochiProps)
+    const spritesBaseUri = CHARACTERS_WITH_LOCAL_SPRITES.has(characterId)
+      ? null
+      : mochiProps && typeof mochiProps === "object" && !Array.isArray(mochiProps)
         ? resolveMediaUrl(String((mochiProps as Record<string, unknown>).spritesBaseUri || ""))
         : null;
     const explicitName = cleanExplicitName(String(metadata?.name || "").trim());
@@ -172,8 +178,9 @@ export async function buildOwnedNftCharacterCatalog(walletAddress: string): Prom
       metadata?.properties && typeof metadata.properties === "object" && !Array.isArray(metadata.properties)
         ? (metadata.properties as Record<string, unknown>).mochi
         : null;
-    const spritesBaseUri =
-      mochiProps && typeof mochiProps === "object" && !Array.isArray(mochiProps)
+    const spritesBaseUri = CHARACTERS_WITH_LOCAL_SPRITES.has(characterId)
+      ? null
+      : mochiProps && typeof mochiProps === "object" && !Array.isArray(mochiProps)
         ? resolveMediaUrl(String((mochiProps as Record<string, unknown>).spritesBaseUri || ""))
         : null;
     const explicitName = cleanExplicitName(String(metadata?.name || "").trim());

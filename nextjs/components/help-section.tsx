@@ -225,11 +225,6 @@ export function HelpSection() {
       <ScrollAnimation variants={variants}>
         <div className="w-full mx-auto mb-20">
           <div className="mb-6">
-            <div className="mb-3">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">
-                {isSpanish ? "Creación y NFT" : "Creation and NFT"}
-              </p>
-            </div>
             <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div className="max-w-3xl">
