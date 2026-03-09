@@ -29,7 +29,6 @@ import {
   SITE_MOCHI_CHAT_WIDTH_MAP,
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
-import { buildIpfsProxyUrl } from "@/lib/ipfs";
 
 type Role = "user" | "assistant";
 type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
@@ -160,8 +159,7 @@ function getNearestEdge(
 function buildSpriteSrc(characterKey: string, fileName: string, spritesBaseUri?: string | null) {
   const remoteBase = String(spritesBaseUri || "").trim();
   if (remoteBase) {
-    const rawAssetUrl = `${remoteBase.replace(/\/+$/, "")}/${encodeURIComponent(fileName)}`;
-    return buildIpfsProxyUrl(rawAssetUrl) || rawAssetUrl;
+    return `${remoteBase.replace(/\/+$/, "")}/${encodeURIComponent(fileName)}`;
   }
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/${encodeURIComponent(fileName)}`;
 }
