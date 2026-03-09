@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
 import { MarketplaceHubStudioSellTab } from "@/components/marketplace-hub-studio-sell-tab";
-import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/language-provider";
 import { useWalletSession } from "@/components/wallet-provider";
 import { parseMarketplaceAmountToUnits, submitContractWrite } from "@/components/marketplace-hub-shared";
@@ -43,18 +41,14 @@ type CreateMintPackageRequest = Parameters<typeof MarketplaceHubStudioSellTab>[0
 
 export function CharacterCreatorPageClient() {
   const { isSpanish } = useLanguage();
-  const { publicKey, isConnected, isConnecting, connect, signTransaction } = useWalletSession();
+  const { publicKey, signTransaction } = useWalletSession();
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
   const [studio, setStudio] = useState<MarketplaceMyStudioResponse>(EMPTY_STUDIO);
-  const [studioLoading, setStudioLoading] = useState(false);
-  const [studioError, setStudioError] = useState("");
   const [txBusy, setTxBusy] = useState(false);
   const [txMessage, setTxMessage] = useState("");
 
   async function loadStudio(wallet: string) {
-    setStudioLoading(true);
-    setStudioError("");
     try {
       const response = await fetch(`/api/marketplace/my-studio?wallet=${encodeURIComponent(wallet)}`, {
         cache: "no-store",
@@ -66,17 +60,13 @@ export function CharacterCreatorPageClient() {
       setStudio(payload);
       return payload;
     } catch (error) {
-      setStudioError(error instanceof Error ? error.message : "Failed to load studio.");
       return null;
-    } finally {
-      setStudioLoading(false);
     }
   }
 
   useEffect(() => {
     if (!publicKey) {
       setStudio({ ...EMPTY_STUDIO, generatedAt: Date.now() });
-      setStudioError("");
       return;
     }
     void loadStudio(publicKey);
@@ -155,90 +145,8 @@ export function CharacterCreatorPageClient() {
     }
   }
 
-  const steps = [
-    {
-      num: "1",
-      label: t("Art", "Arte"),
-      sub: t("Cover + sprites", "Portada + sprites"),
-      color: "border-cyan-300/25 bg-cyan-400/10 text-cyan-200",
-    },
-    {
-      num: "2",
-      label: t("Validate", "Validar"),
-      sub: t("37 required sprites", "37 sprites requeridos"),
-      color: "border-fuchsia-300/25 bg-fuchsia-400/10 text-fuchsia-200",
-    },
-    {
-      num: "3",
-      label: t("Mint", "Mintear"),
-      sub: t("IPFS + blockchain", "IPFS + blockchain"),
-      color: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
-    },
-  ];
-
   return (
     <>
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 pt-28 md:px-6 lg:px-8">
-        <div className="neural-card rounded-3xl border border-cyan-300/15 p-6 md:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-3xl">
-              <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">Character Creator</p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                {t("Load sprites locally, preview, and mint at the end", "Cargá sprites en local, previsualizá y minteá recién al final")}
-              </h1>
-              <p className="mt-3 text-sm leading-7 text-foreground/80 sm:text-base">
-                {t(
-                  "Upload sprites one by one or import a folder, test your character in the browser, and only go through IPFS, mint, and listing/auction at the very end.",
-                  "Podés subir sprites uno por uno o importar una carpeta, probar el personaje en la web y recién al final pasar por IPFS, mint y listado/subasta.",
-                )}
-              </p>
-              <div className="mt-5 flex flex-wrap gap-4">
-                {steps.map(({ num, label, sub, color }) => (
-                  <div key={num} className="flex items-center gap-2.5">
-                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold ${color}`}>
-                      {num}
-                    </span>
-                    <div>
-                      <p className="text-xs font-medium text-foreground">{label}</p>
-                      <p className="text-[11px] text-muted-foreground">{sub}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!isConnected ? (
-                <button
-                  type="button"
-                  onClick={() => void connect()}
-                  disabled={isConnecting}
-                  className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-emerald-400/50 hover:bg-emerald-400/25 hover:shadow-[0_0_16px_rgba(52,211,153,0.15)] disabled:opacity-60"
-                >
-                  {isConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {t("Connect wallet", "Conectar wallet")}
-                </button>
-              ) : null}
-              {publicKey ? (
-                <button
-                  type="button"
-                  onClick={() => void loadStudio(publicKey)}
-                  disabled={studioLoading}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm text-foreground/80 transition-all hover:border-white/25 hover:bg-white/10 hover:text-foreground disabled:opacity-60"
-                >
-                  {studioLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  {t("Refresh studio", "Actualizar estudio")}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          {studioError ? (
-            <div className="mt-4 rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-foreground">
-              {studioError}
-            </div>
-          ) : null}
-        </div>
-      </section>
-
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pb-8 pt-4 md:px-6 lg:px-8">
         <MarketplaceHubStudioSellTab
           t={t}

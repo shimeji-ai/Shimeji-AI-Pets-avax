@@ -547,9 +547,11 @@ export function MarketplaceHubStudioSellTab({
                 >
                   <option className={selectOptionClassName} style={selectOptionStyle} value="walk">{t("Walk", "Caminar")}</option>
                   <option className={selectOptionClassName} style={selectOptionStyle} value="jump">{t("Jump", "Saltar")}</option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="drag">{t("Drag", "Arrastrar")}</option>
                   <option className={selectOptionClassName} style={selectOptionStyle} value="wall">{t("Wall", "Pared")}</option>
                   <option className={selectOptionClassName} style={selectOptionStyle} value="ceiling">{t("Ceiling", "Techo")}</option>
                   <option className={selectOptionClassName} style={selectOptionStyle} value="idle">{t("Idle", "Idle")}</option>
+                  <option className={selectOptionClassName} style={selectOptionStyle} value="usingComputer">{t("Using computer", "Usando la PC")}</option>
                 </select>
               </div>
 
@@ -587,9 +589,60 @@ export function MarketplaceHubStudioSellTab({
                         : "border-white/10 bg-white/[0.04] text-muted-foreground"
                     }`}
                   >
-                    {frame}
+                    {frame.replace(".png", "").replace(/-/g, " ")}
                   </span>
                 ))}
+              </div>
+
+              {/* Upload frames for this animation */}
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  {t("Upload frames for this animation", "Subir frames de esta animación")}
+                </p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {Array.from(new Set(previewFrames)).map((fileName) => {
+                    const loaded = Boolean(mintSpritePreviewMap[fileName]);
+                    const previewUrl = mintSpritePreviewMap[fileName];
+                    const label = fileName.replace(".png", "").replace(/-/g, " ");
+                    return (
+                      <label
+                        key={`anim-upload-${fileName}`}
+                        className={`flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-all ${
+                          loaded
+                            ? "border-emerald-300/25 bg-emerald-400/[0.06] hover:bg-emerald-400/10"
+                            : "border-amber-300/20 bg-amber-400/[0.04] hover:bg-amber-400/10"
+                        }`}
+                      >
+                        <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]">
+                          {previewUrl ? (
+                            <img src={previewUrl} alt={fileName} className="h-full w-full object-contain" />
+                          ) : (
+                            <ImageIcon className="h-5 w-5 opacity-20" />
+                          )}
+                          {loaded && (
+                            <div className="absolute bottom-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500">
+                              <Check className="h-2 w-2 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <span className={`line-clamp-2 text-[10px] capitalize leading-tight ${loaded ? "text-foreground/70" : "text-amber-200/60"}`}>
+                          {label}
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const selected = event.target.files?.[0];
+                            if (!selected) return;
+                            const renamed = new File([selected], fileName, { type: selected.type, lastModified: selected.lastModified });
+                            setMintSpriteFiles((current) => mergeSpriteFiles(current, [renamed]));
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
