@@ -39,6 +39,13 @@ contract MochiEditions is ERC1155, Ownable {
         _mint(to, editionId, amount, "");
     }
 
+    function setEditionUri(uint256 editionId, string calldata newUri) external onlyOwner {
+        require(editionId < nextEditionId, "edition does not exist");
+        require(bytes(newUri).length >= 7, "tokenUri too short");
+        _editionUris[editionId] = newUri;
+        emit URI(newUri, editionId);
+    }
+
     function uri(uint256 editionId) public view override returns (string memory) {
         return _editionUris[editionId];
     }

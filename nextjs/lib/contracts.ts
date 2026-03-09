@@ -222,6 +222,16 @@ export const editionsAbi = [
   },
   {
     type: "function",
+    name: "setEditionUri",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "editionId", type: "uint256" },
+      { name: "newUri", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "setApprovalForAll",
     stateMutability: "nonpayable",
     inputs: [
