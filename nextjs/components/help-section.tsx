@@ -5,7 +5,7 @@ import { useLanguage } from "./language-provider";
 import Link from "next/link";
 import DownloadButton from "./download-button";
 import { useState } from "react";
-import { ArrowRight, PlayCircle, Wand2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { ANIMATION_GUIDE_PATH, CHARACTER_CREATOR_PATH } from "@/lib/mochi-sprite-spec";
 
 const providers = [
@@ -230,45 +230,32 @@ export function HelpSection() {
                 {isSpanish ? "Creación y NFT" : "Creation and NFT"}
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
-                <PlayCircle className="mb-4 h-8 w-8 text-cyan-300/70" />
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  {isSpanish ? "Animaciones y preview" : "Animations and preview"}
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-                  {isSpanish
-                    ? "Mirá la guía de animación y probá cómo se ve un personaje antes de mintearlo."
-                    : "Open the animation guide and preview how a character looks before minting it."}
-                </p>
-                <div className="mt-6">
+            <div className="neural-card rounded-3xl border border-cyan-300/15 p-8 sm:p-10">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-3xl">
+                  <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    {isSpanish ? "Crear nuevos skins para Mochis" : "Create new skins for Mochis"}
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+                    {isSpanish
+                      ? "Primero mirá la guía de animaciones para entender cómo preparar los frames. Después usá el creador de personajes para cargarlos, probarlos y crear el skin."
+                      : "Start with the animation guide to understand how to prepare the frames. Then use the character creator to upload them, test them, and create the skin."}
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[26rem]">
                   <Link
                     href={ANIMATION_GUIDE_PATH}
-                    className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-cyan-400/50 hover:bg-cyan-400/25 hover:shadow-[0_0_16px_rgba(103,232,249,0.15)]"
+                    className="help-creator-cta help-creator-cta-guide group inline-flex items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-sm font-semibold transition-all"
                   >
-                    <ArrowRight className="h-4 w-4" />
-                    {isSpanish ? "Guía de animaciones" : "Animation guide"}
+                    <span>{isSpanish ? "Guía de animaciones" : "Animation guide"}</span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                </div>
-              </div>
-
-              <div className="neural-card rounded-3xl border border-emerald-300/15 p-8 sm:p-10">
-                <Wand2 className="mb-4 h-8 w-8 text-emerald-300/70" />
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  {isSpanish ? "Creación de NFT" : "NFT creation"}
-                </h2>
-                <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-                  {isSpanish
-                    ? "Abrí la app de creación para cargar sprites localmente, validar el set requerido y recién después mintear, vender o subastar."
-                    : "Open the creator app to load sprites locally, validate the required set, and then mint, sell, or auction."}
-                </p>
-                <div className="mt-6">
                   <Link
                     href={CHARACTER_CREATOR_PATH}
-                    className="inline-flex items-center gap-2 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:border-emerald-400/50 hover:bg-emerald-400/25 hover:shadow-[0_0_16px_rgba(52,211,153,0.15)]"
+                    className="help-creator-cta help-creator-cta-builder group inline-flex items-center justify-between gap-3 rounded-2xl border px-5 py-4 text-sm font-semibold transition-all"
                   >
-                    <ArrowRight className="h-4 w-4" />
-                    {isSpanish ? "Creador de personajes" : "Character creator"}
+                    <span>{isSpanish ? "Creador de personajes" : "Character creator"}</span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
                 </div>
               </div>

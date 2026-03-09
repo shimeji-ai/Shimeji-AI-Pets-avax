@@ -1198,6 +1198,192 @@ body[data-theme="pastel"] .creator-upload-panel {
   --creator-upload-success-border: rgba(5, 150, 105, 0.22);
 }
 
+.help-creator-cta {
+  color: #111827;
+  border-width: 1px;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.help-creator-cta:hover {
+  transform: translateY(-2px);
+}
+
+.help-creator-cta-guide {
+  border-color: rgba(186, 230, 253, 0.78);
+  background: linear-gradient(180deg, rgba(125, 211, 252, 0.9), rgba(103, 232, 249, 0.82));
+  box-shadow:
+    0 12px 26px rgba(6, 182, 212, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.help-creator-cta-guide:hover {
+  border-color: rgba(224, 242, 254, 0.96);
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0.96), rgba(103, 232, 249, 0.92));
+  box-shadow:
+    0 16px 32px rgba(6, 182, 212, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46);
+}
+
+.help-creator-cta-builder {
+  border-color: rgba(187, 247, 208, 0.78);
+  background: linear-gradient(180deg, rgba(110, 231, 183, 0.92), rgba(52, 211, 153, 0.84));
+  box-shadow:
+    0 12px 26px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+.help-creator-cta-builder:hover {
+  border-color: rgba(220, 252, 231, 0.96);
+  background: linear-gradient(180deg, rgba(167, 243, 208, 0.96), rgba(52, 211, 153, 0.9));
+  box-shadow:
+    0 16px 32px rgba(16, 185, 129, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46);
+}
+
+body[data-theme="kawaii"] .help-creator-cta {
+  color: #2a1f4e;
+  border-width: 2px;
+  box-shadow:
+    0 14px 30px rgba(42, 31, 78, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+body[data-theme="kawaii"] .help-creator-cta-guide {
+  border-color: rgba(42, 31, 78, 0.32);
+  background: linear-gradient(180deg, #a5f3fc, #67e8f9);
+  box-shadow:
+    0 16px 34px rgba(103, 232, 249, 0.24),
+    0 6px 0 rgba(42, 31, 78, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+body[data-theme="kawaii"] .help-creator-cta-guide:hover {
+  border-color: rgba(42, 31, 78, 0.42);
+  background: linear-gradient(180deg, #cffafe, #8be9f7);
+}
+
+body[data-theme="kawaii"] .help-creator-cta-builder {
+  border-color: rgba(42, 31, 78, 0.32);
+  background: linear-gradient(180deg, #a7f3d0, #6ee7b7);
+  box-shadow:
+    0 16px 34px rgba(52, 211, 153, 0.24),
+    0 6px 0 rgba(42, 31, 78, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+body[data-theme="kawaii"] .help-creator-cta-builder:hover {
+  border-color: rgba(42, 31, 78, 0.42);
+  background: linear-gradient(180deg, #d1fae5, #86efac);
+}
+
+.animation-guide-cta {
+  color: var(--foreground);
+  border-width: 1px;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.animation-guide-cta:hover {
+  transform: translateY(-2px);
+}
+
+.animation-guide-cta-primary {
+  border-color: rgba(110, 231, 183, 0.34);
+  background: rgba(52, 211, 153, 0.16);
+}
+
+.animation-guide-cta-primary:hover {
+  border-color: rgba(52, 211, 153, 0.52);
+  background: rgba(52, 211, 153, 0.24);
+}
+
+.animation-guide-cta-secondary {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.animation-guide-cta-secondary:hover {
+  border-color: rgba(251, 191, 36, 0.48);
+  background: rgba(251, 191, 36, 0.22);
+}
+
+body[data-theme="kawaii"] .animation-guide-hero,
+body[data-theme="kawaii"] .animation-guide-section,
+body[data-theme="kawaii"] .animation-guide-card {
+  border-color: rgba(42, 31, 78, 0.18) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-kicker {
+  color: #2a1f4e !important;
+  border-color: rgba(42, 31, 78, 0.18) !important;
+  background: rgba(255, 255, 255, 0.56) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-preview-badge {
+  border-color: rgba(42, 31, 78, 0.18) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-preview-icon,
+body[data-theme="kawaii"] .animation-guide-preview-label,
+body[data-theme="kawaii"] .animation-guide-sequence {
+  color: #2a1f4e !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-frame-chip {
+  border-color: rgba(42, 31, 78, 0.16) !important;
+  color: rgba(42, 31, 78, 0.72) !important;
+  background: rgba(255, 255, 255, 0.52) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-frame-chip.border-cyan-300\/30 {
+  border-color: rgba(42, 31, 78, 0.32) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: #2a1f4e !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-thumb,
+body[data-theme="kawaii"] .animation-guide-thumb-frame {
+  border-color: rgba(42, 31, 78, 0.14) !important;
+  background: rgba(255, 255, 255, 0.56) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-thumb-label {
+  color: rgba(42, 31, 78, 0.82) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-cta {
+  color: #2a1f4e !important;
+  border-width: 2px;
+  box-shadow:
+    0 14px 30px rgba(42, 31, 78, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+body[data-theme="kawaii"] .animation-guide-cta-primary {
+  border-color: rgba(42, 31, 78, 0.28) !important;
+  background: linear-gradient(180deg, #a7f3d0, #6ee7b7) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-cta-secondary {
+  border-color: rgba(42, 31, 78, 0.28) !important;
+  background: linear-gradient(180deg, #fde68a, #fbbf24) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-cta-primary:hover {
+  border-color: rgba(42, 31, 78, 0.4) !important;
+  background: linear-gradient(180deg, #d1fae5, #86efac) !important;
+}
+
+body[data-theme="kawaii"] .animation-guide-cta-secondary:hover {
+  border-color: rgba(42, 31, 78, 0.4) !important;
+  background: linear-gradient(180deg, #fef3c7, #fcd34d) !important;
+}
+
 body[data-theme="pastel"] .text-foreground {
   color: #3d2b52 !important;
 }
