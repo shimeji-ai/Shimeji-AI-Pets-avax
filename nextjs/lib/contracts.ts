@@ -240,6 +240,19 @@ export const editionsAbi = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "safeTransferFrom",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "from", type: "address" },
+      { name: "to", type: "address" },
+      { name: "id", type: "uint256" },
+      { name: "amount", type: "uint256" },
+      { name: "data", type: "bytes" },
+    ],
+    outputs: [],
+  },
 ] as const satisfies Abi;
 
 export const auctionAbi = [

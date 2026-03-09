@@ -13,6 +13,26 @@ export async function buildTransferNftTx(
   });
 }
 
+export async function buildTransferEditionTx(
+  ownerPublicKey: string,
+  recipientPublicKey: string,
+  editionId: number,
+  amount: number,
+): Promise<string> {
+  return encodeTxRequest({
+    kind: "contract",
+    contract: "editions",
+    functionName: "safeTransferFrom",
+    args: [
+      ownerPublicKey,
+      recipientPublicKey,
+      BigInt(editionId).toString(),
+      BigInt(amount).toString(),
+      "0x",
+    ],
+  });
+}
+
 export async function buildUpdateTokenUriAsCreatorTx(
   _creatorPublicKey: string,
   tokenId: number,

@@ -9,7 +9,7 @@ import {
 import { PublicProfileHeaderEditor } from "@/components/public-profile-header-editor";
 import { fetchAuctions } from "@/lib/auction";
 import { getArtistProfile, isValidWalletAddress } from "@/lib/artist-profiles-store";
-import { fetchListings } from "@/lib/marketplace";
+import { fetchEditionListings, fetchListings } from "@/lib/marketplace";
 import { fetchOwnedEditionsByWallet, fetchOwnedNftsByWallet } from "@/lib/nft-read";
 import { fetchSwapBids, fetchSwapListings } from "@/lib/swap";
 import { fetchTokenMetadataPreview } from "@/lib/token-metadata";
@@ -33,7 +33,7 @@ type OwnedCollectionAsset =
       tokenUri: string;
       isCommissionEgg: false;
       quantity: number;
-      href: null;
+      href: string;
     };
 
 function walletShort(value: string) {
@@ -60,11 +60,12 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
     notFound();
   }
 
-  const [profile, ownedNfts, ownedEditions, listings, auctions, swapListings, swapBids] = await Promise.all([
+  const [profile, ownedNfts, ownedEditions, listings, editionListings, auctions, swapListings, swapBids] = await Promise.all([
     getArtistProfile(normalizedWallet),
     fetchOwnedNftsByWallet(normalizedWallet, { totalCap: 1000 }).catch(() => []),
     fetchOwnedEditionsByWallet(normalizedWallet, { totalCap: 250 }).catch(() => []),
     fetchListings().catch(() => []),
+    fetchEditionListings().catch(() => []),
     fetchAuctions({ includeEnded: false, limit: 500 }).catch(() => []),
     fetchSwapListings().catch(() => []),
     fetchSwapBids().catch(() => []),
@@ -86,6 +87,13 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
       )
       .map((snapshot) => [snapshot.auction.tokenId as number, snapshot]),
   );
+
+  const activeEditionListingsByEdition = new Map<number, typeof editionListings>();
+  for (const listing of editionListings.filter((listing) => listing.active && listing.seller === normalizedWallet)) {
+    const bucket = activeEditionListingsByEdition.get(listing.editionId) ?? [];
+    bucket.push(listing);
+    activeEditionListingsByEdition.set(listing.editionId, bucket);
+  }
 
   const myActiveSwapListings = swapListings.filter(
     (listing) => listing.active && listing.creator === normalizedWallet,
@@ -127,7 +135,7 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
         tokenUri: edition.tokenUri,
         isCommissionEgg: false as const,
         quantity: edition.balance,
-        href: null,
+        href: `/marketplace/edition-token/${edition.editionId}`,
       })),
   ].sort((a, b) => b.assetId - a.assetId || (a.kind === "nft" ? -1 : 1));
   const tokenPreviews = await fetchTokenPreviewMap(ownedCollectionAssets.map((asset) => asset.tokenUri));
@@ -161,6 +169,11 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
               {ownedCollectionAssets.map((asset) => {
                 const isEdition = asset.kind === "edition";
                 const listing = !isEdition ? (activeListingsByToken.get(asset.assetId) ?? null) : null;
+                const editionListingsForAsset = isEdition ? (activeEditionListingsByEdition.get(asset.assetId) ?? []) : [];
+                const activeEditionCopiesListed = editionListingsForAsset.reduce(
+                  (sum, item) => sum + item.remainingAmount,
+                  0,
+                );
                 const auction = !isEdition ? (activeItemAuctionsByToken.get(asset.assetId) ?? null) : null;
                 const swapOut = !isEdition ? (outgoingSwapsByOfferedToken.get(asset.assetId) || 0) : 0;
                 const swapIn = !isEdition ? (incomingSwapBidsByOfferedToken.get(asset.assetId) || 0) : 0;
@@ -170,7 +183,9 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
                 const previewName = preview?.name || (isEdition ? `Mochi Edition #${asset.assetId}` : `Mochi #${asset.assetId}`);
                 const hasSwap = swapOut > 0 || swapIn > 0;
                 const primaryLabel = isEdition
-                  ? `${asset.quantity} ${asset.quantity === 1 ? "copia" : "copias"}`
+                  ? activeEditionCopiesListed > 0
+                    ? `${asset.quantity} copias · ${activeEditionCopiesListed} listadas`
+                    : `${asset.quantity} ${asset.quantity === 1 ? "copia" : "copias"}`
                   : listing
                     ? `${formatMarketplaceTokenAmount(listing.price, listing.currency === "Usdc" ? "USDC" : "AVAX")} ${listing.currency === "Usdc" ? "USDC" : "AVAX"}`
                     : auction
@@ -179,7 +194,9 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
                         ? `${swapOut > 0 ? `pub ${swapOut}` : ""}${swapOut > 0 && swapIn > 0 ? " · " : ""}${swapIn > 0 ? `ofertas ${swapIn}` : ""}` || "-"
                         : "En colección";
                 const statusLabel = isEdition
-                  ? "edición"
+                  ? activeEditionCopiesListed > 0
+                    ? "venta"
+                    : "edición"
                   : listing
                     ? "venta"
                     : auction
@@ -188,7 +205,9 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
                         ? "intercambio"
                         : "colección";
                 const statusChipClass = isEdition
-                  ? "border-cyan-700/70 bg-cyan-300 text-cyan-950"
+                  ? activeEditionCopiesListed > 0
+                    ? "border-emerald-700/70 bg-emerald-300 text-emerald-950"
+                    : "border-cyan-700/70 bg-cyan-300 text-cyan-950"
                   : listing
                     ? "border-emerald-700/70 bg-emerald-300 text-emerald-950"
                     : auction
@@ -268,17 +287,6 @@ export async function PublicWalletProfilePage({ wallet }: PublicWalletProfilePag
                     </div>
                   </>
                 );
-
-                if (!asset.href) {
-                  return (
-                    <article
-                      key={`profile-owned-${asset.kind}-${asset.assetId}`}
-                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-white/5"
-                    >
-                      {cardInner}
-                    </article>
-                  );
-                }
 
                 return (
                   <Link

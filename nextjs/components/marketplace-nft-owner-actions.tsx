@@ -13,6 +13,7 @@ import {
   buildListCommissionEggTx,
   buildListForSaleTx,
 } from "@/lib/marketplace";
+import { buildTransferNftTx } from "@/lib/nft";
 
 type Props = {
   tokenId: number;
@@ -43,6 +44,7 @@ export function MarketplaceNftOwnerActions({
   const [auctionCurrency, setAuctionCurrency] = useState<"Avax" | "Usdc">("Usdc");
   const [auctionDurationHours, setAuctionDurationHours] = useState("24");
   const [swapIntention, setSwapIntention] = useState("");
+  const [transferRecipient, setTransferRecipient] = useState("");
 
   const isOwner = Boolean(publicKey && publicKey === tokenOwner);
   const t = (en: string, es: string) => (isSpanish ? es : en);
@@ -127,6 +129,31 @@ export function MarketplaceNftOwnerActions({
         error instanceof Error
           ? error.message
           : t("Failed to create swap listing.", "No se pudo crear la publicación de intercambio."),
+      );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitTransfer() {
+    if (!publicKey || !isOwner) return;
+    setBusy("transfer");
+    setMessage("");
+    try {
+      const recipient = transferRecipient.trim();
+      if (!/^0x[a-fA-F0-9]{40}$/.test(recipient)) {
+        throw new Error(t("Enter a valid recipient wallet.", "Ingresá una wallet destino válida."));
+      }
+      const txXdr = await buildTransferNftTx(publicKey, recipient, tokenId);
+      await submitContractWrite(txXdr, signTransaction, publicKey);
+      setTransferRecipient("");
+      setMessage(t("NFT transfer submitted.", "Transferencia de NFT enviada."));
+      router.refresh();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : t("Failed to transfer NFT.", "No se pudo transferir el NFT."),
       );
     } finally {
       setBusy(null);
@@ -318,6 +345,30 @@ export function MarketplaceNftOwnerActions({
                   : hasActiveAuction
                     ? t("End auction first", "Finalizá la subasta primero")
                     : t("Create open swap listing", "Crear intercambio abierto")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-white/5 p-3">
+          <p className="mb-2 text-sm font-medium text-foreground">{t("Transfer", "Transferir")}</p>
+          <div className="grid gap-2">
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <span>{t("Recipient wallet", "Wallet destino")}</span>
+              <input
+                className="rounded-lg border border-border bg-white/5 px-3 py-2 text-sm text-foreground"
+                value={transferRecipient}
+                onChange={(event) => setTransferRecipient(event.target.value)}
+                placeholder="0x..."
+              />
+            </label>
+            <Button
+              type="button"
+              size="sm"
+              className="w-full"
+              onClick={() => void submitTransfer()}
+              disabled={Boolean(busy)}
+            >
+              {busy === "transfer" ? t("Sending...", "Enviando...") : t("Transfer NFT", "Transferir NFT")}
             </Button>
           </div>
         </div>
