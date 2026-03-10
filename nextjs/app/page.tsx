@@ -1,27 +1,19 @@
 import type { Metadata } from "next";
 import { SiteMochiLandingSection } from "@/components/site-mochi-landing-section";
-import { HowItWorksSection } from "@/components/how-it-works-section";
-import { FeaturesSection } from "@/components/features-section";
-import { SubscribeSection } from "@/components/subscribe-section";
 import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Mochi | Home",
   description:
-    "Explore Mochi: animated companions, AI chat setup guides, and on-chain experiences.",
+    "Pick a browser creature, arm its personality, and let Mochi loose.",
   path: "/",
 });
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden neural-shell">
+    <main className="min-h-screen overflow-x-hidden">
       <SiteMochiLandingSection />
-      <div className="bg-transparent">
-        <FeaturesSection />
-        <HowItWorksSection />
-        <SubscribeSection />
-      </div>
       <Footer />
     </main>
   );
