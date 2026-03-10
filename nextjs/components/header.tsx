@@ -204,6 +204,10 @@ export function Header() {
   const profileHref = publicKey ? `/marketplace/artist/${encodeURIComponent(publicKey)}` : "/settings";
   const menuActionClass = "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/60";
 
+  if (pathname === "/") {
+    return null;
+  }
+
   return (
     <header ref={headerRef} className="fixed left-4 right-4 top-4 z-50">
       <div className="mx-auto max-w-6xl rounded-2xl border border-white/10 neural-card">
