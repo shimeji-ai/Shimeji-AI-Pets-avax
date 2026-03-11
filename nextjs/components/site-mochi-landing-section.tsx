@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   CircleHelp,
   Download,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
@@ -68,6 +68,7 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
   const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
+  const [entryGateOpen, setEntryGateOpen] = useState(true);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
@@ -88,8 +89,8 @@ export function SiteMochiLandingSection() {
         <div className="fixed inset-x-0 top-0 z-30 border-b-2 border-white/25 bg-background/70 px-2 py-1.5 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-none border border-foreground/15 bg-foreground text-background">
-                <Sparkles className="h-3 w-3" />
+              <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-none border border-foreground/15 bg-card/65">
+                <Image src="/logo.png" alt="Mochi" width={24} height={24} className="h-5 w-5 object-contain" />
               </div>
             </div>
 
@@ -140,6 +141,80 @@ export function SiteMochiLandingSection() {
                 </div>
                 <div className="min-h-[420px] max-h-[calc(100vh-7rem)] overflow-hidden">
                   <SiteMochiCompactConfigWindow activeTab={activeDesktopWindow} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {entryGateOpen ? (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/72 p-4 backdrop-blur-md">
+              <div className="w-full max-w-xl rounded-none border-2 border-border bg-background/94 p-5 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)]">
+                <div className="flex items-center gap-3">
+                  <Image src="/logo.png" alt="Mochi" width={40} height={40} className="h-10 w-10 object-contain" />
+                  <div>
+                    <div className="font-mono text-sm font-semibold uppercase tracking-[0.18em]">
+                      Mochi
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {t("Choose how to enter", "Elegi como entrar")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-between rounded-none border border-border bg-card/55 px-4 py-3 text-left opacity-70"
+                  >
+                    <span>
+                      <span className="block font-mono text-xs font-semibold uppercase tracking-[0.16em]">
+                        Google
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {t("Cloud login", "Login cloud")}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      {t("Coming soon", "Coming soon")}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-between rounded-none border border-border bg-card/55 px-4 py-3 text-left opacity-70"
+                  >
+                    <span>
+                      <span className="block font-mono text-xs font-semibold uppercase tracking-[0.16em]">
+                        X
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {t("Social login", "Login social")}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      {t("Coming soon", "Coming soon")}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEntryGateOpen(false)}
+                    className="flex items-center justify-between rounded-none border-2 border-[var(--brand-accent)] bg-[var(--brand-accent)]/12 px-4 py-3 text-left transition-colors hover:bg-[var(--brand-accent)]/18"
+                  >
+                    <span>
+                      <span className="block font-mono text-xs font-semibold uppercase tracking-[0.16em] text-foreground">
+                        {t("Local private agent", "Agente local privado")}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {t("Allowed on this device", "Permitido en este dispositivo")}
+                      </span>
+                    </span>
+                    <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                      {t("Enter", "Entrar")}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
