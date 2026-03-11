@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   MessageSquare,
   Palette,
@@ -1688,6 +1689,14 @@ export function SiteMochiCompactConfigWindow({
 
         {activeTab === "mascot" ? (
           <div className="grid gap-4">
+            <div className="flex justify-end">
+              <Link
+                href="/marketplace"
+                className="inline-flex items-center rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-foreground hover:bg-background/80"
+              >
+                {isSpanish ? "Marketplace" : "Marketplace"}
+              </Link>
+            </div>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
               {(catalog?.characters ?? []).map((character) => (
                 <button

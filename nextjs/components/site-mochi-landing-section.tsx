@@ -5,22 +5,11 @@ import Link from "next/link";
 import {
   CircleHelp,
   Download,
-  ShoppingBag,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
-import {
-  CONFIG_WINDOW_META,
-  SiteMochiCompactConfigWindow,
-  type ConfigPanelTab,
-} from "@/components/site-mochi-config-panel";
-
-type ShortcutCardProps = {
-  icon: LucideIcon;
-  label: string;
-  href: string;
-};
+import { CONFIG_WINDOW_META, SiteMochiCompactConfigWindow, type ConfigPanelTab } from "@/components/site-mochi-config-panel";
 
 type DesktopConfigShortcutProps = {
   configKey: ConfigPanelTab;
@@ -32,24 +21,6 @@ type HeaderIconLinkProps = {
   icon: LucideIcon;
   label: string;
 };
-
-function ShortcutCard({ icon: Icon, label, href }: ShortcutCardProps) {
-  return (
-    <Link
-      href={href}
-      className="group flex w-[104px] flex-col items-center gap-2 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1"
-    >
-      <span className="relative flex h-16 w-16 items-center justify-center rounded-none border-2 border-foreground/15 bg-white/55 shadow-[4px_4px_0_rgba(24,18,37,0.18)] backdrop-blur-sm transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:bg-white/68 group-hover:shadow-[2px_2px_0_rgba(24,18,37,0.18)]">
-        <span className="absolute left-1 top-1 h-1.5 w-1.5 bg-white/75" />
-        <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-foreground/12" />
-        <Icon className="h-6 w-6 text-foreground" strokeWidth={2.25} />
-      </span>
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
-        {label}
-      </span>
-    </Link>
-  );
-}
 
 function DesktopConfigShortcut({
   configKey,
@@ -95,18 +66,10 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
 }
 
 export function SiteMochiLandingSection() {
-  const { isSpanish } = useLanguage();
+  const { isSpanish, language, setLanguage } = useLanguage();
   const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
-
-  const shortcuts = [
-    {
-      href: "/marketplace",
-      icon: ShoppingBag,
-      label: t("Marketplace", "Marketplace"),
-    },
-  ] satisfies ShortcutCardProps[];
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
     { configKey: "chat", label: t("Provider", "Proveedor") },
@@ -131,6 +94,15 @@ export function SiteMochiLandingSection() {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLanguage(language === "es" ? "en" : "es")}
+                aria-label={t("Switch language", "Cambiar idioma")}
+                title={t("Switch language", "Cambiar idioma")}
+                className="inline-flex h-8 min-w-8 items-center justify-center rounded-none border border-foreground/10 bg-card/45 px-2 text-sm transition-all duration-150 hover:border-foreground/20 hover:bg-card/75"
+              >
+                <span aria-hidden="true">{language === "es" ? "🇦🇷" : "🇺🇸"}</span>
+              </button>
               <HeaderIconLink href="/help" icon={CircleHelp} label={t("Help", "Ayuda")} />
               <HeaderIconLink href="/download" icon={Download} label={t("Download", "Descarga")} />
             </div>
@@ -142,9 +114,6 @@ export function SiteMochiLandingSection() {
           <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.12)_1px,transparent_1px)] [background-size:32px_32px]" />
 
           <div className="relative z-10 grid auto-rows-max grid-cols-2 gap-5 p-5 sm:grid-cols-3 lg:content-start">
-            {shortcuts.map((shortcut) => (
-              <ShortcutCard key={shortcut.href} {...shortcut} />
-            ))}
             {configShortcuts.map((shortcut) => (
               <DesktopConfigShortcut
                 key={shortcut.configKey}
