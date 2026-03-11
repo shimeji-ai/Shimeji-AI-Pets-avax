@@ -55,7 +55,7 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
       href={href}
       aria-label={label}
       title={label}
-      className="group relative inline-flex h-8 w-8 items-center justify-center rounded-none border border-foreground/10 bg-card/45 text-foreground/72 transition-all duration-150 hover:border-foreground/20 hover:bg-card/75 hover:text-foreground"
+      className="group relative inline-flex h-8 w-8 items-center justify-center text-foreground/72 transition-colors duration-150 hover:text-foreground"
     >
       <Icon className="h-4 w-4" strokeWidth={2.1} />
       <span className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-none border border-border bg-background/92 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground opacity-0 shadow-[3px_3px_0_rgba(24,18,37,0.12)] transition-opacity duration-150 group-hover:opacity-100">
