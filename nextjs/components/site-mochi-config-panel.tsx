@@ -1608,10 +1608,10 @@ export function SiteMochiCompactConfigWindow({
   const ActiveIcon = activeMeta.icon;
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <div className="flex items-center justify-between border-b border-border bg-background/28 px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background/55">
             <ActiveIcon className="h-4 w-4 text-[var(--brand-accent)]" />
           </div>
           <div className="text-sm font-semibold text-foreground">
@@ -1622,7 +1622,7 @@ export function SiteMochiCompactConfigWindow({
           <button
             type="button"
             onClick={resetConfig}
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+            className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-background/80"
           >
             Reset
           </button>
@@ -1797,14 +1797,14 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
       <aside
         className={
           inline
-            ? "mochi-settings-panel mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-[#06080d]/95 shadow-2xl"
-            : "mochi-settings-panel absolute right-0 top-0 h-full w-full max-w-xl border-l border-white/10 bg-[#06080d]/95 shadow-2xl"
+            ? "mochi-settings-panel mx-auto w-full max-w-6xl rounded-3xl border border-border bg-background/95 text-foreground shadow-2xl"
+            : "mochi-settings-panel absolute right-0 top-0 h-full w-full max-w-xl border-l border-border bg-background/95 text-foreground shadow-2xl"
         }
       >
         <div className={`flex ${inline ? "min-h-0" : "h-full"} flex-col`}>
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card/70">
                 <Settings2 className="h-5 w-5 text-[var(--brand-accent)]" />
               </div>
               <div>
@@ -1822,7 +1822,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
               <button
                 type="button"
                 onClick={closeConfig}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-foreground/80 hover:bg-white/10"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card/70 text-foreground/80 hover:bg-card"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1842,11 +1842,11 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                       onClick={() => setActiveTab(item.key)}
                       className={`group flex min-h-[92px] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all ${
                         isActive
-                          ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground shadow-[0_18px_40px_rgba(0,0,0,0.22)]"
-                          : "border-white/10 bg-white/5 text-foreground/80 hover:bg-white/10"
+                        ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground shadow-[0_18px_40px_rgba(0,0,0,0.18)]"
+                        : "border-border bg-card/65 text-foreground/80 hover:bg-card"
                       }`}
                     >
-                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background/55">
                         <Icon className="h-5 w-5" />
                       </span>
                       <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">

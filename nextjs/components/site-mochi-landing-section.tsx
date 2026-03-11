@@ -140,9 +140,9 @@ export function SiteMochiLandingSection() {
           </div>
 
           {activeDesktopWindow ? (
-            <div className="absolute inset-0 z-20 flex items-start justify-end p-4 pt-14 sm:p-6 sm:pt-16">
-              <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-white/20 bg-[#06080d]/95 shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+            <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-end p-4 pt-14 sm:p-6 sm:pt-16">
+              <div className="pointer-events-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
+                <div className="flex items-center justify-between border-b border-border bg-card/55 px-4 py-2.5">
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
                     <span className="h-3 w-3 rounded-full bg-[#fbbf24]" />
@@ -151,7 +151,7 @@ export function SiteMochiLandingSection() {
                   <button
                     type="button"
                     onClick={() => setActiveDesktopWindow(null)}
-                    className="rounded-none border border-white/15 bg-white/5 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground hover:bg-white/10"
+                    className="rounded-none border border-border bg-background/60 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground hover:bg-background/80"
                   >
                     {t("Close", "Cerrar")}
                   </button>
