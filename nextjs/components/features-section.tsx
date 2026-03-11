@@ -12,7 +12,7 @@ import { useCurrentTheme, type SiteTheme } from "@/hooks/use-current-theme";
 
 const themeIcons: Record<SiteTheme, [LucideIcon, LucideIcon, LucideIcon]> = {
   neural:  [MessageSquare, Bot, Sparkles],
-  pink:    [Heart, Wand2, Star],
+  "black-pink": [Heart, Wand2, Star],
   kawaii:  [Heart, Wand2, Sparkles],
   pastel:  [Flower2, Candy, Cloud],
 };

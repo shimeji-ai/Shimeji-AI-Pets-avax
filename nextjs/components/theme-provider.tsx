@@ -20,9 +20,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const currentAttr = document.documentElement.getAttribute("data-theme");
-    const current = currentAttr === "pink" ? "black-pink" : currentAttr;
+    const current: Theme | null =
+      currentAttr === "pink"
+        ? "black-pink"
+        : THEMES.includes(currentAttr as Theme)
+          ? (currentAttr as Theme)
+          : null;
     const resolved =
-      current && THEMES.includes(current)
+      current
         ? current
         : "kawaii";
     setThemeState(resolved);
