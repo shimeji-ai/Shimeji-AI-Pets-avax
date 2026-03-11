@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
-import { useSiteMochi } from "@/components/site-mochi-provider";
+import { useSiteMochi, type SiteMochiIconTheme } from "@/components/site-mochi-provider";
 import { useTheme, type Theme } from "@/components/theme-provider";
 import {
   SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
@@ -54,6 +54,27 @@ export const CONFIG_WINDOW_META: Array<{
   { key: "mascot", icon: Sparkles, iconSrc: "/desktop-icons/mascot.png", labelEn: "Mascot", labelEs: "Mascota" },
   { key: "sound", icon: Volume2, iconSrc: "/desktop-icons/sound.png", labelEn: "Sound", labelEs: "Sonido" },
 ];
+
+const ICON_THEME_META: Array<{
+  key: SiteMochiIconTheme;
+  label: string;
+  filter: string;
+  chipClass: string;
+}> = [
+  { key: "kawaii", label: "Kawaii", filter: "saturate(1.18) hue-rotate(-10deg) brightness(1.03)", chipClass: "from-pink-200 to-rose-300" },
+  { key: "original", label: "Original", filter: "none", chipClass: "from-stone-200 to-stone-300" },
+  { key: "mint", label: "Mint", filter: "hue-rotate(92deg) saturate(1.15) brightness(1.02)", chipClass: "from-emerald-200 to-cyan-300" },
+  { key: "sunset", label: "Sunset", filter: "hue-rotate(-48deg) saturate(1.25) brightness(1.02)", chipClass: "from-amber-200 to-orange-300" },
+  { key: "mono", label: "Mono", filter: "grayscale(1) contrast(1.08)", chipClass: "from-zinc-200 to-zinc-400" },
+];
+
+export function getIconThemeImageStyle(iconTheme: SiteMochiIconTheme): CSSProperties {
+  const meta = ICON_THEME_META.find((item) => item.key === iconTheme);
+  return {
+    imageRendering: "pixelated",
+    filter: meta?.filter || "none",
+  };
+}
 
 function getMascotIdleSpriteSrc(characterKey: string) {
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
@@ -1660,30 +1681,71 @@ export function SiteMochiCompactConfigWindow({
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === "site" ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {SITE_THEME_META.map((item) => {
-              const isActive = theme === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setTheme(item.key)}
-                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
-                    isActive
-                      ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
-                      : "border-border bg-card/65 text-foreground/85 hover:bg-card"
-                  }`}
-                >
-                  <span
-                    className="h-4 w-4 shrink-0 rounded-full border border-black/10"
-                    style={{ backgroundColor: item.accent }}
-                  />
-                  <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em]">
-                    {isSpanish ? item.labelEs : item.labelEn}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="grid gap-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SITE_THEME_META.map((item) => {
+                const isActive = theme === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setTheme(item.key)}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                      isActive
+                        ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                        : "border-border bg-card/65 text-foreground/85 hover:bg-card"
+                    }`}
+                  >
+                    <span
+                      className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+                      style={{ backgroundColor: item.accent }}
+                    />
+                    <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em]">
+                      {isSpanish ? item.labelEs : item.labelEn}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid gap-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {isSpanish ? "Estilo de iconos" : "Icon style"}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {ICON_THEME_META.map((item) => {
+                  const isActive = config.iconTheme === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => updateConfig({ iconTheme: item.key })}
+                      className={`rounded-2xl border p-3 text-left transition-all ${
+                        isActive
+                          ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15"
+                          : "border-border bg-card/65 hover:bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`flex h-10 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${item.chipClass}`}>
+                          <Image
+                            src="/desktop-icons/soul.png"
+                            alt=""
+                            width={24}
+                            height={24}
+                            className="h-6 w-6 object-contain"
+                            style={getIconThemeImageStyle(item.key)}
+                          />
+                        </div>
+                        <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                          {item.label}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -1911,7 +1973,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                           width={36}
                           height={36}
                           className="h-9 w-9 object-contain"
-                          style={{ imageRendering: "pixelated" }}
+                          style={getIconThemeImageStyle(config.iconTheme)}
                         />
                       </span>
                       <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">

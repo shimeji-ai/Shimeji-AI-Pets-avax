@@ -10,7 +10,12 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
-import { CONFIG_WINDOW_META, SiteMochiCompactConfigWindow, type ConfigPanelTab } from "@/components/site-mochi-config-panel";
+import {
+  CONFIG_WINDOW_META,
+  getIconThemeImageStyle,
+  SiteMochiCompactConfigWindow,
+  type ConfigPanelTab,
+} from "@/components/site-mochi-config-panel";
 
 type DesktopConfigShortcutProps = {
   configKey: ConfigPanelTab;
@@ -31,8 +36,13 @@ function DesktopConfigShortcut({
   configKey,
   label,
   iconSrc,
+  iconTheme,
   onOpen,
-}: DesktopConfigShortcutProps & { iconSrc?: string; onOpen: (tab: ConfigPanelTab) => void }) {
+}: DesktopConfigShortcutProps & {
+  iconSrc?: string;
+  iconTheme: ReturnType<typeof useSiteMochi>["config"]["iconTheme"];
+  onOpen: (tab: ConfigPanelTab) => void;
+}) {
   const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
   if (!meta) return null;
 
@@ -49,7 +59,7 @@ function DesktopConfigShortcut({
           width={64}
           height={64}
           className="h-16 w-16 object-contain drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]"
-          style={{ imageRendering: "pixelated" }}
+          style={getIconThemeImageStyle(iconTheme)}
         />
       </span>
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
@@ -136,6 +146,7 @@ export function SiteMochiLandingSection() {
                 key={shortcut.configKey}
                 {...shortcut}
                 iconSrc={shortcut.configKey === "mascot" ? getMascotIdleSpriteSrc(config.character) : undefined}
+                iconTheme={config.iconTheme}
                 onOpen={setActiveDesktopWindow}
               />
             ))}

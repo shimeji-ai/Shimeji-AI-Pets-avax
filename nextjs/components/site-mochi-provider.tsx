@@ -22,6 +22,7 @@ export type SiteMochiProviderKind = "site" | "openrouter" | "ollama" | "openclaw
 export type SiteMochiOpenClawMode = "paired";
 export type SiteMochiSoundInputProviderKind = "off" | "browser";
 export type SiteMochiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
+export type SiteMochiIconTheme = "original" | "kawaii" | "mint" | "sunset" | "mono";
 
 export type SiteMochiCharacterOption = {
   key: string;
@@ -46,6 +47,7 @@ export type SiteMochiConfig = {
   enabled: boolean;
   character: string;
   soulMd: string;
+  iconTheme: SiteMochiIconTheme;
   sizePercent: number;
   provider: SiteMochiProviderKind;
   openrouterApiKey: string;
@@ -117,6 +119,7 @@ You are Mochi.
 - Help with setup, downloads, and using the agent.
 - Prefer clear answers over roleplay unless the user invites it.
 `,
+  iconTheme: "kawaii",
   sizePercent: 100,
   provider: "site",
   openrouterApiKey: "",
@@ -233,6 +236,16 @@ function sanitizeChatThemePreset(value: unknown): SiteMochiChatThemePresetId {
   return DEFAULT_CONFIG.chatThemePreset;
 }
 
+function sanitizeIconTheme(value: unknown): SiteMochiIconTheme {
+  return value === "original" ||
+    value === "kawaii" ||
+    value === "mint" ||
+    value === "sunset" ||
+    value === "mono"
+    ? value
+    : DEFAULT_CONFIG.iconTheme;
+}
+
 function looksLikeUntouchedProviderConfig(raw: Partial<SiteMochiConfig>): boolean {
   const providerValue = raw.provider;
   if (providerValue && providerValue !== "openrouter") return false;
@@ -343,6 +356,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
     enabled: true,
     character: sanitizeString(raw.character, DEFAULT_CONFIG.character, 64) || DEFAULT_CONFIG.character,
     soulMd: sanitizeString(raw.soulMd, DEFAULT_CONFIG.soulMd, 4000) || DEFAULT_CONFIG.soulMd,
+    iconTheme: sanitizeIconTheme(raw.iconTheme),
     sizePercent: clampSizePercent(raw.sizePercent),
     provider,
     openrouterApiKey: sanitizeString(raw.openrouterApiKey, "", 600),
