@@ -27,6 +27,12 @@ type DesktopConfigShortcutProps = {
   label: string;
 };
 
+type HeaderIconLinkProps = {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+};
+
 function ShortcutCard({ icon: Icon, label, href }: ShortcutCardProps) {
   return (
     <Link
@@ -72,6 +78,22 @@ function DesktopConfigShortcut({
   );
 }
 
+function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      title={label}
+      className="group relative inline-flex h-8 w-8 items-center justify-center rounded-none border border-foreground/10 bg-card/45 text-foreground/72 transition-all duration-150 hover:border-foreground/20 hover:bg-card/75 hover:text-foreground"
+    >
+      <Icon className="h-4 w-4" strokeWidth={2.1} />
+      <span className="pointer-events-none absolute right-full mr-2 whitespace-nowrap rounded-none border border-border bg-background/92 px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground opacity-0 shadow-[3px_3px_0_rgba(24,18,37,0.12)] transition-opacity duration-150 group-hover:opacity-100">
+        {label}
+      </span>
+    </Link>
+  );
+}
+
 export function SiteMochiLandingSection() {
   const { isSpanish } = useLanguage();
   const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
@@ -83,16 +105,6 @@ export function SiteMochiLandingSection() {
       href: "/marketplace",
       icon: ShoppingBag,
       label: t("Marketplace", "Marketplace"),
-    },
-    {
-      href: "/download",
-      icon: Download,
-      label: t("Download", "Descarga"),
-    },
-    {
-      href: "/help",
-      icon: CircleHelp,
-      label: t("Help", "Ayuda"),
     },
   ] satisfies ShortcutCardProps[];
 
@@ -118,7 +130,10 @@ export function SiteMochiLandingSection() {
               </div>
             </div>
 
-            <div className="h-8 w-8" />
+            <div className="flex items-center gap-2">
+              <HeaderIconLink href="/help" icon={CircleHelp} label={t("Help", "Ayuda")} />
+              <HeaderIconLink href="/download" icon={Download} label={t("Download", "Descarga")} />
+            </div>
           </div>
         </div>
 
@@ -143,10 +158,8 @@ export function SiteMochiLandingSection() {
             <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-end p-4 pt-14 sm:p-6 sm:pt-16">
               <div className="pointer-events-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
                 <div className="flex items-center justify-between border-b border-border bg-card/55 px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
-                    <span className="h-3 w-3 rounded-full bg-[#fbbf24]" />
-                    <span className="h-3 w-3 rounded-full bg-[#34d399]" />
+                  <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                    {t("Configuration", "Configuracion")}
                   </div>
                   <button
                     type="button"
