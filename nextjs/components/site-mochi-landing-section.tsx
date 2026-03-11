@@ -71,6 +71,9 @@ export function SiteMochiLandingSection() {
   const [entryGateOpen, setEntryGateOpen] = useState(true);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
+  const activeWindowMeta = activeDesktopWindow
+    ? CONFIG_WINDOW_META.find((item) => item.key === activeDesktopWindow) ?? null
+    : null;
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
     { configKey: "chat", label: t("Provider", "Proveedor") },
@@ -129,7 +132,11 @@ export function SiteMochiLandingSection() {
               <div className="pointer-events-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
                 <div className="flex items-center justify-between border-b border-border bg-card/55 px-4 py-2.5">
                   <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {t("Configuration", "Configuracion")}
+                    {activeWindowMeta
+                      ? isSpanish
+                        ? activeWindowMeta.labelEs
+                        : activeWindowMeta.labelEn
+                      : t("Configuration", "Configuracion")}
                   </div>
                   <button
                     type="button"
@@ -139,7 +146,7 @@ export function SiteMochiLandingSection() {
                     {t("Close", "Cerrar")}
                   </button>
                 </div>
-                <div className="min-h-[420px] max-h-[calc(100vh-7rem)] overflow-hidden">
+                <div className="h-[min(640px,calc(100vh-7rem))] min-h-[420px] overflow-hidden">
                   <SiteMochiCompactConfigWindow activeTab={activeDesktopWindow} />
                 </div>
               </div>

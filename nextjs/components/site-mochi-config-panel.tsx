@@ -1609,7 +1609,7 @@ export function SiteMochiCompactConfigWindow({
   const ActiveIcon = activeMeta.icon;
 
   return (
-    <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-border bg-background/28 px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background/55">
@@ -1798,7 +1798,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
         <button
           type="button"
           aria-label={isSpanish ? "Cerrar panel de configuración" : "Close configuration panel"}
-          className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+          className="absolute inset-0 bg-transparent"
           onClick={closeConfig}
         />
       ) : null}
