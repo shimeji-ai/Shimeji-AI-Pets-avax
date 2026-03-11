@@ -165,14 +165,14 @@ function buildStageSpriteSrc(character: LandingCharacterOption | null | undefine
 function ShortcutCard({ icon: Icon, label, hint, href, onClick }: ShortcutCardProps) {
   const content: ReactNode = (
     <>
-      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/80 bg-background/70 shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
+      <span className="flex h-14 w-14 items-center justify-center rounded-[1.15rem] border border-border/70 bg-card/85 shadow-[0_14px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 group-hover:scale-105 group-hover:bg-card">
         <Icon className="h-5 w-5 text-foreground" />
       </span>
-      <div className="mt-3 text-center">
+      <div className="mt-2 text-center">
         <div className="text-sm font-semibold tracking-[-0.03em] text-foreground">
           {label}
         </div>
-        <div className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           {hint}
         </div>
       </div>
@@ -180,7 +180,7 @@ function ShortcutCard({ icon: Icon, label, hint, href, onClick }: ShortcutCardPr
   );
 
   const className =
-    "group flex min-h-[118px] flex-col items-center justify-start rounded-[1.6rem] border border-border/70 bg-card/55 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-foreground/30 hover:bg-card/80";
+    "group flex min-h-[112px] flex-col items-center justify-start rounded-[1.4rem] px-2 py-3 transition-all duration-300 hover:-translate-y-1";
 
   if (href) {
     return (
@@ -264,7 +264,7 @@ export function SiteMochiLandingSection() {
   }).format(clock);
 
   return (
-    <section className="relative min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
+    <section className="relative min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 lg:h-screen lg:min-h-0 lg:overflow-hidden">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
       <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.06)_1px,transparent_1px)] [background-size:72px_72px]" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.4),transparent_55%)]" />
@@ -272,7 +272,7 @@ export function SiteMochiLandingSection() {
         OS
       </div>
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-7xl flex-col">
+      <div className="relative mx-auto flex min-h-[calc(100svh-2rem)] max-w-7xl flex-col lg:h-[calc(100svh-3rem)] lg:min-h-0">
         <div className="rounded-[1.8rem] border border-border/70 bg-background/55 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,0.12)] backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -332,8 +332,8 @@ export function SiteMochiLandingSection() {
           </div>
         </div>
 
-        <div className="mt-5 grid flex-1 gap-5 lg:grid-cols-[112px_minmax(0,1fr)_280px]">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
+        <div className="mt-5 grid flex-1 gap-5 lg:min-h-0 lg:grid-cols-[100px_minmax(0,1fr)_250px]">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:auto-rows-max lg:content-start lg:grid-cols-1">
             <ShortcutCard
               icon={ShoppingBag}
               href="/marketplace"
@@ -360,7 +360,7 @@ export function SiteMochiLandingSection() {
             />
           </div>
 
-          <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/60 shadow-[0_30px_110px_rgba(0,0,0,0.14)] backdrop-blur">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-card/60 shadow-[0_30px_110px_rgba(0,0,0,0.14)] backdrop-blur">
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-5">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
@@ -375,9 +375,9 @@ export function SiteMochiLandingSection() {
               </div>
             </div>
 
-            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:p-5">
+            <div className="grid flex-1 gap-4 p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_220px] lg:p-5">
               <div
-                className="overflow-hidden rounded-[1.8rem] border border-border/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
+                className="flex min-h-0 flex-col overflow-hidden rounded-[1.8rem] border border-border/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
                 style={{
                   background:
                     "linear-gradient(180deg, color-mix(in srgb, var(--foreground) 14%, transparent), color-mix(in srgb, var(--foreground) 22%, var(--background)) 58%, color-mix(in srgb, var(--brand-accent) 10%, var(--background)) 100%)",
@@ -397,7 +397,7 @@ export function SiteMochiLandingSection() {
                   </div>
                 </div>
 
-                <div className="relative mt-6 flex min-h-[280px] items-center justify-center sm:min-h-[360px]">
+                <div className="relative mt-5 flex flex-1 items-center justify-center">
                   <div className="absolute h-64 w-64 rounded-full border border-white/10 bg-white/5 blur-[1px]" />
                   <div className="absolute h-56 w-56 rounded-full border border-white/10" />
                   <div className="absolute h-44 w-44 rounded-full bg-black/18 blur-2xl" />
@@ -427,7 +427,7 @@ export function SiteMochiLandingSection() {
                   />
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+                <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_160px]">
                   <div className="rounded-[1.5rem] border border-white/10 bg-black/18 p-4 text-white/85 shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
                     <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">
                       {t("current mood", "mood actual")}
@@ -441,24 +441,26 @@ export function SiteMochiLandingSection() {
                       <span aria-hidden="true">&rdquo;</span>
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={openConfig}
-                    className="inline-flex items-center justify-center gap-2 rounded-[1.4rem] border border-white/12 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/16"
-                  >
-                    <Settings2 className="h-4 w-4" />
-                    {t("Open config", "Abrir config")}
-                  </button>
+                  <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-4 text-white/78 shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">
+                      {t("control", "control")}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed">
+                      {t(
+                        "Use the desktop Config icon to open Mochi settings.",
+                        "Usa el icono Config del escritorio para abrir ajustes de Mochi.",
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+              <div className="flex min-h-0 flex-col gap-4">
+                <div className="flex min-h-0 flex-col rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
                     {t("Mood stack", "Stack de mood")}
                   </p>
-                  <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-1">
+                  <div className="mt-4 grid grid-cols-2 gap-2 lg:min-h-0 lg:flex-1 lg:auto-rows-max lg:grid-cols-1 lg:overflow-y-auto">
                     {catalogLoading && personalities.length === 0
                       ? Array.from({ length: 6 }).map((_, index) => (
                           <div
@@ -581,7 +583,7 @@ export function SiteMochiLandingSection() {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 lg:min-h-0">
             <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
               <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
                 {t("Desktop memo", "Memo del escritorio")}
@@ -596,31 +598,31 @@ export function SiteMochiLandingSection() {
 
             <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
               <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                {t("Quick route", "Ruta rapida")}
+                {t("Desktop map", "Mapa del escritorio")}
               </p>
-              <div className="mt-4 space-y-3">
-                <Link
-                  href="/marketplace"
-                  className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
-                >
-                  <span>{t("Open Marketplace", "Abrir Marketplace")}</span>
-                  <ShoppingBag className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/download"
-                  className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
-                >
-                  <span>{t("Get desktop app", "Bajar app desktop")}</span>
-                  <Download className="h-4 w-4" />
-                </Link>
-                <button
-                  type="button"
-                  onClick={openConfig}
-                  className="flex w-full items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
-                >
-                  <span>{t("Open Mochi config", "Abrir config de Mochi")}</span>
-                  <Settings2 className="h-4 w-4" />
-                </button>
+              <div className="mt-4 space-y-3 text-sm text-foreground/85">
+                <div className="rounded-[1.2rem] border border-border bg-background/65 px-4 py-3">
+                  <p className="font-semibold text-foreground">
+                    {t("Marketplace", "Marketplace")}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {t(
+                      "Only place where wallet connect appears.",
+                      "Unico lugar donde aparece wallet connect.",
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-[1.2rem] border border-border bg-background/65 px-4 py-3">
+                  <p className="font-semibold text-foreground">
+                    {t("Download + Help", "Descarga + Ayuda")}
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {t(
+                      "Desktop shortcuts live once, on the left side like an OS.",
+                      "Los accesos viven una sola vez, a la izquierda como en un SO.",
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
