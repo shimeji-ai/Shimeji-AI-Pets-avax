@@ -1,78 +1,204 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, RefreshCw, Settings2, Sparkles } from "lucide-react";
+import {
+  CircleHelp,
+  Download,
+  Settings2,
+  ShoppingBag,
+  Sparkles,
+  Volume2,
+  Wifi,
+  type LucideIcon,
+} from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
-import { useSiteMochi } from "@/components/site-mochi-provider";
+import {
+  useSiteMochi,
+  type SiteMochiCharacterOption,
+} from "@/components/site-mochi-provider";
 import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
 
-const SPARKLE_POSITIONS = [
-  { x: -72, y: -88, delay: 0,    dur: 2.8, size: 5 },
-  { x:  78, y: -64, delay: 0.5,  dur: 3.2, size: 3 },
-  { x: -90, y:  16, delay: 1.0,  dur: 2.6, size: 4 },
-  { x:  88, y:  32, delay: 1.4,  dur: 3.6, size: 3 },
-  { x: -48, y:  88, delay: 0.3,  dur: 2.4, size: 4 },
-  { x:  56, y:  96, delay: 0.8,  dur: 3.0, size: 5 },
-  { x:  20, y: -96, delay: 1.8,  dur: 2.9, size: 3 },
-  { x: -24, y:  60, delay: 1.1,  dur: 3.4, size: 2 },
+type ShortcutCardProps = {
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  href?: string;
+  onClick?: () => void;
+};
+
+type LandingCharacterOption = SiteMochiCharacterOption & {
+  stageSrc?: string;
+};
+
+const FALLBACK_CHARACTER: LandingCharacterOption = {
+  key: "mochi",
+  label: "Mochi",
+  iconUrl: "/deploy-seed/local/sprites/mochi-idle.png",
+  spritesBaseUri: null,
+  stageSrc: "/deploy-seed/local/sprites/mochi-idle.png",
+};
+
+const HOME_CHARACTERS: LandingCharacterOption[] = [
+  FALLBACK_CHARACTER,
+  {
+    key: "blob",
+    label: "Blob",
+    iconUrl: "/deploy-seed/local/sprites/blob-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/blob-idle.png",
+  },
+  {
+    key: "ghost",
+    label: "Ghost",
+    iconUrl: "/deploy-seed/local/sprites/ghost-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/ghost-idle.png",
+  },
+  {
+    key: "kitten",
+    label: "Kitten",
+    iconUrl: "/deploy-seed/local/sprites/kitten-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/kitten-idle.png",
+  },
+  {
+    key: "penguin",
+    label: "Penguin",
+    iconUrl: "/deploy-seed/local/sprites/penguin-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/penguin-idle.png",
+  },
+  {
+    key: "bunny",
+    label: "Bunny",
+    iconUrl: "/deploy-seed/local/sprites/bunny-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/bunny-idle.png",
+  },
+  {
+    key: "egg",
+    label: "Egg",
+    iconUrl: "/deploy-seed/local/sprites/egg-idle.png",
+    spritesBaseUri: null,
+    stageSrc: "/deploy-seed/local/sprites/egg-idle.png",
+  },
+];
+
+const HOME_PERSONALITIES = [
+  { key: "cozy", label: "Cozy" },
+  { key: "chaotic", label: "Chaotic" },
+  { key: "cryptid", label: "Cryptid" },
+  { key: "egg", label: "Egg" },
+  { key: "hype", label: "Hype Beast" },
+  { key: "noir", label: "Noir" },
+  { key: "philosopher", label: "Philosopher" },
 ];
 
 const PERSONALITY_FLAVORS: Record<
   string,
   {
+    noteEn: string;
+    noteEs: string;
     quoteEn: string;
     quoteEs: string;
-    hintEn: string;
-    hintEs: string;
   }
 > = {
   chaotic: {
+    noteEn: "Gremlin commentary for weird tabs.",
+    noteEs: "Comentario gremlin para pestanas raras.",
     quoteEn: "This tab feels illegal in a fun way.",
     quoteEs: "Esta pestana se siente ilegal, pero divertida.",
-    hintEn: "gremlin commentary armed",
-    hintEs: "comentario gremlin armado",
   },
   cozy: {
+    noteEn: "Gentle warmth for long nights online.",
+    noteEs: "Calma suave para noches largas online.",
     quoteEn: "Slow down. I saw you do one good thing already.",
     quoteEs: "Baja un cambio. Ya te vi hacer una cosa bien.",
-    hintEn: "soft blanket mode armed",
-    hintEs: "modo manta suave armado",
   },
   cryptid: {
+    noteEn: "Dry observations and awkward truths.",
+    noteEs: "Observaciones secas y verdades incomodas.",
     quoteEn: "Interesting choice. Not optimal, but almost none are.",
     quoteEs: "Eleccion interesante. Optima no era, pero casi ninguna lo es.",
-    hintEn: "dry observer armed",
-    hintEs: "observadora seca armada",
   },
   egg: {
+    noteEn: "Shy, hopeful, almost hatching.",
+    noteEs: "Timida, esperanzada, casi por nacer.",
     quoteEn: "Stay with me a bit. I think today might be the day.",
     quoteEs: "Quedate un ratito. Siento que hoy podria ser el dia.",
-    hintEn: "almost hatching",
-    hintEs: "por nacer",
   },
   hype: {
+    noteEn: "Pure encouragement for every click.",
+    noteEs: "Puro empuje para cada click.",
     quoteEn: "That click had conviction. I respect it.",
     quoteEs: "Ese click tuvo conviccion. Lo respeto.",
-    hintEn: "maximum encouragement armed",
-    hintEs: "maximo empuje armado",
   },
   noir: {
+    noteEn: "A tiny detective for suspicious pages.",
+    noteEs: "Un detective minimo para paginas sospechosas.",
     quoteEn: "Another search. You are chasing something again.",
     quoteEs: "Otra busqueda. Andas persiguiendo algo otra vez.",
-    hintEn: "rain-soaked detective armed",
-    hintEs: "detective bajo lluvia armado",
   },
   philosopher: {
+    noteEn: "Existential thoughts between tabs.",
+    noteEs: "Pensamientos existenciales entre pestanas.",
     quoteEn: "Every closed tab is a life unlived.",
     quoteEs: "Cada pestana cerrada es una vida no vivida.",
-    hintEn: "tiny existentialist armed",
-    hintEs: "existencialista minima armada",
   },
 };
 
+function buildStageSpriteSrc(character: LandingCharacterOption | null | undefined) {
+  const target = character ?? FALLBACK_CHARACTER;
+  if (target.spritesBaseUri) {
+    return `${target.spritesBaseUri.replace(/\/+$/, "")}/stand-neutral.png`;
+  }
+  if (target.stageSrc) {
+    return target.stageSrc;
+  }
+  if (target.iconUrl.startsWith("/deploy-seed/")) {
+    return target.iconUrl;
+  }
+  return `/api/site-mochi/sprite/${encodeURIComponent(target.key)}/stand-neutral.png`;
+}
+
+function ShortcutCard({ icon: Icon, label, hint, href, onClick }: ShortcutCardProps) {
+  const content: ReactNode = (
+    <>
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/80 bg-background/70 shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
+        <Icon className="h-5 w-5 text-foreground" />
+      </span>
+      <div className="mt-3 text-center">
+        <div className="text-sm font-semibold tracking-[-0.03em] text-foreground">
+          {label}
+        </div>
+        <div className="mt-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          {hint}
+        </div>
+      </div>
+    </>
+  );
+
+  const className =
+    "group flex min-h-[118px] flex-col items-center justify-start rounded-[1.6rem] border border-border/70 bg-card/55 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.12)] backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-foreground/30 hover:bg-card/80";
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
+  );
+}
+
 export function SiteMochiLandingSection() {
-  const { isSpanish } = useLanguage();
+  const { isSpanish, language, setLanguage } = useLanguage();
   const {
     catalog,
     catalogLoading,
@@ -82,18 +208,22 @@ export function SiteMochiLandingSection() {
     updateConfig,
     openConfig,
   } = useSiteMochi();
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 80);
-    return () => clearTimeout(t);
-  }, []);
-
-  const currentCharacter = catalog?.characters.find(
-    (c) => c.key === config.character,
+  const [clock, setClock] = useState(() => new Date());
+  const [stageSpriteSrc, setStageSpriteSrc] = useState(() =>
+    buildStageSpriteSrc(FALLBACK_CHARACTER),
   );
-  const currentPersonality = catalog?.personalities.find(
-    (p) => p.key === config.personality,
+
+  const t = (en: string, es: string) => (isSpanish ? es : en);
+  const characters: LandingCharacterOption[] =
+    (catalog?.characters?.length ?? 0) > 0 ? catalog?.characters ?? [] : HOME_CHARACTERS;
+  const personalities =
+    (catalog?.personalities?.length ?? 0) > 0 ? catalog?.personalities ?? [] : HOME_PERSONALITIES;
+  const currentCharacter =
+    characters.find((entry) => entry.key === config.character) ??
+    characters[0] ??
+    FALLBACK_CHARACTER;
+  const currentPersonality = personalities.find(
+    (entry) => entry.key === config.personality,
   );
   const currentFlavor =
     PERSONALITY_FLAVORS[currentPersonality?.key ?? config.personality] ??
@@ -103,444 +233,399 @@ export function SiteMochiLandingSection() {
     : isSpanish
       ? "Acogedora"
       : "Cozy";
+  const currentCharacterKey = currentCharacter.key;
+  const currentCharacterIconUrl = currentCharacter.iconUrl;
+  const currentCharacterSpritesBaseUri = currentCharacter.spritesBaseUri;
+  const currentCharacterStageSrc = currentCharacter.stageSrc;
+
+  useEffect(() => {
+    setStageSpriteSrc(
+      currentCharacterStageSrc
+        ? currentCharacterStageSrc
+        : currentCharacterSpritesBaseUri
+          ? `${currentCharacterSpritesBaseUri.replace(/\/+$/, "")}/stand-neutral.png`
+          : `/api/site-mochi/sprite/${encodeURIComponent(currentCharacterKey)}/stand-neutral.png`,
+    );
+  }, [currentCharacterKey, currentCharacterSpritesBaseUri, currentCharacterStageSrc]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), 1000 * 30);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const timeLabel = new Intl.DateTimeFormat(language === "es" ? "es-AR" : "en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(clock);
+  const dayLabel = new Intl.DateTimeFormat(language === "es" ? "es-AR" : "en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(clock);
 
   return (
-    <section className="landing-stage relative min-h-screen flex flex-col overflow-hidden bg-background">
+    <section className="relative min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
+      <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.06)_1px,transparent_1px)] [background-size:72px_72px]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.4),transparent_55%)]" />
+      <div className="pointer-events-none absolute right-8 top-28 text-[18vw] font-black uppercase leading-none tracking-[-0.14em] text-foreground/[0.05]">
+        OS
+      </div>
 
-      {/* ── Atmosphere ── */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 45%, color-mix(in srgb, var(--brand-accent) 6%, transparent) 0%, transparent 100%)",
-        }}
-      />
-      {/* Grain */}
-      <div
-        className="absolute inset-0 pointer-events-none z-10 opacity-[0.025]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-          backgroundSize: "160px 160px",
-        }}
-      />
-
-      {/* ── Stage ── */}
-      <div
-        className="relative z-20 flex-1 flex flex-col items-center justify-center pt-20"
-        style={{
-          paddingBottom: "calc(235px + 2rem)",
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? "none" : "translateY(14px)",
-          transition: "opacity 0.9s ease, transform 0.9s ease",
-        }}
-      >
-        {/* Character halo + sprite */}
-        <div className="relative flex items-center justify-center">
-          {/* Pulsing ring */}
-          <div
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: 340,
-              height: 340,
-              background:
-                "radial-gradient(circle, color-mix(in srgb, var(--brand-accent) 18%, transparent) 0%, transparent 68%)",
-              animation: "mochi-ring 4.5s ease-in-out infinite",
-            }}
-          />
-
-          {/* Pixel sparkles */}
-          {SPARKLE_POSITIONS.map((s, i) => (
-            <div
-              key={i}
-              className="absolute pointer-events-none"
-              style={{
-                left: `calc(50% + ${s.x}px)`,
-                top: `calc(50% + ${s.y}px)`,
-                width: s.size,
-                height: s.size,
-                background: "var(--brand-accent)",
-                borderRadius: 1,
-                animation: `mochi-sparkle ${s.dur}s ${s.delay}s ease-in-out infinite`,
-              }}
-            />
-          ))}
-
-          {/* The character */}
-          {currentCharacter ? (
-            <>
-              <div
-                className="absolute left-[-1rem] top-8 hidden rounded-2xl border border-border/60 bg-background/78 px-4 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.16)] backdrop-blur md:block"
-                style={{ transform: "rotate(-6deg)" }}
-              >
-                <p
-                  className="font-mono uppercase text-muted-foreground/60"
-                  style={{ fontSize: "0.55rem", letterSpacing: "0.2em" }}
-                >
-                  {isSpanish ? "cuerpo" : "shell"}
+      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-7xl flex-col">
+        <div className="rounded-[1.8rem] border border-border/70 bg-background/55 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,0.12)] backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card/70 text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold tracking-[-0.04em] text-foreground">
+                  Mochi OS
                 </p>
-                <p
-                  className="mt-1 font-mono font-bold uppercase text-foreground"
-                  style={{ fontSize: "0.72rem", letterSpacing: "0.16em" }}
-                >
-                  {currentCharacter.label}
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                  {t("desktop start screen", "pantalla de inicio")}
                 </p>
               </div>
+            </div>
 
-              <div
-                className="absolute right-[-1rem] top-28 hidden rounded-2xl border border-border/60 bg-background/78 px-4 py-3 text-right shadow-[0_12px_30px_rgba(0,0,0,0.16)] backdrop-blur md:block"
-                style={{ transform: "rotate(6deg)" }}
-              >
-                <p
-                  className="font-mono uppercase text-muted-foreground/60"
-                  style={{ fontSize: "0.55rem", letterSpacing: "0.2em" }}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex rounded-full border border-border bg-card/70 p-1">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${
+                    language === "en"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground"
+                  }`}
                 >
-                  {isSpanish ? "mente" : "mind"}
-                </p>
-                <p
-                  className="mt-1 font-mono font-bold uppercase text-foreground"
-                  style={{ fontSize: "0.72rem", letterSpacing: "0.16em" }}
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("es")}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${
+                    language === "es"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground"
+                  }`}
                 >
-                  {currentPersonalityLabel}
-                </p>
+                  ES
+                </button>
               </div>
 
-              <div
-                className="absolute rounded-full pointer-events-none"
-                style={{
-                  width: 228,
-                  height: 228,
-                  background:
-                    "radial-gradient(circle, color-mix(in srgb, var(--foreground) 26%, transparent) 0%, color-mix(in srgb, var(--foreground) 16%, transparent) 46%, transparent 78%)",
-                  boxShadow:
-                    "0 22px 70px color-mix(in srgb, var(--foreground) 18%, transparent)",
-                }}
-              />
-              <div
-                className="absolute rounded-full pointer-events-none border border-foreground/12"
-                style={{
-                  width: 180,
-                  height: 180,
-                  background:
-                    "radial-gradient(circle, color-mix(in srgb, var(--background) 8%, transparent) 0%, transparent 72%)",
-                }}
-              />
+              <div className="hidden items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-2 text-muted-foreground sm:inline-flex">
+                <Wifi className="h-4 w-4" />
+                <Volume2 className="h-4 w-4" />
+              </div>
 
-              <img
-                key={currentCharacter.key}
-                src={currentCharacter.iconUrl}
-                alt={currentCharacter.label}
-                className="character-sprite"
-                style={{
-                  width: 260,
-                  height: 260,
-                  objectFit: "contain",
-                  imageRendering: "pixelated",
-                  filter:
-                    "drop-shadow(0 0 40px color-mix(in srgb, var(--brand-accent) 35%, transparent))",
-                  animation: "mochi-float 3.8s ease-in-out infinite",
-                }}
-              />
-            </>
-          ) : (
-            <div
-              className="rounded-3xl bg-muted/25 animate-pulse"
-              style={{ width: 260, height: 260 }}
-            />
-          )}
+              <div className="rounded-[1.1rem] border border-border bg-card/70 px-4 py-2 text-right shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  {dayLabel}
+                </p>
+                <p className="text-base font-semibold tracking-[-0.03em] text-foreground">
+                  {timeLabel}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Name + tagline */}
-        <div
-          className="mt-7 text-center"
-          style={{
-            opacity: mounted ? 1 : 0,
-            transform: mounted ? "none" : "translateY(8px)",
-            transition: "opacity 1s 0.25s ease, transform 1s 0.25s ease",
-          }}
-        >
-          {currentCharacter ? (
-            <>
-              <p
-                className="font-mono font-bold uppercase text-foreground"
-                style={{ fontSize: "1.35rem", letterSpacing: "0.22em" }}
-              >
-                {currentCharacter.label}
-              </p>
-              <p
-                className="mt-1.5 font-mono uppercase text-muted-foreground/50"
-                style={{ fontSize: "0.62rem", letterSpacing: "0.28em" }}
-              >
-                {isSpanish
-                  ? "· listo para acompañarte ·"
-                  : "· ready to accompany you ·"}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1 font-mono uppercase text-foreground"
-                  style={{ fontSize: "0.6rem", letterSpacing: "0.18em" }}
-                >
-                  <Sparkles className="h-3 w-3" />
-                  {currentPersonalityLabel}
-                </span>
-                <span
-                  className="rounded-full border border-border bg-background/55 px-3 py-1 font-mono uppercase text-muted-foreground"
-                  style={{ fontSize: "0.58rem", letterSpacing: "0.18em" }}
-                >
-                  {isSpanish ? currentFlavor.hintEs : currentFlavor.hintEn}
+        <div className="mt-5 grid flex-1 gap-5 lg:grid-cols-[112px_minmax(0,1fr)_280px]">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
+            <ShortcutCard
+              icon={ShoppingBag}
+              href="/marketplace"
+              label={t("Marketplace", "Marketplace")}
+              hint={t("wallet + auctions", "wallet + subastas")}
+            />
+            <ShortcutCard
+              icon={Download}
+              href="/download"
+              label={t("Download", "Descarga")}
+              hint={t("desktop build", "version desktop")}
+            />
+            <ShortcutCard
+              icon={CircleHelp}
+              href="/help"
+              label={t("Help", "Ayuda")}
+              hint={t("setup + feedback", "setup + feedback")}
+            />
+            <ShortcutCard
+              icon={Settings2}
+              onClick={openConfig}
+              label={t("Config", "Config")}
+              hint={t("open panel", "abrir panel")}
+            />
+          </div>
+
+          <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/60 shadow-[0_30px_110px_rgba(0,0,0,0.14)] backdrop-blur">
+            <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-5">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
+                <span className="h-3 w-3 rounded-full bg-[#fbbf24]" />
+                <span className="h-3 w-3 rounded-full bg-[#34d399]" />
+                <span className="ml-2 text-sm font-semibold tracking-[-0.03em] text-foreground">
+                  Mochi Companion.app
                 </span>
               </div>
-              <p className="mx-auto mt-4 max-w-xl px-6 text-sm leading-relaxed text-foreground/82">
-                <span aria-hidden="true">&ldquo;</span>
-                {isSpanish ? currentFlavor.quoteEs : currentFlavor.quoteEn}
-                <span aria-hidden="true">&rdquo;</span>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                {t("connect lives in marketplace", "connect vive en marketplace")}
+              </div>
+            </div>
+
+            <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:p-5">
+              <div
+                className="overflow-hidden rounded-[1.8rem] border border-border/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
+                style={{
+                  background:
+                    "linear-gradient(180deg, color-mix(in srgb, var(--foreground) 14%, transparent), color-mix(in srgb, var(--foreground) 22%, var(--background)) 58%, color-mix(in srgb, var(--brand-accent) 10%, var(--background)) 100%)",
+                }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-foreground/55">
+                      {t("wallpaper pet", "mascota de escritorio")}
+                    </p>
+                    <h1 className="mt-2 text-4xl font-semibold tracking-[-0.06em] text-white sm:text-5xl">
+                      {currentCharacter.label}
+                    </h1>
+                  </div>
+                  <div className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+                    {currentPersonalityLabel}
+                  </div>
+                </div>
+
+                <div className="relative mt-6 flex min-h-[280px] items-center justify-center sm:min-h-[360px]">
+                  <div className="absolute h-64 w-64 rounded-full border border-white/10 bg-white/5 blur-[1px]" />
+                  <div className="absolute h-56 w-56 rounded-full border border-white/10" />
+                  <div className="absolute h-44 w-44 rounded-full bg-black/18 blur-2xl" />
+                  <div className="absolute left-3 top-5 rounded-[1.3rem] border border-white/10 bg-black/20 px-4 py-3 text-white/70 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+                    <p className="text-[11px] uppercase tracking-[0.22em]">
+                      {t("shell", "cuerpo")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {currentCharacter.label}
+                    </p>
+                  </div>
+                  <div className="absolute right-3 top-16 rounded-[1.3rem] border border-white/10 bg-black/20 px-4 py-3 text-right text-white/70 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+                    <p className="text-[11px] uppercase tracking-[0.22em]">
+                      {t("mind", "mente")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">
+                      {currentPersonalityLabel}
+                    </p>
+                  </div>
+
+                  <img
+                    src={stageSpriteSrc}
+                    alt={currentCharacter.label}
+                    onError={() => setStageSpriteSrc(currentCharacterIconUrl)}
+                    className="relative z-10 h-56 w-56 object-contain drop-shadow-[0_28px_44px_rgba(0,0,0,0.34)] sm:h-72 sm:w-72"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+                  <div className="rounded-[1.5rem] border border-white/10 bg-black/18 p-4 text-white/85 shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">
+                      {t("current mood", "mood actual")}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-white/72">
+                      {isSpanish ? currentFlavor.noteEs : currentFlavor.noteEn}
+                    </p>
+                    <p className="mt-3 text-base leading-relaxed tracking-[-0.02em] text-white">
+                      <span aria-hidden="true">&ldquo;</span>
+                      {isSpanish ? currentFlavor.quoteEs : currentFlavor.quoteEn}
+                      <span aria-hidden="true">&rdquo;</span>
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={openConfig}
+                    className="inline-flex items-center justify-center gap-2 rounded-[1.4rem] border border-white/12 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/16"
+                  >
+                    <Settings2 className="h-4 w-4" />
+                    {t("Open config", "Abrir config")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    {t("Mood stack", "Stack de mood")}
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-2 lg:grid-cols-1">
+                    {catalogLoading && personalities.length === 0
+                      ? Array.from({ length: 6 }).map((_, index) => (
+                          <div
+                            key={`personality-skeleton-${index}`}
+                            className="h-14 animate-pulse rounded-2xl border border-border bg-card/60"
+                          />
+                        ))
+                      : personalities.map((personality) => {
+                          const active = config.personality === personality.key;
+                          return (
+                            <button
+                              key={personality.key}
+                              type="button"
+                              onClick={() => updateConfig({ personality: personality.key })}
+                              className={`rounded-[1.2rem] border px-3 py-3 text-left transition-all ${
+                                active
+                                  ? "border-foreground bg-foreground text-background shadow-[0_16px_32px_rgba(0,0,0,0.15)]"
+                                  : "border-border bg-card/60 text-foreground hover:border-foreground/30 hover:bg-card"
+                              }`}
+                            >
+                              <div className="text-xs font-semibold uppercase tracking-[0.2em]">
+                                {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
+                              </div>
+                              <div className={`mt-1 text-xs ${active ? "text-background/75" : "text-muted-foreground"}`}>
+                                {isSpanish
+                                  ? PERSONALITY_FLAVORS[personality.key]?.noteEs || currentFlavor.noteEs
+                                  : PERSONALITY_FLAVORS[personality.key]?.noteEn || currentFlavor.noteEn}
+                              </div>
+                            </button>
+                          );
+                        })}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    {t("System notes", "Notas del sistema")}
+                  </p>
+                  <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85">
+                    <p>
+                      {t(
+                        "Marketplace is where wallet connect, auctions, and buying happen. The start screen stays clean.",
+                        "Marketplace es donde vive wallet connect, subastas y compra. La pantalla inicial queda limpia.",
+                      )}
+                    </p>
+                    <p>
+                      {t(
+                        "The config icon opens the live Mochi panel already mounted on the page.",
+                        "El icono de config abre el panel vivo de Mochi que ya esta montado en la pagina.",
+                      )}
+                    </p>
+                    {catalogError ? (
+                      <div className="rounded-[1.2rem] border border-border bg-card/60 p-3">
+                        <p className="text-xs text-muted-foreground">
+                          {t(
+                            "Live catalog unavailable here. The desktop is using its built-in cast.",
+                            "El catalogo vivo no esta disponible aca. El escritorio esta usando su elenco integrado.",
+                          )}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => reloadCatalog().catch(() => undefined)}
+                          className="mt-3 rounded-full border border-border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-card"
+                        >
+                          {t("Retry", "Reintentar")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border/70 bg-background/40 px-4 py-4 sm:px-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    {t("Dock", "Dock")}
+                  </p>
+                  <p className="text-sm text-foreground/80">
+                    {t("Swap the shell without leaving the desktop.", "Cambia el cuerpo sin salir del escritorio.")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {catalogLoading && characters.length === 0
+                  ? Array.from({ length: 7 }).map((_, index) => (
+                      <div
+                        key={`dock-skeleton-${index}`}
+                        className="h-20 w-20 shrink-0 animate-pulse rounded-[1.4rem] border border-border bg-card/60"
+                      />
+                    ))
+                  : characters.map((character) => {
+                      const active = config.character === character.key;
+                      return (
+                        <button
+                          key={character.key}
+                          type="button"
+                          onClick={() => updateConfig({ character: character.key })}
+                          className={`shrink-0 rounded-[1.4rem] border px-3 py-3 text-center transition-all ${
+                            active
+                              ? "border-foreground bg-foreground text-background shadow-[0_16px_34px_rgba(0,0,0,0.15)]"
+                              : "border-border bg-card/65 text-foreground hover:border-foreground/35 hover:bg-card"
+                          }`}
+                        >
+                          <img
+                            src={character.iconUrl}
+                            alt=""
+                            className={`mx-auto h-9 w-9 object-contain ${active ? "brightness-0 invert" : ""}`}
+                            style={{ imageRendering: "pixelated" }}
+                          />
+                          <div className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${active ? "text-background/80" : "text-muted-foreground"}`}>
+                            {character.label.split(" ")[0]}
+                          </div>
+                        </button>
+                      );
+                    })}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                {t("Desktop memo", "Memo del escritorio")}
               </p>
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <p className="mt-3 text-sm leading-relaxed text-foreground/85">
+                {t(
+                  "No wallet wall on the first screen. Just a desktop, a creature, and the app icons you actually need.",
+                  "Nada de pared de wallet en la primera pantalla. Solo un escritorio, una criatura y los iconos que realmente necesitas.",
+                )}
+              </p>
+            </div>
+
+            <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
+              <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                {t("Quick route", "Ruta rapida")}
+              </p>
+              <div className="mt-4 space-y-3">
+                <Link
+                  href="/marketplace"
+                  className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
+                >
+                  <span>{t("Open Marketplace", "Abrir Marketplace")}</span>
+                  <ShoppingBag className="h-4 w-4" />
+                </Link>
+                <Link
+                  href="/download"
+                  className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
+                >
+                  <span>{t("Get desktop app", "Bajar app desktop")}</span>
+                  <Download className="h-4 w-4" />
+                </Link>
                 <button
                   type="button"
                   onClick={openConfig}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background/72 px-4 py-2 font-mono uppercase text-foreground transition-colors hover:border-[var(--brand-accent)] hover:text-[var(--brand-accent)]"
-                  style={{ fontSize: "0.62rem", letterSpacing: "0.18em" }}
+                  className="flex w-full items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-card"
                 >
-                  <Settings2 className="h-3.5 w-3.5" />
-                  {isSpanish ? "abrir controles" : "open controls"}
+                  <span>{t("Open Mochi config", "Abrir config de Mochi")}</span>
+                  <Settings2 className="h-4 w-4" />
                 </button>
-                <Link
-                  href="/download"
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background/55 px-4 py-2 font-mono uppercase text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-                  style={{ fontSize: "0.62rem", letterSpacing: "0.18em" }}
-                >
-                  {isSpanish ? "bajar desktop" : "get desktop"}
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                </Link>
               </div>
-            </>
-          ) : (
-            <>
-              <div className="mx-auto h-5 w-36 animate-pulse rounded bg-muted/30" />
-              <div className="mx-auto mt-2 h-3 w-48 animate-pulse rounded bg-muted/20" />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Bottom: character select + links ── */}
-      <div
-        className="absolute bottom-0 left-0 right-0 z-20"
-        style={{
-          background:
-            "linear-gradient(to top, var(--background) 55%, transparent)",
-          paddingBottom: "1.75rem",
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? "none" : "translateY(20px)",
-          transition: "opacity 0.9s 0.35s ease, transform 0.9s 0.35s ease",
-        }}
-      >
-        {/* Divider line */}
-        <div
-          className="mx-auto mb-4"
-          style={{
-            height: 1,
-            maxWidth: 480,
-            background:
-              "linear-gradient(to right, transparent, color-mix(in srgb, var(--brand-accent) 25%, var(--border)), transparent)",
-          }}
-        />
-
-        <div className="mb-2 text-center">
-          <p
-            className="font-mono uppercase text-muted-foreground/42"
-            style={{ fontSize: "0.55rem", letterSpacing: "0.28em" }}
-          >
-            {isSpanish ? "elige la mente" : "choose the mind"}
-          </p>
-        </div>
-
-        <div
-          className="flex gap-2 overflow-x-auto px-5 justify-center landing-strip"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {catalogLoading &&
-            Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={`mind-${i}`}
-                className="shrink-0 animate-pulse rounded-full bg-muted/25"
-                style={{ width: 96, height: 34 }}
-              />
-            ))}
-
-          {!catalogLoading &&
-            catalog?.personalities.map((personality) => {
-              const active = config.personality === personality.key;
-              return (
-                <button
-                  key={personality.key}
-                  type="button"
-                  onClick={() => updateConfig({ personality: personality.key })}
-                  className="shrink-0 rounded-full border px-4 py-2 transition-all duration-200"
-                  style={{
-                    borderColor: active ? "var(--brand-accent)" : "var(--border)",
-                    background: active
-                      ? "color-mix(in srgb, var(--brand-accent) 12%, transparent)"
-                      : "color-mix(in srgb, var(--muted) 18%, transparent)",
-                    boxShadow: active
-                      ? "0 0 12px color-mix(in srgb, var(--brand-accent) 20%, transparent)"
-                      : "none",
-                  }}
-                >
-                  <span
-                    className="font-mono font-bold uppercase"
-                    style={{
-                      fontSize: "0.58rem",
-                      letterSpacing: "0.15em",
-                      color: active ? "var(--brand-accent)" : "var(--muted-foreground)",
-                    }}
-                  >
-                    {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
-                  </span>
-                </button>
-              );
-            })}
-        </div>
-
-        <div className="mt-4 mb-2 text-center">
-          <p
-            className="font-mono uppercase text-muted-foreground/42"
-            style={{ fontSize: "0.55rem", letterSpacing: "0.28em" }}
-          >
-            {isSpanish ? "elige el cuerpo" : "choose the shell"}
-          </p>
-        </div>
-
-        {/* Character strip */}
-        <div
-          className="flex gap-2 overflow-x-auto px-5 justify-center landing-strip"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {catalogLoading &&
-            Array.from({ length: 7 }).map((_, i) => (
-              <div
-                key={i}
-                className="shrink-0 animate-pulse rounded-xl bg-muted/25"
-                style={{ width: 64, height: 58 }}
-              />
-            ))}
-
-          {!catalogLoading &&
-            catalog?.characters.map((character) => {
-              const active = config.character === character.key;
-              return (
-                <button
-                  key={character.key}
-                  type="button"
-                  onClick={() => updateConfig({ character: character.key })}
-                  className="shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all duration-200"
-                  style={{
-                    borderColor: active
-                      ? "var(--brand-accent)"
-                      : "var(--border)",
-                    background: active
-                      ? "color-mix(in srgb, var(--brand-accent) 10%, transparent)"
-                      : "color-mix(in srgb, var(--muted) 18%, transparent)",
-                    boxShadow: active
-                      ? "0 0 12px color-mix(in srgb, var(--brand-accent) 20%, transparent)"
-                      : "none",
-                  }}
-                >
-                  <img
-                    src={character.iconUrl}
-                    alt=""
-                    style={{
-                      width: 28,
-                      height: 28,
-                      imageRendering: "pixelated",
-                      objectFit: "contain",
-                    }}
-                  />
-                  <span
-                    className="font-mono font-bold uppercase"
-                    style={{
-                      fontSize: "0.58rem",
-                      letterSpacing: "0.12em",
-                      color: active
-                        ? "var(--brand-accent)"
-                        : "var(--muted-foreground)",
-                    }}
-                  >
-                    {character.label.split(" ")[0]}
-                  </span>
-                </button>
-              );
-            })}
-        </div>
-
-        {catalogError && (
-          <div className="flex justify-center mt-2">
-            <button
-              type="button"
-              onClick={() => reloadCatalog().catch(() => undefined)}
-              className="inline-flex items-center gap-1.5 font-mono uppercase text-muted-foreground hover:text-foreground transition-colors"
-              style={{ fontSize: "0.6rem", letterSpacing: "0.15em" }}
-            >
-              <RefreshCw className="h-3 w-3" />
-              {isSpanish ? "reintentar" : "retry"}
-            </button>
+            </div>
           </div>
-        )}
-
-        {/* Ghost nav */}
-        <div className="flex items-center justify-center gap-5 mt-4">
-          <Link
-            href="/download"
-            className="font-mono uppercase text-muted-foreground/45 hover:text-muted-foreground transition-colors"
-            style={{ fontSize: "0.6rem", letterSpacing: "0.2em" }}
-          >
-            {isSpanish ? "descargar" : "get the app"}
-          </Link>
-          <span
-            className="font-mono text-muted-foreground/20"
-            style={{ fontSize: "0.6rem" }}
-          >
-            ·
-          </span>
-          <Link
-            href="/marketplace"
-            className="font-mono uppercase text-muted-foreground/45 hover:text-muted-foreground transition-colors"
-            style={{ fontSize: "0.6rem", letterSpacing: "0.2em" }}
-          >
-            marketplace
-          </Link>
-          <span
-            className="font-mono text-muted-foreground/20"
-            style={{ fontSize: "0.6rem" }}
-          >
-            ·
-          </span>
-          <Link
-            href="/help"
-            className="font-mono uppercase text-muted-foreground/45 hover:text-muted-foreground transition-colors"
-            style={{ fontSize: "0.6rem", letterSpacing: "0.2em" }}
-          >
-            {isSpanish ? "ayuda" : "help"}
-          </Link>
         </div>
       </div>
-
-      <style>{`
-        @keyframes mochi-float {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-20px); }
-        }
-        @keyframes mochi-ring {
-          0%, 100% { opacity: 0.55; transform: scale(1); }
-          50%       { opacity: 1;    transform: scale(1.07); }
-        }
-        @keyframes mochi-sparkle {
-          0%, 100% { opacity: 0.15; transform: scale(0.6) rotate(0deg); }
-          50%       { opacity: 0.85; transform: scale(1.4) rotate(45deg); }
-        }
-        .landing-strip::-webkit-scrollbar { display: none; }
-      `}</style>
     </section>
   );
 }

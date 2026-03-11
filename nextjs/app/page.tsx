@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { SiteMochiLandingSection } from "@/components/site-mochi-landing-section";
-import { Footer } from "@/components/footer";
 import { createPageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = createPageMetadata({
@@ -14,7 +13,6 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden">
       <SiteMochiLandingSection />
-      <Footer />
     </main>
   );
 }
