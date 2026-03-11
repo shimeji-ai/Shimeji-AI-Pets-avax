@@ -259,6 +259,17 @@ body[data-theme="black-pink"] {
   z-index: -1;
 }
 
+.mochi-themed-select {
+  background-color: color-mix(in oklab, var(--input) 88%, transparent);
+  color: var(--foreground);
+}
+
+.mochi-themed-select option,
+.mochi-themed-select optgroup {
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+}
+
 body[data-theme="black-pink"] .neural-shell::before {
   background-image:
     linear-gradient(transparent 95%, rgba(255, 154, 216, 0.12) 100%),

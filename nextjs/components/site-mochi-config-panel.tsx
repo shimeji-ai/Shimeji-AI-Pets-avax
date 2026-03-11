@@ -71,6 +71,9 @@ const ICON_THEME_META: Array<{
   { key: "tb", label: "Tabler" },
 ];
 
+const THEMED_SELECT_CLASS =
+  "mochi-themed-select w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]";
+
 function getMascotIdleSpriteSrc(characterKey: string) {
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
 }
@@ -361,7 +364,7 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
                 chatBubbleStyle: event.target.value as "glass" | "solid" | "dark",
               })
             }
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           >
             <option value="glass">{isSpanish ? "Glass (transparente)" : "Glass (transparent)"}</option>
             <option value="solid">{isSpanish ? "Solid (sólido)" : "Solid"}</option>
@@ -379,7 +382,7 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
               onChange={(event) =>
                 updateConfig({ chatFontSize: event.target.value as "small" | "medium" | "large" })
               }
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className={THEMED_SELECT_CLASS}
             >
               <option value="small">
                 {isSpanish ? "Pequeño" : "Small"} ({SITE_MOCHI_CHAT_FONT_SIZE_MAP.small}px)
@@ -402,7 +405,7 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
               onChange={(event) =>
                 updateConfig({ chatWidth: event.target.value as "small" | "medium" | "large" })
               }
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className={THEMED_SELECT_CLASS}
             >
               <option value="small">
                 {isSpanish ? "Pequeño" : "Small"} ({SITE_MOCHI_CHAT_WIDTH_MAP.small}px)
@@ -1174,7 +1177,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
             value={config.openrouterApiKey}
             onChange={(event) => updateConfig({ openrouterApiKey: event.target.value })}
             placeholder="sk-or-v1-..."
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
             autoComplete="off"
           />
         </label>
@@ -1190,7 +1193,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
                   event.target.value === "__custom__" ? (openRouterModelKnown ? "" : config.openrouterModel) : event.target.value,
               })
             }
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           >
             {OPENROUTER_MODEL_OPTIONS.map((item) => (
               <option key={item.value} value={item.value} disabled={Boolean(item.disabled)}>
@@ -1210,7 +1213,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
               value={config.openrouterModel}
               onChange={(event) => updateConfig({ openrouterModel: event.target.value })}
               placeholder="openai/gpt-4o-mini"
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className={THEMED_SELECT_CLASS}
             />
           </label>
         ) : null}
@@ -1231,7 +1234,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
             value={config.ollamaUrl}
             onChange={(event) => updateConfig({ ollamaUrl: event.target.value })}
             placeholder="http://127.0.0.1:11434"
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           />
         </label>
         <label className="block">
@@ -1243,7 +1246,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
             value={config.ollamaModel}
             onChange={(event) => updateConfig({ ollamaModel: event.target.value })}
             placeholder="gemma3:1b"
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           />
         </label>
         {!compact ? (
@@ -1357,7 +1360,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
               value={pairingCode}
               onChange={(event) => setPairingCode(event.target.value.toUpperCase())}
               placeholder={isSpanish ? "Ej: Q7M4K9P2" : "Ex: Q7M4K9P2"}
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className={THEMED_SELECT_CLASS}
               maxLength={12}
               autoComplete="off"
             />
@@ -1562,7 +1565,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                 soundInputProvider: event.target.value as "off" | "browser",
               })
             }
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           >
             <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
             <option value="browser">{isSpanish ? "Navegador (gratis)" : "Browser (free)"}</option>
@@ -1600,7 +1603,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                 soundOutputProvider: event.target.value as "off" | "browser" | "elevenlabs",
               })
             }
-            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            className={THEMED_SELECT_CLASS}
           >
             <option value="off">{isSpanish ? "Desactivado" : "Off"}</option>
             <option value="browser">{isSpanish ? "Voz del navegador (gratis)" : "Browser voice (free)"}</option>
@@ -1650,7 +1653,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
             <select
               value={config.soundOutputBrowserVoiceName}
               onChange={(event) => updateConfig({ soundOutputBrowserVoiceName: event.target.value })}
-              className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+              className={THEMED_SELECT_CLASS}
             >
               <option value="">
                 {isSpanish ? "Automática (por idioma del sitio)" : "Automatic (site language)"}
@@ -1675,7 +1678,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                 value={config.elevenlabsApiKey}
                 onChange={(event) => updateConfig({ elevenlabsApiKey: event.target.value })}
                 placeholder="sk_..."
-                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                className={THEMED_SELECT_CLASS}
                 autoComplete="off"
               />
             </label>
@@ -1690,7 +1693,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                   value={config.elevenlabsVoiceId}
                   onChange={(event) => updateConfig({ elevenlabsVoiceId: event.target.value })}
                   placeholder="EXAVITQu4vr4xnSDxMaL"
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                  className={THEMED_SELECT_CLASS}
                 />
               </label>
 
@@ -1703,7 +1706,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                   value={config.elevenlabsModelId}
                   onChange={(event) => updateConfig({ elevenlabsModelId: event.target.value })}
                   placeholder="eleven_flash_v2_5"
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                  className={THEMED_SELECT_CLASS}
                 />
               </label>
             </div>
@@ -1844,7 +1847,7 @@ export function SiteMochiCompactConfigWindow({
                         | "bitte",
                     })
                   }
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                  className={THEMED_SELECT_CLASS}
                 >
                   <option value="site">{isSpanish ? "Sitio" : "Site"}</option>
                   <option value="openrouter">OpenRouter</option>
