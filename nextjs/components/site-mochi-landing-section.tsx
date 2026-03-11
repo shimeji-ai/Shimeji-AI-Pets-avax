@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
+import { useSiteMochi } from "@/components/site-mochi-provider";
 import { CONFIG_WINDOW_META, SiteMochiCompactConfigWindow, type ConfigPanelTab } from "@/components/site-mochi-config-panel";
 
 type DesktopConfigShortcutProps = {
@@ -25,8 +26,9 @@ type HeaderIconLinkProps = {
 function DesktopConfigShortcut({
   configKey,
   label,
+  iconSrc,
   onOpen,
-}: DesktopConfigShortcutProps & { onOpen: (tab: ConfigPanelTab) => void }) {
+}: DesktopConfigShortcutProps & { iconSrc?: string; onOpen: (tab: ConfigPanelTab) => void }) {
   const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
   if (!meta) return null;
 
@@ -38,7 +40,7 @@ function DesktopConfigShortcut({
     >
       <span className="relative flex h-16 w-16 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]">
         <Image
-          src={meta.iconSrc}
+          src={iconSrc || meta.iconSrc}
           alt=""
           width={64}
           height={64}
@@ -71,6 +73,7 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
 
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
+  const { config, catalog } = useSiteMochi();
   const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
   const [entryGateOpen, setEntryGateOpen] = useState(true);
 
@@ -78,6 +81,7 @@ export function SiteMochiLandingSection() {
   const activeWindowMeta = activeDesktopWindow
     ? CONFIG_WINDOW_META.find((item) => item.key === activeDesktopWindow) ?? null
     : null;
+  const selectedCharacter = catalog?.characters.find((item) => item.key === config.character) ?? null;
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
     { configKey: "site", label: t("Theme", "Tema") },
@@ -128,6 +132,7 @@ export function SiteMochiLandingSection() {
               <DesktopConfigShortcut
                 key={shortcut.configKey}
                 {...shortcut}
+                iconSrc={shortcut.configKey === "mascot" ? selectedCharacter?.iconUrl || undefined : undefined}
                 onOpen={setActiveDesktopWindow}
               />
             ))}
