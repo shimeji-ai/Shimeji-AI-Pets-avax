@@ -46,7 +46,7 @@ export const CONFIG_WINDOW_META: Array<{
   labelEn: string;
   labelEs: string;
 }> = [
-  { key: "site", icon: MonitorCog, labelEn: "Site", labelEs: "Sitio" },
+  { key: "site", icon: MonitorCog, labelEn: "Theme", labelEs: "Tema" },
   { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
   { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
   { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
