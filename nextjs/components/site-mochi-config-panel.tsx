@@ -1604,32 +1604,8 @@ export function SiteMochiCompactConfigWindow({
     freeSiteMessagesRemaining,
   } = useSiteMochi();
 
-  const activeMeta =
-    CONFIG_WINDOW_META.find((item) => item.key === activeTab) ?? CONFIG_WINDOW_META[0];
-  const ActiveIcon = activeMeta.icon;
-
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-border bg-background/28 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background/55">
-            <ActiveIcon className="h-4 w-4 text-[var(--brand-accent)]" />
-          </div>
-          <div className="text-sm font-semibold text-foreground">
-            {isSpanish ? activeMeta.labelEs : activeMeta.labelEn}
-          </div>
-        </div>
-        {activeTab === "chat" ? (
-          <button
-            type="button"
-            onClick={resetConfig}
-            className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-background/80"
-          >
-            Reset
-          </button>
-        ) : null}
-      </div>
-
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === "chat" ? (
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -1677,6 +1653,14 @@ export function SiteMochiCompactConfigWindow({
                     : `Remaining: ${freeSiteMessagesRemaining ?? 0}`}
                 </div>
               ) : null}
+
+              <button
+                type="button"
+                onClick={resetConfig}
+                className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold text-foreground hover:bg-background/80"
+              >
+                Reset
+              </button>
             </div>
 
             <ProviderFields compact />
