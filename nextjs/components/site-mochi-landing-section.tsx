@@ -12,6 +12,7 @@ import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
 import {
   CONFIG_WINDOW_META,
+  getDesktopIconSrc,
   getIconThemeImageStyle,
   SiteMochiCompactConfigWindow,
   type ConfigPanelTab,
@@ -27,10 +28,6 @@ type HeaderIconLinkProps = {
   icon: LucideIcon;
   label: string;
 };
-
-function getMascotIdleSpriteSrc(characterKey: string) {
-  return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
-}
 
 function DesktopConfigShortcut({
   configKey,
@@ -54,12 +51,12 @@ function DesktopConfigShortcut({
     >
       <span className="relative flex h-16 w-16 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]">
         <Image
-          src={iconSrc || meta.iconSrc}
+          src={iconSrc || getDesktopIconSrc(configKey, iconTheme, "mochi")}
           alt=""
           width={64}
           height={64}
           className="h-16 w-16 object-contain drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]"
-          style={getIconThemeImageStyle(iconTheme)}
+          style={getIconThemeImageStyle()}
         />
       </span>
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
@@ -145,7 +142,7 @@ export function SiteMochiLandingSection() {
               <DesktopConfigShortcut
                 key={shortcut.configKey}
                 {...shortcut}
-                iconSrc={shortcut.configKey === "mascot" ? getMascotIdleSpriteSrc(config.character) : undefined}
+                iconSrc={getDesktopIconSrc(shortcut.configKey, config.iconTheme, config.character)}
                 iconTheme={config.iconTheme}
                 onOpen={setActiveDesktopWindow}
               />

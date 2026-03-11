@@ -43,41 +43,55 @@ const SITE_THEME_META: Array<{
 export const CONFIG_WINDOW_META: Array<{
   key: ConfigPanelTab;
   icon: LucideIcon;
-  iconSrc: string;
   labelEn: string;
   labelEs: string;
 }> = [
-  { key: "site", icon: MonitorCog, iconSrc: "/desktop-icons/theme.png", labelEn: "Theme", labelEs: "Tema" },
-  { key: "soul", icon: FileCode2, iconSrc: "/desktop-icons/soul.png", labelEn: "Soul", labelEs: "Soul" },
-  { key: "chat", icon: MessageSquare, iconSrc: "/desktop-icons/provider.png", labelEn: "Provider", labelEs: "Proveedor" },
-  { key: "appearance", icon: Palette, iconSrc: "/desktop-icons/chat.png", labelEn: "Chat", labelEs: "Chat" },
-  { key: "mascot", icon: Sparkles, iconSrc: "/desktop-icons/mascot.png", labelEn: "Mascot", labelEs: "Mascota" },
-  { key: "sound", icon: Volume2, iconSrc: "/desktop-icons/sound.png", labelEn: "Sound", labelEs: "Sonido" },
+  { key: "site", icon: MonitorCog, labelEn: "Theme", labelEs: "Tema" },
+  { key: "soul", icon: FileCode2, labelEn: "Soul", labelEs: "Soul" },
+  { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
+  { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
+  { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
+  { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
 ];
 
 const ICON_THEME_META: Array<{
   key: SiteMochiIconTheme;
   label: string;
-  filter: string;
-  chipClass: string;
+  previewSrc: string;
 }> = [
-  { key: "kawaii", label: "Kawaii", filter: "saturate(1.18) hue-rotate(-10deg) brightness(1.03)", chipClass: "from-pink-200 to-rose-300" },
-  { key: "original", label: "Original", filter: "none", chipClass: "from-stone-200 to-stone-300" },
-  { key: "mint", label: "Mint", filter: "hue-rotate(92deg) saturate(1.15) brightness(1.02)", chipClass: "from-emerald-200 to-cyan-300" },
-  { key: "sunset", label: "Sunset", filter: "hue-rotate(-48deg) saturate(1.25) brightness(1.02)", chipClass: "from-amber-200 to-orange-300" },
-  { key: "mono", label: "Mono", filter: "grayscale(1) contrast(1.08)", chipClass: "from-zinc-200 to-zinc-400" },
+  { key: "candy", label: "Candy", previewSrc: "/desktop-icons/themes/candy/soul.png" },
+  { key: "lucid", label: "Lucid", previewSrc: "/desktop-icons/themes/lucid/soul.png" },
+  { key: "arcade", label: "Arcade", previewSrc: "/desktop-icons/themes/arcade/soul.png" },
+  { key: "tiny", label: "Tiny", previewSrc: "/desktop-icons/themes/tiny/soul.png" },
+  { key: "bold", label: "Bold", previewSrc: "/desktop-icons/themes/bold/soul.png" },
 ];
 
-export function getIconThemeImageStyle(iconTheme: SiteMochiIconTheme): CSSProperties {
-  const meta = ICON_THEME_META.find((item) => item.key === iconTheme);
+export function getIconThemeImageStyle(): CSSProperties {
   return {
     imageRendering: "pixelated",
-    filter: meta?.filter || "none",
   };
 }
 
 function getMascotIdleSpriteSrc(characterKey: string) {
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
+}
+
+export function getDesktopIconSrc(
+  tab: ConfigPanelTab,
+  iconTheme: SiteMochiIconTheme,
+  characterKey: string,
+) {
+  if (tab === "mascot") {
+    return getMascotIdleSpriteSrc(characterKey);
+  }
+  const nameByTab: Record<Exclude<ConfigPanelTab, "mascot">, string> = {
+    site: "theme",
+    soul: "soul",
+    chat: "provider",
+    appearance: "chat",
+    sound: "sound",
+  };
+  return `/desktop-icons/themes/${iconTheme}/${nameByTab[tab]}.png`;
 }
 
 function SoulFields({ compact = false }: { compact?: boolean } = {}) {
@@ -1727,14 +1741,14 @@ export function SiteMochiCompactConfigWindow({
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <div className={`flex h-10 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${item.chipClass}`}>
+                        <div className="flex h-10 w-16 items-center justify-center rounded-xl border border-border bg-background/60">
                           <Image
-                            src="/desktop-icons/soul.png"
+                            src={item.previewSrc}
                             alt=""
                             width={24}
                             height={24}
                             className="h-6 w-6 object-contain"
-                            style={getIconThemeImageStyle(item.key)}
+                            style={getIconThemeImageStyle()}
                           />
                         </div>
                         <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
@@ -1954,7 +1968,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
               <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
                 {CONFIG_WINDOW_META.map((item) => {
                   const isActive = activeTab === item.key;
-                  const iconSrc = item.key === "mascot" ? getMascotIdleSpriteSrc(config.character) : item.iconSrc;
+                  const iconSrc = getDesktopIconSrc(item.key, config.iconTheme, config.character);
                   return (
                     <button
                       key={item.key}
@@ -1973,7 +1987,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                           width={36}
                           height={36}
                           className="h-9 w-9 object-contain"
-                          style={getIconThemeImageStyle(config.iconTheme)}
+                          style={getIconThemeImageStyle()}
                         />
                       </span>
                       <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
