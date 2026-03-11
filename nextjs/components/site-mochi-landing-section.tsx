@@ -76,6 +76,7 @@ export function SiteMochiLandingSection() {
     : null;
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
+    { configKey: "site", label: t("Site", "Sitio") },
     { configKey: "chat", label: t("Provider", "Proveedor") },
     { configKey: "mascot", label: t("Mascot", "Mascota") },
     { configKey: "appearance", label: t("Chat", "Chat") },

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  MonitorCog,
   MessageSquare,
   Palette,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
+import { useTheme, type Theme } from "@/components/theme-provider";
 import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
 import {
   SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
@@ -24,7 +26,19 @@ import {
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
-export type ConfigPanelTab = "chat" | "appearance" | "mascot" | "sound";
+export type ConfigPanelTab = "site" | "chat" | "appearance" | "mascot" | "sound";
+
+const SITE_THEME_META: Array<{
+  key: Theme;
+  labelEn: string;
+  labelEs: string;
+  accent: string;
+}> = [
+  { key: "neural", labelEn: "Neural", labelEs: "Neural", accent: "#86f0ff" },
+  { key: "pink", labelEn: "Pink", labelEs: "Rosa", accent: "#ff9ad8" },
+  { key: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", accent: "#2a1f4e" },
+  { key: "pastel", labelEn: "Pastel", labelEs: "Pastel", accent: "#b48ccf" },
+];
 
 export const CONFIG_WINDOW_META: Array<{
   key: ConfigPanelTab;
@@ -32,6 +46,7 @@ export const CONFIG_WINDOW_META: Array<{
   labelEn: string;
   labelEs: string;
 }> = [
+  { key: "site", icon: MonitorCog, labelEn: "Site", labelEs: "Sitio" },
   { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
   { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
   { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
@@ -1592,6 +1607,7 @@ export function SiteMochiCompactConfigWindow({
   activeTab: ConfigPanelTab;
 }) {
   const { isSpanish } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const {
     catalog,
     catalogLoading,
@@ -1607,6 +1623,34 @@ export function SiteMochiCompactConfigWindow({
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
       <div className="flex-1 overflow-y-auto px-4 py-4">
+        {activeTab === "site" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {SITE_THEME_META.map((item) => {
+              const isActive = theme === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setTheme(item.key)}
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                    isActive
+                      ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                      : "border-border bg-card/65 text-foreground/85 hover:bg-card"
+                  }`}
+                >
+                  <span
+                    className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+                    style={{ backgroundColor: item.accent }}
+                  />
+                  <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em]">
+                    {isSpanish ? item.labelEs : item.labelEn}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+
         {activeTab === "chat" ? (
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="space-y-3">
