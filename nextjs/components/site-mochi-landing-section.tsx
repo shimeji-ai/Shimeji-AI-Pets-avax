@@ -3,8 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  Circle,
   CircleHelp,
   Download,
+  MonitorSmartphone,
   Settings2,
   ShoppingBag,
   Sparkles,
@@ -165,14 +167,14 @@ function buildStageSpriteSrc(character: LandingCharacterOption | null | undefine
 function ShortcutCard({ icon: Icon, label, hint, href, onClick }: ShortcutCardProps) {
   const content: ReactNode = (
     <>
-      <span className="flex h-14 w-14 items-center justify-center rounded-[1.15rem] border border-border/70 bg-card/85 shadow-[0_14px_32px_rgba(0,0,0,0.12)] transition-transform duration-300 group-hover:scale-105 group-hover:bg-card">
+      <span className="flex h-15 w-15 items-center justify-center rounded-[1.2rem] border border-white/20 bg-white/40 shadow-[0_18px_35px_rgba(0,0,0,0.12)] backdrop-blur-md transition-transform duration-300 group-hover:scale-105 group-hover:bg-white/55">
         <Icon className="h-5 w-5 text-foreground" />
       </span>
-      <div className="mt-2 text-center">
-        <div className="text-sm font-semibold tracking-[-0.03em] text-foreground">
+      <div className="mt-2.5 text-center">
+        <div className="text-sm font-semibold tracking-[-0.03em] text-foreground drop-shadow-[0_1px_0_rgba(255,255,255,0.2)]">
           {label}
         </div>
-        <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <div className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-foreground/60">
           {hint}
         </div>
       </div>
@@ -273,31 +275,26 @@ export function SiteMochiLandingSection() {
       </div>
 
       <div className="relative mx-auto flex min-h-[calc(100svh-2rem)] max-w-7xl flex-col lg:h-[calc(100svh-3rem)] lg:min-h-0">
-        <div className="rounded-[1.8rem] border border-border/70 bg-background/55 px-4 py-3 shadow-[0_18px_55px_rgba(0,0,0,0.12)] backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-card/70 text-foreground shadow-[0_10px_24px_rgba(0,0,0,0.14)]">
+        <div className="sticky top-0 z-30 rounded-[1.2rem] border border-white/25 bg-background/60 px-4 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_20px_rgba(0,0,0,0.12)]">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-lg font-semibold tracking-[-0.04em] text-foreground">
-                  Mochi OS
-                </p>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                  {t("desktop start screen", "pantalla de inicio")}
-                </p>
+              <div className="hidden items-center gap-4 sm:flex">
+                <span className="text-sm font-semibold text-foreground">Mochi OS</span>
+                <span className="text-sm text-foreground/75">{t("Desktop", "Escritorio")}</span>
+                <span className="text-sm text-foreground/75">{t("Companion", "Companion")}</span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="inline-flex rounded-full border border-border bg-card/70 p-1">
                 <button
                   type="button"
                   onClick={() => setLanguage("en")}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${
-                    language === "en"
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground"
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                    language === "en" ? "bg-foreground text-background" : "text-muted-foreground"
                   }`}
                 >
                   EN
@@ -305,10 +302,8 @@ export function SiteMochiLandingSection() {
                 <button
                   type="button"
                   onClick={() => setLanguage("es")}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${
-                    language === "es"
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground"
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition-colors ${
+                    language === "es" ? "bg-foreground text-background" : "text-muted-foreground"
                   }`}
                 >
                   ES
@@ -320,11 +315,11 @@ export function SiteMochiLandingSection() {
                 <Volume2 className="h-4 w-4" />
               </div>
 
-              <div className="rounded-[1.1rem] border border-border bg-card/70 px-4 py-2 text-right shadow-[0_10px_24px_rgba(0,0,0,0.08)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              <div className="rounded-[1rem] border border-border bg-card/75 px-3 py-2 text-right shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {dayLabel}
                 </p>
-                <p className="text-base font-semibold tracking-[-0.03em] text-foreground">
+                <p className="text-sm font-semibold tracking-[-0.03em] text-foreground">
                   {timeLabel}
                 </p>
               </div>
@@ -332,7 +327,7 @@ export function SiteMochiLandingSection() {
           </div>
         </div>
 
-        <div className="mt-5 grid flex-1 gap-5 lg:min-h-0 lg:grid-cols-[100px_minmax(0,1fr)_250px]">
+        <div className="mt-4 grid flex-1 gap-5 lg:min-h-0 lg:grid-cols-[120px_minmax(0,1fr)_250px]">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:auto-rows-max lg:content-start lg:grid-cols-1">
             <ShortcutCard
               icon={ShoppingBag}
@@ -360,7 +355,7 @@ export function SiteMochiLandingSection() {
             />
           </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-border/70 bg-card/60 shadow-[0_30px_110px_rgba(0,0,0,0.14)] backdrop-blur">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-white/25 bg-card/55 shadow-[0_30px_110px_rgba(0,0,0,0.14)] backdrop-blur-xl">
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3 sm:px-5">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
@@ -377,7 +372,7 @@ export function SiteMochiLandingSection() {
 
             <div className="grid flex-1 gap-4 p-4 lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_220px] lg:p-5">
               <div
-                className="flex min-h-0 flex-col overflow-hidden rounded-[1.8rem] border border-border/70 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
+                className="flex min-h-0 flex-col overflow-hidden rounded-[1.8rem] border border-white/20 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)]"
                 style={{
                   background:
                     "linear-gradient(180deg, color-mix(in srgb, var(--foreground) 14%, transparent), color-mix(in srgb, var(--foreground) 22%, var(--background)) 58%, color-mix(in srgb, var(--brand-accent) 10%, var(--background)) 100%)",
@@ -443,12 +438,12 @@ export function SiteMochiLandingSection() {
                   </div>
                   <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-4 text-white/78 shadow-[0_18px_45px_rgba(0,0,0,0.18)]">
                     <p className="text-[11px] uppercase tracking-[0.24em] text-white/55">
-                      {t("control", "control")}
+                      {t("device", "dispositivo")}
                     </p>
                     <p className="mt-2 text-sm leading-relaxed">
                       {t(
-                        "Use the desktop Config icon to open Mochi settings.",
-                        "Usa el icono Config del escritorio para abrir ajustes de Mochi.",
+                        "Routes behave like desktop apps. Config opens the live panel.",
+                        "Las rutas funcionan como apps del escritorio. Config abre el panel vivo.",
                       )}
                     </p>
                   </div>
@@ -456,7 +451,27 @@ export function SiteMochiLandingSection() {
               </div>
 
               <div className="flex min-h-0 flex-col gap-4">
-                <div className="flex min-h-0 flex-col rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                <div className="rounded-[1.8rem] border border-white/20 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+                    {t("System", "Sistema")}
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-card/65 px-3 py-3 text-sm">
+                      <span className="text-foreground/80">{t("Shell", "Shell")}</span>
+                      <span className="font-semibold text-foreground">{currentCharacter.label}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-card/65 px-3 py-3 text-sm">
+                      <span className="text-foreground/80">{t("Persona", "Persona")}</span>
+                      <span className="font-semibold text-foreground">{currentPersonalityLabel}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-card/65 px-3 py-3 text-sm">
+                      <span className="text-foreground/80">{t("Wallet", "Wallet")}</span>
+                      <span className="font-semibold text-foreground">{t("in Marketplace", "en Marketplace")}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex min-h-0 flex-col rounded-[1.8rem] border border-white/20 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
                     {t("Mood stack", "Stack de mood")}
                   </p>
@@ -495,39 +510,27 @@ export function SiteMochiLandingSection() {
                   </div>
                 </div>
 
-                <div className="rounded-[1.8rem] border border-border/70 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                <div className="rounded-[1.8rem] border border-white/20 bg-background/70 p-4 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
                   <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                    {t("System notes", "Notas del sistema")}
+                    {t("Status", "Estado")}
                   </p>
                   <div className="mt-4 space-y-3 text-sm leading-relaxed text-foreground/85">
-                    <p>
-                      {t(
-                        "Marketplace is where wallet connect, auctions, and buying happen. The start screen stays clean.",
-                        "Marketplace es donde vive wallet connect, subastas y compra. La pantalla inicial queda limpia.",
-                      )}
-                    </p>
-                    <p>
-                      {t(
-                        "The config icon opens the live Mochi panel already mounted on the page.",
-                        "El icono de config abre el panel vivo de Mochi que ya esta montado en la pagina.",
-                      )}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <Circle className="h-3 w-3 fill-green-500 text-green-500" />
+                      <span>{t("Desktop online", "Escritorio online")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MonitorSmartphone className="h-4 w-4 text-muted-foreground" />
+                      <span>{t("Use icons as app launchers", "Usa los iconos como lanzadores")}</span>
+                    </div>
                     {catalogError ? (
-                      <div className="rounded-[1.2rem] border border-border bg-card/60 p-3">
-                        <p className="text-xs text-muted-foreground">
-                          {t(
-                            "Live catalog unavailable here. The desktop is using its built-in cast.",
-                            "El catalogo vivo no esta disponible aca. El escritorio esta usando su elenco integrado.",
-                          )}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => reloadCatalog().catch(() => undefined)}
-                          className="mt-3 rounded-full border border-border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-card"
-                        >
-                          {t("Retry", "Reintentar")}
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => reloadCatalog().catch(() => undefined)}
+                        className="rounded-full border border-border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-foreground transition-colors hover:bg-card"
+                      >
+                        {t("Retry catalog", "Reintentar catalogo")}
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -584,44 +587,40 @@ export function SiteMochiLandingSection() {
           </div>
 
           <div className="space-y-4 lg:min-h-0">
-            <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
+            <div className="rounded-[1.8rem] border border-white/20 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur-xl">
               <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                {t("Desktop memo", "Memo del escritorio")}
+                {t("Desktop", "Escritorio")}
               </p>
               <p className="mt-3 text-sm leading-relaxed text-foreground/85">
                 {t(
-                  "No wallet wall on the first screen. Just a desktop, a creature, and the app icons you actually need.",
-                  "Nada de pared de wallet en la primera pantalla. Solo un escritorio, una criatura y los iconos que realmente necesitas.",
+                  "This page is the OS shell. Routes launch from icons, not from a marketing stack.",
+                  "Esta pagina es la carcasa del SO. Las rutas salen de iconos, no de una pila de marketing.",
                 )}
               </p>
             </div>
 
-            <div className="rounded-[1.8rem] border border-border/70 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur">
+            <div className="rounded-[1.8rem] border border-white/20 bg-card/60 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.1)] backdrop-blur-xl">
               <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
-                {t("Desktop map", "Mapa del escritorio")}
+                {t("Control center", "Centro de control")}
               </p>
               <div className="mt-4 space-y-3 text-sm text-foreground/85">
-                <div className="rounded-[1.2rem] border border-border bg-background/65 px-4 py-3">
-                  <p className="font-semibold text-foreground">
-                    {t("Marketplace", "Marketplace")}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    {t(
-                      "Only place where wallet connect appears.",
-                      "Unico lugar donde aparece wallet connect.",
-                    )}
-                  </p>
+                <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-3 py-3">
+                  <span>{t("Network", "Red")}</span>
+                  <span className="font-semibold text-foreground">{t("Online", "Online")}</span>
                 </div>
-                <div className="rounded-[1.2rem] border border-border bg-background/65 px-4 py-3">
-                  <p className="font-semibold text-foreground">
-                    {t("Download + Help", "Descarga + Ayuda")}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    {t(
-                      "Desktop shortcuts live once, on the left side like an OS.",
-                      "Los accesos viven una sola vez, a la izquierda como en un SO.",
-                    )}
-                  </p>
+                <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-3 py-3">
+                  <span>{t("Audio", "Audio")}</span>
+                  <span className="font-semibold text-foreground">{t("Enabled", "Activo")}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-[1.2rem] border border-border bg-background/65 px-3 py-3">
+                  <span>{t("Companion", "Companion")}</span>
+                  <span className="font-semibold text-foreground">{currentCharacter.label}</span>
+                </div>
+                <div className="rounded-[1.2rem] border border-border bg-background/65 px-3 py-3 text-muted-foreground">
+                  {t(
+                    "Desktop icons on the left are the only app launchers.",
+                    "Los iconos del escritorio a la izquierda son los unicos lanzadores.",
+                  )}
                 </div>
               </div>
             </div>
