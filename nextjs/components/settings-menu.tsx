@@ -5,7 +5,6 @@ import { Settings, X } from "lucide-react";
 import { useTheme, type Theme } from "./theme-provider";
 import { useLanguage } from "./language-provider";
 import { useSiteMochi } from "./site-mochi-provider";
-import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
 import { SoundFields } from "./site-mochi-config-panel";
 
 // ── Theme meta ────────────────────────────────────────────────────────────────
@@ -130,8 +129,6 @@ export function SettingsMenu() {
   const {
     config,
     updateConfig,
-    catalog,
-    catalogLoading,
     openConfig,
     resetConfig,
   } = useSiteMochi();
@@ -189,24 +186,22 @@ export function SettingsMenu() {
               {isSpanish ? "Mochi" : "Mochi"}
             </p>
 
-            {/* Personality + Size */}
+            {/* Soul + Size */}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {isSpanish ? "Personalidad" : "Personality"}
+                  soul.md
                 </span>
-                <select
-                  value={config.personality}
-                  onChange={(e) => updateConfig({ personality: e.target.value })}
-                  disabled={catalogLoading || !catalog?.personalities.length}
-                  className={selectCls}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    openConfig();
+                  }}
+                  className={`${selectCls} text-left`}
                 >
-                  {(catalog?.personalities ?? []).map((p) => (
-                    <option key={p.key} value={p.key}>
-                      {getSiteMochiPersonalityDisplayLabel(p, isSpanish)}
-                    </option>
-                  ))}
-                </select>
+                  {isSpanish ? "Abrir editor de soul.md" : "Open soul.md editor"}
+                </button>
               </label>
 
               <label className="block">

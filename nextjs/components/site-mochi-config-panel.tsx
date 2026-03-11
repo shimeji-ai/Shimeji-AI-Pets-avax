@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  FileCode2,
   MonitorCog,
   MessageSquare,
   Palette,
@@ -17,7 +18,6 @@ import {
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
 import { useTheme, type Theme } from "@/components/theme-provider";
-import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
 import {
   SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
   SITE_MOCHI_CHAT_FONT_SIZE_MAP,
@@ -26,7 +26,7 @@ import {
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
-export type ConfigPanelTab = "site" | "chat" | "appearance" | "mascot" | "sound";
+export type ConfigPanelTab = "site" | "soul" | "chat" | "appearance" | "mascot" | "sound";
 
 const SITE_THEME_META: Array<{
   key: Theme;
@@ -47,11 +47,42 @@ export const CONFIG_WINDOW_META: Array<{
   labelEs: string;
 }> = [
   { key: "site", icon: MonitorCog, labelEn: "Theme", labelEs: "Tema" },
+  { key: "soul", icon: FileCode2, labelEn: "Soul", labelEs: "Soul" },
   { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
   { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
   { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
   { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
 ];
+
+function SoulFields({ compact = false }: { compact?: boolean } = {}) {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteMochi();
+
+  return (
+    <div className="grid gap-3">
+      {!compact ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+          {isSpanish
+            ? "Esto define la voz interna del agente. Escribilo como un soul.md corto."
+            : "This defines the agent's inner voice. Write it as a short soul.md."}
+        </div>
+      ) : null}
+      <label className="block">
+        <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <span>soul.md</span>
+          <span>{config.soulMd.length}/4000</span>
+        </div>
+        <textarea
+          value={config.soulMd}
+          onChange={(event) => updateConfig({ soulMd: event.target.value.slice(0, 4000) })}
+          spellCheck={false}
+          className={`w-full resize-none rounded-xl border border-white/15 bg-black/30 px-3 py-3 font-mono text-xs text-foreground outline-none focus:border-[var(--brand-accent)] ${compact ? "h-[320px]" : "h-[420px]"}`}
+          placeholder={`# soul.md\n\n- Be concise\n- Be warm\n- Help with setup`}
+        />
+      </label>
+    </div>
+  );
+}
 
 type OpenRouterModelOption = {
   value: string;
@@ -1651,6 +1682,8 @@ export function SiteMochiCompactConfigWindow({
           </div>
         ) : null}
 
+        {activeTab === "soul" ? <SoulFields compact /> : null}
+
         {activeTab === "chat" ? (
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="space-y-3">
@@ -1756,24 +1789,6 @@ export function SiteMochiCompactConfigWindow({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {isSpanish ? "Personalidad" : "Personality"}
-                </span>
-                <select
-                  value={config.personality}
-                  onChange={(event) => updateConfig({ personality: event.target.value })}
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                  disabled={catalogLoading || !catalog?.personalities.length}
-                >
-                  {(catalog?.personalities ?? []).map((personality) => (
-                    <option key={personality.key} value={personality.key}>
-                      {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
                 <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <span>{isSpanish ? "Tamaño" : "Size"}</span>
                   <span>{config.sizePercent}%</span>
@@ -1812,7 +1827,7 @@ export function SiteMochiCompactConfigWindow({
 
 export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = {}) {
   const { isSpanish } = useLanguage();
-  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("chat");
+  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("soul");
   const {
     isConfigOpen,
     closeConfig,

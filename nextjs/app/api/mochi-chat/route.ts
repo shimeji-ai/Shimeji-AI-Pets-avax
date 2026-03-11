@@ -26,21 +26,16 @@ function parseServerProvider(input: unknown): SupportedServerProvider {
   return input === "openrouter" ? "openrouter" : "site";
 }
 
-async function resolvePromptContext(characterKey: string, personalityKey: string) {
+async function resolvePromptContext(characterKey: string) {
   try {
     const catalog = await getRuntimeCoreSiteMochiCatalog();
     const characterLabel = catalog.characters.find((entry) => entry.key === characterKey)?.label;
-    const personality = catalog.personalities.find((entry) => entry.key === personalityKey);
     return {
       characterLabel,
-      personalityLabel: personality?.label,
-      personalityPrompt: personality?.prompt,
     };
   } catch {
     return {
       characterLabel: undefined,
-      personalityLabel: undefined,
-      personalityPrompt: undefined,
     };
   }
 }
@@ -143,16 +138,18 @@ export async function POST(request: NextRequest) {
     }
 
     const characterKey = sanitizeShortKey((body as any)?.character);
-    const personalityKey = sanitizeShortKey((body as any)?.personality);
-    const promptContext = await resolvePromptContext(characterKey, personalityKey);
+    const soulMd =
+      typeof (body as any)?.soulMd === "string"
+        ? (body as any).soulMd.trim().slice(0, 4000)
+        : "";
+    const promptContext = await resolvePromptContext(characterKey);
 
     const messages = buildSiteMochiChatMessages({
       message,
       history,
       language: typeof (body as any)?.lang === "string" ? (body as any).lang : undefined,
       characterLabel: promptContext.characterLabel,
-      personalityLabel: promptContext.personalityLabel,
-      personalityPrompt: promptContext.personalityPrompt,
+      soulMd,
     });
 
     const reply = await sendOpenRouterRequest({

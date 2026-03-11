@@ -8,8 +8,7 @@ export type SiteMochiChatMessage = {
 export type SiteMochiPromptInput = {
   language?: string;
   characterLabel?: string;
-  personalityLabel?: string;
-  personalityPrompt?: string;
+  soulMd?: string;
 };
 
 const MAX_MESSAGE_CHARS = 2000;
@@ -36,17 +35,15 @@ export function coerceSiteMochiHistory(input: unknown): SiteMochiChatMessage[] {
 export function buildSiteMochiSystemPrompt({
   language,
   characterLabel,
-  personalityLabel,
-  personalityPrompt,
+  soulMd,
 }: SiteMochiPromptInput = {}): string {
   const langHint =
     typeof language === "string" && language.toLowerCase().startsWith("es")
       ? "es"
       : "en";
   const selectedCharacter = characterLabel || "Mochi";
-  const selectedPersonality = personalityLabel || "Cozy";
-  const personalitySection = personalityPrompt?.trim()
-    ? `Selected personality (${selectedPersonality}):\n${personalityPrompt.trim()}\n`
+  const soulSection = soulMd?.trim()
+    ? `Current soul.md:\n${soulMd.trim()}\n`
     : "";
 
   return `
@@ -54,7 +51,7 @@ You are Mochi, a tiny animated desktop/browser pet from the Mochi project.
 
 Current website mochi setup:
 - Character skin: ${selectedCharacter}
-- Personality preset: ${selectedPersonality}
+- Behavior source: soul.md
 - Environment: website preview/chat on mochi.dev
 - This website mochi does NOT have local terminal or WSL access.
 
@@ -76,7 +73,7 @@ Behavior:
 - If asked about local system/WSL/terminal control on the website, clearly say it is not available in the website mochi.
 - Respond in the same language as the user. If unclear, prefer ${langHint === "es" ? "Spanish" : "English"}.
 
-${personalitySection}`.trim();
+${soulSection}`.trim();
 }
 
 export function buildSiteMochiChatMessages(args: {
@@ -84,8 +81,7 @@ export function buildSiteMochiChatMessages(args: {
   history?: SiteMochiChatMessage[];
   language?: string;
   characterLabel?: string;
-  personalityLabel?: string;
-  personalityPrompt?: string;
+  soulMd?: string;
 }): Array<{ role: "system" | SiteMochiChatRole; content: string }> {
   const message = sanitizeSiteMochiMessage(args.message);
   const history = coerceSiteMochiHistory(args.history);
@@ -95,12 +91,10 @@ export function buildSiteMochiChatMessages(args: {
       content: buildSiteMochiSystemPrompt({
         language: args.language,
         characterLabel: args.characterLabel,
-        personalityLabel: args.personalityLabel,
-        personalityPrompt: args.personalityPrompt,
+        soulMd: args.soulMd,
       }),
     },
     ...history,
     { role: "user", content: message },
   ];
 }
-

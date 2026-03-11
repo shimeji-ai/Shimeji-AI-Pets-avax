@@ -45,7 +45,7 @@ export type SiteMochiCatalog = {
 export type SiteMochiConfig = {
   enabled: boolean;
   character: string;
-  personality: string;
+  soulMd: string;
   sizePercent: number;
   provider: SiteMochiProviderKind;
   openrouterApiKey: string;
@@ -108,7 +108,15 @@ const DEFAULT_CHAT_THEME = SITE_MOCHI_CHAT_THEMES[0];
 const DEFAULT_CONFIG: SiteMochiConfig = {
   enabled: true,
   character: "mochi",
-  personality: "cozy",
+  soulMd: `# soul.md
+
+You are Mochi.
+
+- Be concise, warm, and practical.
+- Stay playful but not childish.
+- Help with setup, downloads, and using the agent.
+- Prefer clear answers over roleplay unless the user invites it.
+`,
   sizePercent: 100,
   provider: "site",
   openrouterApiKey: "",
@@ -334,8 +342,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
   return {
     enabled: true,
     character: sanitizeString(raw.character, DEFAULT_CONFIG.character, 64) || DEFAULT_CONFIG.character,
-    personality:
-      sanitizeString(raw.personality, DEFAULT_CONFIG.personality, 64) || DEFAULT_CONFIG.personality,
+    soulMd: sanitizeString(raw.soulMd, DEFAULT_CONFIG.soulMd, 4000) || DEFAULT_CONFIG.soulMd,
     sizePercent: clampSizePercent(raw.sizePercent),
     provider,
     openrouterApiKey: sanitizeString(raw.openrouterApiKey, "", 600),
@@ -497,16 +504,10 @@ export function SiteMochiProvider({ children }: { children: ReactNode }) {
 
       setConfig((prev) => {
         const hasCharacter = nextCatalog.characters.some((entry) => entry.key === prev.character);
-        const hasPersonality = nextCatalog.personalities.some(
-          (entry) => entry.key === prev.personality,
-        );
-        if (hasCharacter && hasPersonality) return prev;
+        if (hasCharacter) return prev;
         return {
           ...prev,
           character: hasCharacter ? prev.character : nextCatalog.characters[0]?.key || DEFAULT_CONFIG.character,
-          personality: hasPersonality
-            ? prev.personality
-            : nextCatalog.personalities[0]?.key || DEFAULT_CONFIG.personality,
         };
       });
     } catch (error) {

@@ -13,7 +13,6 @@ import styles from "./site-mochi-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
 import { buildSiteMochiChatMessages } from "@/lib/site-mochi-chat";
-import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
 import {
   formatSiteMochiProviderError,
   sendOllamaBrowserChat,
@@ -296,7 +295,6 @@ export function SiteMochiMascot() {
   }, []);
 
   const selectedCharacter = catalog?.characters.find((entry) => entry.key === config.character);
-  const selectedPersonality = catalog?.personalities.find((entry) => entry.key === config.personality);
 
   const frames = useMemo(
     () => ({
@@ -1142,8 +1140,7 @@ export function SiteMochiMascot() {
           history,
           language,
           characterLabel: selectedCharacter?.label,
-          personalityLabel: selectedPersonality?.label,
-          personalityPrompt: selectedPersonality?.prompt,
+          soulMd: config.soulMd,
         });
         reply = await sendBitteBrowserChat({
           messages: providerMessages,
@@ -1161,7 +1158,7 @@ export function SiteMochiMascot() {
             lang: language,
             provider: "site",
             character: config.character,
-            personality: config.personality,
+            soulMd: config.soulMd,
           }),
         });
         const json = await resp.json().catch(() => null);
@@ -1178,8 +1175,7 @@ export function SiteMochiMascot() {
           history,
           language,
           characterLabel: selectedCharacter?.label,
-          personalityLabel: shouldApplyPersonality ? selectedPersonality?.label : undefined,
-          personalityPrompt: shouldApplyPersonality ? selectedPersonality?.prompt : undefined,
+          soulMd: shouldApplyPersonality ? config.soulMd : undefined,
         });
         reply =
           providerForRequest === "ollama"
@@ -1273,7 +1269,7 @@ export function SiteMochiMascot() {
                   }
                 : undefined,
             character: config.character,
-            personality: config.personality,
+            soulMd: config.soulMd,
           }),
         });
         const json = await resp.json().catch(() => null);
@@ -1555,8 +1551,7 @@ export function SiteMochiMascot() {
           <div className={styles.bubbleHeader}>
             <div className={styles.titleWrap}>
               <div className={styles.title}>
-                {selectedCharacter?.label || "Mochi"} ·{" "}
-                {getSiteMochiPersonalityDisplayLabel(selectedPersonality, isSpanish) || "Cozy"}
+                {selectedCharacter?.label || "Mochi"} · soul.md
               </div>
               <div className={styles.metaText}>{providerLabel}</div>
             </div>
