@@ -93,8 +93,8 @@ export function SiteMochiLandingSection() {
         <div className="fixed inset-x-0 top-0 z-30 border-b-2 border-white/25 bg-background/70 px-2 py-1.5 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-none border border-foreground/15 bg-card/65">
-                <Image src="/logo.png" alt="Mochi" width={24} height={24} className="h-5 w-5 object-contain" />
+              <div className="flex h-6 items-center overflow-visible">
+                <Image src="/logo.png" alt="Mochi" width={34} height={34} className="h-[34px] w-[34px] object-contain" />
               </div>
             </div>
 
