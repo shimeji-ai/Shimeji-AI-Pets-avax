@@ -23,6 +23,10 @@ type HeaderIconLinkProps = {
   label: string;
 };
 
+function getMascotIdleSpriteSrc(characterKey: string) {
+  return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
+}
+
 function DesktopConfigShortcut({
   configKey,
   label,
@@ -73,7 +77,7 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
 
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
-  const { config, catalog } = useSiteMochi();
+  const { config } = useSiteMochi();
   const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
   const [entryGateOpen, setEntryGateOpen] = useState(true);
 
@@ -81,7 +85,6 @@ export function SiteMochiLandingSection() {
   const activeWindowMeta = activeDesktopWindow
     ? CONFIG_WINDOW_META.find((item) => item.key === activeDesktopWindow) ?? null
     : null;
-  const selectedCharacter = catalog?.characters.find((item) => item.key === config.character) ?? null;
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
     { configKey: "site", label: t("Theme", "Tema") },
@@ -132,7 +135,7 @@ export function SiteMochiLandingSection() {
               <DesktopConfigShortcut
                 key={shortcut.configKey}
                 {...shortcut}
-                iconSrc={shortcut.configKey === "mascot" ? selectedCharacter?.iconUrl || undefined : undefined}
+                iconSrc={shortcut.configKey === "mascot" ? getMascotIdleSpriteSrc(config.character) : undefined}
                 onOpen={setActiveDesktopWindow}
               />
             ))}

@@ -55,6 +55,10 @@ export const CONFIG_WINDOW_META: Array<{
   { key: "sound", icon: Volume2, iconSrc: "/desktop-icons/sound.png", labelEn: "Sound", labelEs: "Sonido" },
 ];
 
+function getMascotIdleSpriteSrc(characterKey: string) {
+  return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
+}
+
 function SoulFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteMochi();
@@ -1832,10 +1836,8 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
   const {
     isConfigOpen,
     closeConfig,
-    catalog,
     config,
   } = useSiteMochi();
-  const selectedCharacter = catalog?.characters.find((item) => item.key === config.character) ?? null;
 
   if (!inline && !isConfigOpen) return null;
 
@@ -1890,7 +1892,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
               <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
                 {CONFIG_WINDOW_META.map((item) => {
                   const isActive = activeTab === item.key;
-                  const iconSrc = item.key === "mascot" ? selectedCharacter?.iconUrl || item.iconSrc : item.iconSrc;
+                  const iconSrc = item.key === "mascot" ? getMascotIdleSpriteSrc(config.character) : item.iconSrc;
                   return (
                     <button
                       key={item.key}
