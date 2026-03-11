@@ -1,21 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   CircleHelp,
   Download,
-  Settings2,
   ShoppingBag,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
-import { useSiteMochi } from "@/components/site-mochi-provider";
+import {
+  CONFIG_WINDOW_META,
+  SiteMochiCompactConfigWindow,
+  type ConfigPanelTab,
+} from "@/components/site-mochi-config-panel";
 
 type ShortcutCardProps = {
   icon: LucideIcon;
   label: string;
   href: string;
+};
+
+type DesktopConfigShortcutProps = {
+  configKey: ConfigPanelTab;
+  label: string;
 };
 
 function ShortcutCard({ icon: Icon, label, href }: ShortcutCardProps) {
@@ -36,9 +45,36 @@ function ShortcutCard({ icon: Icon, label, href }: ShortcutCardProps) {
   );
 }
 
+function DesktopConfigShortcut({
+  configKey,
+  label,
+  onOpen,
+}: DesktopConfigShortcutProps & { onOpen: (tab: ConfigPanelTab) => void }) {
+  const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
+  if (!meta) return null;
+  const Icon = meta.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(configKey)}
+      className="group flex w-[104px] flex-col items-center gap-2 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1"
+    >
+      <span className="relative flex h-16 w-16 items-center justify-center rounded-none border-2 border-foreground/15 bg-white/55 shadow-[4px_4px_0_rgba(24,18,37,0.18)] backdrop-blur-sm transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:bg-white/68 group-hover:shadow-[2px_2px_0_rgba(24,18,37,0.18)]">
+        <span className="absolute left-1 top-1 h-1.5 w-1.5 bg-white/75" />
+        <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-foreground/12" />
+        <Icon className="h-6 w-6 text-foreground" strokeWidth={2.25} />
+      </span>
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
+        {label}
+      </span>
+    </button>
+  );
+}
+
 export function SiteMochiLandingSection() {
   const { isSpanish } = useLanguage();
-  const { openConfig } = useSiteMochi();
+  const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
 
@@ -60,6 +96,13 @@ export function SiteMochiLandingSection() {
     },
   ] satisfies ShortcutCardProps[];
 
+  const configShortcuts: DesktopConfigShortcutProps[] = [
+    { configKey: "chat", label: t("Provider", "Proveedor") },
+    { configKey: "mascot", label: t("Mascot", "Mascota") },
+    { configKey: "appearance", label: t("Chat", "Chat") },
+    { configKey: "sound", label: t("Sound", "Sonido") },
+  ];
+
   return (
     <section className="relative min-h-screen overflow-hidden pt-10 lg:h-screen lg:min-h-0">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
@@ -75,15 +118,7 @@ export function SiteMochiLandingSection() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={openConfig}
-              aria-label={t("Open mochi settings", "Abrir ajustes del mochi")}
-              title={t("Open mochi settings", "Abrir ajustes del mochi")}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-none border-2 border-foreground/15 bg-card/85 text-foreground shadow-[3px_3px_0_rgba(24,18,37,0.12)] transition-all duration-150 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_rgba(24,18,37,0.12)]"
-            >
-              <Settings2 className="h-4 w-4" strokeWidth={2.25} />
-            </button>
+            <div className="h-8 w-8" />
           </div>
         </div>
 
@@ -95,7 +130,38 @@ export function SiteMochiLandingSection() {
             {shortcuts.map((shortcut) => (
               <ShortcutCard key={shortcut.href} {...shortcut} />
             ))}
+            {configShortcuts.map((shortcut) => (
+              <DesktopConfigShortcut
+                key={shortcut.configKey}
+                {...shortcut}
+                onOpen={setActiveDesktopWindow}
+              />
+            ))}
           </div>
+
+          {activeDesktopWindow ? (
+            <div className="absolute inset-0 z-20 flex items-start justify-end p-4 pt-14 sm:p-6 sm:pt-16">
+              <div className="flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-white/20 bg-[#06080d]/95 shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-[#fb7185]" />
+                    <span className="h-3 w-3 rounded-full bg-[#fbbf24]" />
+                    <span className="h-3 w-3 rounded-full bg-[#34d399]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveDesktopWindow(null)}
+                    className="rounded-none border border-white/15 bg-white/5 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground hover:bg-white/10"
+                  >
+                    {t("Close", "Cerrar")}
+                  </button>
+                </div>
+                <div className="min-h-[420px] max-h-[calc(100vh-7rem)] overflow-hidden">
+                  <SiteMochiCompactConfigWindow activeTab={activeDesktopWindow} />
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

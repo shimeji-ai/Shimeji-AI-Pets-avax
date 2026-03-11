@@ -23,9 +23,9 @@ import {
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
-type ConfigPanelTab = "chat" | "appearance" | "mascot" | "sound";
+export type ConfigPanelTab = "chat" | "appearance" | "mascot" | "sound";
 
-const CONFIG_WINDOW_META: Array<{
+export const CONFIG_WINDOW_META: Array<{
   key: ConfigPanelTab;
   icon: LucideIcon;
   labelEn: string;
@@ -1585,12 +1585,13 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
   );
 }
 
-export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = {}) {
+export function SiteMochiCompactConfigWindow({
+  activeTab,
+}: {
+  activeTab: ConfigPanelTab;
+}) {
   const { isSpanish } = useLanguage();
-  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("chat");
   const {
-    isConfigOpen,
-    closeConfig,
     catalog,
     catalogLoading,
     catalogError,
@@ -1602,8 +1603,183 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
     freeSiteMessagesRemaining,
   } = useSiteMochi();
 
-  const activeMeta = CONFIG_WINDOW_META.find((item) => item.key === activeTab) ?? CONFIG_WINDOW_META[0];
+  const activeMeta =
+    CONFIG_WINDOW_META.find((item) => item.key === activeTab) ?? CONFIG_WINDOW_META[0];
   const ActiveIcon = activeMeta.icon;
+
+  return (
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
+            <ActiveIcon className="h-4 w-4 text-[var(--brand-accent)]" />
+          </div>
+          <div className="text-sm font-semibold text-foreground">
+            {isSpanish ? activeMeta.labelEs : activeMeta.labelEn}
+          </div>
+        </div>
+        {activeTab === "chat" ? (
+          <button
+            type="button"
+            onClick={resetConfig}
+            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
+          >
+            Reset
+          </button>
+        ) : null}
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        {activeTab === "chat" ? (
+          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isSpanish ? "Proveedor" : "Provider"}
+                </span>
+                <select
+                  value={config.provider}
+                  onChange={(event) =>
+                    updateConfig({
+                      provider: event.target.value as
+                        | "site"
+                        | "openrouter"
+                        | "ollama"
+                        | "openclaw"
+                        | "bitte",
+                    })
+                  }
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                >
+                  <option value="site">{isSpanish ? "Sitio" : "Site"}</option>
+                  <option value="openrouter">OpenRouter</option>
+                  <option value="ollama">Ollama</option>
+                  <option value="openclaw">OpenClaw</option>
+                  <option value="bitte">Bitte AI</option>
+                </select>
+              </label>
+
+              <div
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+                  canUseCurrentProvider
+                    ? "border-green-700 bg-green-300 text-black"
+                    : "border-red-700 bg-red-300 text-black"
+                }`}
+              >
+                {canUseCurrentProvider ? "Ready" : isSpanish ? "Falta setup" : "Needs setup"}
+              </div>
+
+              {config.provider === "site" ? (
+                <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-muted-foreground">
+                  {isSpanish
+                    ? `Restantes: ${freeSiteMessagesRemaining ?? 0}`
+                    : `Remaining: ${freeSiteMessagesRemaining ?? 0}`}
+                </div>
+              ) : null}
+            </div>
+
+            <ProviderFields compact />
+          </div>
+        ) : null}
+
+        {activeTab === "appearance" ? <ChatAppearanceFields compact /> : null}
+
+        {activeTab === "sound" ? <SoundFields compact /> : null}
+
+        {activeTab === "mascot" ? (
+          <div className="grid gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+              {(catalog?.characters ?? []).map((character) => (
+                <button
+                  key={character.key}
+                  type="button"
+                  onClick={() => updateConfig({ character: character.key })}
+                  className={`group flex flex-col items-center rounded-2xl border p-3 text-center transition-all ${
+                    config.character === character.key
+                      ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
+                      : "border-white/10 bg-white/5 hover:border-[var(--brand-accent)]/50 hover:bg-white/10"
+                  }`}
+                  disabled={catalogLoading}
+                >
+                  <Image
+                    src={character.iconUrl}
+                    alt=""
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="h-10 w-10 object-contain transition-transform group-hover:scale-110"
+                    style={{ imageRendering: "pixelated" }}
+                  />
+                  <div className="mt-2 w-full truncate text-[11px] font-semibold text-foreground/90">
+                    {character.label}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isSpanish ? "Personalidad" : "Personality"}
+                </span>
+                <select
+                  value={config.personality}
+                  onChange={(event) => updateConfig({ personality: event.target.value })}
+                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                  disabled={catalogLoading || !catalog?.personalities.length}
+                >
+                  {(catalog?.personalities ?? []).map((personality) => (
+                    <option key={personality.key} value={personality.key}>
+                      {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <span>{isSpanish ? "Tamaño" : "Size"}</span>
+                  <span>{config.sizePercent}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={60}
+                  max={180}
+                  step={5}
+                  value={config.sizePercent}
+                  onChange={(event) => updateConfig({ sizePercent: Number(event.target.value) })}
+                  className="w-full accent-[var(--brand-accent)]"
+                />
+              </label>
+            </div>
+
+            {catalogError ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-red-700 bg-red-300 px-3 py-2 text-xs text-black">
+                <span className="truncate">{catalogError}</span>
+                <button
+                  type="button"
+                  onClick={() => reloadCatalog().catch(() => undefined)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-black/40 px-2 py-1 text-black hover:bg-black/10"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  Retry
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = {}) {
+  const { isSpanish } = useLanguage();
+  const [activeTab, setActiveTab] = useState<ConfigPanelTab>("chat");
+  const {
+    isConfigOpen,
+    closeConfig,
+  } = useSiteMochi();
 
   if (!inline && !isConfigOpen) return null;
 
@@ -1681,168 +1857,7 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                 })}
               </div>
 
-              <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
-                      <ActiveIcon className="h-4 w-4 text-[var(--brand-accent)]" />
-                    </div>
-                    <div className="text-sm font-semibold text-foreground">
-                      {isSpanish ? activeMeta.labelEs : activeMeta.labelEn}
-                    </div>
-                  </div>
-                  {activeTab === "chat" ? (
-                    <button
-                      type="button"
-                      onClick={resetConfig}
-                      className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
-                    >
-                      {isSpanish ? "Reset" : "Reset"}
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-4 py-4">
-                  {activeTab === "chat" ? (
-                    <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                      <div className="space-y-3">
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {isSpanish ? "Proveedor" : "Provider"}
-                          </span>
-                          <select
-                            value={config.provider}
-                            onChange={(event) =>
-                              updateConfig({
-                                provider: event.target.value as
-                                  | "site"
-                                  | "openrouter"
-                                  | "ollama"
-                                  | "openclaw"
-                                  | "bitte",
-                              })
-                            }
-                            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                          >
-                            <option value="site">{isSpanish ? "Sitio" : "Site"}</option>
-                            <option value="openrouter">OpenRouter</option>
-                            <option value="ollama">Ollama</option>
-                            <option value="openclaw">OpenClaw</option>
-                            <option value="bitte">Bitte AI</option>
-                          </select>
-                        </label>
-
-                        <div
-                          className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
-                            canUseCurrentProvider
-                              ? "border-green-700 bg-green-300 text-black"
-                              : "border-red-700 bg-red-300 text-black"
-                          }`}
-                        >
-                          {canUseCurrentProvider ? "Ready" : isSpanish ? "Falta setup" : "Needs setup"}
-                        </div>
-
-                        {config.provider === "site" ? (
-                          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-muted-foreground">
-                            {isSpanish
-                              ? `Restantes: ${freeSiteMessagesRemaining ?? 0}`
-                              : `Remaining: ${freeSiteMessagesRemaining ?? 0}`}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <ProviderFields compact />
-                    </div>
-                  ) : null}
-
-                  {activeTab === "appearance" ? <ChatAppearanceFields compact /> : null}
-
-                  {activeTab === "sound" ? <SoundFields compact /> : null}
-
-                  {activeTab === "mascot" ? (
-                    <div className="grid gap-4">
-                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-                        {(catalog?.characters ?? []).map((character) => (
-                          <button
-                            key={character.key}
-                            type="button"
-                            onClick={() => updateConfig({ character: character.key })}
-                            className={`group flex flex-col items-center rounded-2xl border p-3 text-center transition-all ${
-                              config.character === character.key
-                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
-                                : "border-white/10 bg-white/5 hover:border-[var(--brand-accent)]/50 hover:bg-white/10"
-                            }`}
-                            disabled={catalogLoading}
-                          >
-                            <Image
-                              src={character.iconUrl}
-                              alt=""
-                              width={40}
-                              height={40}
-                              unoptimized
-                              className="h-10 w-10 object-contain transition-transform group-hover:scale-110"
-                              style={{ imageRendering: "pixelated" }}
-                            />
-                            <div className="mt-2 w-full truncate text-[11px] font-semibold text-foreground/90">
-                              {character.label}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block">
-                          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {isSpanish ? "Personalidad" : "Personality"}
-                          </span>
-                          <select
-                            value={config.personality}
-                            onChange={(event) => updateConfig({ personality: event.target.value })}
-                            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                            disabled={catalogLoading || !catalog?.personalities.length}
-                          >
-                            {(catalog?.personalities ?? []).map((personality) => (
-                              <option key={personality.key} value={personality.key}>
-                                {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-
-                        <label className="block">
-                          <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            <span>{isSpanish ? "Tamaño" : "Size"}</span>
-                            <span>{config.sizePercent}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min={60}
-                            max={180}
-                            step={5}
-                            value={config.sizePercent}
-                            onChange={(event) => updateConfig({ sizePercent: Number(event.target.value) })}
-                            className="w-full accent-[var(--brand-accent)]"
-                          />
-                        </label>
-                      </div>
-
-                      {catalogError ? (
-                        <div className="flex items-center justify-between gap-3 rounded-xl border border-red-700 bg-red-300 px-3 py-2 text-xs text-black">
-                          <span className="truncate">{catalogError}</span>
-                          <button
-                            type="button"
-                            onClick={() => reloadCatalog().catch(() => undefined)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-black/40 px-2 py-1 text-black hover:bg-black/10"
-                          >
-                            <RefreshCw className="h-3 w-3" />
-                            {isSpanish ? "Retry" : "Retry"}
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </section>
+              <SiteMochiCompactConfigWindow activeTab={activeTab} />
             </div>
           </div>
         </div>
