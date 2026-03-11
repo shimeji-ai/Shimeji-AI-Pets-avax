@@ -43,15 +43,16 @@ const SITE_THEME_META: Array<{
 export const CONFIG_WINDOW_META: Array<{
   key: ConfigPanelTab;
   icon: LucideIcon;
+  iconSrc: string;
   labelEn: string;
   labelEs: string;
 }> = [
-  { key: "site", icon: MonitorCog, labelEn: "Theme", labelEs: "Tema" },
-  { key: "soul", icon: FileCode2, labelEn: "Soul", labelEs: "Soul" },
-  { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
-  { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
-  { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
-  { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
+  { key: "site", icon: MonitorCog, iconSrc: "/desktop-icons/theme.png", labelEn: "Theme", labelEs: "Tema" },
+  { key: "soul", icon: FileCode2, iconSrc: "/desktop-icons/soul.png", labelEn: "Soul", labelEs: "Soul" },
+  { key: "chat", icon: MessageSquare, iconSrc: "/desktop-icons/provider.png", labelEn: "Provider", labelEs: "Proveedor" },
+  { key: "appearance", icon: Palette, iconSrc: "/desktop-icons/chat.png", labelEn: "Chat", labelEs: "Chat" },
+  { key: "mascot", icon: Sparkles, iconSrc: "/desktop-icons/mascot.png", labelEn: "Mascot", labelEs: "Mascota" },
+  { key: "sound", icon: Volume2, iconSrc: "/desktop-icons/sound.png", labelEn: "Sound", labelEs: "Sonido" },
 ];
 
 function SoulFields({ compact = false }: { compact?: boolean } = {}) {
@@ -1885,7 +1886,6 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
             <div className="grid h-full gap-5 lg:grid-cols-[112px_minmax(0,1fr)]">
               <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
                 {CONFIG_WINDOW_META.map((item) => {
-                  const Icon = item.icon;
                   const isActive = activeTab === item.key;
                   return (
                     <button
@@ -1899,7 +1899,14 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                       }`}
                     >
                       <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background/55">
-                        <Icon className="h-5 w-5" />
+                        <Image
+                          src={item.iconSrc}
+                          alt=""
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 object-contain"
+                          style={{ imageRendering: "pixelated" }}
+                        />
                       </span>
                       <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
                         {isSpanish ? item.labelEs : item.labelEn}

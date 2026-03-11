@@ -29,7 +29,6 @@ function DesktopConfigShortcut({
 }: DesktopConfigShortcutProps & { onOpen: (tab: ConfigPanelTab) => void }) {
   const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
   if (!meta) return null;
-  const Icon = meta.icon;
 
   return (
     <button
@@ -37,10 +36,15 @@ function DesktopConfigShortcut({
       onClick={() => onOpen(configKey)}
       className="group flex w-[104px] flex-col items-center gap-2 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1"
     >
-      <span className="relative flex h-16 w-16 items-center justify-center rounded-none border-2 border-foreground/15 bg-white/55 shadow-[4px_4px_0_rgba(24,18,37,0.18)] backdrop-blur-sm transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px] group-hover:bg-white/68 group-hover:shadow-[2px_2px_0_rgba(24,18,37,0.18)]">
-        <span className="absolute left-1 top-1 h-1.5 w-1.5 bg-white/75" />
-        <span className="absolute bottom-1 right-1 h-1.5 w-1.5 bg-foreground/12" />
-        <Icon className="h-6 w-6 text-foreground" strokeWidth={2.25} />
+      <span className="relative flex h-16 w-16 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]">
+        <Image
+          src={meta.iconSrc}
+          alt=""
+          width={64}
+          height={64}
+          className="h-16 w-16 object-contain drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]"
+          style={{ imageRendering: "pixelated" }}
+        />
       </span>
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
         {label}
