@@ -12,6 +12,7 @@ import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
 import { WalletProvider } from "@/components/wallet-provider";
 import { SiteMochiMascot } from "@/components/site-mochi-mascot";
+import { SiteMochiConfigPanel } from "@/components/site-mochi-config-panel";
 import { SiteMochiProvider } from "@/components/site-mochi-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
@@ -98,6 +99,7 @@ export default function RootLayout({
               <SiteMochiProvider>
                 <Header />
                 {children}
+                <SiteMochiConfigPanel />
                 <SiteMochiMascot />
               </SiteMochiProvider>
             </ThemeProvider>
