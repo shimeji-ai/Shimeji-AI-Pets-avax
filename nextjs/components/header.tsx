@@ -24,7 +24,7 @@ const NAV_LINKS = [
 const THEME_META: { key: Theme; labelEn: string; labelEs: string }[] = [
   { key: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii" },
   { key: "pastel", labelEn: "Pastel", labelEs: "Pastel" },
-  { key: "pink", labelEn: "Pink", labelEs: "Rosa" },
+  { key: "black-pink", labelEn: "Black-Pink", labelEs: "Black-Pink" },
   { key: "neural", labelEn: "Neural", labelEs: "Neural" },
 ];
 

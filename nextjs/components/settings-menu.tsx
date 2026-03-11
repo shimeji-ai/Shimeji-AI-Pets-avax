@@ -12,7 +12,7 @@ import { SoundFields } from "./site-mochi-config-panel";
 
 const THEME_META: { key: Theme; labelEn: string; labelEs: string; accent: string }[] = [
   { key: "neural", labelEn: "Neural", labelEs: "Neural", accent: "#86f0ff" },
-  { key: "pink",   labelEn: "Pink",   labelEs: "Rosa",   accent: "#ff9ad8" },
+  { key: "black-pink", labelEn: "Black-Pink", labelEs: "Black-Pink", accent: "#ff78c8" },
   { key: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", accent: "#e87fff" },
   { key: "pastel", labelEn: "Pastel", labelEs: "Pastel", accent: "#b48ccf" },
 ];

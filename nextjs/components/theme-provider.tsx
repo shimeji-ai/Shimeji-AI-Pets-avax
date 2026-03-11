@@ -2,9 +2,9 @@
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
-export type Theme = "neural" | "pink" | "kawaii" | "pastel";
+export type Theme = "neural" | "black-pink" | "kawaii" | "pastel";
 
-export const THEMES: Theme[] = ["neural", "pink", "kawaii", "pastel"];
+export const THEMES: Theme[] = ["neural", "black-pink", "kawaii", "pastel"];
 
 const SESSION_LAST_THEME_KEY = "mochi-theme-last";
 
@@ -19,12 +19,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("kawaii");
 
   useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme") as Theme | null;
+    const currentAttr = document.documentElement.getAttribute("data-theme");
+    const current = currentAttr === "pink" ? "black-pink" : currentAttr;
     const resolved =
       current && THEMES.includes(current)
         ? current
         : "kawaii";
     setThemeState(resolved);
+    document.documentElement.setAttribute("data-theme", resolved);
+    document.body.setAttribute("data-theme", resolved);
+    try {
+      sessionStorage.setItem(SESSION_LAST_THEME_KEY, resolved);
+    } catch {
+      // Ignore storage failures (private mode, blocked storage, etc.)
+    }
   }, []);
 
   const setTheme = useCallback((newTheme: Theme) => {

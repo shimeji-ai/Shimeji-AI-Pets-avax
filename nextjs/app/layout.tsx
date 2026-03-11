@@ -68,10 +68,13 @@ export default function RootLayout({
 }>) {
   const themeScript = `
     (function() {
-      var themes = ['neural', 'pink', 'kawaii', 'pastel'];
+      var themes = ['neural', 'black-pink', 'kawaii', 'pastel'];
       var theme = 'kawaii';
       var savedTheme = null;
       try { savedTheme = sessionStorage.getItem('mochi-theme-last'); } catch(e) {}
+      if (savedTheme === 'pink') {
+        savedTheme = 'black-pink';
+      }
       if (savedTheme && themes.indexOf(savedTheme) !== -1) {
         theme = savedTheme;
       }

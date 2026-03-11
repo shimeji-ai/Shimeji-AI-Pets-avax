@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-export type SiteTheme = "neural" | "pink" | "kawaii" | "pastel";
+export type SiteTheme = "neural" | "black-pink" | "kawaii" | "pastel";
 
 export function useCurrentTheme(): SiteTheme {
   const [theme, setTheme] = useState<SiteTheme>("neural");
