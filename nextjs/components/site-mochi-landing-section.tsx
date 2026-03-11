@@ -12,8 +12,7 @@ import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
 import {
   CONFIG_WINDOW_META,
-  getDesktopIconSrc,
-  getIconThemeImageStyle,
+  DesktopConfigIcon,
   SiteMochiCompactConfigWindow,
   type ConfigPanelTab,
 } from "@/components/site-mochi-config-panel";
@@ -32,12 +31,12 @@ type HeaderIconLinkProps = {
 function DesktopConfigShortcut({
   configKey,
   label,
-  iconSrc,
   iconTheme,
+  characterKey,
   onOpen,
 }: DesktopConfigShortcutProps & {
-  iconSrc?: string;
   iconTheme: ReturnType<typeof useSiteMochi>["config"]["iconTheme"];
+  characterKey: string;
   onOpen: (tab: ConfigPanelTab) => void;
 }) {
   const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
@@ -50,14 +49,14 @@ function DesktopConfigShortcut({
       className="group flex w-[104px] flex-col items-center gap-2 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1"
     >
       <span className="relative flex h-16 w-16 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]">
-        <Image
-          src={iconSrc || getDesktopIconSrc(configKey, iconTheme, "mochi")}
-          alt=""
-          width={64}
-          height={64}
-          className="h-16 w-16 object-contain drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]"
-          style={getIconThemeImageStyle()}
-        />
+        <div className="drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]">
+          <DesktopConfigIcon
+            tab={configKey}
+            iconTheme={iconTheme}
+            characterKey={characterKey}
+            className="h-16 w-16 object-contain text-foreground"
+          />
+        </div>
       </span>
       <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
         {label}
@@ -142,8 +141,8 @@ export function SiteMochiLandingSection() {
               <DesktopConfigShortcut
                 key={shortcut.configKey}
                 {...shortcut}
-                iconSrc={getDesktopIconSrc(shortcut.configKey, config.iconTheme, config.character)}
                 iconTheme={config.iconTheme}
+                characterKey={config.character}
                 onOpen={setActiveDesktopWindow}
               />
             ))}

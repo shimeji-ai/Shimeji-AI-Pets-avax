@@ -1,8 +1,14 @@
 "use client";
 
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import type { IconType } from "react-icons";
+import { FaBrain, FaComments, FaHeart, FaPalette, FaVolumeHigh } from "react-icons/fa6";
+import { HiChatBubbleLeftRight, HiCpuChip, HiHeart, HiSpeakerWave, HiSwatch } from "react-icons/hi2";
+import { IoChatbubbleEllipses, IoColorPalette, IoHardwareChip, IoHeart, IoVolumeHigh } from "react-icons/io5";
+import { PiBrainFill, PiChatCircleDotsFill, PiHeartFill, PiPaletteFill, PiSpeakerHighFill } from "react-icons/pi";
+import { TbBrain, TbHeartFilled, TbMessageCircleFilled, TbPalette, TbVolume } from "react-icons/tb";
 import {
   FileCode2,
   MonitorCog,
@@ -57,41 +63,85 @@ export const CONFIG_WINDOW_META: Array<{
 const ICON_THEME_META: Array<{
   key: SiteMochiIconTheme;
   label: string;
-  previewSrc: string;
 }> = [
-  { key: "candy", label: "Candy", previewSrc: "/desktop-icons/themes/candy/soul.png" },
-  { key: "lucid", label: "Lucid", previewSrc: "/desktop-icons/themes/lucid/soul.png" },
-  { key: "arcade", label: "Arcade", previewSrc: "/desktop-icons/themes/arcade/soul.png" },
-  { key: "tiny", label: "Tiny", previewSrc: "/desktop-icons/themes/tiny/soul.png" },
-  { key: "bold", label: "Bold", previewSrc: "/desktop-icons/themes/bold/soul.png" },
+  { key: "fa6", label: "Font Awesome 6" },
+  { key: "hi2", label: "Heroicons 2" },
+  { key: "io5", label: "Ionicons 5" },
+  { key: "pi", label: "Phosphor" },
+  { key: "tb", label: "Tabler" },
 ];
-
-export function getIconThemeImageStyle(): CSSProperties {
-  return {
-    imageRendering: "pixelated",
-  };
-}
 
 function getMascotIdleSpriteSrc(characterKey: string) {
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
 }
 
-export function getDesktopIconSrc(
-  tab: ConfigPanelTab,
-  iconTheme: SiteMochiIconTheme,
-  characterKey: string,
-) {
+const ICON_THEME_COMPONENTS: Record<
+  SiteMochiIconTheme,
+  Record<Exclude<ConfigPanelTab, "mascot">, IconType>
+> = {
+  fa6: {
+    site: FaPalette,
+    soul: FaHeart,
+    chat: FaBrain,
+    appearance: FaComments,
+    sound: FaVolumeHigh,
+  },
+  hi2: {
+    site: HiSwatch,
+    soul: HiHeart,
+    chat: HiCpuChip,
+    appearance: HiChatBubbleLeftRight,
+    sound: HiSpeakerWave,
+  },
+  io5: {
+    site: IoColorPalette,
+    soul: IoHeart,
+    chat: IoHardwareChip,
+    appearance: IoChatbubbleEllipses,
+    sound: IoVolumeHigh,
+  },
+  pi: {
+    site: PiPaletteFill,
+    soul: PiHeartFill,
+    chat: PiBrainFill,
+    appearance: PiChatCircleDotsFill,
+    sound: PiSpeakerHighFill,
+  },
+  tb: {
+    site: TbPalette,
+    soul: TbHeartFilled,
+    chat: TbBrain,
+    appearance: TbMessageCircleFilled,
+    sound: TbVolume,
+  },
+};
+
+export function DesktopConfigIcon({
+  tab,
+  iconTheme,
+  characterKey,
+  className = "h-9 w-9",
+}: {
+  tab: ConfigPanelTab;
+  iconTheme: SiteMochiIconTheme;
+  characterKey: string;
+  className?: string;
+}) {
   if (tab === "mascot") {
-    return getMascotIdleSpriteSrc(characterKey);
+    return (
+      <Image
+        src={getMascotIdleSpriteSrc(characterKey)}
+        alt=""
+        width={64}
+        height={64}
+        className={className}
+        style={{ imageRendering: "pixelated" }}
+      />
+    );
   }
-  const nameByTab: Record<Exclude<ConfigPanelTab, "mascot">, string> = {
-    site: "theme",
-    soul: "soul",
-    chat: "provider",
-    appearance: "chat",
-    sound: "sound",
-  };
-  return `/desktop-icons/themes/${iconTheme}/${nameByTab[tab]}.png`;
+
+  const Icon = ICON_THEME_COMPONENTS[iconTheme][tab];
+  return <Icon className={className} aria-hidden="true" />;
 }
 
 function SoulFields({ compact = false }: { compact?: boolean } = {}) {
@@ -1724,7 +1774,7 @@ export function SiteMochiCompactConfigWindow({
 
             <div className="grid gap-3">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {isSpanish ? "Estilo de iconos" : "Icon style"}
+                {isSpanish ? "Coleccion de iconos" : "Icon collection"}
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {ICON_THEME_META.map((item) => {
@@ -1741,14 +1791,24 @@ export function SiteMochiCompactConfigWindow({
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <div className="flex h-10 w-16 items-center justify-center rounded-xl border border-border bg-background/60">
-                          <Image
-                            src={item.previewSrc}
-                            alt=""
-                            width={24}
-                            height={24}
-                            className="h-6 w-6 object-contain"
-                            style={getIconThemeImageStyle()}
+                        <div className="flex h-10 min-w-16 items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-2 text-foreground/90">
+                          <DesktopConfigIcon
+                            tab="site"
+                            iconTheme={item.key}
+                            characterKey={config.character}
+                            className="h-4 w-4"
+                          />
+                          <DesktopConfigIcon
+                            tab="soul"
+                            iconTheme={item.key}
+                            characterKey={config.character}
+                            className="h-4 w-4"
+                          />
+                          <DesktopConfigIcon
+                            tab="chat"
+                            iconTheme={item.key}
+                            characterKey={config.character}
+                            className="h-4 w-4"
                           />
                         </div>
                         <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
@@ -1968,7 +2028,6 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
               <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
                 {CONFIG_WINDOW_META.map((item) => {
                   const isActive = activeTab === item.key;
-                  const iconSrc = getDesktopIconSrc(item.key, config.iconTheme, config.character);
                   return (
                     <button
                       key={item.key}
@@ -1981,13 +2040,11 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                       }`}
                     >
                       <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-background/55">
-                        <Image
-                          src={iconSrc}
-                          alt=""
-                          width={36}
-                          height={36}
-                          className="h-9 w-9 object-contain"
-                          style={getIconThemeImageStyle()}
+                        <DesktopConfigIcon
+                          tab={item.key}
+                          iconTheme={config.iconTheme}
+                          characterKey={config.character}
+                          className="h-9 w-9 text-foreground"
                         />
                       </span>
                       <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">

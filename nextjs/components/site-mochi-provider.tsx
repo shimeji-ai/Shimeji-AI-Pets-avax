@@ -22,7 +22,7 @@ export type SiteMochiProviderKind = "site" | "openrouter" | "ollama" | "openclaw
 export type SiteMochiOpenClawMode = "paired";
 export type SiteMochiSoundInputProviderKind = "off" | "browser";
 export type SiteMochiSoundOutputProviderKind = "off" | "browser" | "elevenlabs";
-export type SiteMochiIconTheme = "candy" | "lucid" | "arcade" | "tiny" | "bold";
+export type SiteMochiIconTheme = "fa6" | "hi2" | "io5" | "pi" | "tb";
 
 export type SiteMochiCharacterOption = {
   key: string;
@@ -119,7 +119,7 @@ You are Mochi.
 - Help with setup, downloads, and using the agent.
 - Prefer clear answers over roleplay unless the user invites it.
 `,
-  iconTheme: "candy",
+  iconTheme: "fa6",
   sizePercent: 100,
   provider: "site",
   openrouterApiKey: "",
@@ -237,11 +237,11 @@ function sanitizeChatThemePreset(value: unknown): SiteMochiChatThemePresetId {
 }
 
 function sanitizeIconTheme(value: unknown): SiteMochiIconTheme {
-  return value === "candy" ||
-    value === "lucid" ||
-    value === "arcade" ||
-    value === "tiny" ||
-    value === "bold"
+  return value === "fa6" ||
+    value === "hi2" ||
+    value === "io5" ||
+    value === "pi" ||
+    value === "tb"
     ? value
     : DEFAULT_CONFIG.iconTheme;
 }
