@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Settings2, X } from "lucide-react";
+import Image from "next/image";
+import {
+  MessageSquare,
+  Palette,
+  RefreshCw,
+  Settings2,
+  Sparkles,
+  Volume2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
 import { getSiteMochiPersonalityDisplayLabel } from "@/lib/site-mochi-personality-labels";
@@ -14,6 +24,18 @@ import {
 } from "@/lib/site-mochi-chat-ui";
 
 type ConfigPanelTab = "chat" | "appearance" | "mascot" | "sound";
+
+const CONFIG_WINDOW_META: Array<{
+  key: ConfigPanelTab;
+  icon: LucideIcon;
+  labelEn: string;
+  labelEs: string;
+}> = [
+  { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
+  { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
+  { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
+  { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
+];
 
 type OpenRouterModelOption = {
   value: string;
@@ -37,7 +59,7 @@ const OPENROUTER_MODEL_OPTIONS: readonly OpenRouterModelOption[] = [
   { value: "mistralai/mistral-large-2411", labelEn: "Mistral Large", labelEs: "Mistral Large" },
 ];
 
-function ChatAppearanceFields() {
+function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteMochi();
 
@@ -85,11 +107,13 @@ function ChatAppearanceFields() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
-        {isSpanish
-          ? "La burbuja puede redimensionarse con el mouse desde los bordes (izquierdo/derecho y superior) cuando está abierta."
-          : "The chat bubble can be resized with the mouse from its edges (left/right and top) while it is open."}
-      </div>
+      {!compact ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+          {isSpanish
+            ? "La burbuja puede redimensionarse con el mouse desde los bordes (izquierdo/derecho y superior) cuando está abierta."
+            : "The chat bubble can be resized with the mouse from its edges (left/right and top) while it is open."}
+        </div>
+      ) : null}
 
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -270,18 +294,20 @@ function ChatAppearanceFields() {
           >
             {isSpanish ? "Restablecer tamaño manual" : "Reset manual size"}
           </button>
-          <span className="text-muted-foreground">
-            {isSpanish
-              ? `Actual: ${config.chatWidthPx ?? SITE_MOCHI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`
-              : `Current: ${config.chatWidthPx ?? SITE_MOCHI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`}
-          </span>
+          {!compact ? (
+            <span className="text-muted-foreground">
+              {isSpanish
+                ? `Actual: ${config.chatWidthPx ?? SITE_MOCHI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`
+                : `Current: ${config.chatWidthPx ?? SITE_MOCHI_CHAT_WIDTH_MAP[config.chatWidth]}×${config.chatHeightPx}px`}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-function ProviderFields() {
+function ProviderFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig, freeSiteMessagesRemaining, freeSiteMessagesUsed } = useSiteMochi();
   const openRouterModelKnown = OPENROUTER_MODEL_OPTIONS.some((item) => item.value === config.openrouterModel);
@@ -987,17 +1013,12 @@ Do not print the relay token or gateway token in your final reply. Return only t
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-foreground/80">
         <p className="font-semibold text-foreground">
-          {isSpanish ? "Créditos gratis del sitio" : "Site free credits"}
+          {isSpanish ? "Créditos del sitio" : "Site credits"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {isSpanish
             ? `Usados: ${freeSiteMessagesUsed}. Restantes: ${freeSiteMessagesRemaining ?? 0}.`
             : `Used: ${freeSiteMessagesUsed}. Remaining: ${freeSiteMessagesRemaining ?? 0}.`}
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {isSpanish
-            ? "Cuando se terminen, cambia a OpenRouter, Ollama u OpenClaw para seguir hablando."
-            : "When these run out, switch to OpenRouter, Ollama, or OpenClaw to keep chatting."}
         </p>
       </div>
     );
@@ -1006,9 +1027,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
   if (config.provider === "openrouter") {
     return (
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {providerHelpLinks("openrouter")}
-        </div>
+        {!compact ? <div className="flex flex-wrap gap-2">{providerHelpLinks("openrouter")}</div> : null}
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             OpenRouter API Key
@@ -1065,9 +1084,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
   if (config.provider === "ollama") {
     return (
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          {providerHelpLinks("ollama")}
-        </div>
+        {!compact ? <div className="flex flex-wrap gap-2">{providerHelpLinks("ollama")}</div> : null}
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Ollama URL
@@ -1092,77 +1109,80 @@ Do not print the relay token or gateway token in your final reply. Return only t
             className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
           />
         </label>
-        <p className="text-xs text-muted-foreground">
-          {isSpanish
-            ? "Se intenta conectar directo desde tu navegador. Si tu navegador bloquea la conexión local, usa una URL accesible por HTTPS o un túnel."
-            : "The site tries to connect directly from your browser. If your browser blocks local connections, use an HTTPS-accessible URL or tunnel."}
-        </p>
+        {!compact ? (
+          <p className="text-xs text-muted-foreground">
+            {isSpanish
+              ? "Se intenta conectar directo desde tu navegador. Si tu navegador bloquea la conexión local, usa una URL accesible por HTTPS o un túnel."
+              : "The site tries to connect directly from your browser. If your browser blocks local connections, use an HTTPS-accessible URL or tunnel."}
+          </p>
+        ) : null}
       </div>
     );
   }
 
   if (config.provider === "openclaw") return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {providerHelpLinks("openclaw")}
-      </div>
+      {!compact ? <div className="flex flex-wrap gap-2">{providerHelpLinks("openclaw")}</div> : null}
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-        <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
-          <p className="font-semibold text-foreground">
-            {isSpanish
-              ? "¿De dónde sale el código de pairing?"
-              : "Where does the pairing code come from?"}
-          </p>
-          <ol className="mt-2 list-decimal space-y-1 pl-4">
-            <li>
+        {!compact ? (
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">
               {isSpanish
-                ? "Copiá las instrucciones y pegáselas a tu agente OpenClaw."
-                : "Copy the instructions and paste them into your OpenClaw agent."}
-            </li>
-            <li>
+                ? "¿De dónde sale el código de pairing?"
+                : "Where does the pairing code come from?"}
+            </p>
+            <ol className="mt-2 list-decimal space-y-1 pl-4">
+              <li>
+                {isSpanish
+                  ? "Copiá las instrucciones y pegáselas a tu agente OpenClaw."
+                  : "Copy the instructions and paste them into your OpenClaw agent."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "El agente ejecuta el script: lee tu config local e imprime un código."
+                  : "The agent runs the script: it reads your local config and prints a code."}
+              </li>
+              <li>
+                {isSpanish
+                  ? "Pegá ese código acá y presioná Vincular."
+                  : "Paste that code here and press Pair."}
+              </li>
+            </ol>
+            <p className="mt-2">
               {isSpanish
-                ? "El agente ejecuta el script: lee tu config local e imprime un código."
-                : "The agent runs the script: it reads your local config and prints a code."}
-            </li>
-            <li>
-              {isSpanish
-                ? "Pegá ese código acá y presioná Vincular."
-                : "Paste that code here and press Pair."}
-            </li>
-          </ol>
-          <p className="mt-2">
-            {isSpanish
-              ? "Tu gateway conecta hacia afuera — no necesitás URL pública ni instalar nada extra."
-              : "Your gateway connects outward — no public URL or extra install needed."}
-          </p>
-          <div className="mt-3">
-            <label className="flex cursor-pointer items-center gap-2">
+                ? "Tu gateway conecta hacia afuera — no necesitás URL pública ni instalar nada extra."
+                : "Your gateway connects outward — no public URL or extra install needed."}
+            </p>
+            <div className="mt-3">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={openclawAgentNameEnabled}
+                  onChange={(e) => setOpenclawAgentNameEnabled(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-[var(--brand-accent)]"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  {isSpanish ? "Nombre de agente personalizado" : "Custom agent name"}
+                </span>
+              </label>
               <input
-                type="checkbox"
-                checked={openclawAgentNameEnabled}
-                onChange={(e) => setOpenclawAgentNameEnabled(e.target.checked)}
-                className="h-3.5 w-3.5 accent-[var(--brand-accent)]"
+                type="text"
+                disabled={!openclawAgentNameEnabled}
+                value={openclawAgentNameEnabled ? openclawCustomAgentName : ""}
+                placeholder={openclawAgentNameEnabled
+                  ? (isSpanish ? "ej: main" : "e.g. main")
+                  : (isSpanish ? "Auto-detectar desde gateway" : "Auto-detect from gateway")}
+                onChange={(e) =>
+                  setOpenclawCustomAgentName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 48))
+                }
+                className={`mt-1.5 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-1.5 text-[11px] text-foreground outline-none focus:border-[var(--brand-accent)] ${
+                  !openclawAgentNameEnabled ? "cursor-not-allowed opacity-40" : ""
+                }`}
               />
-              <span className="text-[11px] text-muted-foreground">
-                {isSpanish ? "Nombre de agente personalizado" : "Custom agent name"}
-              </span>
-            </label>
-            <input
-              type="text"
-              disabled={!openclawAgentNameEnabled}
-              value={openclawAgentNameEnabled ? openclawCustomAgentName : ""}
-              placeholder={openclawAgentNameEnabled
-                ? (isSpanish ? "ej: main" : "e.g. main")
-                : (isSpanish ? "Auto-detectar desde gateway" : "Auto-detect from gateway")}
-              onChange={(e) =>
-                setOpenclawCustomAgentName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 48))
-              }
-              className={`mt-1.5 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-1.5 text-[11px] text-foreground outline-none focus:border-[var(--brand-accent)] ${
-                !openclawAgentNameEnabled ? "cursor-not-allowed opacity-40" : ""
-              }`}
-            />
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+        ) : null}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => void copyPairingAgentInstructions()}
@@ -1189,18 +1209,6 @@ Do not print the relay token or gateway token in your final reply. Return only t
               </p>
             ) : null}
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {isSpanish ? "Referencia manual:" : "Manual reference:"}{" "}
-            <a
-              href="/openclaw-pairing-agent-template.md"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-foreground underline underline-offset-2"
-            >
-              openclaw-pairing-agent-template.md
-            </a>
-          </p>
-        </div>
 
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1291,92 +1299,37 @@ Do not print the relay token or gateway token in your final reply. Return only t
     const creditsLeft = freeSiteMessagesRemaining ?? 0;
     return (
       <div className="space-y-3">
-        {/* Status banner */}
-        {hasOwnKey ? (
-          <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-3 text-sm">
-            <p className="font-semibold text-foreground">
-              {isSpanish ? "Usando tu propia API key de Bitte AI" : "Using your own Bitte AI API key"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isSpanish
-                ? "Los mensajes van directamente a tu cuenta de Bitte AI sin límites del sitio."
-                : "Messages go directly to your Bitte AI account, no site credit limits."}
-            </p>
-          </div>
-        ) : creditsLeft > 0 ? (
-          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.08] p-3 text-sm">
-            <p className="font-semibold text-foreground">
-              {isSpanish ? "Bitte AI activo — usando créditos gratis del sitio" : "Bitte AI active — using free site credits"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isSpanish
-                ? `Créditos usados: ${freeSiteMessagesUsed}. Restantes: ${creditsLeft}. Configurá tu propia key abajo para no tener límite.`
-                : `Used: ${freeSiteMessagesUsed}. Remaining: ${creditsLeft}. Set your own key below to remove the limit.`}
-            </p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-amber-300/30 bg-amber-400/10 p-3 text-sm">
-            <p className="font-semibold text-foreground">
-              {isSpanish ? "Créditos del sitio agotados" : "Site credits exhausted"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {isSpanish
-                ? "Configurá tu propia API key de Bitte AI para seguir chateando sin límites."
-                : "Set your own Bitte AI API key below to keep chatting without limits."}
-            </p>
-          </div>
-        )}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
+          {hasOwnKey
+            ? isSpanish
+              ? "Bitte: key propia activa."
+              : "Bitte: own key active."
+            : isSpanish
+              ? `Créditos del sitio: ${creditsLeft}.`
+              : `Site credits: ${creditsLeft}.`}
+        </div>
 
-        {/* API key fields — always visible */}
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold text-foreground">
-                {isSpanish ? "Tu propia API key (opcional mientras haya créditos)" : "Your own API key (optional while credits remain)"}
-              </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {isSpanish
-                  ? "Se guarda solo en este navegador."
-                  : "Stored only in this browser."}
-              </p>
+          {!compact ? (
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {isSpanish ? "Tu propia API key" : "Your own API key"}
+                </p>
+              </div>
+              <a
+                href="https://bitte.ai/developers"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
+              >
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                {isSpanish ? "Conseguir API key" : "Get API key"}
+              </a>
             </div>
-            <a
-              href="https://bitte.ai/developers"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
-            >
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              {isSpanish ? "Conseguir API key" : "Get API key"}
-            </a>
-          </div>
-
-          {/* Quick guide */}
-          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs text-muted-foreground">
-            <p className="font-semibold text-foreground mb-1.5">
-              {isSpanish ? "Cómo obtener tu API key en 3 pasos" : "How to get your API key in 3 steps"}
-            </p>
-            <div className="space-y-1.5">
-              {(isSpanish ? [
-                "Entrá a bitte.ai, iniciá sesión o creá cuenta.",
-                "En el dashboard de desarrollador, creá una API key y copiala.",
-                "Pegala acá abajo junto con el Agent ID del agente que quieras usar.",
-              ] : [
-                "Go to bitte.ai and sign in or create an account.",
-                "In the developer dashboard, create an API key and copy it.",
-                "Paste it below along with the Agent ID of the agent you want to use.",
-              ]).map((step, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-[9px] font-bold text-cyan-200">
-                    {i + 1}
-                  </span>
-                  <span>{step}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          ) : null}
 
           <label className="block">
             <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1406,11 +1359,13 @@ Do not print the relay token or gateway token in your final reply. Return only t
           </label>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {isSpanish
-            ? "Bitte AI te permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
-            : "Bitte AI lets you interact with NEAR and EVM blockchains through AI agents."}
-        </p>
+        {!compact ? (
+          <p className="text-xs text-muted-foreground">
+            {isSpanish
+              ? "Bitte AI te permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
+              : "Bitte AI lets you interact with NEAR and EVM blockchains through AI agents."}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -1418,7 +1373,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
   return null;
 }
 
-export function SoundFields() {
+export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteMochi();
   const [browserVoices, setBrowserVoices] = useState<Array<{ name: string; lang: string }>>([]);
@@ -1446,11 +1401,13 @@ export function SoundFields() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
-        {isSpanish
-          ? "Modo gratis: usa voz del navegador (micrófono + síntesis de voz). Suele funcionar mejor en Chrome/Edge. ElevenLabs es opcional para una voz más natural."
-          : "Free mode uses browser voice features (microphone + speech synthesis). It usually works best in Chrome/Edge. ElevenLabs is optional for a more natural voice."}
-      </div>
+      {!compact ? (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-muted-foreground">
+          {isSpanish
+            ? "Modo gratis: usa voz del navegador (micrófono + síntesis de voz). Suele funcionar mejor en Chrome/Edge. ElevenLabs es opcional para una voz más natural."
+            : "Free mode uses browser voice features (microphone + speech synthesis). It usually works best in Chrome/Edge. ElevenLabs is optional for a more natural voice."}
+        </div>
+      ) : null}
 
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1614,11 +1571,13 @@ export function SoundFields() {
               </label>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              {isSpanish
-                ? "La key se guarda localmente en tu navegador y solo se envía cuando pedís generar audio."
-                : "The key is stored locally in your browser and is only sent when you request audio generation."}
-            </p>
+            {!compact ? (
+              <p className="text-xs text-muted-foreground">
+                {isSpanish
+                  ? "La key se guarda localmente en tu navegador y solo se envía cuando pedís generar audio."
+                  : "The key is stored locally in your browser and is only sent when you request audio generation."}
+              </p>
+            ) : null}
           </div>
         )}
       </div>
@@ -1642,6 +1601,9 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
     canUseCurrentProvider,
     freeSiteMessagesRemaining,
   } = useSiteMochi();
+
+  const activeMeta = CONFIG_WINDOW_META.find((item) => item.key === activeTab) ?? CONFIG_WINDOW_META[0];
+  const ActiveIcon = activeMeta.icon;
 
   if (!inline && !isConfigOpen) return null;
 
@@ -1691,242 +1653,197 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
             ) : null}
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="mb-5 flex flex-wrap gap-2">
-              {([
-                { key: "chat", labelEs: "Proveedor", labelEn: "Provider" },
-                { key: "appearance", labelEs: "Chat", labelEn: "Chat" },
-                { key: "mascot", labelEs: "Mascota", labelEn: "Mascot" },
-                { key: "sound", labelEs: "Sonido", labelEn: "Sound" },
-              ] as const).map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
-                      isActive
-                        ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
-                        : "border-white/15 bg-white/5 text-foreground/80 hover:bg-white/10"
-                    }`}
-                  >
-                    {isSpanish ? tab.labelEs : tab.labelEn}
-                  </button>
-                );
-              })}
-            </div>
-
-            {activeTab === "mascot" && (
-              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {isSpanish ? "Mascota" : "Mascot"}
-                </h3>
+          <div className="flex-1 overflow-hidden px-5 py-5">
+            <div className="grid h-full gap-5 lg:grid-cols-[112px_minmax(0,1fr)]">
+              <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
+                {CONFIG_WINDOW_META.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setActiveTab(item.key)}
+                      className={`group flex min-h-[92px] flex-col items-center justify-center rounded-2xl border p-3 text-center transition-all ${
+                        isActive
+                          ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground shadow-[0_18px_40px_rgba(0,0,0,0.22)]"
+                          : "border-white/10 bg-white/5 text-foreground/80 hover:bg-white/10"
+                      }`}
+                    >
+                      <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="mt-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        {isSpanish ? item.labelEs : item.labelEn}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="block sm:col-span-2">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {isSpanish ? "Personaje" : "Character"}
-                  </span>
-                  {catalogLoading ? (
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                      {Array.from({ length: 8 }).map((_, index) => (
-                        <div
-                          key={`character-loading-${index}`}
-                          className="h-[88px] animate-pulse rounded-2xl border border-white/10 bg-white/5"
-                        />
-                      ))}
+              <section className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/5">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/20">
+                      <ActiveIcon className="h-4 w-4 text-[var(--brand-accent)]" />
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                      {(catalog?.characters ?? []).map((character) => (
-                        <button
-                          key={character.key}
-                          type="button"
-                          onClick={() => updateConfig({ character: character.key })}
-                          className={`group flex flex-col items-center rounded-2xl border p-3 text-center transition-all ${
-                            config.character === character.key
-                              ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
-                              : "border-white/10 bg-white/5 hover:border-[var(--brand-accent)]/50 hover:bg-white/10"
-                          }`}
-                          disabled={catalogLoading}
-                        >
-                          <img
-                            src={character.iconUrl}
-                            alt=""
-                            className="h-12 w-12 object-contain transition-transform group-hover:scale-110"
-                            style={{ imageRendering: "pixelated" }}
-                          />
-                          <div className="mt-2 w-full truncate text-[11px] font-semibold text-foreground/90">
-                            {character.label}
-                          </div>
-                        </button>
-                      ))}
+                    <div className="text-sm font-semibold text-foreground">
+                      {isSpanish ? activeMeta.labelEs : activeMeta.labelEn}
                     </div>
-                  )}
-                </div>
-
-                <label className="block">
-                  <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {isSpanish ? "Personalidad" : "Personality"}
-                  </span>
-                  <select
-                    value={config.personality}
-                    onChange={(event) => updateConfig({ personality: event.target.value })}
-                    className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                    disabled={catalogLoading || !catalog?.personalities.length}
-                  >
-                    {(catalog?.personalities ?? []).map((personality) => (
-                      <option key={personality.key} value={personality.key}>
-                        {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="block">
-                <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>{isSpanish ? "Tamaño" : "Size"}</span>
-                  <span>{config.sizePercent}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={60}
-                  max={180}
-                  step={5}
-                  value={config.sizePercent}
-                  onChange={(event) => updateConfig({ sizePercent: Number(event.target.value) })}
-                  className="w-full accent-[var(--brand-accent)]"
-                />
-              </label>
-
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-3 text-xs text-foreground">
-                {catalogError ? (
-                  <div className="flex items-center justify-between gap-3 rounded-xl border border-red-700 bg-red-300 px-3 py-2 text-black">
-                    <span>{catalogError}</span>
+                  </div>
+                  {activeTab === "chat" ? (
                     <button
                       type="button"
-                      onClick={() => reloadCatalog().catch(() => undefined)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-black/40 px-2 py-1 text-black hover:bg-black/10"
+                      onClick={resetConfig}
+                      className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
                     >
-                      <RefreshCw className="h-3 w-3" />
-                      {isSpanish ? "Reintentar" : "Retry"}
+                      {isSpanish ? "Reset" : "Reset"}
                     </button>
-                  </div>
-                ) : catalogLoading ? (
-                  <span>{isSpanish ? "Cargando catálogo de sprites..." : "Loading sprite catalog..."}</span>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 py-4">
+                  {activeTab === "chat" ? (
+                    <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                      <div className="space-y-3">
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {isSpanish ? "Proveedor" : "Provider"}
+                          </span>
+                          <select
+                            value={config.provider}
+                            onChange={(event) =>
+                              updateConfig({
+                                provider: event.target.value as
+                                  | "site"
+                                  | "openrouter"
+                                  | "ollama"
+                                  | "openclaw"
+                                  | "bitte",
+                              })
+                            }
+                            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                          >
+                            <option value="site">{isSpanish ? "Sitio" : "Site"}</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="ollama">Ollama</option>
+                            <option value="openclaw">OpenClaw</option>
+                            <option value="bitte">Bitte AI</option>
+                          </select>
+                        </label>
+
+                        <div
+                          className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+                            canUseCurrentProvider
+                              ? "border-green-700 bg-green-300 text-black"
+                              : "border-red-700 bg-red-300 text-black"
+                          }`}
+                        >
+                          {canUseCurrentProvider ? "Ready" : isSpanish ? "Falta setup" : "Needs setup"}
+                        </div>
+
+                        {config.provider === "site" ? (
+                          <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-muted-foreground">
+                            {isSpanish
+                              ? `Restantes: ${freeSiteMessagesRemaining ?? 0}`
+                              : `Remaining: ${freeSiteMessagesRemaining ?? 0}`}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <ProviderFields compact />
+                    </div>
+                  ) : null}
+
+                  {activeTab === "appearance" ? <ChatAppearanceFields compact /> : null}
+
+                  {activeTab === "sound" ? <SoundFields compact /> : null}
+
+                  {activeTab === "mascot" ? (
+                    <div className="grid gap-4">
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+                        {(catalog?.characters ?? []).map((character) => (
+                          <button
+                            key={character.key}
+                            type="button"
+                            onClick={() => updateConfig({ character: character.key })}
+                            className={`group flex flex-col items-center rounded-2xl border p-3 text-center transition-all ${
+                              config.character === character.key
+                                ? "border-[var(--brand-accent)] bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"
+                                : "border-white/10 bg-white/5 hover:border-[var(--brand-accent)]/50 hover:bg-white/10"
+                            }`}
+                            disabled={catalogLoading}
+                          >
+                            <Image
+                              src={character.iconUrl}
+                              alt=""
+                              width={40}
+                              height={40}
+                              unoptimized
+                              className="h-10 w-10 object-contain transition-transform group-hover:scale-110"
+                              style={{ imageRendering: "pixelated" }}
+                            />
+                            <div className="mt-2 w-full truncate text-[11px] font-semibold text-foreground/90">
+                              {character.label}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {isSpanish ? "Personalidad" : "Personality"}
+                          </span>
+                          <select
+                            value={config.personality}
+                            onChange={(event) => updateConfig({ personality: event.target.value })}
+                            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+                            disabled={catalogLoading || !catalog?.personalities.length}
+                          >
+                            {(catalog?.personalities ?? []).map((personality) => (
+                              <option key={personality.key} value={personality.key}>
+                                {getSiteMochiPersonalityDisplayLabel(personality, isSpanish)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="block">
+                          <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <span>{isSpanish ? "Tamaño" : "Size"}</span>
+                            <span>{config.sizePercent}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={60}
+                            max={180}
+                            step={5}
+                            value={config.sizePercent}
+                            onChange={(event) => updateConfig({ sizePercent: Number(event.target.value) })}
+                            className="w-full accent-[var(--brand-accent)]"
+                          />
+                        </label>
+                      </div>
+
+                      {catalogError ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-red-700 bg-red-300 px-3 py-2 text-xs text-black">
+                          <span className="truncate">{catalogError}</span>
+                          <button
+                            type="button"
+                            onClick={() => reloadCatalog().catch(() => undefined)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-black/40 px-2 py-1 text-black hover:bg-black/10"
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            {isSpanish ? "Retry" : "Retry"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </section>
-            )}
-
-            {activeTab === "chat" && (
-              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-              <h3 className="text-sm font-semibold text-foreground">
-                {isSpanish ? "Proveedor de IA" : "AI Provider"}
-              </h3>
-
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {isSpanish ? "Proveedor" : "Provider"}
-                </span>
-                <select
-                  value={config.provider}
-                  onChange={(event) => {
-                    console.log("Provider selected:", event.target.value);
-                    updateConfig({
-                      provider: event.target.value as
-                        | "site"
-                        | "openrouter"
-                        | "ollama"
-                        | "openclaw"
-                        | "bitte",
-                    });
-                  }}
-                  className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-                >
-                  <option value="site">{isSpanish ? "Créditos del sitio (gratis)" : "Site credits (free)"}</option>
-                  <option value="openrouter">OpenRouter</option>
-                  <option value="ollama">Ollama</option>
-                  <option value="openclaw">OpenClaw</option>
-                  <option value="bitte">Bitte AI</option>
-                </select>
-              </label>
-
-              <ProviderFields />
-
-              <div
-                className={`rounded-2xl border p-3 text-xs ${
-                  canUseCurrentProvider
-                    ? "border-green-700 bg-green-300 text-black"
-                    : "border-red-700 bg-red-300 text-black"
-                }`}
-              >
-                {canUseCurrentProvider
-                  ? isSpanish
-                    ? "Listo: este proveedor puede usarse desde el chat del mochi."
-                    : "Ready: this provider can be used from the mochi chat."
-                  : isSpanish
-                    ? "Falta configuración para el proveedor seleccionado (o no quedan créditos del sitio)."
-                    : "Missing configuration for the selected provider (or no site credits remain)."}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={resetConfig}
-                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-white/10"
-                >
-                  {isSpanish ? "Restablecer configuración" : "Reset settings"}
-                </button>
-              </div>
-
-              {config.provider === "site" ? (
-                <p className="text-xs text-foreground">
-                  {isSpanish
-                    ? `Créditos del sitio restantes en este navegador: ${freeSiteMessagesRemaining ?? 0}.`
-                    : `Site credits remaining in this browser: ${freeSiteMessagesRemaining ?? 0}.`}
-                </p>
-              ) : null}
-
-              <div className="rounded-2xl border border-yellow-700 bg-yellow-200 p-4 text-black">
-                <p className="text-sm font-semibold text-black">
-                  {isSpanish ? "Seguridad y alcance" : "Security and scope"}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-black/85">
-                  {isSpanish
-                    ? config.provider === "openclaw"
-                      ? "En modo pairing, este navegador guarda solo un token de sesión temporal y el relay del sitio usa tu gateway remoto."
-                      : "Las keys y tokens se guardan solo en tu navegador (localStorage)."
-                    : config.provider === "openclaw"
-                      ? "In pairing mode, this browser stores only a temporary session token while the site relay uses your remote gateway."
-                      : "Keys and tokens are stored only in your browser (localStorage)."}
-                </p>
-              </div>
-
-              </section>
-            )}
-
-            {activeTab === "appearance" && (
-              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {isSpanish ? "Apariencia del chat" : "Chat appearance"}
-                </h3>
-                <ChatAppearanceFields />
-              </section>
-            )}
-
-            {activeTab === "sound" && (
-              <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {isSpanish ? "Sonido y voz" : "Sound and voice"}
-                </h3>
-                <SoundFields />
-              </section>
-            )}
+            </div>
           </div>
         </div>
       </aside>
