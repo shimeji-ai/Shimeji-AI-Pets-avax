@@ -8,7 +8,6 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import styles from "./site-mochi-mascot.module.css";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
@@ -24,9 +23,7 @@ import {
   SITE_MOCHI_CHAT_MIN_HEIGHT_PX,
   SITE_MOCHI_CHAT_MIN_WIDTH_PX,
   SITE_MOCHI_CHAT_RESIZE_EDGE_PX,
-  SITE_MOCHI_CHAT_THEMES,
   SITE_MOCHI_CHAT_WIDTH_MAP,
-  pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
 type Role = "user" | "assistant";
@@ -185,7 +182,6 @@ function buildSpriteSrc(characterKey: string, fileName: string, spritesBaseUri?:
 }
 
 export function SiteMochiMascot() {
-  const router = useRouter();
   const { isSpanish, language } = useLanguage();
   const {
     config,
@@ -194,7 +190,6 @@ export function SiteMochiMascot() {
     incrementFreeSiteMessagesUsed,
     canUseCurrentProvider,
     updateConfig,
-    openConfig,
   } = useSiteMochi();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const actorRef = useRef<HTMLDivElement | null>(null);
@@ -263,24 +258,6 @@ export function SiteMochiMascot() {
 
   useEffect(() => {
     setSpeechInputSupported(Boolean(getSpeechRecognitionConstructor()));
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent | TouchEvent) {
-      if (!openRef.current) return;
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (actorRef.current?.contains(target)) return;
-      if (bubbleRef.current?.contains(target)) return;
-      setOpen(false);
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside, { passive: true });
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
   }, []);
 
   useEffect(() => {
@@ -711,18 +688,6 @@ export function SiteMochiMascot() {
     }
   }, [config.enabled]);
 
-  const providerLabel =
-    config.provider === "site"
-      ? isSpanish
-        ? "Créditos del sitio"
-        : "Site credits"
-      : config.provider === "openrouter"
-        ? "OpenRouter"
-        : config.provider === "ollama"
-          ? "Ollama"
-          : config.provider === "bitte"
-            ? "Bitte AI"
-            : "OpenClaw";
   const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
   const canAutoFallbackToSiteCredits =
     config.provider === "openrouter" &&
@@ -747,31 +712,9 @@ export function SiteMochiMascot() {
     ["--chat-height" as const]: `${bubbleHeightPx}px`,
     ["--chat-font-size" as const]: `${bubbleFontSizePx}px`,
   } as CSSProperties;
-  const browserVoiceEnabled =
-    config.soundOutputProvider !== "off" && config.soundOutputAutoSpeak;
-
   function setVoiceInfoStatus(message: string) {
     setVoiceStatusTone("info");
     setVoiceStatus(message);
-  }
-
-  function cycleChatThemeQuick() {
-    const currentIndex = SITE_MOCHI_CHAT_THEMES.findIndex(
-      (theme) =>
-        theme.theme.toLowerCase() === config.chatThemeColor.toLowerCase() &&
-        theme.bg.toLowerCase() === config.chatBgColor.toLowerCase() &&
-        theme.bubble === config.chatBubbleStyle,
-    );
-    const nextTheme =
-      currentIndex >= 0
-        ? SITE_MOCHI_CHAT_THEMES[(currentIndex + 1) % SITE_MOCHI_CHAT_THEMES.length]
-        : pickRandomSiteMochiChatTheme();
-    updateConfig({
-      chatThemePreset: nextTheme.id,
-      chatThemeColor: nextTheme.theme,
-      chatBgColor: nextTheme.bg,
-      chatBubbleStyle: nextTheme.bubble,
-    });
   }
 
   function setVoiceErrorStatus(message: string) {
@@ -1309,10 +1252,17 @@ export function SiteMochiMascot() {
         reply = json?.reply;
         if (!resp.ok || typeof reply !== "string" || !reply.trim()) {
           const errorCode = typeof json?.error === "string" ? json.error : "bad-response";
+          const errorStatus =
+            typeof json?.status === "number" || typeof json?.status === "string"
+              ? String(json.status).trim()
+              : "";
           const errorDetails =
             typeof json?.details === "string" ? json.details.trim().slice(0, 240) : "";
           if (errorCode === "OpenRouter request failed" && errorDetails) {
             throw new Error(`OPENROUTER_DETAIL:${errorDetails}`);
+          }
+          if (errorCode === "OpenRouter request failed" && errorStatus) {
+            throw new Error(`OPENROUTER_DETAIL:HTTP ${errorStatus}`);
           }
           throw new Error(errorCode);
         }
@@ -1586,81 +1536,6 @@ export function SiteMochiMascot() {
           onPointerLeave={handleBubblePointerLeave}
           onPointerDown={handleBubblePointerDown}
         >
-          <div className={styles.bubbleHeader}>
-            <div className={styles.titleWrap}>
-              <div className={styles.title}>
-                {selectedCharacter?.label || "Mochi"} · soul.md
-              </div>
-              <div className={styles.metaText}>{providerLabel}</div>
-            </div>
-            <div className={styles.headerBtns}>
-              <button
-                className={`${styles.headerIconBtn} ${browserVoiceEnabled ? styles.headerIconBtnActive : ""}`}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (config.soundOutputProvider === "off") {
-                    openConfig();
-                    return;
-                  }
-                  updateConfig({ soundOutputAutoSpeak: !config.soundOutputAutoSpeak });
-                }}
-                title={
-                  config.soundOutputProvider === "off"
-                    ? isSpanish
-                      ? "Configurar voz"
-                      : "Configure voice"
-                    : browserVoiceEnabled
-                      ? isSpanish
-                        ? "Voz activada"
-                        : "Voice on"
-                      : isSpanish
-                        ? "Voz desactivada"
-                        : "Voice off"
-                }
-                aria-label={isSpanish ? "Opciones de voz" : "Voice options"}
-              >
-                {browserVoiceEnabled ? "🔊" : "🔇"}
-              </button>
-              <button
-                className={styles.headerIconBtn}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  cycleChatThemeQuick();
-                }}
-                title={isSpanish ? "Cambiar tema del chat" : "Change chat theme"}
-                aria-label={isSpanish ? "Cambiar tema del chat" : "Change chat theme"}
-              >
-                🎨
-              </button>
-              <button
-                className={styles.headerIconBtn}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setOpen(false);
-                  router.push("/settings");
-                }}
-                title={isSpanish ? "Abrir configuración del mochi" : "Open mochi settings"}
-                aria-label={isSpanish ? "Abrir configuración" : "Open settings"}
-              >
-                ⚙
-              </button>
-              <button
-                className={styles.closeBtn}
-                type="button"
-                onClick={e => {
-                  e.stopPropagation();
-                  setOpen(false);
-                }}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-          </div>
           <div className={styles.bubbleBody}>
           <div className={styles.messages} ref={messagesListRef}>
               {messages.map((m, idx) => (

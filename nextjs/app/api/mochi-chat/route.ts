@@ -71,9 +71,10 @@ async function sendOpenRouterRequest(args: {
   });
 
   if (!upstream.ok) {
+    const rawBody = await upstream.text().catch(() => "");
     let payload: any = null;
     try {
-      payload = await upstream.json();
+      payload = rawBody ? JSON.parse(rawBody) : null;
     } catch {
       payload = null;
     }
@@ -86,7 +87,9 @@ async function sendOpenRouterRequest(args: {
         throw new Error("NO_CREDITS");
       }
     }
-    const details = payload ? JSON.stringify(payload).slice(0, 500) : "";
+    const details = payload
+      ? JSON.stringify(payload).slice(0, 500)
+      : rawBody.trim().replace(/\s+/g, " ").slice(0, 500) || `${upstream.status} ${upstream.statusText}`;
     const err = new Error("OPENROUTER_REQUEST_FAILED");
     (err as any).status = upstream.status;
     (err as any).details = details;
