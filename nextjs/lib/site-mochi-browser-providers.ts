@@ -441,6 +441,12 @@ export function formatSiteMochiProviderError(
       ? "No se pudo obtener contexto web desde Brave Search."
       : "Could not fetch web context from Brave Search.";
   }
+  if (message.startsWith("OPENROUTER_DETAIL:")) {
+    const detail = message.slice("OPENROUTER_DETAIL:".length).trim();
+    return isSpanish
+      ? `OpenRouter devolvió un error: ${detail}`
+      : `OpenRouter returned an error: ${detail}`;
+  }
   if (provider === "bitte") {
     return isSpanish
       ? "No se pudo completar la solicitud con Bitte AI. Revisá tu API key y Agent ID."

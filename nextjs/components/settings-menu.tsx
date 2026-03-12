@@ -20,24 +20,19 @@ const THEME_META: { key: Theme; labelEn: string; labelEs: string; accent: string
 
 function ProviderFields() {
   const { isSpanish } = useLanguage();
-  const { config, updateConfig, canUseCurrentProvider, freeSiteMessagesRemaining } = useSiteMochi();
+  const { config, updateConfig, freeSiteMessagesRemaining } = useSiteMochi();
 
   const inputCls =
     "w-full rounded-xl border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)] placeholder:text-muted-foreground/50";
 
-  if (config.provider === "site") {
-    return (
-      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
-        {isSpanish
-          ? `Créditos gratuitos del sitio. Restantes: ${freeSiteMessagesRemaining ?? 0}. Cuando se terminen, cambiá de proveedor.`
-          : `Site free credits. Remaining: ${freeSiteMessagesRemaining ?? 0}. When they run out, switch provider.`}
-      </div>
-    );
-  }
-
-  if (config.provider === "openrouter") {
+  if (config.provider === "site" || config.provider === "openrouter") {
     return (
       <div className="space-y-2">
+        <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+          {isSpanish
+            ? `Créditos gratuitos del sitio. Restantes: ${freeSiteMessagesRemaining ?? 0}.`
+            : `Site free credits. Remaining: ${freeSiteMessagesRemaining ?? 0}.`}
+        </div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             API Key
@@ -45,7 +40,7 @@ function ProviderFields() {
           <input
             type="password"
             value={config.openrouterApiKey}
-            onChange={(e) => updateConfig({ openrouterApiKey: e.target.value })}
+            onChange={(e) => updateConfig({ provider: "openrouter", openrouterApiKey: e.target.value })}
             placeholder="sk-or-v1-..."
             className={inputCls}
             autoComplete="off"
@@ -55,69 +50,31 @@ function ProviderFields() {
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {isSpanish ? "Modelo" : "Model"}
           </span>
-          <input
-            type="text"
+          <select
             value={config.openrouterModel}
-            onChange={(e) => updateConfig({ openrouterModel: e.target.value })}
-            placeholder="openai/gpt-4o-mini"
+            onChange={(e) => updateConfig({ provider: "openrouter", openrouterModel: e.target.value })}
             className={inputCls}
-          />
+          >
+            <option value="openai/gpt-4o-mini">GPT-4o mini</option>
+            <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+            <option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>
+            <option value="deepseek/deepseek-chat-v3-0324">DeepSeek Chat v3</option>
+            <option value="mistralai/mistral-large-2411">Mistral Large</option>
+          </select>
         </label>
-        <div className={`rounded-xl border px-3 py-2 text-xs font-medium ${canUseCurrentProvider ? "border-emerald-500/40 bg-emerald-500/10 text-foreground" : "border-amber-500/40 bg-amber-500/10 text-foreground"}`}>
-          {canUseCurrentProvider
-            ? (isSpanish ? "✓ Listo para chatear" : "✓ Ready to chat")
-            : (isSpanish ? "Completá la API key para chatear" : "Enter your API key to chat")}
-        </div>
+        <a
+          href="https://openrouter.ai/settings/keys"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background"
+        >
+          {isSpanish ? "Conseguir API key de OpenRouter" : "Get OpenRouter API key"}
+        </a>
       </div>
     );
   }
-
-  if (config.provider === "ollama") {
-    return (
-      <div className="space-y-2">
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Ollama URL
-          </span>
-          <input
-            type="text"
-            value={config.ollamaUrl}
-            onChange={(e) => updateConfig({ ollamaUrl: e.target.value })}
-            placeholder="http://127.0.0.1:11434"
-            className={inputCls}
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isSpanish ? "Modelo" : "Model"}
-          </span>
-          <input
-            type="text"
-            value={config.ollamaModel}
-            onChange={(e) => updateConfig({ ollamaModel: e.target.value })}
-            placeholder="gemma3:1b"
-            className={inputCls}
-          />
-        </label>
-      </div>
-    );
-  }
-
-  // openclaw
-  return (
-    <div className="space-y-2">
-      <div className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
-        {isSpanish
-          ? "OpenClaw en web usa solo pairing code de un solo uso. Ya no se configura Gateway URL/token aquí."
-          : "OpenClaw on web now uses one-time pairing codes only. Gateway URL/token is no longer configured here."}
-      </div>
-      <div className={`rounded-xl border px-3 py-2 text-xs font-medium ${canUseCurrentProvider ? "border-emerald-500/40 bg-emerald-500/10 text-foreground" : "border-amber-500/40 bg-amber-500/10 text-foreground"}`}>
-        {canUseCurrentProvider
-          ? (isSpanish ? "✓ Sesión OpenClaw activa" : "✓ OpenClaw session active")
-          : (isSpanish ? "Generá un pairing code en 'Más ajustes del mochi'" : "Generate a pairing code in 'More mochi settings'")}
-      </div>
-    </div>
-  );
+  return null;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -224,27 +181,6 @@ export function SettingsMenu() {
             </div>
 
             {/* Provider selector */}
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {isSpanish ? "Proveedor de IA" : "AI Provider"}
-              </span>
-              <select
-                value={config.provider}
-                onChange={(e) =>
-                  updateConfig({
-                    provider: e.target.value as "site" | "openrouter" | "ollama" | "openclaw",
-                  })
-                }
-                className={selectCls}
-              >
-                <option value="site">{isSpanish ? "Créditos del sitio (gratis)" : "Site credits (free)"}</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="ollama">Ollama</option>
-                <option value="openclaw">OpenClaw</option>
-              </select>
-            </label>
-
-            {/* Provider-specific fields */}
             <ProviderFields />
 
             {/* Security note */}

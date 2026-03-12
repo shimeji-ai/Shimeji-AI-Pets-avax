@@ -1309,6 +1309,11 @@ export function SiteMochiMascot() {
         reply = json?.reply;
         if (!resp.ok || typeof reply !== "string" || !reply.trim()) {
           const errorCode = typeof json?.error === "string" ? json.error : "bad-response";
+          const errorDetails =
+            typeof json?.details === "string" ? json.details.trim().slice(0, 240) : "";
+          if (errorCode === "OpenRouter request failed" && errorDetails) {
+            throw new Error(`OPENROUTER_DETAIL:${errorDetails}`);
+          }
           throw new Error(errorCode);
         }
       }

@@ -343,11 +343,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
   if (!input || typeof input !== "object") return DEFAULT_CONFIG;
   const raw = input as Partial<SiteMochiConfig>;
   const parsedProvider: SiteMochiProviderKind =
-    raw.provider === "openrouter" ||
-    raw.provider === "ollama" ||
-    raw.provider === "openclaw" ||
-    raw.provider === "bitte" ||
-    raw.provider === "site"
+    raw.provider === "openrouter" || raw.provider === "site"
       ? raw.provider
       : DEFAULT_CONFIG.provider;
   const provider: SiteMochiProviderKind = parsedProvider;
@@ -430,7 +426,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
 }
 
 function canUseProvider(config: SiteMochiConfig, freeSiteMessagesRemaining: number | null): boolean {
-  if (config.provider === "site" || config.provider === "bitte") {
+  if (config.provider === "site") {
     return freeSiteMessagesRemaining === null || freeSiteMessagesRemaining > 0;
   }
   if (config.provider === "openrouter") {
@@ -439,22 +435,7 @@ function canUseProvider(config: SiteMochiConfig, freeSiteMessagesRemaining: numb
       (!config.webSearchToolEnabled || config.braveApiKey.trim()),
     );
   }
-  if (config.provider === "ollama") {
-    return Boolean(
-      config.ollamaUrl.trim() &&
-      config.ollamaModel.trim() &&
-      (!config.webSearchToolEnabled || config.braveApiKey.trim()),
-    );
-  }
-  const pairedToken = config.openclawPairedSessionToken.trim();
-  if (!pairedToken) return false;
-  if (config.openclawPairedSessionExpiresAt) {
-    const expiresAtMs = Date.parse(config.openclawPairedSessionExpiresAt);
-    if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
-      return false;
-    }
-  }
-  return true;
+  return false;
 }
 
 export function SiteMochiProvider({ children }: { children: ReactNode }) {

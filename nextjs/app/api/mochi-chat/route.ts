@@ -19,6 +19,7 @@ function sanitizeShortKey(input: unknown): string {
 function sanitizeModel(input: unknown): string {
   if (typeof input !== "string") return DEFAULT_MODEL;
   const cleaned = input.trim().slice(0, 120);
+  if (!cleaned || cleaned === "random") return DEFAULT_MODEL;
   return cleaned || DEFAULT_MODEL;
 }
 
