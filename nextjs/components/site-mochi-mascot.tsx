@@ -91,11 +91,13 @@ const SPARKLE_DURATION = 380;
 const MOBILE_BREAKPOINT = 768;
 const CHAT_GAP = 12;
 const MASCOT_HINT_TEXT = "🐱 Click me";
-const WALK_PAUSE_MIN_MS = 650;
-const WALK_PAUSE_MAX_MS = 1800;
-const WALK_SEGMENT_MIN_MS = 1400;
-const WALK_SEGMENT_MAX_MS = 3400;
-const WALK_PAUSE_REVERSE_CHANCE = 0.35;
+const WALK_PAUSE_MIN_MS = 2400;
+const WALK_PAUSE_MAX_MS = 6200;
+const WALK_SEGMENT_MIN_MS = 900;
+const WALK_SEGMENT_MAX_MS = 2200;
+const WALK_PAUSE_REVERSE_CHANCE = 0.2;
+const WALL_DIRECTION_FLIP_CHANCE = 0.15;
+const CEILING_DESCEND_WALL_CHANCE = 0.72;
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -233,6 +235,7 @@ export function SiteMochiMascot() {
   const currentPosRef = useRef({ x: 0, y: 0 });
   const movementStateRef = useRef<MascotState>("falling");
   const wallSideRef = useRef<WallSide>("right");
+  const wallDirRef = useRef<1 | -1>(-1);
   const floorDirRef = useRef<1 | -1>(Math.random() < 0.5 ? -1 : 1);
   const ceilingDirRef = useRef<1 | -1>(1);
   const fallVelocityRef = useRef(0);
@@ -387,10 +390,12 @@ export function SiteMochiMascot() {
         currentPosRef.current = { x: bounds.minX, y: clamped.y };
         movementStateRef.current = "wall-climbing";
         wallSideRef.current = "left";
+        wallDirRef.current = -1;
       } else if (clamped.x >= bounds.maxX - 1) {
         currentPosRef.current = { x: bounds.maxX, y: clamped.y };
         movementStateRef.current = "wall-climbing";
         wallSideRef.current = "right";
+        wallDirRef.current = -1;
       } else {
         movementStateRef.current = "falling";
       }
@@ -542,7 +547,8 @@ export function SiteMochiMascot() {
         const state = movementStateRef.current;
         const next = { ...targetPos };
         const pauseState = wanderPauseRef.current;
-        const canPauseWhileWalking = state === "floor-walking" || state === "ceiling-walking";
+        const canPauseWhileWalking =
+          state === "floor-walking" || state === "ceiling-walking" || state === "wall-climbing";
         if (pauseState.lastMovementState !== state) {
           pauseState.lastMovementState = state;
           pauseState.pauseUntil = 0;
@@ -562,8 +568,10 @@ export function SiteMochiMascot() {
           if (Math.random() < WALK_PAUSE_REVERSE_CHANCE) {
             if (state === "floor-walking") {
               floorDirRef.current = floorDirRef.current === 1 ? -1 : 1;
-            } else {
+            } else if (state === "ceiling-walking") {
               ceilingDirRef.current = ceilingDirRef.current === 1 ? -1 : 1;
+            } else if (Math.random() < WALL_DIRECTION_FLIP_CHANCE) {
+              wallDirRef.current = wallDirRef.current === 1 ? -1 : 1;
             }
           }
         }
@@ -588,18 +596,26 @@ export function SiteMochiMascot() {
             next.x = bounds.minX;
             wallSideRef.current = "left";
             movementStateRef.current = "wall-climbing";
+            wallDirRef.current = -1;
           } else if (next.x >= bounds.maxX) {
             next.x = bounds.maxX;
             wallSideRef.current = "right";
             movementStateRef.current = "wall-climbing";
+            wallDirRef.current = -1;
           }
         } else if (state === "wall-climbing") {
           next.x = wallSideRef.current === "left" ? bounds.minX : bounds.maxX;
-          next.y -= CLIMB_SPEED * dt;
+          if (!isWalkPaused) {
+            next.y += wallDirRef.current * CLIMB_SPEED * dt;
+          }
           if (next.y <= bounds.minY) {
             next.y = bounds.minY;
             movementStateRef.current = "ceiling-walking";
             ceilingDirRef.current = wallSideRef.current === "left" ? 1 : -1;
+          } else if (next.y >= bounds.maxY) {
+            next.y = bounds.maxY;
+            movementStateRef.current = "floor-walking";
+            floorDirRef.current = wallSideRef.current === "left" ? 1 : -1;
           }
         } else {
           next.y = bounds.minY;
@@ -608,10 +624,22 @@ export function SiteMochiMascot() {
           }
           if (next.x <= bounds.minX) {
             next.x = bounds.minX;
-            ceilingDirRef.current = 1;
+            if (Math.random() < CEILING_DESCEND_WALL_CHANCE) {
+              movementStateRef.current = "wall-climbing";
+              wallSideRef.current = "left";
+              wallDirRef.current = 1;
+            } else {
+              ceilingDirRef.current = 1;
+            }
           } else if (next.x >= bounds.maxX) {
             next.x = bounds.maxX;
-            ceilingDirRef.current = -1;
+            if (Math.random() < CEILING_DESCEND_WALL_CHANCE) {
+              movementStateRef.current = "wall-climbing";
+              wallSideRef.current = "right";
+              wallDirRef.current = 1;
+            } else {
+              ceilingDirRef.current = -1;
+            }
           }
         }
 
@@ -623,7 +651,9 @@ export function SiteMochiMascot() {
           imgRef.current?.setAttribute("src", frames.stand);
         } else {
           const isPausedLocomotion =
-            (animState === "floor-walking" || animState === "ceiling-walking") &&
+            (animState === "floor-walking" ||
+              animState === "ceiling-walking" ||
+              animState === "wall-climbing") &&
             wanderPauseRef.current.pauseUntil > time;
           const activeFrames =
             animState === "floor-walking"
