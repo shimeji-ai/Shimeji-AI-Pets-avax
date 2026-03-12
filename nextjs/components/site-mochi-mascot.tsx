@@ -63,6 +63,27 @@ function getSpeechLocale(language: string) {
   return language === "es" ? "es-ES" : "en-US";
 }
 
+async function fetchWebSearchToolContext(args: { query: string; braveApiKey: string }) {
+  const query = args.query.trim();
+  const apiKey = args.braveApiKey.trim();
+  if (!query || !apiKey) return "";
+
+  const response = await fetch("/api/site-mochi/tools/web-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query,
+      apiKey,
+    }),
+  });
+  const json = await response.json().catch(() => null);
+  if (!response.ok) {
+    const errorCode = typeof json?.error === "string" ? json.error : "BRAVE_SEARCH_FAILED";
+    throw new Error(errorCode);
+  }
+  return typeof json?.context === "string" ? json.context.trim() : "";
+}
+
 const SPRITE_SIZE = 72;
 const EDGE_MARGIN = 0;
 const GRAVITY = 980;
@@ -1131,6 +1152,15 @@ export function SiteMochiMascot() {
       const history = messagesRef.current
         .slice(-8)
         .map((m) => ({ role: m.role, content: m.content }));
+      const webSearchToolContext =
+        (providerForRequest === "openrouter" || providerForRequest === "ollama") &&
+        config.webSearchToolEnabled &&
+        config.braveApiKey.trim()
+          ? await fetchWebSearchToolContext({
+              query: text,
+              braveApiKey: config.braveApiKey,
+            })
+          : "";
       let reply = "";
 
       if (providerForRequest === "bitte" && config.bitteApiKey.trim() && config.bitteAgentId.trim()) {
@@ -1176,6 +1206,7 @@ export function SiteMochiMascot() {
           language,
           characterLabel: selectedCharacter?.label,
           soulMd: shouldApplyPersonality ? config.soulMd : undefined,
+          toolContext: webSearchToolContext,
         });
         reply =
           providerForRequest === "ollama"
@@ -1266,10 +1297,12 @@ export function SiteMochiMascot() {
                 ? {
                     openrouterApiKey: config.openrouterApiKey,
                     openrouterModel: config.openrouterModel,
+                    braveApiKey: config.braveApiKey,
                   }
                 : undefined,
             character: config.character,
             soulMd: config.soulMd,
+            toolContext: webSearchToolContext,
           }),
         });
         const json = await resp.json().catch(() => null);

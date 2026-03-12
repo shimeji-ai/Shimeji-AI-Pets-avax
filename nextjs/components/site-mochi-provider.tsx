@@ -48,6 +48,8 @@ export type SiteMochiConfig = {
   character: string;
   soulMd: string;
   iconTheme: SiteMochiIconTheme;
+  webSearchToolEnabled: boolean;
+  braveApiKey: string;
   sizePercent: number;
   provider: SiteMochiProviderKind;
   openrouterApiKey: string;
@@ -120,6 +122,8 @@ You are Mochi.
 - Prefer clear answers over roleplay unless the user invites it.
 `,
   iconTheme: "fa6",
+  webSearchToolEnabled: false,
+  braveApiKey: "",
   sizePercent: 100,
   provider: "site",
   openrouterApiKey: "",
@@ -258,6 +262,11 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteMochiConfig>): boolea
     sanitizeString(raw.ollamaUrl, DEFAULT_CONFIG.ollamaUrl, 300) || DEFAULT_CONFIG.ollamaUrl;
   const ollamaModel =
     sanitizeString(raw.ollamaModel, DEFAULT_CONFIG.ollamaModel, 120) || DEFAULT_CONFIG.ollamaModel;
+  const webSearchToolEnabled = sanitizeBoolean(
+    raw.webSearchToolEnabled,
+    DEFAULT_CONFIG.webSearchToolEnabled,
+  );
+  const braveApiKey = sanitizeString(raw.braveApiKey, "", 600);
   const openclawMode: SiteMochiOpenClawMode = "paired";
   const openclawGatewayUrl =
     sanitizeString(raw.openclawGatewayUrl, DEFAULT_CONFIG.openclawGatewayUrl, 300) ||
@@ -275,6 +284,8 @@ function looksLikeUntouchedProviderConfig(raw: Partial<SiteMochiConfig>): boolea
       openrouterModel === DEFAULT_CONFIG.openrouterModel &&
       ollamaUrl === DEFAULT_CONFIG.ollamaUrl &&
       ollamaModel === DEFAULT_CONFIG.ollamaModel &&
+      webSearchToolEnabled === DEFAULT_CONFIG.webSearchToolEnabled &&
+      !braveApiKey &&
       openclawGatewayUrl === DEFAULT_CONFIG.openclawGatewayUrl &&
       !openclawGatewayToken &&
       openclawAgentName === DEFAULT_CONFIG.openclawAgentName &&
@@ -357,6 +368,11 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
     character: sanitizeString(raw.character, DEFAULT_CONFIG.character, 64) || DEFAULT_CONFIG.character,
     soulMd: sanitizeString(raw.soulMd, DEFAULT_CONFIG.soulMd, 4000) || DEFAULT_CONFIG.soulMd,
     iconTheme: sanitizeIconTheme(raw.iconTheme),
+    webSearchToolEnabled: sanitizeBoolean(
+      raw.webSearchToolEnabled,
+      DEFAULT_CONFIG.webSearchToolEnabled,
+    ),
+    braveApiKey: sanitizeString(raw.braveApiKey, "", 600),
     sizePercent: clampSizePercent(raw.sizePercent),
     provider,
     openrouterApiKey: sanitizeString(raw.openrouterApiKey, "", 600),
@@ -418,10 +434,17 @@ function canUseProvider(config: SiteMochiConfig, freeSiteMessagesRemaining: numb
     return freeSiteMessagesRemaining === null || freeSiteMessagesRemaining > 0;
   }
   if (config.provider === "openrouter") {
-    return Boolean(config.openrouterApiKey.trim());
+    return Boolean(
+      config.openrouterApiKey.trim() &&
+      (!config.webSearchToolEnabled || config.braveApiKey.trim()),
+    );
   }
   if (config.provider === "ollama") {
-    return Boolean(config.ollamaUrl.trim() && config.ollamaModel.trim());
+    return Boolean(
+      config.ollamaUrl.trim() &&
+      config.ollamaModel.trim() &&
+      (!config.webSearchToolEnabled || config.braveApiKey.trim()),
+    );
   }
   const pairedToken = config.openclawPairedSessionToken.trim();
   if (!pairedToken) return false;

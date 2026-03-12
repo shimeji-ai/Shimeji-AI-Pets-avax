@@ -98,6 +98,7 @@ export function SiteMochiLandingSection() {
     { configKey: "chat", label: t("Provider", "Proveedor") },
     { configKey: "mascot", label: t("Mascot", "Mascota") },
     { configKey: "appearance", label: t("Chat", "Chat") },
+    { configKey: "tools", label: t("Tools", "Tools") },
     { configKey: "sound", label: t("Sound", "Sonido") },
   ];
 

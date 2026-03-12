@@ -142,6 +142,10 @@ export async function POST(request: NextRequest) {
       typeof (body as any)?.soulMd === "string"
         ? (body as any).soulMd.trim().slice(0, 4000)
         : "";
+    const toolContext =
+      typeof (body as any)?.toolContext === "string"
+        ? (body as any).toolContext.trim().slice(0, 4000)
+        : "";
     const promptContext = await resolvePromptContext(characterKey);
 
     const messages = buildSiteMochiChatMessages({
@@ -150,6 +154,7 @@ export async function POST(request: NextRequest) {
       language: typeof (body as any)?.lang === "string" ? (body as any).lang : undefined,
       characterLabel: promptContext.characterLabel,
       soulMd,
+      toolContext,
     });
 
     const reply = await sendOpenRouterRequest({

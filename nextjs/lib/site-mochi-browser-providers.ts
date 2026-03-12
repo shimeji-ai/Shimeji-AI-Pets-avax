@@ -421,6 +421,26 @@ export function formatSiteMochiProviderError(
       ? "Bitte AI no devolvió respuesta."
       : "Bitte AI returned no response.";
   }
+  if (message.startsWith("BRAVE_MISSING_API_KEY")) {
+    return isSpanish
+      ? "Falta la Brave API key para usar web search knowledge."
+      : "Brave API key is missing for web search knowledge.";
+  }
+  if (message.startsWith("BRAVE_INVALID_API_KEY")) {
+    return isSpanish
+      ? "La Brave API key no es válida."
+      : "The Brave API key is invalid.";
+  }
+  if (message.startsWith("BRAVE_RATE_LIMITED")) {
+    return isSpanish
+      ? "Brave Search llegó al límite temporal. Intentá de nuevo en un rato."
+      : "Brave Search hit a temporary rate limit. Try again shortly.";
+  }
+  if (message.startsWith("BRAVE_REQUEST_FAILED") || message.startsWith("BRAVE_HTTP_")) {
+    return isSpanish
+      ? "No se pudo obtener contexto web desde Brave Search."
+      : "Could not fetch web context from Brave Search.";
+  }
   if (provider === "bitte") {
     return isSpanish
       ? "No se pudo completar la solicitud con Bitte AI. Revisá tu API key y Agent ID."

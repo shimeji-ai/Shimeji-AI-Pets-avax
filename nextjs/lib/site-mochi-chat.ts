@@ -9,6 +9,7 @@ export type SiteMochiPromptInput = {
   language?: string;
   characterLabel?: string;
   soulMd?: string;
+  toolContext?: string;
 };
 
 const MAX_MESSAGE_CHARS = 2000;
@@ -36,6 +37,7 @@ export function buildSiteMochiSystemPrompt({
   language,
   characterLabel,
   soulMd,
+  toolContext,
 }: SiteMochiPromptInput = {}): string {
   const langHint =
     typeof language === "string" && language.toLowerCase().startsWith("es")
@@ -44,6 +46,9 @@ export function buildSiteMochiSystemPrompt({
   const selectedCharacter = characterLabel || "Mochi";
   const soulSection = soulMd?.trim()
     ? `Current soul.md:\n${soulMd.trim()}\n`
+    : "";
+  const toolSection = toolContext?.trim()
+    ? `Available tool context:\n${toolContext.trim()}\n`
     : "";
 
   return `
@@ -71,9 +76,11 @@ Behavior:
 - Be friendly, practical, and brief.
 - If asked how to continue after free credits, tell them to open the gear icon and configure OpenRouter, Ollama, or OpenClaw.
 - If asked about local system/WSL/terminal control on the website, clearly say it is not available in the website mochi.
+- If tool context is present, use it for current web knowledge and cite the source domain in plain text when useful.
 - Respond in the same language as the user. If unclear, prefer ${langHint === "es" ? "Spanish" : "English"}.
 
-${soulSection}`.trim();
+${soulSection}
+${toolSection}`.trim();
 }
 
 export function buildSiteMochiChatMessages(args: {
@@ -82,6 +89,7 @@ export function buildSiteMochiChatMessages(args: {
   language?: string;
   characterLabel?: string;
   soulMd?: string;
+  toolContext?: string;
 }): Array<{ role: "system" | SiteMochiChatRole; content: string }> {
   const message = sanitizeSiteMochiMessage(args.message);
   const history = coerceSiteMochiHistory(args.history);
@@ -92,6 +100,7 @@ export function buildSiteMochiChatMessages(args: {
         language: args.language,
         characterLabel: args.characterLabel,
         soulMd: args.soulMd,
+        toolContext: args.toolContext,
       }),
     },
     ...history,

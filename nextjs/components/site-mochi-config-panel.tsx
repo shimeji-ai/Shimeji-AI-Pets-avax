@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { IconType } from "react-icons";
-import { FaBrain, FaComments, FaHeart, FaPalette, FaVolumeHigh } from "react-icons/fa6";
-import { HiChatBubbleLeftRight, HiCpuChip, HiHeart, HiSpeakerWave, HiSwatch } from "react-icons/hi2";
-import { IoChatbubbleEllipses, IoColorPalette, IoHardwareChip, IoHeart, IoVolumeHigh } from "react-icons/io5";
-import { PiBrainFill, PiChatCircleDotsFill, PiHeartFill, PiPaletteFill, PiSpeakerHighFill } from "react-icons/pi";
-import { TbBrain, TbHeartFilled, TbMessageCircleFilled, TbPalette, TbVolume } from "react-icons/tb";
+import { FaBrain, FaComments, FaHeart, FaPalette, FaToolbox, FaVolumeHigh } from "react-icons/fa6";
+import { HiChatBubbleLeftRight, HiCpuChip, HiHeart, HiSpeakerWave, HiSwatch, HiWrenchScrewdriver } from "react-icons/hi2";
+import { IoBuild, IoChatbubbleEllipses, IoColorPalette, IoHardwareChip, IoHeart, IoVolumeHigh } from "react-icons/io5";
+import { PiBrainFill, PiChatCircleDotsFill, PiHeartFill, PiPaletteFill, PiSpeakerHighFill, PiToolboxFill } from "react-icons/pi";
+import { TbBrain, TbHeartFilled, TbMessageCircleFilled, TbPalette, TbTool, TbVolume } from "react-icons/tb";
 import {
   FileCode2,
   MonitorCog,
@@ -18,6 +18,7 @@ import {
   Settings2,
   Sparkles,
   Volume2,
+  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -32,7 +33,7 @@ import {
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
-export type ConfigPanelTab = "site" | "soul" | "chat" | "appearance" | "mascot" | "sound";
+export type ConfigPanelTab = "site" | "soul" | "chat" | "appearance" | "mascot" | "tools" | "sound";
 
 const SITE_THEME_META: Array<{
   key: Theme;
@@ -57,6 +58,7 @@ export const CONFIG_WINDOW_META: Array<{
   { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
   { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
   { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
+  { key: "tools", icon: Wrench, labelEn: "Tools", labelEs: "Tools" },
   { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
 ];
 
@@ -87,6 +89,7 @@ const ICON_THEME_COMPONENTS: Record<
     soul: FaHeart,
     chat: FaBrain,
     appearance: FaComments,
+    tools: FaToolbox,
     sound: FaVolumeHigh,
   },
   hi2: {
@@ -94,6 +97,7 @@ const ICON_THEME_COMPONENTS: Record<
     soul: HiHeart,
     chat: HiCpuChip,
     appearance: HiChatBubbleLeftRight,
+    tools: HiWrenchScrewdriver,
     sound: HiSpeakerWave,
   },
   io5: {
@@ -101,6 +105,7 @@ const ICON_THEME_COMPONENTS: Record<
     soul: IoHeart,
     chat: IoHardwareChip,
     appearance: IoChatbubbleEllipses,
+    tools: IoBuild,
     sound: IoVolumeHigh,
   },
   pi: {
@@ -108,6 +113,7 @@ const ICON_THEME_COMPONENTS: Record<
     soul: PiHeartFill,
     chat: PiBrainFill,
     appearance: PiChatCircleDotsFill,
+    tools: PiToolboxFill,
     sound: PiSpeakerHighFill,
   },
   tb: {
@@ -115,6 +121,7 @@ const ICON_THEME_COMPONENTS: Record<
     soul: TbHeartFilled,
     chat: TbBrain,
     appearance: TbMessageCircleFilled,
+    tools: TbTool,
     sound: TbVolume,
   },
 };
@@ -173,6 +180,67 @@ function SoulFields({ compact = false }: { compact?: boolean } = {}) {
           placeholder={`# soul.md\n\n- Be concise\n- Be warm\n- Help with setup`}
         />
       </label>
+    </div>
+  );
+}
+
+function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig } = useSiteMochi();
+
+  return (
+    <div className="grid gap-3">
+      {!compact ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-muted-foreground">
+          {isSpanish
+            ? "Primer tool: web search knowledge para OpenRouter u Ollama. Si está activo, requiere Brave API key."
+            : "First tool: web search knowledge for OpenRouter or Ollama. If enabled, it requires a Brave API key."}
+        </div>
+      ) : null}
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
+          <input
+            type="checkbox"
+            checked={config.webSearchToolEnabled}
+            onChange={(event) => updateConfig({ webSearchToolEnabled: event.target.checked })}
+            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
+          />
+          <span className="text-xs text-foreground/85">
+            {isSpanish
+              ? "Activar web search knowledge para OpenRouter y Ollama"
+              : "Enable web search knowledge for OpenRouter and Ollama"}
+          </span>
+        </label>
+
+        <label className="mt-3 block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Brave API Key
+          </span>
+          <input
+            type="password"
+            value={config.braveApiKey}
+            onChange={(event) => updateConfig({ braveApiKey: event.target.value })}
+            placeholder="BSA..."
+            className="w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            autoComplete="off"
+          />
+        </label>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href="https://api-dashboard.search.brave.com/app/keys"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-white/25 hover:bg-white/10"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            {isSpanish ? "Conseguir Brave API key" : "Get Brave API key"}
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1889,6 +1957,8 @@ export function SiteMochiCompactConfigWindow({
         ) : null}
 
         {activeTab === "appearance" ? <ChatAppearanceFields compact /> : null}
+
+        {activeTab === "tools" ? <ToolsFields compact /> : null}
 
         {activeTab === "sound" ? <SoundFields compact /> : null}
 
