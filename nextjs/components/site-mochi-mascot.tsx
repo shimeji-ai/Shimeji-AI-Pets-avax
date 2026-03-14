@@ -406,8 +406,11 @@ export function SiteMochiMascot() {
   const bubbleRectRef = useRef({ left: 8, top: 8 });
   const bubbleResizeStateRef = useRef<BubbleResizeState | null>(null);
   const bubbleIsResizingRef = useRef(false);
+  const bubbleRestoreRectRef = useRef<{ left: number; top: number } | null>(null);
+  const bubbleRestoreSizeRef = useRef<{ width: number; height: number } | null>(null);
   const spriteScaleRef = useRef(config.sizePercent / 100);
   const [bubbleCursor, setBubbleCursor] = useState<BubbleResizeCursor>("");
+  const [isBubbleFullscreen, setIsBubbleFullscreen] = useState(false);
   useEffect(() => {
     spriteScaleRef.current = clamp(config.sizePercent / 100, 0.6, 1.8);
   }, [config.sizePercent]);
@@ -900,11 +903,16 @@ export function SiteMochiMascot() {
         : styles.chatStyleGlass;
   const bubbleWidthPx = config.chatWidthPx ?? SITE_MOCHI_CHAT_WIDTH_MAP[config.chatWidth];
   const bubbleHeightPx = config.chatHeightPx ?? SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX;
+  const bubbleViewportMarginPx = 12;
   const bubbleFontSizePx = SITE_MOCHI_CHAT_FONT_SIZE_MAP[config.chatFontSize];
   const bubbleInlineStyle = {
-    left: bubbleRectRef.current.left,
-    top: bubbleRectRef.current.top,
-    cursor: bubbleCursor || undefined,
+    left: isBubbleFullscreen ? bubbleViewportMarginPx : bubbleRectRef.current.left,
+    top: isBubbleFullscreen ? bubbleViewportMarginPx : bubbleRectRef.current.top,
+    width: isBubbleFullscreen ? `calc(100vw - ${bubbleViewportMarginPx * 2}px)` : undefined,
+    height: isBubbleFullscreen ? `calc(100dvh - ${bubbleViewportMarginPx * 2}px)` : undefined,
+    maxWidth: isBubbleFullscreen ? `calc(100vw - ${bubbleViewportMarginPx * 2}px)` : undefined,
+    maxHeight: isBubbleFullscreen ? `calc(100dvh - ${bubbleViewportMarginPx * 2}px)` : undefined,
+    cursor: isBubbleFullscreen ? undefined : bubbleCursor || undefined,
     ["--chat-theme" as const]: config.chatThemeColor,
     ["--chat-bg" as const]: config.chatBgColor,
     ["--chat-width" as const]: `${bubbleWidthPx}px`,
@@ -914,6 +922,29 @@ export function SiteMochiMascot() {
   function setVoiceInfoStatus(message: string) {
     setVoiceStatusTone("info");
     setVoiceStatus(message);
+  }
+
+  function toggleBubbleFullscreen() {
+    if (isBubbleFullscreen) {
+      if (bubbleRestoreRectRef.current) {
+        bubbleRectRef.current = bubbleRestoreRectRef.current;
+      }
+      if (bubbleRestoreSizeRef.current) {
+        updateConfig({
+          chatWidthPx: bubbleRestoreSizeRef.current.width,
+          chatHeightPx: bubbleRestoreSizeRef.current.height,
+        });
+      }
+      setIsBubbleFullscreen(false);
+      return;
+    }
+
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    bubbleRestoreRectRef.current = { ...bubbleRectRef.current };
+    bubbleRestoreSizeRef.current = rect
+      ? { width: Math.round(rect.width), height: Math.round(rect.height) }
+      : { width: bubbleWidthPx, height: bubbleHeightPx };
+    setIsBubbleFullscreen(true);
   }
 
   function setVoiceErrorStatus(message: string) {
@@ -1626,19 +1657,22 @@ export function SiteMochiMascot() {
     }
   }
 
-  function handleBubblePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+function handleBubblePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (isBubbleFullscreen) return;
     if (event.pointerType && event.pointerType !== "mouse") return;
     if (bubbleIsResizingRef.current) return;
     const hit = getBubbleResizeHit(event.clientX, event.clientY);
     setBubbleCursor(hit.cursor);
   }
 
-  function handleBubblePointerLeave() {
+function handleBubblePointerLeave() {
+    if (isBubbleFullscreen) return;
     if (bubbleIsResizingRef.current) return;
     setBubbleCursor("");
   }
 
-  function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (isBubbleFullscreen) return;
     if (event.pointerType && event.pointerType !== "mouse") return;
     const target = event.target as HTMLElement | null;
     if (target?.closest("input, button, textarea, select, a")) return;
@@ -1743,6 +1777,73 @@ export function SiteMochiMascot() {
           onPointerLeave={handleBubblePointerLeave}
           onPointerDown={handleBubblePointerDown}
         >
+          <div className={styles.bubbleHeader}>
+            <div className={styles.titleWrap}>
+              <div className={styles.title}>{selectedCharacter?.label || "Mochi"}</div>
+              <div className={styles.metaText}>
+                {isSpanish ? "Chat del escritorio" : "Desktop chat"}
+              </div>
+            </div>
+            <div className={styles.headerBtns}>
+              <button
+                type="button"
+                className={styles.headerIconBtn}
+                onClick={toggleBubbleFullscreen}
+                aria-label={
+                  isBubbleFullscreen
+                    ? isSpanish
+                      ? "Salir de pantalla completa"
+                      : "Exit fullscreen"
+                    : isSpanish
+                      ? "Pantalla completa"
+                      : "Fullscreen"
+                }
+                title={
+                  isBubbleFullscreen
+                    ? isSpanish
+                      ? "Salir de pantalla completa"
+                      : "Exit fullscreen"
+                    : isSpanish
+                      ? "Pantalla completa"
+                      : "Fullscreen"
+                }
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={styles.headerIconSvg}>
+                  {isBubbleFullscreen ? (
+                    <>
+                      <path d="M9 4H4v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 4l6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M15 20h5v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M20 20l-6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M20 9V4h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M14 10l6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 15v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M10 14l-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
+                  ) : (
+                    <>
+                      <path d="M9 4H4v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M15 4h5v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M20 15v5h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M4 15v5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
+                  )}
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => {
+                  setIsBubbleFullscreen(false);
+                  setOpen(false);
+                }}
+                aria-label={isSpanish ? "Cerrar chat" : "Close chat"}
+                title={isSpanish ? "Cerrar chat" : "Close chat"}
+              >
+                ×
+              </button>
+            </div>
+          </div>
           <div className={styles.bubbleBody}>
           <div className={styles.messages} ref={messagesListRef}>
               {messages.map((m, idx) => (

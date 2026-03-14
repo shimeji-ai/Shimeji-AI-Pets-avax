@@ -16,6 +16,7 @@ import {
   BookText,
   CircleHelp,
   Download,
+  Palette,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
@@ -35,7 +36,7 @@ type DesktopConfigShortcutProps = {
   customIcon?: LucideIcon;
 };
 
-type DesktopWindowKey = ConfigPanelTab | "memories";
+type DesktopWindowKey = ConfigPanelTab | "memories" | "personalize";
 
 type StoredChatMessage = {
   role: "user" | "assistant";
@@ -78,11 +79,9 @@ type HeaderIconLinkProps = {
 };
 
 const DESKTOP_SHORTCUT_KEYS: DesktopWindowKey[] = [
-  "site",
+  "personalize",
   "soul",
   "chat",
-  "mascot",
-  "appearance",
   "tools",
   "sound",
   "memories",
@@ -101,7 +100,7 @@ const SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT = "site-mochi:chat-history-updated";
 const DESKTOP_DEFAULT_SHORTCUT_ROWS: DesktopWindowKey[][] = [
   ["chat", "tools"],
   ["soul", "memories"],
-  ["mascot", "appearance", "sound", "site"],
+  ["personalize", "sound"],
 ];
 
 function clampDesktopWindowPosition(
@@ -257,11 +256,11 @@ function DesktopConfigShortcut({
       onPointerDown={onPointerDown ? (event) => onPointerDown(event, shortcutKey) : undefined}
       onDragStart={onDragStart}
       draggable={false}
-      className={`group flex w-[62px] flex-col items-center gap-1 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1 ${className ?? ""}`}
+      className={`group flex w-[76px] flex-col items-center gap-1.5 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1 lg:w-[62px] lg:gap-1 ${className ?? ""}`}
       style={style}
     >
       <span
-        className="relative flex h-10 w-10 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]"
+        className="relative flex h-12 w-12 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px] lg:h-10 lg:w-10"
         draggable={false}
       >
         <div className="drop-shadow-[3px_3px_0_rgba(24,18,37,0.18)]">
@@ -270,14 +269,14 @@ function DesktopConfigShortcut({
               tab={configKey}
               iconTheme={iconTheme}
               characterKey={characterKey}
-              className="h-10 w-10 object-contain text-foreground"
+              className="h-12 w-12 object-contain text-foreground lg:h-10 lg:w-10"
             />
           ) : CustomIcon ? (
-            <CustomIcon className="h-9 w-9 text-foreground" strokeWidth={1.8} />
+            <CustomIcon className="h-11 w-11 text-foreground lg:h-9 lg:w-9" strokeWidth={1.8} />
           ) : null}
         </div>
       </span>
-      <span className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
+      <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground/85 lg:text-[8px]">
         {label}
       </span>
     </button>
@@ -488,6 +487,51 @@ function DesktopMemoriesWindow({
   );
 }
 
+function DesktopPersonalizeWindow({
+  isSpanish,
+}: {
+  isSpanish: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<"mascot" | "appearance" | "site">("mascot");
+  const tabs: Array<{ key: "mascot" | "appearance" | "site"; label: string }> = [
+    { key: "mascot", label: isSpanish ? "Mascota" : "Mascot" },
+    { key: "appearance", label: "Chat" },
+    { key: "site", label: isSpanish ? "Tema" : "Theme" },
+  ];
+
+  return (
+    <section className="flex h-full max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <div className="border-b border-border px-4 py-3">
+        <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {isSpanish ? "Personalizar" : "Customize"}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  isActive
+                    ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
+                    : "border-border bg-background/50 text-foreground/80 hover:bg-background/75"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <SiteMochiCompactConfigWindow activeTab={activeTab} fillHeight={false} />
+      </div>
+    </section>
+  );
+}
+
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
   const { config } = useSiteMochi();
@@ -512,7 +556,15 @@ export function SiteMochiLandingSection() {
     ? CONFIG_WINDOW_META.find((item) => item.key === activeDesktopWindow) ?? null
     : null;
 
-  const configShortcuts: DesktopConfigShortcutProps[] = [
+  const desktopShortcuts: DesktopConfigShortcutProps[] = [
+    { shortcutKey: "personalize", label: t("Customize", "Personalizar"), customIcon: Palette },
+    { shortcutKey: "soul", configKey: "soul", label: "Soul" },
+    { shortcutKey: "chat", configKey: "chat", label: t("Provider", "Proveedor") },
+    { shortcutKey: "tools", configKey: "tools", label: t("Tools", "Tools") },
+    { shortcutKey: "sound", configKey: "sound", label: t("Sound", "Sonido") },
+    { shortcutKey: "memories", label: t("Memories", "Memorias"), customIcon: BookText },
+  ];
+  const mobileShortcuts: DesktopConfigShortcutProps[] = [
     { shortcutKey: "site", configKey: "site", label: t("Theme", "Tema") },
     { shortcutKey: "soul", configKey: "soul", label: "Soul" },
     { shortcutKey: "chat", configKey: "chat", label: t("Provider", "Proveedor") },
@@ -531,7 +583,7 @@ export function SiteMochiLandingSection() {
     ["sound", "site"],
   ] as const;
   const shortcutByKey = Object.fromEntries(
-    configShortcuts.map((shortcut) => [shortcut.shortcutKey, shortcut]),
+    mobileShortcuts.map((shortcut) => [shortcut.shortcutKey, shortcut]),
   ) as Record<DesktopWindowKey, DesktopConfigShortcutProps>;
 
   useLayoutEffect(() => {
@@ -853,10 +905,10 @@ export function SiteMochiLandingSection() {
           ) : null}
 
           <div ref={desktopRef} className="relative z-10 flex-1 p-5">
-            <div className="flex flex-col gap-8 lg:hidden">
-              <div className="flex items-start justify-around gap-6">
+            <div className="flex min-h-[calc(100dvh-9rem)] flex-col justify-between py-4 lg:hidden">
+              <div className="flex items-start justify-around gap-8">
                 {mobileTopShortcutColumns.map((column, columnIndex) => (
-                  <div key={`mobile-top-column-${columnIndex}`} className="flex flex-col items-center gap-5">
+                  <div key={`mobile-top-column-${columnIndex}`} className="flex flex-col items-center gap-7">
                     {column.map((shortcutKey) => {
                       const shortcut = shortcutByKey[shortcutKey];
                       return (
@@ -873,9 +925,9 @@ export function SiteMochiLandingSection() {
                 ))}
               </div>
 
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-6">
                 {mobileBottomShortcutRows.map((row, rowIndex) => (
-                  <div key={`mobile-bottom-row-${rowIndex}`} className="flex items-start justify-around gap-6">
+                  <div key={`mobile-bottom-row-${rowIndex}`} className="flex items-start justify-around gap-8">
                     {row.map((shortcutKey) => {
                       const shortcut = shortcutByKey[shortcutKey];
                       return (
@@ -894,7 +946,7 @@ export function SiteMochiLandingSection() {
             </div>
 
             <div className="relative hidden h-full w-full lg:block">
-              {configShortcuts.map((shortcut) => {
+              {desktopShortcuts.map((shortcut) => {
                 const position = shortcutPositions[shortcut.shortcutKey];
 
                 return (
@@ -941,7 +993,9 @@ export function SiteMochiLandingSection() {
                   className="flex cursor-grab touch-none items-center justify-between border-b border-border bg-card/55 px-4 py-2.5 active:cursor-grabbing"
                 >
                   <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {activeDesktopWindow === "memories"
+                    {activeDesktopWindow === "personalize"
+                      ? t("Customize", "Personalizar")
+                      : activeDesktopWindow === "memories"
                       ? t("Memories", "Memorias")
                       : activeWindowMeta
                       ? isSpanish
@@ -968,7 +1022,9 @@ export function SiteMochiLandingSection() {
                     height: "calc(100% - 42px)",
                   }}
                 >
-                  {activeDesktopWindow === "memories" ? (
+                  {activeDesktopWindow === "personalize" ? (
+                    <DesktopPersonalizeWindow isSpanish={isSpanish} />
+                  ) : activeDesktopWindow === "memories" ? (
                     <DesktopMemoriesWindow
                       isSpanish={isSpanish}
                       messages={memoryMessages}

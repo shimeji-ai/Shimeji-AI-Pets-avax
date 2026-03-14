@@ -185,9 +185,6 @@
 .closeBtn {
   width: 28px;
   height: 28px;
-  border-radius: 10px;
-  border: 1px solid var(--bubble-btn-border);
-  background: var(--bubble-btn-bg);
   color: var(--chat-theme);
   font-size: 13px;
   line-height: 1;
@@ -198,7 +195,30 @@
   transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
-.headerIconBtn:hover,
+.headerIconBtn {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  opacity: 0.85;
+}
+
+.closeBtn {
+  border-radius: 10px;
+  border: 1px solid var(--bubble-btn-border);
+  background: var(--bubble-btn-bg);
+}
+
+.headerIconSvg {
+  width: 14px;
+  height: 14px;
+}
+
+.headerIconBtn:hover {
+  background: color-mix(in srgb, var(--chat-theme) 10%, transparent);
+  border-color: color-mix(in srgb, var(--chat-theme) 16%, transparent);
+  opacity: 1;
+}
+
 .closeBtn:hover {
   background: var(--bubble-btn-bg-hover);
 }
