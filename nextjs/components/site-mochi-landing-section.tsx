@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme, type Theme } from "@/components/theme-provider";
 import {
   CONFIG_WINDOW_META,
   DesktopConfigIcon,
@@ -234,6 +234,7 @@ function DesktopConfigShortcut({
   configKey,
   customIcon: CustomIcon,
   iconTheme,
+  theme,
   characterKey,
   onOpen,
   className,
@@ -242,6 +243,7 @@ function DesktopConfigShortcut({
   onDragStart,
 }: DesktopConfigShortcutProps & {
   iconTheme: ReturnType<typeof useSiteMochi>["config"]["iconTheme"];
+  theme: Theme;
   characterKey: string;
   onOpen: (tab: DesktopWindowKey) => void;
   className?: string;
@@ -249,6 +251,11 @@ function DesktopConfigShortcut({
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>, tab: DesktopWindowKey) => void;
   onDragStart?: (event: ReactDragEvent<HTMLButtonElement>) => void;
 }) {
+  const isBlackPink = theme === "black-pink";
+  const shortcutToneClass = isBlackPink ? "text-[#ff78c8]" : "text-foreground";
+  const shortcutLabelClass = isBlackPink ? "text-[#ff78c8]" : "text-foreground/85";
+  const shortcutGlowClass = isBlackPink ? "drop-shadow-[0_0_10px_rgba(255,120,200,0.35)]" : "drop-shadow-[3px_3px_0_rgba(24,18,37,0.18)]";
+
   return (
     <button
       type="button"
@@ -263,20 +270,20 @@ function DesktopConfigShortcut({
         className="relative flex h-12 w-12 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px] lg:h-10 lg:w-10"
         draggable={false}
       >
-        <div className="drop-shadow-[3px_3px_0_rgba(24,18,37,0.18)]">
+        <div className={shortcutGlowClass}>
           {configKey ? (
             <DesktopConfigIcon
               tab={configKey}
               iconTheme={iconTheme}
               characterKey={characterKey}
-              className="h-12 w-12 object-contain text-foreground lg:h-10 lg:w-10"
+              className={`h-12 w-12 object-contain lg:h-10 lg:w-10 ${shortcutToneClass}`}
             />
           ) : CustomIcon ? (
-            <CustomIcon className="h-11 w-11 text-foreground lg:h-9 lg:w-9" strokeWidth={1.8} />
+            <CustomIcon className={`h-11 w-11 lg:h-9 lg:w-9 ${shortcutToneClass}`} strokeWidth={1.8} />
           ) : null}
         </div>
       </span>
-      <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-foreground/85 lg:text-[8px]">
+      <span className={`font-mono text-[9px] font-semibold uppercase tracking-[0.18em] lg:text-[8px] ${shortcutLabelClass}`}>
         {label}
       </span>
     </button>
@@ -916,6 +923,7 @@ export function SiteMochiLandingSection() {
                           key={shortcut.shortcutKey}
                           {...shortcut}
                           iconTheme={config.iconTheme}
+                          theme={theme}
                           characterKey={config.character}
                           onOpen={handleShortcutOpen}
                         />
@@ -935,6 +943,7 @@ export function SiteMochiLandingSection() {
                           key={shortcut.shortcutKey}
                           {...shortcut}
                           iconTheme={config.iconTheme}
+                          theme={theme}
                           characterKey={config.character}
                           onOpen={handleShortcutOpen}
                         />
@@ -954,6 +963,7 @@ export function SiteMochiLandingSection() {
                     key={shortcut.shortcutKey}
                     {...shortcut}
                     iconTheme={config.iconTheme}
+                    theme={theme}
                     characterKey={config.character}
                     onOpen={handleShortcutOpen}
                     onPointerDown={handleShortcutPointerDown}
