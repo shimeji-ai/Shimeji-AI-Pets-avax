@@ -522,6 +522,17 @@ export function SiteMochiLandingSection() {
     { shortcutKey: "sound", configKey: "sound", label: t("Sound", "Sonido") },
     { shortcutKey: "memories", label: t("Memories", "Memorias"), customIcon: BookText },
   ];
+  const mobileTopShortcutColumns = [
+    ["chat", "tools"],
+    ["soul", "memories"],
+  ] as const;
+  const mobileBottomShortcutRows = [
+    ["mascot", "appearance"],
+    ["sound", "site"],
+  ] as const;
+  const shortcutByKey = Object.fromEntries(
+    configShortcuts.map((shortcut) => [shortcut.shortcutKey, shortcut]),
+  ) as Record<DesktopWindowKey, DesktopConfigShortcutProps>;
 
   useLayoutEffect(() => {
     const desktop = desktopRef.current;
@@ -842,16 +853,44 @@ export function SiteMochiLandingSection() {
           ) : null}
 
           <div ref={desktopRef} className="relative z-10 flex-1 p-5">
-            <div className="grid auto-rows-max grid-cols-2 gap-5 sm:grid-cols-3 lg:hidden">
-              {configShortcuts.map((shortcut) => (
-                <DesktopConfigShortcut
-                  key={shortcut.shortcutKey}
-                  {...shortcut}
-                  iconTheme={config.iconTheme}
-                  characterKey={config.character}
-                  onOpen={handleShortcutOpen}
-                />
-              ))}
+            <div className="flex flex-col gap-8 lg:hidden">
+              <div className="flex items-start justify-around gap-6">
+                {mobileTopShortcutColumns.map((column, columnIndex) => (
+                  <div key={`mobile-top-column-${columnIndex}`} className="flex flex-col items-center gap-5">
+                    {column.map((shortcutKey) => {
+                      const shortcut = shortcutByKey[shortcutKey];
+                      return (
+                        <DesktopConfigShortcut
+                          key={shortcut.shortcutKey}
+                          {...shortcut}
+                          iconTheme={config.iconTheme}
+                          characterKey={config.character}
+                          onOpen={handleShortcutOpen}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-5">
+                {mobileBottomShortcutRows.map((row, rowIndex) => (
+                  <div key={`mobile-bottom-row-${rowIndex}`} className="flex items-start justify-around gap-6">
+                    {row.map((shortcutKey) => {
+                      const shortcut = shortcutByKey[shortcutKey];
+                      return (
+                        <DesktopConfigShortcut
+                          key={shortcut.shortcutKey}
+                          {...shortcut}
+                          iconTheme={config.iconTheme}
+                          characterKey={config.character}
+                          onOpen={handleShortcutOpen}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="relative hidden h-full w-full lg:block">
