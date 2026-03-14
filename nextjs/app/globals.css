@@ -161,6 +161,61 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+.brave-api-button {
+  border-color: color-mix(in srgb, var(--brand-accent) 75%, #ffffff 25%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 88%, #081018 12%),
+    color-mix(in srgb, var(--brand-accent) 62%, #1a2330 38%)
+  );
+  color: #f8fbff !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.brave-api-button:hover {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 92%, #081018 8%),
+    color-mix(in srgb, var(--brand-accent) 70%, #1a2330 30%)
+  );
+  color: #ffffff !important;
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.brave-api-button:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-accent) 82%, #ffffff 18%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--brand-accent) 28%, transparent),
+    0 14px 30px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="kawaii"] .brave-api-button {
+  border-color: #3c2c67;
+  background: linear-gradient(135deg, #3c2c67, #25183f);
+  color: #fff7ff !important;
+}
+
+:root[data-theme="kawaii"] .brave-api-button:hover {
+  background: linear-gradient(135deg, #4a367d, #2d1d49);
+  color: #fffaff !important;
+}
+
+:root[data-theme="pastel"] .brave-api-button {
+  border-color: #7a5aa1;
+  background: linear-gradient(135deg, #7a5aa1, #5d437f);
+  color: #fffafc !important;
+}
+
+:root[data-theme="pastel"] .brave-api-button:hover {
+  background: linear-gradient(135deg, #8764b0, #69498d);
+  color: #ffffff !important;
+}
+
 @theme inline {
   --font-sans: "Space Grotesk", "Space Grotesk Fallback", sans-serif;
   --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", monospace;
@@ -224,6 +279,37 @@
 body[data-theme="black-pink"] {
   background-image: none;
   background-color: #000;
+}
+
+body[data-theme="black-pink"] .neural-shell::before {
+  display: none;
+  background-image: none;
+}
+
+body[data-theme="black-pink"] .neural-card,
+body[data-theme="black-pink"] .neural-hero {
+  background: #000;
+}
+
+body[data-theme="black-pink"] .neural-card {
+  border-color: rgba(255, 120, 200, 0.22);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+body[data-theme="black-pink"] .currency-toggle-option.is-active,
+body[data-theme="black-pink"] [class*="bg-[var(--brand-accent)]/15"],
+body[data-theme="black-pink"] [class*="bg-[color-mix(in_srgb,var(--brand-accent)_15%,transparent)]"],
+body[data-theme="black-pink"] [class*="bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"] {
+  background: #ff78c8 !important;
+  border-color: #ff78c8 !important;
+  color: #000 !important;
+  box-shadow: 0 10px 24px rgba(255, 120, 200, 0.28);
+}
+
+body[data-theme="black-pink"] [class*="bg-[var(--brand-accent)]/15"] *,
+body[data-theme="black-pink"] [class*="bg-[color-mix(in_srgb,var(--brand-accent)_15%,transparent)]"] *,
+body[data-theme="black-pink"] [class*="bg-[color-mix(in_srgb,var(--brand-accent)_12%,transparent)]"] * {
+  color: #000 !important;
 }
   body[data-theme="kawaii"] {
     background-image:

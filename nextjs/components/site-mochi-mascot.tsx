@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -27,7 +29,7 @@ import {
 } from "@/lib/site-mochi-chat-ui";
 
 type Role = "user" | "assistant";
-type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string };
+type Msg = { role: Role; content: string; ctaHref?: string; ctaLabel?: string; createdAt?: string };
 type VoiceStatusTone = "info" | "error";
 type BubbleResizeCursor = "" | "w-resize" | "e-resize" | "n-resize" | "nw-resize" | "ne-resize";
 
@@ -46,6 +48,95 @@ type BrowserSpeechRecognitionLike = {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function isSafeHref(rawHref: string): boolean {
+  const href = rawHref.trim();
+  return /^https?:\/\//i.test(href);
+}
+
+function renderInlineMarkdown(content: string): ReactNode[] {
+  const pattern =
+    /(\*\*[^*\n](?:[\s\S]*?[^*\n])?\*\*|__(?:[^_\n]|_[^_\n])*__|\*(?:[^*\n]|\*\*?[^*\n])+\*|_(?:[^_\n]|__?[^_\n])+_|`[^`\n]+`|\[(.*?)\]\((https?:\/\/[^\s)]+)\))/g;
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(content)) !== null) {
+    const token = match[0];
+    if (match.index > lastIndex) {
+      nodes.push(content.slice(lastIndex, match.index));
+    }
+
+    if (token.startsWith("**") && token.endsWith("**")) {
+      nodes.push(<strong key={`${match.index}-strong`}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("__") && token.endsWith("__")) {
+      nodes.push(<strong key={`${match.index}-strong2`}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("*") && token.endsWith("*")) {
+      nodes.push(<em key={`${match.index}-em`}>{token.slice(1, -1)}</em>);
+    } else if (token.startsWith("_") && token.endsWith("_")) {
+      nodes.push(<em key={`${match.index}-em2`}>{token.slice(1, -1)}</em>);
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      nodes.push(<code key={`${match.index}-code`}>{token.slice(1, -1)}</code>);
+    } else if (token.startsWith("[") && match[2] && match[3] && isSafeHref(match[3])) {
+      nodes.push(
+        <a
+          key={`${match.index}-link`}
+          href={match[3]}
+          target="_blank"
+          rel="noreferrer"
+          className={styles.msgInlineLink}
+        >
+          {match[2]}
+        </a>,
+      );
+    } else {
+      nodes.push(token);
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    nodes.push(content.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function renderMessageContent(content: string): ReactNode {
+  const blocks = content.split(/\n{2,}/).filter((block) => block.trim().length > 0);
+
+  return blocks.map((block, blockIndex) => {
+    const lines = block.split("\n");
+    const isList = lines.every((line) => /^(\s*[-*]\s+|\s*\d+\.\s+)/.test(line));
+
+    if (isList) {
+      return (
+        <ul key={`block-${blockIndex}`} className={styles.msgList}>
+          {lines.map((line, itemIndex) => {
+            const text = line.replace(/^(\s*[-*]\s+|\s*\d+\.\s+)/, "");
+            return (
+              <li key={`item-${blockIndex}-${itemIndex}`}>
+                {renderInlineMarkdown(text)}
+              </li>
+            );
+          })}
+        </ul>
+      );
+    }
+
+    return (
+      <p key={`block-${blockIndex}`} className={styles.msgParagraph}>
+        {lines.map((line, lineIndex) => (
+          <Fragment key={`line-${blockIndex}-${lineIndex}`}>
+            {lineIndex > 0 ? <br /> : null}
+            {renderInlineMarkdown(line)}
+          </Fragment>
+        ))}
+      </p>
+    );
+  });
 }
 
 function getSpeechRecognitionConstructor():
@@ -98,6 +189,9 @@ const WALK_SEGMENT_MAX_MS = 2200;
 const WALK_PAUSE_REVERSE_CHANCE = 0.2;
 const WALL_DIRECTION_FLIP_CHANCE = 0.15;
 const CEILING_DESCEND_WALL_CHANCE = 0.72;
+const SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY = "site-mochi-chat-history-v1";
+const SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT = "site-mochi:chat-history-updated";
+const MAX_STORED_CHAT_MESSAGES = 40;
 
 type Edge = "bottom" | "right" | "top" | "left";
 type MascotState = "falling" | "floor-walking" | "wall-climbing" | "ceiling-walking";
@@ -128,6 +222,29 @@ type BubbleResizeState = {
   right: boolean;
   top: boolean;
 };
+
+function sanitizeStoredMessages(input: unknown): Msg[] {
+  if (!Array.isArray(input)) return [];
+
+  const out: Msg[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") continue;
+
+    const role = (item as any).role;
+    const content = typeof (item as any).content === "string" ? (item as any).content.slice(0, 4000) : "";
+    const ctaHref = typeof (item as any).ctaHref === "string" ? (item as any).ctaHref.slice(0, 512) : undefined;
+    const ctaLabel =
+      typeof (item as any).ctaLabel === "string" ? (item as any).ctaLabel.slice(0, 120) : undefined;
+    const createdAtRaw = typeof (item as any).createdAt === "string" ? (item as any).createdAt : "";
+    const createdAt = createdAtRaw && Number.isFinite(Date.parse(createdAtRaw)) ? new Date(createdAtRaw).toISOString() : undefined;
+
+    if ((role === "user" || role === "assistant") && content) {
+      out.push({ role, content, ctaHref, ctaLabel, createdAt });
+    }
+  }
+
+  return out.slice(-MAX_STORED_CHAT_MESSAGES);
+}
 
 function getBoundsFromWindow(spriteScale = 1) {
   // Use visualViewport for mobile to account for address bar
@@ -209,14 +326,50 @@ export function SiteMochiMascot() {
   }, [isSpanish]);
   const [messages, setMessages] = useState<Msg[]>([]);
   const messagesRef = useRef<Msg[]>([]);
+  const loadedStoredMessagesRef = useRef(false);
   const messagesListRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    messagesRef.current = messages;
-    const el = messagesListRef.current;
-    if (!el) return;
+  const scrollMessagesToBottom = () => {
     requestAnimationFrame(() => {
+      const el = messagesListRef.current;
+      if (!el) return;
       el.scrollTop = el.scrollHeight;
     });
+  };
+  useEffect(() => {
+    if (typeof window === "undefined" || loadedStoredMessagesRef.current) return;
+    loadedStoredMessagesRef.current = true;
+
+    try {
+      const raw = window.localStorage.getItem(SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY);
+      if (!raw) return;
+      const storedMessages = sanitizeStoredMessages(JSON.parse(raw));
+      if (storedMessages.length) {
+        setMessages(storedMessages);
+      }
+    } catch {
+      window.localStorage.removeItem(SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY);
+    }
+  }, []);
+  useEffect(() => {
+    messagesRef.current = messages;
+    scrollMessagesToBottom();
+  }, [messages]);
+  useEffect(() => {
+    if (typeof window === "undefined" || !loadedStoredMessagesRef.current) return;
+
+    try {
+      if (!messages.length) {
+        window.localStorage.removeItem(SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(
+          SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY,
+          JSON.stringify(messages.slice(-MAX_STORED_CHAT_MESSAGES)),
+        );
+      }
+      window.dispatchEvent(new Event(SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT));
+    } catch {
+      // Ignore storage failures.
+    }
   }, [messages]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -266,6 +419,7 @@ export function SiteMochiMascot() {
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => inputRef.current?.focus());
+      scrollMessagesToBottom();
     }
   }, [open]);
 
@@ -280,7 +434,7 @@ export function SiteMochiMascot() {
         const hello = isSpanishRef.current
           ? "¡Hola! Soy tu Mochi. Estoy listo para chatear, ¿en qué puedo ayudarte?"
           : "Hi! I'm your Mochi assistant. Ready to chat — what can I help you with?";
-        return [{ role: "assistant", content: hello }];
+        return [{ role: "assistant", content: hello, createdAt: new Date().toISOString() }];
       });
     }
     window.addEventListener("mochi:open-chat", handleOpenChat);
@@ -326,6 +480,13 @@ export function SiteMochiMascot() {
     }),
     [config.character, selectedCharacter?.spritesBaseUri],
   );
+
+  const focusChatInput = () => {
+    requestAnimationFrame(() => {
+      if (!openRef.current) return;
+      inputRef.current?.focus();
+    });
+  };
 
   const triggerJumpBurst = () => {
     setIsJumping(true);
@@ -718,9 +879,17 @@ export function SiteMochiMascot() {
     }
   }, [config.enabled]);
 
-  const siteCreditsExhausted = config.provider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
+  const effectiveProvider =
+    config.provider === "site" && config.openrouterApiKey.trim() ? "openrouter" : config.provider;
+  const canUseEffectiveProvider =
+    effectiveProvider === "site"
+      ? (freeSiteMessagesRemaining ?? 0) > 0
+      : effectiveProvider === "openrouter"
+        ? Boolean(config.openrouterApiKey.trim())
+        : canUseCurrentProvider;
+  const siteCreditsExhausted = effectiveProvider === "site" && (freeSiteMessagesRemaining ?? 0) <= 0;
   const canAutoFallbackToSiteCredits =
-    config.provider === "openrouter" &&
+    effectiveProvider === "openrouter" &&
     !config.openrouterApiKey.trim() &&
     (freeSiteMessagesRemaining ?? 0) > 0;
   const bubbleStyleClass =
@@ -1077,13 +1246,13 @@ export function SiteMochiMascot() {
       const hello = isSpanish
         ? "¡Hola! Soy tu Mochi. Estoy listo para chatear, ¿sobre qué quieres hablar?"
         : "Hi! I'm your Mochi. I'm ready to chat, what do you want to talk about?";
-      return [{ role: "assistant", content: hello }];
+      return [{ role: "assistant", content: hello, createdAt: new Date().toISOString() }];
     });
   }
 
   async function send(inputOverride?: string) {
     const text = (typeof inputOverride === "string" ? inputOverride : input).trim();
-    const providerForRequest = canAutoFallbackToSiteCredits ? ("site" as const) : config.provider;
+    const providerForRequest = canAutoFallbackToSiteCredits ? ("site" as const) : effectiveProvider;
     if (!text || sending) return;
 
     if (!config.enabled) {
@@ -1101,17 +1270,18 @@ export function SiteMochiMascot() {
           content: lockMessage,
           ctaHref: "/help",
           ctaLabel: isSpanish ? "Ver ayuda" : "Open help",
+          createdAt: new Date().toISOString(),
         },
       ]);
       void speakReply(lockMessage);
       return;
     }
 
-    if (!canUseCurrentProvider && !canAutoFallbackToSiteCredits) {
+    if (!canUseEffectiveProvider && !canAutoFallbackToSiteCredits) {
       const configMessage = isSpanish
         ? "Falta configuración para ese proveedor. Abrí la configuración del mochi (engranaje) y completá los datos en Chat > Proveedor."
         : "That provider is not fully configured yet. Open the mochi settings (gear) and complete the setup in Chat > Provider.";
-      setMessages(prev => [...prev, { role: "assistant", content: configMessage }]);
+      setMessages(prev => [...prev, { role: "assistant", content: configMessage, createdAt: new Date().toISOString() }]);
       void speakReply(configMessage);
       return;
     }
@@ -1119,21 +1289,27 @@ export function SiteMochiMascot() {
     setInput("");
     setSending(true);
 
-    setMessages(prev => [...prev, { role: "user", content: text }]);
+    setMessages(prev => [...prev, { role: "user", content: text, createdAt: new Date().toISOString() }]);
 
     try {
       const history = messagesRef.current
         .slice(-8)
         .map((m) => ({ role: m.role, content: m.content }));
-      const webSearchToolContext =
+      let webSearchToolContext = "";
+      if (
         (providerForRequest === "openrouter" || providerForRequest === "ollama") &&
-        config.webSearchToolEnabled &&
         config.braveApiKey.trim()
-          ? await fetchWebSearchToolContext({
-              query: text,
-              braveApiKey: config.braveApiKey,
-            })
-          : "";
+      ) {
+        try {
+          webSearchToolContext = await fetchWebSearchToolContext({
+            query: text,
+            braveApiKey: config.braveApiKey,
+          });
+        } catch (error) {
+          // Web search is optional; keep chat working even if Brave fails.
+          console.warn("site-mochi brave search failed", error);
+        }
+      }
       let reply = "";
 
       if (providerForRequest === "bitte" && config.bitteApiKey.trim() && config.bitteAgentId.trim()) {
@@ -1302,7 +1478,7 @@ export function SiteMochiMascot() {
         throw new Error("EMPTY_RESPONSE");
       }
       const finalReply = reply.trim();
-      setMessages(prev => [...prev, { role: "assistant", content: finalReply }]);
+      setMessages(prev => [...prev, { role: "assistant", content: finalReply, createdAt: new Date().toISOString() }]);
       void speakReply(finalReply);
       if (providerForRequest === "site") {
         incrementFreeSiteMessagesUsed();
@@ -1328,10 +1504,11 @@ export function SiteMochiMascot() {
         providerForRequest === "openclaw" && rawErrorMessage
           ? rawErrorMessage
           : fallback;
-      setMessages(prev => [...prev, { role: "assistant", content: messageForUser }]);
+      setMessages(prev => [...prev, { role: "assistant", content: messageForUser, createdAt: new Date().toISOString() }]);
       void speakReply(messageForUser);
     } finally {
       setSending(false);
+      focusChatInput();
     }
   }
 
@@ -1573,7 +1750,7 @@ export function SiteMochiMascot() {
                   key={idx}
                   className={`${styles.msg} ${m.role === "user" ? styles.msgUser : styles.msgAssistant}`}
                 >
-                  {m.content}
+                  {renderMessageContent(m.content)}
                   {m.ctaHref && (
                     <>
                       <br />
@@ -1643,6 +1820,8 @@ export function SiteMochiMascot() {
               <button
                 className={styles.sendBtn}
                 type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onPointerDown={(event) => event.preventDefault()}
                 onClick={() => {
                   void send();
                 }}

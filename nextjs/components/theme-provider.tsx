@@ -7,6 +7,17 @@ export type Theme = "neural" | "black-pink" | "kawaii" | "pastel";
 export const THEMES: Theme[] = ["neural", "black-pink", "kawaii", "pastel"];
 
 const SESSION_LAST_THEME_KEY = "mochi-theme-last";
+const THEME_COOKIE_KEY = "mochi-theme";
+
+function persistTheme(theme: Theme) {
+  try {
+    sessionStorage.setItem(SESSION_LAST_THEME_KEY, theme);
+  } catch {
+    // Ignore storage failures (private mode, blocked storage, etc.)
+  }
+
+  document.cookie = `${THEME_COOKIE_KEY}=${theme}; path=/; max-age=31536000; samesite=lax`;
+}
 
 type ThemeContextValue = {
   theme: Theme;
@@ -15,8 +26,14 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("kawaii");
+export function ThemeProvider({
+  children,
+  initialTheme = "kawaii",
+}: {
+  children: ReactNode;
+  initialTheme?: Theme;
+}) {
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
 
   useEffect(() => {
     const currentAttr = document.documentElement.getAttribute("data-theme");
@@ -29,24 +46,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const resolved =
       current
         ? current
-        : "kawaii";
+        : initialTheme;
     setThemeState(resolved);
     document.documentElement.setAttribute("data-theme", resolved);
     document.body.setAttribute("data-theme", resolved);
-    try {
-      sessionStorage.setItem(SESSION_LAST_THEME_KEY, resolved);
-    } catch {
-      // Ignore storage failures (private mode, blocked storage, etc.)
-    }
-  }, []);
+    persistTheme(resolved);
+  }, [initialTheme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    try {
-      sessionStorage.setItem(SESSION_LAST_THEME_KEY, newTheme);
-    } catch {
-      // Ignore storage failures (private mode, blocked storage, etc.)
-    }
+    persistTheme(newTheme);
     document.documentElement.setAttribute("data-theme", newTheme);
     document.body.setAttribute("data-theme", newTheme);
   }, []);

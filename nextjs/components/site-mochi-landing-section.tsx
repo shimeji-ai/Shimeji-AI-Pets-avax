@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent as ReactDragEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BookText,
   CircleHelp,
   Download,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi } from "@/components/site-mochi-provider";
+import { useTheme } from "@/components/theme-provider";
 import {
   CONFIG_WINDOW_META,
   DesktopConfigIcon,
@@ -18,8 +29,46 @@ import {
 } from "@/components/site-mochi-config-panel";
 
 type DesktopConfigShortcutProps = {
-  configKey: ConfigPanelTab;
+  shortcutKey: DesktopWindowKey;
   label: string;
+  configKey?: ConfigPanelTab;
+  customIcon?: LucideIcon;
+};
+
+type DesktopWindowKey = ConfigPanelTab | "memories";
+
+type StoredChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  createdAt?: string;
+};
+
+type DesktopShortcutPosition = {
+  x: number;
+  y: number;
+};
+
+type DesktopShortcutDragState = {
+  pointerId: number;
+  shortcutKey: DesktopWindowKey;
+  originX: number;
+  originY: number;
+  offsetX: number;
+  offsetY: number;
+  moved: boolean;
+};
+
+type DesktopWindowPosition = {
+  x: number;
+  y: number;
+};
+
+type DesktopWindowDragState = {
+  pointerId: number;
+  offsetX: number;
+  offsetY: number;
 };
 
 type HeaderIconLinkProps = {
@@ -28,37 +77,207 @@ type HeaderIconLinkProps = {
   label: string;
 };
 
+const DESKTOP_SHORTCUT_KEYS: DesktopWindowKey[] = [
+  "site",
+  "soul",
+  "chat",
+  "mascot",
+  "appearance",
+  "tools",
+  "sound",
+  "memories",
+];
+
+const DESKTOP_SHORTCUT_WIDTH = 62;
+const DESKTOP_SHORTCUT_HEIGHT = 74;
+const DESKTOP_SHORTCUT_START_X = 20;
+const DESKTOP_SHORTCUT_START_Y = 20;
+const DESKTOP_SHORTCUT_COLUMN_WIDTH = 74;
+const DESKTOP_SHORTCUT_ROW_HEIGHT = 72;
+const DESKTOP_WINDOW_MARGIN = 16;
+const DESKTOP_WINDOW_TOP_OFFSET = 56;
+const SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY = "site-mochi-chat-history-v1";
+const SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT = "site-mochi:chat-history-updated";
+const DESKTOP_DEFAULT_SHORTCUT_ROWS: DesktopWindowKey[][] = [
+  ["chat", "tools"],
+  ["soul", "memories"],
+  ["mascot", "appearance", "sound", "site"],
+];
+
+function clampDesktopWindowPosition(
+  position: DesktopWindowPosition,
+  containerWidth: number,
+  containerHeight: number,
+  windowWidth: number,
+  windowHeight: number,
+): DesktopWindowPosition {
+  return {
+    x: Math.max(
+      DESKTOP_WINDOW_MARGIN,
+      Math.min(position.x, Math.max(DESKTOP_WINDOW_MARGIN, containerWidth - windowWidth - DESKTOP_WINDOW_MARGIN)),
+    ),
+    y: Math.max(
+      DESKTOP_WINDOW_MARGIN,
+      Math.min(
+        position.y,
+        Math.max(DESKTOP_WINDOW_MARGIN, containerHeight - windowHeight - DESKTOP_WINDOW_MARGIN),
+      ),
+    ),
+  };
+}
+
+function getDesktopGridBounds(containerWidth: number, containerHeight: number) {
+  return {
+    maxColumn: Math.max(
+      0,
+      Math.floor(
+        (containerWidth -
+          DESKTOP_SHORTCUT_START_X -
+          DESKTOP_WINDOW_MARGIN -
+          DESKTOP_SHORTCUT_WIDTH) /
+          DESKTOP_SHORTCUT_COLUMN_WIDTH,
+      ),
+    ),
+    maxRow: Math.max(
+      0,
+      Math.floor(
+        (containerHeight -
+          DESKTOP_SHORTCUT_START_Y -
+          DESKTOP_WINDOW_MARGIN -
+          DESKTOP_SHORTCUT_HEIGHT) /
+          DESKTOP_SHORTCUT_ROW_HEIGHT,
+      ),
+    ),
+  };
+}
+
+function snapShortcutPosition(
+  position: DesktopShortcutPosition,
+  containerWidth: number,
+  containerHeight: number,
+): DesktopShortcutPosition {
+  const { maxColumn, maxRow } = getDesktopGridBounds(containerWidth, containerHeight);
+  const column = Math.max(
+    0,
+    Math.min(
+      maxColumn,
+      Math.round((position.x - DESKTOP_SHORTCUT_START_X) / DESKTOP_SHORTCUT_COLUMN_WIDTH),
+    ),
+  );
+  const row = Math.max(
+    0,
+    Math.min(
+      maxRow,
+      Math.round((position.y - DESKTOP_SHORTCUT_START_Y) / DESKTOP_SHORTCUT_ROW_HEIGHT),
+    ),
+  );
+
+  return {
+    x: DESKTOP_SHORTCUT_START_X + column * DESKTOP_SHORTCUT_COLUMN_WIDTH,
+    y: DESKTOP_SHORTCUT_START_Y + row * DESKTOP_SHORTCUT_ROW_HEIGHT,
+  };
+}
+
+function buildDefaultShortcutPositions(
+  containerWidth: number,
+  containerHeight: number,
+): Record<DesktopWindowKey, DesktopShortcutPosition> {
+  const positions = {} as Record<DesktopWindowKey, DesktopShortcutPosition>;
+  const topRowY = DESKTOP_SHORTCUT_START_Y;
+  const middleRowY = Math.max(
+    DESKTOP_SHORTCUT_START_Y,
+    Math.round((containerHeight - DESKTOP_SHORTCUT_HEIGHT) / 2 / DESKTOP_SHORTCUT_ROW_HEIGHT) *
+      DESKTOP_SHORTCUT_ROW_HEIGHT,
+  );
+  const bottomRowY = Math.max(
+    DESKTOP_SHORTCUT_START_Y,
+    containerHeight - DESKTOP_WINDOW_MARGIN - DESKTOP_SHORTCUT_HEIGHT - DESKTOP_SHORTCUT_ROW_HEIGHT,
+  );
+  const rowAnchors = [topRowY, middleRowY, bottomRowY];
+
+  DESKTOP_DEFAULT_SHORTCUT_ROWS.forEach((row, rowIndex) => {
+    row.forEach((shortcutKey, index) => {
+      const fromRight = row.length - 1 - index;
+      positions[shortcutKey] = snapShortcutPosition(
+        {
+          x:
+            containerWidth -
+            DESKTOP_WINDOW_MARGIN -
+            DESKTOP_SHORTCUT_WIDTH -
+            fromRight * DESKTOP_SHORTCUT_COLUMN_WIDTH,
+          y: rowAnchors[rowIndex],
+        },
+        containerWidth,
+        containerHeight,
+      );
+    });
+  });
+
+  for (const shortcutKey of DESKTOP_SHORTCUT_KEYS) {
+    if (!positions[shortcutKey]) {
+      positions[shortcutKey] = snapShortcutPosition(
+        {
+          x: containerWidth - DESKTOP_WINDOW_MARGIN - DESKTOP_SHORTCUT_WIDTH,
+          y: topRowY,
+        },
+        containerWidth,
+        containerHeight,
+      );
+    }
+  }
+
+  return positions;
+}
+
 function DesktopConfigShortcut({
-  configKey,
+  shortcutKey,
   label,
+  configKey,
+  customIcon: CustomIcon,
   iconTheme,
   characterKey,
   onOpen,
+  className,
+  style,
+  onPointerDown,
+  onDragStart,
 }: DesktopConfigShortcutProps & {
   iconTheme: ReturnType<typeof useSiteMochi>["config"]["iconTheme"];
   characterKey: string;
-  onOpen: (tab: ConfigPanelTab) => void;
+  onOpen: (tab: DesktopWindowKey) => void;
+  className?: string;
+  style?: CSSProperties;
+  onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>, tab: DesktopWindowKey) => void;
+  onDragStart?: (event: ReactDragEvent<HTMLButtonElement>) => void;
 }) {
-  const meta = CONFIG_WINDOW_META.find((item) => item.key === configKey);
-  if (!meta) return null;
-
   return (
     <button
       type="button"
-      onClick={() => onOpen(configKey)}
-      className="group flex w-[104px] flex-col items-center gap-2 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1"
+      onClick={() => onOpen(shortcutKey)}
+      onPointerDown={onPointerDown ? (event) => onPointerDown(event, shortcutKey) : undefined}
+      onDragStart={onDragStart}
+      draggable={false}
+      className={`group flex w-[62px] flex-col items-center gap-1 rounded-none p-1 text-center transition-transform duration-150 hover:-translate-y-1 ${className ?? ""}`}
+      style={style}
     >
-      <span className="relative flex h-16 w-16 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]">
-        <div className="drop-shadow-[4px_4px_0_rgba(24,18,37,0.18)]">
-          <DesktopConfigIcon
-            tab={configKey}
-            iconTheme={iconTheme}
-            characterKey={characterKey}
-            className="h-16 w-16 object-contain text-foreground"
-          />
+      <span
+        className="relative flex h-10 w-10 items-center justify-center transition-all duration-150 group-hover:translate-x-[2px] group-hover:translate-y-[2px]"
+        draggable={false}
+      >
+        <div className="drop-shadow-[3px_3px_0_rgba(24,18,37,0.18)]">
+          {configKey ? (
+            <DesktopConfigIcon
+              tab={configKey}
+              iconTheme={iconTheme}
+              characterKey={characterKey}
+              className="h-10 w-10 object-contain text-foreground"
+            />
+          ) : CustomIcon ? (
+            <CustomIcon className="h-9 w-9 text-foreground" strokeWidth={1.8} />
+          ) : null}
         </div>
       </span>
-      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-foreground/85">
+      <span className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-foreground/85">
         {label}
       </span>
     </button>
@@ -81,32 +300,513 @@ function HeaderIconLink({ href, icon: Icon, label }: HeaderIconLinkProps) {
   );
 }
 
+function sanitizeStoredChatMessages(input: unknown): StoredChatMessage[] {
+  if (!Array.isArray(input)) return [];
+
+  const out: StoredChatMessage[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") continue;
+
+    const role = (item as any).role;
+    const content = typeof (item as any).content === "string" ? (item as any).content.slice(0, 4000) : "";
+    const ctaHref = typeof (item as any).ctaHref === "string" ? (item as any).ctaHref.slice(0, 512) : undefined;
+    const ctaLabel =
+      typeof (item as any).ctaLabel === "string" ? (item as any).ctaLabel.slice(0, 120) : undefined;
+    const createdAtRaw = typeof (item as any).createdAt === "string" ? (item as any).createdAt : "";
+    const createdAt =
+      createdAtRaw && Number.isFinite(Date.parse(createdAtRaw)) ? new Date(createdAtRaw).toISOString() : undefined;
+
+    if ((role === "user" || role === "assistant") && content) {
+      out.push({ role, content, ctaHref, ctaLabel, createdAt });
+    }
+  }
+
+  return out;
+}
+
+function formatMemoryDayLabel(dateKey: string, isSpanish: boolean) {
+  const parsed = new Date(`${dateKey}T00:00:00.000Z`);
+  return new Intl.DateTimeFormat(isSpanish ? "es-AR" : "en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(parsed);
+}
+
+function formatMemoryTimeLabel(value: string | undefined, isSpanish: boolean) {
+  if (!value) return isSpanish ? "Sin hora" : "No time";
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return isSpanish ? "Sin hora" : "No time";
+  return new Intl.DateTimeFormat(isSpanish ? "es-AR" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+function groupMemoriesByDay(messages: StoredChatMessage[]) {
+  const groups = new Map<string, StoredChatMessage[]>();
+
+  messages.forEach((message, index) => {
+    const dateKey =
+      message.createdAt && Number.isFinite(Date.parse(message.createdAt))
+        ? new Date(message.createdAt).toISOString().slice(0, 10)
+        : `legacy-${index}`;
+    const group = groups.get(dateKey) ?? [];
+    group.push(message);
+    groups.set(dateKey, group);
+  });
+
+  return Array.from(groups.entries())
+    .map(([dateKey, entries]) => ({
+      dateKey,
+      entries,
+    }))
+    .sort((a, b) => {
+      if (a.dateKey.startsWith("legacy-") && b.dateKey.startsWith("legacy-")) return 0;
+      if (a.dateKey.startsWith("legacy-")) return 1;
+      if (b.dateKey.startsWith("legacy-")) return -1;
+      return b.dateKey.localeCompare(a.dateKey);
+    });
+}
+
+function DesktopMemoriesWindow({
+  isSpanish,
+  messages,
+  onClear,
+}: {
+  isSpanish: boolean;
+  messages: StoredChatMessage[];
+  onClear: () => void;
+}) {
+  const groupedMessages = useMemo(() => groupMemoriesByDay(messages), [messages]);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!groupedMessages.length) {
+      setSelectedDateKey(null);
+      return;
+    }
+
+    if (!selectedDateKey || !groupedMessages.some((group) => group.dateKey === selectedDateKey)) {
+      setSelectedDateKey(groupedMessages[0].dateKey);
+    }
+  }, [groupedMessages, selectedDateKey]);
+
+  const activeGroup =
+    groupedMessages.find((group) => group.dateKey === selectedDateKey) ?? groupedMessages[0] ?? null;
+
+  return (
+    <section className="flex h-full max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <div className="min-h-0 flex-1 overflow-hidden px-3 py-3">
+        {messages.length ? (
+          <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[210px_minmax(0,1fr)]">
+            <aside className="min-h-0 overflow-y-auto rounded-[1.75rem] border border-border bg-background/55 p-2">
+              <div className="mb-2 flex items-center justify-between gap-2 px-2 pt-1">
+                <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  {isSpanish ? "Dias" : "Days"}
+                </div>
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="rounded-none border border-border bg-background/60 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground hover:bg-background/80"
+                >
+                  {isSpanish ? "Borrar" : "Clear"}
+                </button>
+              </div>
+              <div className="grid gap-2">
+                {groupedMessages.map((group) => {
+                  const isActive = group.dateKey === activeGroup?.dateKey;
+                  const label = group.dateKey.startsWith("legacy-")
+                    ? isSpanish
+                      ? "Conversaciones anteriores"
+                      : "Earlier conversations"
+                    : formatMemoryDayLabel(group.dateKey, isSpanish);
+                  return (
+                    <button
+                      key={group.dateKey}
+                      type="button"
+                      onClick={() => setSelectedDateKey(group.dateKey)}
+                      className={`rounded-2xl border px-3 py-2.5 text-left transition ${
+                        isActive
+                          ? "border-[var(--brand-accent)]/45 bg-[var(--brand-accent)]/12 shadow-[0_14px_30px_rgba(0,0,0,0.12)]"
+                          : "border-border bg-background/55 hover:bg-background/75"
+                      }`}
+                    >
+                      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        {group.entries.length} {group.entries.length === 1 ? (isSpanish ? "mensaje" : "message") : (isSpanish ? "mensajes" : "messages")}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-foreground">{label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-background/45">
+              {activeGroup ? (
+                <>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]">
+                    <div className="grid gap-2">
+                      {activeGroup.entries.map((message, index) => (
+                        <article
+                          key={`${activeGroup.dateKey}-${message.role}-${index}`}
+                          className={`rounded-xl border px-3 py-2 text-sm ${
+                            message.role === "user"
+                              ? "border-border bg-background/75"
+                              : "border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10"
+                          }`}
+                        >
+                          <div className="mb-1 flex items-center justify-between gap-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <span>{message.role === "user" ? (isSpanish ? "Vos" : "You") : "Mochi"}</span>
+                            <span>{formatMemoryTimeLabel(message.createdAt, isSpanish)}</span>
+                          </div>
+                          <div className="whitespace-pre-wrap break-words text-[13px] leading-5 text-foreground">
+                            {message.content}
+                          </div>
+                          {message.ctaHref ? (
+                            <a className="mt-2 inline-block text-xs underline underline-offset-2" href={message.ctaHref}>
+                              {message.ctaLabel ?? message.ctaHref}
+                            </a>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-border bg-background/35 px-4 text-center text-sm text-muted-foreground">
+            {isSpanish
+              ? "Todavia no hay recuerdos guardados de la charla con Mochi."
+              : "There are no saved memories from your Mochi chat yet."}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
   const { config } = useSiteMochi();
-  const [activeDesktopWindow, setActiveDesktopWindow] = useState<ConfigPanelTab | null>(null);
+  const { theme } = useTheme();
+  const [activeDesktopWindow, setActiveDesktopWindow] = useState<DesktopWindowKey | null>(null);
   const [entryGateOpen, setEntryGateOpen] = useState(true);
+  const [shortcutPositions, setShortcutPositions] = useState<Record<DesktopWindowKey, DesktopShortcutPosition>>(
+    {} as Record<DesktopWindowKey, DesktopShortcutPosition>,
+  );
+  const [desktopWindowPosition, setDesktopWindowPosition] = useState<DesktopWindowPosition | null>(null);
+  const [memoryMessages, setMemoryMessages] = useState<StoredChatMessage[]>([]);
+  const desktopRef = useRef<HTMLDivElement | null>(null);
+  const desktopWindowLayerRef = useRef<HTMLDivElement | null>(null);
+  const desktopWindowRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<DesktopShortcutDragState | null>(null);
+  const desktopWindowDragStateRef = useRef<DesktopWindowDragState | null>(null);
+  const loadedPositionsRef = useRef(false);
 
   const t = (en: string, es: string) => (isSpanish ? es : en);
+  const hasBlackPinkBackdrop = theme === "black-pink";
   const activeWindowMeta = activeDesktopWindow
     ? CONFIG_WINDOW_META.find((item) => item.key === activeDesktopWindow) ?? null
     : null;
 
   const configShortcuts: DesktopConfigShortcutProps[] = [
-    { configKey: "site", label: t("Theme", "Tema") },
-    { configKey: "soul", label: "Soul" },
-    { configKey: "chat", label: t("Provider", "Proveedor") },
-    { configKey: "mascot", label: t("Mascot", "Mascota") },
-    { configKey: "appearance", label: t("Chat", "Chat") },
-    { configKey: "tools", label: t("Tools", "Tools") },
-    { configKey: "sound", label: t("Sound", "Sonido") },
+    { shortcutKey: "site", configKey: "site", label: t("Theme", "Tema") },
+    { shortcutKey: "soul", configKey: "soul", label: "Soul" },
+    { shortcutKey: "chat", configKey: "chat", label: t("Provider", "Proveedor") },
+    { shortcutKey: "mascot", configKey: "mascot", label: t("Mascot", "Mascota") },
+    { shortcutKey: "appearance", configKey: "appearance", label: t("Chat", "Chat") },
+    { shortcutKey: "tools", configKey: "tools", label: t("Tools", "Tools") },
+    { shortcutKey: "sound", configKey: "sound", label: t("Sound", "Sonido") },
+    { shortcutKey: "memories", label: t("Memories", "Memorias"), customIcon: BookText },
   ];
+
+  useLayoutEffect(() => {
+    const desktop = desktopRef.current;
+    if (!desktop) return;
+
+    const syncPositions = () => {
+      const nextDefaults = buildDefaultShortcutPositions(desktop.clientWidth, desktop.clientHeight);
+      setShortcutPositions((current) => {
+        if (Object.keys(current).length === 0) {
+          return nextDefaults;
+        }
+
+        const nextPositions = { ...nextDefaults, ...current };
+        for (const configKey of DESKTOP_SHORTCUT_KEYS) {
+          nextPositions[configKey] = snapShortcutPosition(
+            nextPositions[configKey] ?? nextDefaults[configKey],
+            desktop.clientWidth,
+            desktop.clientHeight,
+          );
+        }
+        return nextPositions;
+      });
+    };
+
+    syncPositions();
+
+    const resizeObserver = new ResizeObserver(() => {
+      syncPositions();
+    });
+    resizeObserver.observe(desktop);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || loadedPositionsRef.current) return;
+    loadedPositionsRef.current = true;
+
+    const stored = window.localStorage.getItem("mochi.desktopShortcutPositions");
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as Partial<Record<DesktopWindowKey, DesktopShortcutPosition>>;
+      setShortcutPositions((current) => {
+        const desktop = desktopRef.current;
+        if (!desktop) return { ...current, ...parsed };
+
+        const normalized = Object.fromEntries(
+          Object.entries(parsed).map(([key, value]) => [
+            key,
+            value
+              ? snapShortcutPosition(value, desktop.clientWidth, desktop.clientHeight)
+              : value,
+          ]),
+        ) as Partial<Record<DesktopWindowKey, DesktopShortcutPosition>>;
+
+        return { ...current, ...normalized };
+      });
+    } catch {
+      window.localStorage.removeItem("mochi.desktopShortcutPositions");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !loadedPositionsRef.current || Object.keys(shortcutPositions).length === 0) {
+      return;
+    }
+
+    window.localStorage.setItem("mochi.desktopShortcutPositions", JSON.stringify(shortcutPositions));
+  }, [shortcutPositions]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const windowDragState = desktopWindowDragStateRef.current;
+      const desktopWindowLayer = desktopWindowLayerRef.current;
+      const desktopWindow = desktopWindowRef.current;
+      if (windowDragState && desktopWindowLayer && desktopWindow && event.pointerId === windowDragState.pointerId) {
+        const layerBounds = desktopWindowLayer.getBoundingClientRect();
+        setDesktopWindowPosition(
+          clampDesktopWindowPosition(
+            {
+              x: event.clientX - layerBounds.left - windowDragState.offsetX,
+              y: event.clientY - layerBounds.top - windowDragState.offsetY,
+            },
+            desktopWindowLayer.clientWidth,
+            desktopWindowLayer.clientHeight,
+            desktopWindow.offsetWidth,
+            desktopWindow.offsetHeight,
+          ),
+        );
+        return;
+      }
+
+      const dragState = dragStateRef.current;
+      const desktop = desktopRef.current;
+      if (!dragState || !desktop || event.pointerId !== dragState.pointerId) return;
+
+      const nextPosition = snapShortcutPosition(
+        {
+          x: event.clientX - desktop.getBoundingClientRect().left - dragState.offsetX,
+          y: event.clientY - desktop.getBoundingClientRect().top - dragState.offsetY,
+        },
+        desktop.clientWidth,
+        desktop.clientHeight,
+      );
+
+      if (
+        !dragState.moved &&
+        (Math.abs(nextPosition.x - dragState.originX) > 4 || Math.abs(nextPosition.y - dragState.originY) > 4)
+      ) {
+        dragStateRef.current = { ...dragState, moved: true };
+      }
+
+      setShortcutPositions((current) => ({
+        ...current,
+        [dragState.shortcutKey]: nextPosition,
+      }));
+    };
+
+    const handlePointerEnd = (event: PointerEvent) => {
+      const windowDragState = desktopWindowDragStateRef.current;
+      if (windowDragState && event.pointerId === windowDragState.pointerId) {
+        desktopWindowDragStateRef.current = null;
+        return;
+      }
+
+      const dragState = dragStateRef.current;
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+
+      window.setTimeout(() => {
+        dragStateRef.current = null;
+      }, 0);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, []);
+
+  const handleShortcutOpen = (tab: DesktopWindowKey) => {
+    if (dragStateRef.current?.shortcutKey === tab && dragStateRef.current.moved) {
+      return;
+    }
+
+    setDesktopWindowPosition(null);
+    setActiveDesktopWindow(tab);
+  };
+
+  const handleShortcutPointerDown = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    tab: DesktopWindowKey,
+  ) => {
+    if (event.pointerType !== "mouse" || window.innerWidth < 1024) return;
+    event.preventDefault();
+
+    const desktop = desktopRef.current;
+    if (!desktop) return;
+
+    const currentPosition = shortcutPositions[tab];
+    if (!currentPosition) return;
+
+    const desktopBounds = desktop.getBoundingClientRect();
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      shortcutKey: tab,
+      originX: currentPosition.x,
+      originY: currentPosition.y,
+      offsetX: event.clientX - desktopBounds.left - currentPosition.x,
+      offsetY: event.clientY - desktopBounds.top - currentPosition.y,
+      moved: false,
+    };
+  };
+
+  const handleShortcutDragStart = (event: ReactDragEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  };
+
+  useEffect(() => {
+    const loadMemoryMessages = () => {
+      if (typeof window === "undefined") return;
+      try {
+        const raw = window.localStorage.getItem(SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY);
+        setMemoryMessages(raw ? sanitizeStoredChatMessages(JSON.parse(raw)) : []);
+      } catch {
+        setMemoryMessages([]);
+      }
+    };
+
+    loadMemoryMessages();
+    window.addEventListener("storage", loadMemoryMessages);
+    window.addEventListener(SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT, loadMemoryMessages);
+    return () => {
+      window.removeEventListener("storage", loadMemoryMessages);
+      window.removeEventListener(SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT, loadMemoryMessages);
+    };
+  }, []);
+
+  const handleClearMemories = () => {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY);
+    setMemoryMessages([]);
+    window.dispatchEvent(new Event(SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT));
+  };
+
+  useLayoutEffect(() => {
+    if (!activeDesktopWindow) return;
+
+    const centerDesktopWindow = () => {
+      const layer = desktopWindowLayerRef.current;
+      const windowEl = desktopWindowRef.current;
+      if (!layer || !windowEl) return;
+
+      setDesktopWindowPosition((current) => {
+        if (current) {
+          return clampDesktopWindowPosition(
+            current,
+            layer.clientWidth,
+            layer.clientHeight,
+            windowEl.offsetWidth,
+            windowEl.offsetHeight,
+          );
+        }
+
+        return clampDesktopWindowPosition(
+          {
+            x: Math.round((layer.clientWidth - windowEl.offsetWidth) / 2),
+            y: Math.max(
+              DESKTOP_WINDOW_MARGIN,
+              Math.round((layer.clientHeight - windowEl.offsetHeight) / 2) - DESKTOP_WINDOW_TOP_OFFSET / 2,
+            ),
+          },
+          layer.clientWidth,
+          layer.clientHeight,
+          windowEl.offsetWidth,
+          windowEl.offsetHeight,
+        );
+      });
+    };
+
+    centerDesktopWindow();
+
+    const resizeObserver = new ResizeObserver(() => {
+      centerDesktopWindow();
+    });
+
+    if (desktopWindowLayerRef.current) resizeObserver.observe(desktopWindowLayerRef.current);
+    if (desktopWindowRef.current) resizeObserver.observe(desktopWindowRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeDesktopWindow]);
+
+  const handleDesktopWindowPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "mouse") return;
+
+    const layer = desktopWindowLayerRef.current;
+    const windowEl = desktopWindowRef.current;
+    if (!layer || !windowEl || !desktopWindowPosition) return;
+
+    const layerBounds = layer.getBoundingClientRect();
+    desktopWindowDragStateRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - layerBounds.left - desktopWindowPosition.x,
+      offsetY: event.clientY - layerBounds.top - desktopWindowPosition.y,
+    };
+  };
 
   return (
     <section className="relative min-h-screen overflow-hidden pt-10 lg:h-screen lg:min-h-0">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
-      <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.06)_1px,transparent_1px)] [background-size:72px_72px]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.4),transparent_55%)]" />
+      {!hasBlackPinkBackdrop ? (
+        <>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
+          <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.06)_1px,transparent_1px)] [background-size:72px_72px]" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.4),transparent_55%)]" />
+        </>
+      ) : null}
 
       <div className="relative flex min-h-screen flex-col lg:h-screen lg:min-h-0">
         <div className="fixed inset-x-0 top-0 z-30 border-b-2 border-white/25 bg-background/70 px-2 py-1.5 backdrop-blur-xl">
@@ -134,27 +834,77 @@ export function SiteMochiLandingSection() {
         </div>
 
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))]" />
-          <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.12)_1px,transparent_1px)] [background-size:32px_32px]" />
+          {!hasBlackPinkBackdrop ? (
+            <>
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))]" />
+              <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(61,43,82,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(61,43,82,0.12)_1px,transparent_1px)] [background-size:32px_32px]" />
+            </>
+          ) : null}
 
-          <div className="relative z-10 grid auto-rows-max grid-cols-2 gap-5 p-5 sm:grid-cols-3 lg:content-start">
-            {configShortcuts.map((shortcut) => (
-              <DesktopConfigShortcut
-                key={shortcut.configKey}
-                {...shortcut}
-                iconTheme={config.iconTheme}
-                characterKey={config.character}
-                onOpen={setActiveDesktopWindow}
-              />
-            ))}
+          <div ref={desktopRef} className="relative z-10 flex-1 p-5">
+            <div className="grid auto-rows-max grid-cols-2 gap-5 sm:grid-cols-3 lg:hidden">
+              {configShortcuts.map((shortcut) => (
+                <DesktopConfigShortcut
+                  key={shortcut.shortcutKey}
+                  {...shortcut}
+                  iconTheme={config.iconTheme}
+                  characterKey={config.character}
+                  onOpen={handleShortcutOpen}
+                />
+              ))}
+            </div>
+
+            <div className="relative hidden h-full w-full lg:block">
+              {configShortcuts.map((shortcut) => {
+                const position = shortcutPositions[shortcut.shortcutKey];
+
+                return (
+                  <DesktopConfigShortcut
+                    key={shortcut.shortcutKey}
+                    {...shortcut}
+                    iconTheme={config.iconTheme}
+                    characterKey={config.character}
+                    onOpen={handleShortcutOpen}
+                    onPointerDown={handleShortcutPointerDown}
+                    onDragStart={handleShortcutDragStart}
+                    className="absolute touch-none"
+                    style={{
+                      left: position?.x ?? DESKTOP_SHORTCUT_START_X,
+                      top: position?.y ?? DESKTOP_SHORTCUT_START_Y,
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
 
           {activeDesktopWindow ? (
-            <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-end p-4 pt-14 sm:p-6 sm:pt-16">
-              <div className="pointer-events-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-border bg-card/55 px-4 py-2.5">
+            <div
+              ref={desktopWindowLayerRef}
+              className="pointer-events-none absolute inset-0 z-20 p-4 pt-14 sm:p-6 sm:pt-16"
+            >
+              <div
+                ref={desktopWindowRef}
+                className="pointer-events-auto absolute flex min-w-[320px] max-w-[min(760px,calc(100%-2rem))] flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl"
+                style={{
+                  left: desktopWindowPosition?.x ?? DESKTOP_WINDOW_MARGIN,
+                  top: desktopWindowPosition?.y ?? DESKTOP_WINDOW_MARGIN,
+                  width: "min(760px, calc(100% - 2rem))",
+                  height:
+                    activeDesktopWindow === "memories"
+                      ? "min(720px, calc(100dvh - 7rem), calc(100% - 2rem))"
+                      : undefined,
+                  maxHeight: "min(calc(100dvh - 7rem), calc(100% - 2rem))",
+                }}
+              >
+                <div
+                  onPointerDown={handleDesktopWindowPointerDown}
+                  className="flex cursor-grab touch-none items-center justify-between border-b border-border bg-card/55 px-4 py-2.5 active:cursor-grabbing"
+                >
                   <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                    {activeWindowMeta
+                    {activeDesktopWindow === "memories"
+                      ? t("Memories", "Memorias")
+                      : activeWindowMeta
                       ? isSpanish
                         ? activeWindowMeta.labelEs
                         : activeWindowMeta.labelEn
@@ -162,14 +912,32 @@ export function SiteMochiLandingSection() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setActiveDesktopWindow(null)}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      setDesktopWindowPosition(null);
+                      setActiveDesktopWindow(null);
+                    }}
                     className="rounded-none border border-border bg-background/60 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground hover:bg-background/80"
                   >
                     {t("Close", "Cerrar")}
                   </button>
                 </div>
-                <div className="h-[min(640px,calc(100vh-7rem))] min-h-[420px] overflow-hidden">
-                  <SiteMochiCompactConfigWindow activeTab={activeDesktopWindow} />
+                <div
+                  className="min-h-0 overflow-hidden"
+                  style={{
+                    maxHeight: "calc(100% - 42px)",
+                    height: "calc(100% - 42px)",
+                  }}
+                >
+                  {activeDesktopWindow === "memories" ? (
+                    <DesktopMemoriesWindow
+                      isSpanish={isSpanish}
+                      messages={memoryMessages}
+                      onClear={handleClearMemories}
+                    />
+                  ) : activeDesktopWindow ? (
+                    <SiteMochiCompactConfigWindow activeTab={activeDesktopWindow} fillHeight={false} />
+                  ) : null}
                 </div>
               </div>
             </div>

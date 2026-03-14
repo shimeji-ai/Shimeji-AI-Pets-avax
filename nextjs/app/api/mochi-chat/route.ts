@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
     const characterKey = sanitizeShortKey((body as any)?.character);
     const soulMd =
       typeof (body as any)?.soulMd === "string"
-        ? (body as any).soulMd.trim().slice(0, 4000)
+        ? (body as any).soulMd.slice(0, 4000)
         : "";
     const toolContext =
       typeof (body as any)?.toolContext === "string"

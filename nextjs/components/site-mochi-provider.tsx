@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -105,6 +106,7 @@ type SiteMochiContextValue = {
 
 const SITE_MOCHI_CONFIG_STORAGE_KEY = "site-mochi-config-v1";
 const SITE_MOCHI_CREDITS_STORAGE_KEY = "site-mochi-free-messages-used-v1";
+const SITE_MOCHI_SOUL_STORAGE_KEY = "site-mochi-soul-v1";
 
 const DEFAULT_FREE_SITE_MESSAGE_LIMIT = 4;
 const DEFAULT_CHAT_THEME = SITE_MOCHI_CHAT_THEMES[0];
@@ -121,7 +123,7 @@ You are Mochi.
 - Help with setup, downloads, and using the agent.
 - Prefer clear answers over roleplay unless the user invites it.
 `,
-  iconTheme: "fa6",
+  iconTheme: "hi2",
   webSearchToolEnabled: false,
   braveApiKey: "",
   sizePercent: 100,
@@ -198,6 +200,16 @@ function sanitizeBoolean(value: unknown, fallback: boolean): boolean {
 function sanitizeString(value: unknown, fallback = "", maxLength = 256): string {
   if (typeof value !== "string") return fallback;
   return value.trim().slice(0, maxLength);
+}
+
+function sanitizeFreeformText(value: unknown, fallback = "", maxLength = 4000): string {
+  if (typeof value !== "string") return fallback;
+  return value.slice(0, maxLength);
+}
+
+function getSoulStorageKey(publicKey?: string | null) {
+  const suffix = typeof publicKey === "string" && publicKey.trim() ? publicKey.trim() : "guest";
+  return `${SITE_MOCHI_SOUL_STORAGE_KEY}:${suffix}`;
 }
 
 function sanitizeIsoDateString(value: unknown): string {
@@ -362,7 +374,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
   return {
     enabled: true,
     character: sanitizeString(raw.character, DEFAULT_CONFIG.character, 64) || DEFAULT_CONFIG.character,
-    soulMd: sanitizeString(raw.soulMd, DEFAULT_CONFIG.soulMd, 4000) || DEFAULT_CONFIG.soulMd,
+    soulMd: sanitizeFreeformText(raw.soulMd, DEFAULT_CONFIG.soulMd, 4000),
     iconTheme: sanitizeIconTheme(raw.iconTheme),
     webSearchToolEnabled: sanitizeBoolean(
       raw.webSearchToolEnabled,
@@ -430,71 +442,107 @@ function canUseProvider(config: SiteMochiConfig, freeSiteMessagesRemaining: numb
     return freeSiteMessagesRemaining === null || freeSiteMessagesRemaining > 0;
   }
   if (config.provider === "openrouter") {
-    return Boolean(
-      config.openrouterApiKey.trim() &&
-      (!config.webSearchToolEnabled || config.braveApiKey.trim()),
-    );
+    return Boolean(config.openrouterApiKey.trim());
   }
   return false;
 }
 
+function readInitialStoredConfig(): SiteMochiConfig {
+  if (typeof window === "undefined") return DEFAULT_CONFIG;
+
+  try {
+    const rawConfig = window.localStorage.getItem(SITE_MOCHI_CONFIG_STORAGE_KEY);
+    if (!rawConfig) return DEFAULT_CONFIG;
+
+    const parsed = JSON.parse(rawConfig);
+    const sanitized = sanitizeConfig(parsed);
+    const shouldMigrateLegacyUntouchedProvider =
+      sanitized.provider === "openrouter" &&
+      parsed &&
+      typeof parsed === "object" &&
+      looksLikeUntouchedProviderConfig(parsed as Partial<SiteMochiConfig>);
+    const shouldMigrateAutoEnabledSoundDefaults =
+      parsed &&
+      typeof parsed === "object" &&
+      looksLikeAutoEnabledSoundDefaults(parsed as Partial<SiteMochiConfig>);
+    const migratedConfig = shouldMigrateLegacyUntouchedProvider
+      ? { ...sanitized, provider: "site" as const }
+      : sanitized;
+
+    return shouldMigrateAutoEnabledSoundDefaults
+      ? {
+          ...migratedConfig,
+          soundInputProvider: "off",
+          soundInputAutoSend: false,
+          soundOutputProvider: "off",
+          soundOutputAutoSpeak: false,
+        }
+      : migratedConfig;
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+function readInitialStoredCredits(): number {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const rawCredits = window.localStorage.getItem(SITE_MOCHI_CREDITS_STORAGE_KEY);
+    const parsed = Number(rawCredits);
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function SiteMochiProvider({ children }: { children: ReactNode }) {
   const { publicKey } = useWalletSession();
-  const [config, setConfig] = useState<SiteMochiConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<SiteMochiConfig>(() => readInitialStoredConfig());
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [catalog, setCatalog] = useState<SiteMochiCatalog | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [freeSiteMessagesUsed, setFreeSiteMessagesUsed] = useState(0);
+  const [freeSiteMessagesUsed, setFreeSiteMessagesUsed] = useState(() => readInitialStoredCredits());
+  const hasHydratedConfigRef = useRef(false);
+  const hydratedSoulStorageKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
-    try {
-      const rawConfig = localStorage.getItem(SITE_MOCHI_CONFIG_STORAGE_KEY);
-      if (rawConfig) {
-        const parsed = JSON.parse(rawConfig);
-        const sanitized = sanitizeConfig(parsed);
-        const shouldMigrateLegacyUntouchedProvider =
-          sanitized.provider === "openrouter" &&
-          parsed &&
-          typeof parsed === "object" &&
-          looksLikeUntouchedProviderConfig(parsed as Partial<SiteMochiConfig>);
-        const shouldMigrateAutoEnabledSoundDefaults =
-          parsed &&
-          typeof parsed === "object" &&
-          looksLikeAutoEnabledSoundDefaults(parsed as Partial<SiteMochiConfig>);
-        const migratedConfig = shouldMigrateLegacyUntouchedProvider
-          ? { ...sanitized, provider: "site" as const }
-          : sanitized;
-        setConfig(
-          shouldMigrateAutoEnabledSoundDefaults
-            ? {
-                ...migratedConfig,
-                soundInputProvider: "off",
-                soundInputAutoSend: false,
-                soundOutputProvider: "off",
-                soundOutputAutoSpeak: false,
-              }
-            : migratedConfig,
-        );
-      }
-    } catch {
-      setConfig(DEFAULT_CONFIG);
-    }
-
-    try {
-      const rawCredits = localStorage.getItem(SITE_MOCHI_CREDITS_STORAGE_KEY);
-      const parsed = Number(rawCredits);
-      if (Number.isFinite(parsed) && parsed >= 0) {
-        setFreeSiteMessagesUsed(Math.floor(parsed));
-      }
-    } catch {
-      setFreeSiteMessagesUsed(0);
-    }
+    hasHydratedConfigRef.current = true;
   }, []);
 
   useEffect(() => {
+    if (!hasHydratedConfigRef.current) return;
     localStorage.setItem(SITE_MOCHI_CONFIG_STORAGE_KEY, JSON.stringify(config));
   }, [config]);
+
+  useEffect(() => {
+    if (!hasHydratedConfigRef.current) return;
+
+    try {
+      const soulStorageKey = getSoulStorageKey(publicKey);
+      if (hydratedSoulStorageKeyRef.current === soulStorageKey) return;
+      hydratedSoulStorageKeyRef.current = soulStorageKey;
+
+      const savedSoul = localStorage.getItem(soulStorageKey);
+      if (savedSoul !== null) {
+        const normalizedSoul = sanitizeFreeformText(savedSoul, DEFAULT_CONFIG.soulMd, 4000);
+        setConfig((prev) => (prev.soulMd === normalizedSoul ? prev : { ...prev, soulMd: normalizedSoul }));
+        return;
+      }
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [publicKey]);
+
+  useEffect(() => {
+    if (!hasHydratedConfigRef.current) return;
+
+    try {
+      localStorage.setItem(getSoulStorageKey(publicKey), config.soulMd);
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [config.soulMd, publicKey]);
 
   useEffect(() => {
     localStorage.setItem(SITE_MOCHI_CREDITS_STORAGE_KEY, String(freeSiteMessagesUsed));

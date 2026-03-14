@@ -157,6 +157,26 @@ export function DesktopConfigIcon({
 function SoulFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteMochi();
+  const [draftSoul, setDraftSoul] = useState(config.soulMd);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const isDirty = draftSoul !== config.soulMd;
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const timer = window.setTimeout(() => {
+      updateConfig({ soulMd: draftSoul });
+      setLastSavedAt(Date.now());
+    }, 60_000);
+
+    return () => window.clearTimeout(timer);
+  }, [draftSoul, isDirty, updateConfig]);
+
+  const saveSoul = () => {
+    if (!isDirty) return;
+    updateConfig({ soulMd: draftSoul });
+    setLastSavedAt(Date.now());
+  };
 
   return (
     <div className="grid gap-3">
@@ -170,16 +190,43 @@ function SoulFields({ compact = false }: { compact?: boolean } = {}) {
       <label className="block">
         <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <span>soul.md</span>
-          <span>{config.soulMd.length}/4000</span>
+          <span>{draftSoul.length}/4000</span>
         </div>
         <textarea
-          value={config.soulMd}
-          onChange={(event) => updateConfig({ soulMd: event.target.value.slice(0, 4000) })}
+          value={draftSoul}
+          onChange={(event) => setDraftSoul(event.target.value.slice(0, 4000))}
           spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          enterKeyHint="done"
           className={`w-full resize-none rounded-xl border border-white/15 bg-black/30 px-3 py-3 font-mono text-xs text-foreground outline-none focus:border-[var(--brand-accent)] ${compact ? "h-[320px]" : "h-[420px]"}`}
           placeholder={`# soul.md\n\n- Be concise\n- Be warm\n- Help with setup`}
         />
       </label>
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] text-muted-foreground">
+          {isDirty
+            ? isSpanish
+              ? "Cambios sin guardar. Auto-guardado en 1 minuto."
+              : "Unsaved changes. Auto-save in 1 minute."
+            : lastSavedAt
+              ? isSpanish
+                ? "Guardado localmente."
+                : "Saved locally."
+              : isSpanish
+                ? "Sin cambios pendientes."
+                : "No pending changes."}
+        </div>
+        <button
+          type="button"
+          onClick={saveSoul}
+          disabled={!isDirty}
+          className="rounded-none border border-border bg-background/60 px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground disabled:cursor-not-allowed disabled:opacity-50 hover:bg-background/80"
+        >
+          {isSpanish ? "Guardar" : "Save"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -193,27 +240,13 @@ function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
       {!compact ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-muted-foreground">
           {isSpanish
-            ? "Primer tool: web search knowledge para OpenRouter u Ollama. Si está activo, requiere Brave API key."
-            : "First tool: web search knowledge for OpenRouter or Ollama. If enabled, it requires a Brave API key."}
+            ? "Web search knowledge se activa automaticamente cuando agregas una Brave API key."
+            : "Web search knowledge turns on automatically when you add a Brave API key."}
         </div>
       ) : null}
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-          <input
-            type="checkbox"
-            checked={config.webSearchToolEnabled}
-            onChange={(event) => updateConfig({ webSearchToolEnabled: event.target.checked })}
-            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
-          />
-          <span className="text-xs text-foreground/85">
-            {isSpanish
-              ? "Activar web search knowledge para OpenRouter y Ollama"
-              : "Enable web search knowledge for OpenRouter and Ollama"}
-          </span>
-        </label>
-
-        <label className="mt-3 block">
+        <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Brave API Key
           </span>
@@ -232,9 +265,9 @@ function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
             href="https://api-dashboard.search.brave.com/app/keys"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-white/25 hover:bg-white/10"
+            className="brave-api-button inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
           >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
             {isSpanish ? "Conseguir Brave API key" : "Get Brave API key"}
@@ -289,19 +322,11 @@ type OpenRouterModelOption = {
   disabled?: boolean;
 };
 
-const OPENROUTER_MODEL_OPTIONS: readonly OpenRouterModelOption[] = [
+const OPENROUTER_MODEL_FALLBACK_OPTIONS: readonly OpenRouterModelOption[] = [
   { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
+  { value: "openai/gpt-4o-mini", labelEn: "GPT-4o mini", labelEs: "GPT-4o mini" },
+  { value: "anthropic/claude-3.7-sonnet", labelEn: "Claude 3.7 Sonnet", labelEs: "Claude 3.7 Sonnet" },
   { value: "google/gemini-2.0-flash-001", labelEn: "Gemini 2.0 Flash", labelEs: "Gemini 2.0 Flash" },
-  {
-    value: "moonshotai/kimi-k2.5",
-    labelEn: "Kimi K2.5 (disabled)",
-    labelEs: "Kimi K2.5 (deshabilitado)",
-    disabled: true,
-  },
-  { value: "anthropic/claude-sonnet-4", labelEn: "Claude Sonnet 4", labelEs: "Claude Sonnet 4" },
-  { value: "meta-llama/llama-4-maverick", labelEn: "Llama 4 Maverick", labelEs: "Llama 4 Maverick" },
-  { value: "deepseek/deepseek-chat-v3-0324", labelEn: "DeepSeek Chat v3", labelEs: "DeepSeek Chat v3" },
-  { value: "mistralai/mistral-large-2411", labelEn: "Mistral Large", labelEs: "Mistral Large" },
 ];
 
 function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
@@ -555,7 +580,10 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
 function ProviderFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig, freeSiteMessagesRemaining, freeSiteMessagesUsed } = useSiteMochi();
-  const openRouterModelKnown = OPENROUTER_MODEL_OPTIONS.some((item) => item.value === config.openrouterModel);
+  const [openRouterModelOptions, setOpenRouterModelOptions] = useState<OpenRouterModelOption[]>(
+    [...OPENROUTER_MODEL_FALLBACK_OPTIONS],
+  );
+  const openRouterModelKnown = openRouterModelOptions.some((item) => item.value === config.openrouterModel);
   const openRouterModelSelectValue = openRouterModelKnown ? config.openrouterModel : "__custom__";
   const [pairingCode, setPairingCode] = useState("");
   const [pairingBusy, setPairingBusy] = useState(false);
@@ -602,6 +630,41 @@ function ProviderFields({ compact = false }: { compact?: boolean } = {}) {
     typeof window === "undefined"
       ? "https://mochi.dev/api/site-mochi/openclaw/relay/respond"
       : `${window.location.origin}/api/site-mochi/openclaw/relay/respond`;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOpenRouterModels() {
+      try {
+        const response = await fetch("/api/site-mochi/openrouter/models", { cache: "no-store" });
+        const json = (await response.json().catch(() => null)) as
+          | { models?: Array<{ value?: string; label?: string }> }
+          | null;
+        if (!response.ok || !Array.isArray(json?.models) || cancelled) return;
+
+        const nextOptions: OpenRouterModelOption[] = [
+          { value: "random", labelEn: "Random", labelEs: "Aleatorio" },
+          ...json.models
+            .map((item) => {
+              const value = typeof item.value === "string" ? item.value.trim() : "";
+              const label = typeof item.label === "string" ? item.label.trim() : value;
+              if (!value) return null;
+              return { value, labelEn: label, labelEs: label };
+            })
+            .filter((item): item is OpenRouterModelOption => Boolean(item)),
+        ];
+
+        setOpenRouterModelOptions(nextOptions);
+      } catch {
+        // Keep fallback options when the live catalog cannot be loaded.
+      }
+    }
+
+    loadOpenRouterModels().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function providerHelpLinks(kind: "openrouter" | "ollama" | "openclaw") {
     const externalIcon = (
@@ -1298,7 +1361,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
             }
             className={THEMED_SELECT_CLASS}
           >
-            {OPENROUTER_MODEL_OPTIONS.map((item) => (
+            {openRouterModelOptions.map((item) => (
               <option key={item.value} value={item.value} disabled={Boolean(item.disabled)}>
                 {isSpanish ? item.labelEs : item.labelEn}
               </option>
@@ -1832,8 +1895,10 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
 
 export function SiteMochiCompactConfigWindow({
   activeTab,
+  fillHeight = true,
 }: {
   activeTab: ConfigPanelTab;
+  fillHeight?: boolean;
 }) {
   const { isSpanish } = useLanguage();
   const { theme, setTheme } = useTheme();
@@ -1847,7 +1912,11 @@ export function SiteMochiCompactConfigWindow({
   } = useSiteMochi();
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+    <section
+      className={`flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl ${
+        fillHeight ? "h-full" : "max-h-full"
+      }`}
+    >
       <div className="flex-1 overflow-y-auto px-4 py-4">
         {activeTab === "site" ? (
           <div className="grid gap-5">

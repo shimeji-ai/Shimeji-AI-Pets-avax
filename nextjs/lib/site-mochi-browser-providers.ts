@@ -436,7 +436,11 @@ export function formatSiteMochiProviderError(
       ? "Brave Search llegó al límite temporal. Intentá de nuevo en un rato."
       : "Brave Search hit a temporary rate limit. Try again shortly.";
   }
-  if (message.startsWith("BRAVE_REQUEST_FAILED") || message.startsWith("BRAVE_HTTP_")) {
+  if (
+    message.startsWith("BRAVE_SEARCH_FAILED") ||
+    message.startsWith("BRAVE_REQUEST_FAILED") ||
+    message.startsWith("BRAVE_HTTP_")
+  ) {
     return isSpanish
       ? "No se pudo obtener contexto web desde Brave Search."
       : "Could not fetch web context from Brave Search.";
