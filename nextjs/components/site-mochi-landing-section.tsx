@@ -917,7 +917,7 @@ export function SiteMochiLandingSection() {
   };
 
   return (
-    <section className="relative h-[100dvh] max-h-[100dvh] overflow-hidden lg:h-screen lg:min-h-0 lg:max-h-none">
+    <section className="relative h-full max-h-full overflow-hidden lg:min-h-0">
       {!hasBlackPinkBackdrop ? (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />

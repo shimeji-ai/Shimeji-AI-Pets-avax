@@ -11,7 +11,7 @@ export const metadata: Metadata = createPageMetadata({
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden lg:h-screen lg:overflow-hidden">
+    <main className="h-[100dvh] max-h-[100dvh] overflow-hidden">
       <SiteMochiLandingSection />
     </main>
   );
