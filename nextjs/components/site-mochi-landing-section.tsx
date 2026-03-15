@@ -111,16 +111,17 @@ function clampDesktopWindowPosition(
   windowWidth: number,
   windowHeight: number,
 ): DesktopWindowPosition {
+  const minTop = DESKTOP_WINDOW_TOP_OFFSET;
   return {
     x: Math.max(
       DESKTOP_WINDOW_MARGIN,
       Math.min(position.x, Math.max(DESKTOP_WINDOW_MARGIN, containerWidth - windowWidth - DESKTOP_WINDOW_MARGIN)),
     ),
     y: Math.max(
-      DESKTOP_WINDOW_MARGIN,
+      minTop,
       Math.min(
         position.y,
-        Math.max(DESKTOP_WINDOW_MARGIN, containerHeight - windowHeight - DESKTOP_WINDOW_MARGIN),
+        Math.max(minTop, containerHeight - windowHeight - DESKTOP_WINDOW_MARGIN),
       ),
     ),
   };
@@ -599,6 +600,7 @@ export function SiteMochiLandingSection() {
     {} as Record<DesktopWindowKey, DesktopShortcutPosition>,
   );
   const [desktopWindowPosition, setDesktopWindowPosition] = useState<DesktopWindowPosition | null>(null);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [memoryMessages, setMemoryMessages] = useState<StoredChatMessage[]>([]);
   const desktopRef = useRef<HTMLDivElement | null>(null);
   const desktopWindowLayerRef = useRef<HTMLDivElement | null>(null);
@@ -815,6 +817,15 @@ export function SiteMochiLandingSection() {
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncViewport = () => setIsDesktopViewport(mediaQuery.matches);
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
     const loadMemoryMessages = () => {
       if (typeof window === "undefined") return;
       try {
@@ -906,7 +917,7 @@ export function SiteMochiLandingSection() {
   };
 
   return (
-    <section className="relative h-[100dvh] overflow-hidden pt-10 lg:h-screen lg:min-h-0">
+    <section className="relative h-[100dvh] max-h-[100dvh] overflow-hidden lg:h-screen lg:min-h-0 lg:max-h-none">
       {!hasBlackPinkBackdrop ? (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
@@ -940,7 +951,7 @@ export function SiteMochiLandingSection() {
           </div>
         </div>
 
-        <div className="relative flex flex-1 overflow-hidden">
+        <div className="relative flex flex-1 overflow-hidden pt-10">
           {!hasBlackPinkBackdrop ? (
             <>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))]" />
@@ -948,8 +959,8 @@ export function SiteMochiLandingSection() {
             </>
           ) : null}
 
-          <div ref={desktopRef} className="relative z-10 min-h-0 flex-1 p-5">
-            <div className="flex h-full min-h-0 items-end py-4 lg:hidden">
+          <div ref={desktopRef} className="relative z-10 min-h-0 flex-1 overflow-hidden p-5">
+            <div className="flex h-full min-h-0 items-end pb-3 pt-2 lg:hidden">
               {mobileShortcutRows.map((row, rowIndex) => (
                 <div key={`mobile-row-${rowIndex}`} className="grid w-full grid-cols-4 items-end justify-items-center">
                   {row.map((shortcutKey) => {
@@ -997,18 +1008,24 @@ export function SiteMochiLandingSection() {
           {activeDesktopWindow ? (
             <div
               ref={desktopWindowLayerRef}
-              className="pointer-events-none absolute inset-0 z-20 p-4 pt-14 sm:p-6 sm:pt-16"
+              className="pointer-events-none absolute inset-x-0 bottom-0 top-10 z-20 flex items-start justify-center p-3 pt-2 sm:p-6 sm:pt-6 lg:block"
             >
               <div
                 ref={desktopWindowRef}
-                className="pointer-events-auto absolute flex min-w-[320px] max-w-[min(760px,calc(100%-2rem))] flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl"
-                style={{
-                  left: desktopWindowPosition?.x ?? DESKTOP_WINDOW_MARGIN,
-                  top: desktopWindowPosition?.y ?? DESKTOP_WINDOW_MARGIN,
-                  width: "min(760px, calc(100% - 2rem))",
-                  height: "min(720px, calc(100dvh - 7rem), calc(100% - 2rem))",
-                  maxHeight: "min(calc(100dvh - 7rem), calc(100% - 2rem))",
-                }}
+                className="pointer-events-auto relative flex w-full max-w-[min(760px,calc(100%-1.5rem))] flex-col overflow-hidden rounded-none border-2 border-border bg-background/92 text-foreground shadow-[8px_8px_0_rgba(24,18,37,0.18)] backdrop-blur-xl lg:absolute lg:min-w-[320px] lg:max-w-[min(760px,calc(100%-2rem))]"
+                style={
+                  isDesktopViewport
+                    ? {
+                        left: desktopWindowPosition?.x ?? DESKTOP_WINDOW_MARGIN,
+                        top: desktopWindowPosition?.y ?? DESKTOP_WINDOW_MARGIN,
+                        width: "min(760px, calc(100% - 2rem))",
+                        height: "min(720px, calc(100dvh - 7rem), calc(100% - 2rem))",
+                        maxHeight: "min(calc(100dvh - 7rem), calc(100% - 2rem))",
+                      }
+                    : {
+                        maxHeight: "calc(100dvh - 4rem)",
+                      }
+                }
               >
                 <div
                   onPointerDown={handleDesktopWindowPointerDown}
@@ -1040,10 +1057,9 @@ export function SiteMochiLandingSection() {
                   </button>
                 </div>
                 <div
-                  className="min-h-0 overflow-hidden"
+                  className="min-h-0 overflow-hidden lg:h-[calc(100%-42px)] lg:max-h-[calc(100%-42px)]"
                   style={{
-                    maxHeight: "calc(100% - 42px)",
-                    height: "calc(100% - 42px)",
+                    maxHeight: "min(calc(100dvh - 7rem - 42px), calc(100% - 42px))",
                   }}
                 >
                   {activeDesktopWindow === "personalize" ? (

@@ -4,11 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { IconType } from "react-icons";
-import { FaBrain, FaComments, FaHeart, FaPalette, FaToolbox, FaVolumeHigh } from "react-icons/fa6";
-import { HiChatBubbleLeftRight, HiCpuChip, HiHeart, HiSpeakerWave, HiSwatch, HiWrenchScrewdriver } from "react-icons/hi2";
-import { IoBuild, IoChatbubbleEllipses, IoColorPalette, IoHardwareChip, IoHeart, IoVolumeHigh } from "react-icons/io5";
-import { PiBrainFill, PiChatCircleDotsFill, PiHeartFill, PiPaletteFill, PiSpeakerHighFill, PiToolboxFill } from "react-icons/pi";
-import { TbBrain, TbHeartFilled, TbMessageCircleFilled, TbPalette, TbTool, TbVolume } from "react-icons/tb";
+import { HiChatBubbleLeftRight, HiCpuChip, HiSpeakerWave, HiSwatch, HiWrenchScrewdriver } from "react-icons/hi2";
+import { IoHeart } from "react-icons/io5";
 import {
   Blocks,
   FileCode2,
@@ -78,17 +75,6 @@ export const CONFIG_WINDOW_META: Array<{
   { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
 ];
 
-const ICON_THEME_META: Array<{
-  key: SiteMochiIconTheme;
-  label: string;
-}> = [
-  { key: "fa6", label: "Font Awesome 6" },
-  { key: "hi2", label: "Heroicons 2" },
-  { key: "io5", label: "Ionicons 5" },
-  { key: "pi", label: "Phosphor" },
-  { key: "tb", label: "Tabler" },
-];
-
 const THEMED_SELECT_CLASS =
   "mochi-themed-select w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]";
 
@@ -101,60 +87,19 @@ function walletShort(value: string | null | undefined) {
   return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 }
 
-const ICON_THEME_COMPONENTS: Record<
-  SiteMochiIconTheme,
-  Record<Exclude<ConfigPanelTab, "mascot">, IconType>
-> = {
-  fa6: {
-    site: FaPalette,
-    soul: FaHeart,
-    chat: FaBrain,
-    appearance: FaComments,
-    tools: FaToolbox,
-    onchain: FaBrain,
-    sound: FaVolumeHigh,
-  },
-  hi2: {
-    site: HiSwatch,
-    soul: HiHeart,
-    chat: HiCpuChip,
-    appearance: HiChatBubbleLeftRight,
-    tools: HiWrenchScrewdriver,
-    onchain: HiCpuChip,
-    sound: HiSpeakerWave,
-  },
-  io5: {
-    site: IoColorPalette,
-    soul: IoHeart,
-    chat: IoHardwareChip,
-    appearance: IoChatbubbleEllipses,
-    tools: IoBuild,
-    onchain: IoHardwareChip,
-    sound: IoVolumeHigh,
-  },
-  pi: {
-    site: PiPaletteFill,
-    soul: PiHeartFill,
-    chat: PiBrainFill,
-    appearance: PiChatCircleDotsFill,
-    tools: PiToolboxFill,
-    onchain: PiBrainFill,
-    sound: PiSpeakerHighFill,
-  },
-  tb: {
-    site: TbPalette,
-    soul: TbHeartFilled,
-    chat: TbBrain,
-    appearance: TbMessageCircleFilled,
-    tools: TbTool,
-    onchain: TbBrain,
-    sound: TbVolume,
-  },
+const DEFAULT_ICON_COMPONENTS: Record<Exclude<ConfigPanelTab, "mascot">, IconType> = {
+  site: HiSwatch,
+  soul: IoHeart,
+  chat: HiCpuChip,
+  appearance: HiChatBubbleLeftRight,
+  tools: HiWrenchScrewdriver,
+  onchain: HiCpuChip,
+  sound: HiSpeakerWave,
 };
 
 export function DesktopConfigIcon({
   tab,
-  iconTheme,
+  iconTheme: _iconTheme,
   characterKey,
   className = "h-9 w-9",
 }: {
@@ -163,6 +108,7 @@ export function DesktopConfigIcon({
   characterKey: string;
   className?: string;
 }) {
+  void _iconTheme;
   if (tab === "mascot") {
     return (
       <Image
@@ -176,7 +122,7 @@ export function DesktopConfigIcon({
     );
   }
 
-  const Icon = ICON_THEME_COMPONENTS[iconTheme][tab];
+  const Icon = DEFAULT_ICON_COMPONENTS[tab];
   return <Icon className={className} aria-hidden="true" />;
 }
 
@@ -1949,55 +1895,6 @@ export function SiteMochiCompactConfigWindow({
                   </button>
                 );
               })}
-            </div>
-
-            <div className="grid gap-2">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {isSpanish ? "Coleccion de iconos" : "Icon collection"}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {ICON_THEME_META.map((item) => {
-                  const isActive = config.iconTheme === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => updateConfig({ iconTheme: item.key })}
-                      className={`rounded-2xl border px-2 py-0 text-left transition-all ${
-                        isActive
-                          ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15"
-                          : "border-border bg-card/65 hover:bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 py-2">
-                        <div className="flex h-9 min-w-14 items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-1.5 text-foreground/90">
-                          <DesktopConfigIcon
-                            tab="site"
-                            iconTheme={item.key}
-                            characterKey={config.character}
-                            className="h-4 w-4"
-                          />
-                          <DesktopConfigIcon
-                            tab="soul"
-                            iconTheme={item.key}
-                            characterKey={config.character}
-                            className="h-4 w-4"
-                          />
-                          <DesktopConfigIcon
-                            tab="chat"
-                            iconTheme={item.key}
-                            characterKey={config.character}
-                            className="h-4 w-4"
-                          />
-                        </div>
-                        <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground">
-                          {item.label}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
         ) : null}
