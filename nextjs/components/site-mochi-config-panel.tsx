@@ -39,12 +39,25 @@ const SITE_THEME_META: Array<{
   key: Theme;
   labelEn: string;
   labelEs: string;
-  accent: string;
+  previewBackground: string;
+  previewDot: string;
 }> = [
-  { key: "neural", labelEn: "Neural", labelEs: "Neural", accent: "#86f0ff" },
-  { key: "black-pink", labelEn: "Black-Pink", labelEs: "Black-Pink", accent: "#ff78c8" },
-  { key: "kawaii", labelEn: "Kawaii", labelEs: "Kawaii", accent: "#2a1f4e" },
-  { key: "pastel", labelEn: "Pastel", labelEs: "Pastel", accent: "#b48ccf" },
+  { key: "neural", labelEn: "Neural", labelEs: "Neural", previewBackground: "#05070b", previewDot: "#ffffff" },
+  { key: "black-pink", labelEn: "Black-Pink", labelEs: "Black-Pink", previewBackground: "#000000", previewDot: "#ff78c8" },
+  {
+    key: "kawaii",
+    labelEn: "Kawaii",
+    labelEs: "Kawaii",
+    previewBackground: "linear-gradient(135deg, #ffc6df 0%, #f7d6ff 52%, #ffd7b8 100%)",
+    previewDot: "#2a1f4e",
+  },
+  {
+    key: "pastel",
+    labelEn: "Pastel",
+    labelEs: "Pastel",
+    previewBackground: "linear-gradient(135deg, #f5d8ff 0%, #dfe7ff 50%, #ffd8ea 100%)",
+    previewDot: "#b48ccf",
+  },
 ];
 
 export const CONFIG_WINDOW_META: Array<{
@@ -482,30 +495,23 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
           </label>
         </div>
 
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {isSpanish ? "Estilo de burbuja" : "Bubble style"}
-          </span>
-          <select
-            value={config.chatBubbleStyle}
-            onChange={(event) =>
-              updateConfig({
-                chatThemePreset: "custom",
-                chatBubbleStyle: event.target.value as "glass" | "solid" | "dark",
-              })
-            }
-            className={THEMED_SELECT_CLASS}
-          >
-            <option value="glass">{isSpanish ? "Glass (transparente)" : "Glass (transparent)"}</option>
-            <option value="solid">{isSpanish ? "Solid (sólido)" : "Solid"}</option>
-            <option value="dark">{isSpanish ? "Dark (oscuro)" : "Dark"}</option>
-          </select>
-        </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {isSpanish ? "Texto" : "Text size"}
+            <span className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>{isSpanish ? "Texto" : "Text size"}</span>
+              <button
+                type="button"
+                onClick={() =>
+                  updateConfig({
+                    chatWidthPx: null,
+                    chatHeightPx: SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
+                  })
+                }
+                disabled={!hasManualSize}
+                className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-semibold text-foreground hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSpanish ? "Restablecer tamaño manual" : "Reset manual size"}
+              </button>
             </span>
             <select
               value={config.chatFontSize}
@@ -525,45 +531,9 @@ function ChatAppearanceFields({ compact = false }: { compact?: boolean } = {}) {
               </option>
             </select>
           </label>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {isSpanish ? "Ancho base" : "Base width"}
-            </span>
-            <select
-              value={config.chatWidth}
-              onChange={(event) =>
-                updateConfig({ chatWidth: event.target.value as "small" | "medium" | "large" })
-              }
-              className={THEMED_SELECT_CLASS}
-            >
-              <option value="small">
-                {isSpanish ? "Pequeño" : "Small"} ({SITE_MOCHI_CHAT_WIDTH_MAP.small}px)
-              </option>
-              <option value="medium">
-                {isSpanish ? "Medio" : "Medium"} ({SITE_MOCHI_CHAT_WIDTH_MAP.medium}px)
-              </option>
-              <option value="large">
-                {isSpanish ? "Grande" : "Large"} ({SITE_MOCHI_CHAT_WIDTH_MAP.large}px)
-              </option>
-            </select>
-          </label>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() =>
-              updateConfig({
-                chatWidthPx: null,
-                chatHeightPx: SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
-              })
-            }
-            disabled={!hasManualSize}
-            className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 font-semibold text-foreground hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSpanish ? "Restablecer tamaño manual" : "Reset manual size"}
-          </button>
           {!compact ? (
             <span className="text-muted-foreground">
               {isSpanish
@@ -1740,19 +1710,6 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
           </select>
         </label>
 
-        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-          <input
-            type="checkbox"
-            checked={config.soundInputAutoSend}
-            onChange={(event) => updateConfig({ soundInputAutoSend: event.target.checked })}
-            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
-          />
-          <span className="text-xs text-foreground/85">
-            {isSpanish
-              ? "Enviar automáticamente cuando termine de transcribir"
-              : "Auto-send when transcription finishes"}
-          </span>
-        </label>
       </div>
 
       <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -1769,6 +1726,7 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
             onChange={(event) =>
               updateConfig({
                 soundOutputProvider: event.target.value as "off" | "browser" | "elevenlabs",
+                soundOutputAutoSpeak: event.target.value !== "off",
               })
             }
             className={THEMED_SELECT_CLASS}
@@ -1777,21 +1735,6 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
             <option value="browser">{isSpanish ? "Voz del navegador (gratis)" : "Browser voice (free)"}</option>
             <option value="elevenlabs">ElevenLabs</option>
           </select>
-        </label>
-
-        <label className="flex items-start gap-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-          <input
-            type="checkbox"
-            checked={config.soundOutputAutoSpeak}
-            onChange={(event) => updateConfig({ soundOutputAutoSpeak: event.target.checked })}
-            className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-[var(--brand-accent)]"
-            disabled={config.soundOutputProvider === "off"}
-          />
-          <span className="text-xs text-foreground/85">
-            {isSpanish
-              ? "Leer en voz alta automáticamente las respuestas del mochi"
-              : "Automatically speak mochi replies aloud"}
-          </span>
         </label>
 
         <label className="block">
@@ -1917,10 +1860,10 @@ export function SiteMochiCompactConfigWindow({
         fillHeight ? "h-full" : "max-h-full"
       }`}
     >
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="mochi-themed-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {activeTab === "site" ? (
           <div className="grid gap-5">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
               {SITE_THEME_META.map((item) => {
                 const isActive = theme === item.key;
                 return (
@@ -1928,17 +1871,22 @@ export function SiteMochiCompactConfigWindow({
                     key={item.key}
                     type="button"
                     onClick={() => setTheme(item.key)}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                    className={`flex min-w-0 items-center gap-2 rounded-2xl border px-2 py-2 text-left transition-all ${
                       isActive
                         ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15 text-foreground"
                         : "border-border bg-card/65 text-foreground/85 hover:bg-card"
                     }`}
                   >
                     <span
-                      className="h-4 w-4 shrink-0 rounded-full border border-black/10"
-                      style={{ backgroundColor: item.accent }}
-                    />
-                    <span className="font-mono text-xs font-semibold uppercase tracking-[0.16em]">
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-black/10"
+                      style={{ background: item.previewBackground }}
+                    >
+                      <span
+                        className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+                        style={{ background: item.previewDot }}
+                      />
+                    </span>
+                    <span className="min-w-0 truncate font-mono text-[10px] font-semibold uppercase tracking-[0.14em]">
                       {isSpanish ? item.labelEs : item.labelEn}
                     </span>
                   </button>
@@ -1946,11 +1894,11 @@ export function SiteMochiCompactConfigWindow({
               })}
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                 {isSpanish ? "Coleccion de iconos" : "Icon collection"}
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {ICON_THEME_META.map((item) => {
                   const isActive = config.iconTheme === item.key;
                   return (
@@ -1958,14 +1906,14 @@ export function SiteMochiCompactConfigWindow({
                       key={item.key}
                       type="button"
                       onClick={() => updateConfig({ iconTheme: item.key })}
-                      className={`rounded-2xl border p-3 text-left transition-all ${
+                      className={`rounded-2xl border px-2 py-0 text-left transition-all ${
                         isActive
                           ? "border-[var(--brand-accent)] bg-[var(--brand-accent)]/15"
                           : "border-border bg-card/65 hover:bg-card"
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-10 min-w-16 items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-2 text-foreground/90">
+                      <div className="flex items-center gap-2 py-2">
+                        <div className="flex h-9 min-w-14 items-center justify-center gap-1 rounded-xl border border-border bg-background/60 px-1.5 text-foreground/90">
                           <DesktopConfigIcon
                             tab="site"
                             iconTheme={item.key}
@@ -2111,11 +2059,11 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
       <aside
         className={
           inline
-            ? "mochi-settings-panel mx-auto w-full max-w-6xl rounded-3xl border border-border bg-background/95 text-foreground shadow-2xl"
-            : "mochi-settings-panel absolute right-0 top-0 h-full w-full max-w-xl border-l border-border bg-background/95 text-foreground shadow-2xl"
+            ? "mochi-settings-panel mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-border bg-background/95 text-foreground shadow-2xl"
+            : "mochi-settings-panel absolute right-0 top-0 h-full w-full max-w-xl overflow-hidden border-l border-border bg-background/95 text-foreground shadow-2xl"
         }
       >
-        <div className={`flex ${inline ? "min-h-0" : "h-full"} flex-col`}>
+        <div className="flex h-full min-h-0 flex-col">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card/70">
@@ -2143,9 +2091,9 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
             ) : null}
           </div>
 
-          <div className="flex-1 overflow-hidden px-5 py-5">
-            <div className="grid h-full gap-5 lg:grid-cols-[112px_minmax(0,1fr)]">
-              <div className="grid auto-rows-max grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-1">
+          <div className="min-h-0 flex-1 overflow-hidden px-5 py-5">
+            <div className="grid h-full min-h-0 gap-5 lg:grid-cols-[112px_minmax(0,1fr)]">
+              <div className="mochi-themed-scrollbar grid min-h-0 auto-rows-max grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-4 lg:grid-cols-1">
                 {CONFIG_WINDOW_META.map((item) => {
                   const isActive = activeTab === item.key;
                   return (
@@ -2175,7 +2123,9 @@ export function SiteMochiConfigPanel({ inline = false }: { inline?: boolean } = 
                 })}
               </div>
 
-              <SiteMochiCompactConfigWindow activeTab={activeTab} />
+              <div className="min-h-0 overflow-hidden">
+                <SiteMochiCompactConfigWindow activeTab={activeTab} />
+              </div>
             </div>
           </div>
         </div>

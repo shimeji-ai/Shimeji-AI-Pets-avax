@@ -26,6 +26,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>("en");
   const [browserLanguage, setBrowserLanguage] = useState<Language>("en");
 
+  function persistLanguage(languageValue: Language) {
+    localStorage.setItem("mochi-language", languageValue);
+    document.cookie = `mochi-language=${languageValue}; path=/; max-age=31536000; samesite=lax`;
+  }
+
   useEffect(() => {
     const detectedLanguage =
       typeof navigator !== "undefined" &&
@@ -37,14 +42,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const savedLanguage = localStorage.getItem("mochi-language");
     if (savedLanguage === "en" || savedLanguage === "es") {
       setLanguageState(savedLanguage);
+      persistLanguage(savedLanguage);
     } else {
       setLanguageState(detectedLanguage);
+      persistLanguage(detectedLanguage);
     }
   }, []);
 
   function setLanguage(languageValue: Language) {
     setLanguageState(languageValue);
-    localStorage.setItem("mochi-language", languageValue);
+    persistLanguage(languageValue);
   }
 
   const value = useMemo(

@@ -379,11 +379,14 @@ export function SiteMochiMascot() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("");
   const [voiceStatusTone, setVoiceStatusTone] = useState<VoiceStatusTone>("info");
+  const [voiceAutoSendCountdown, setVoiceAutoSendCountdown] = useState<number | null>(null);
   const [speechInputSupported, setSpeechInputSupported] = useState(false);
   const recognitionRef = useRef<BrowserSpeechRecognitionLike | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioObjectUrlRef = useRef<string | null>(null);
   const ttsRequestSeqRef = useRef(0);
+  const voiceAutoSendTimeoutRef = useRef<number | null>(null);
+  const voiceAutoSendIntervalRef = useRef<number | null>(null);
 
   const currentPosRef = useRef({ x: 0, y: 0 });
   const movementStateRef = useRef<MascotState>("falling");
@@ -828,7 +831,14 @@ export function SiteMochiMascot() {
           if (isPausedLocomotion) {
             frameIdx = 0;
             lastFrameT = time;
-            imgRef.current?.setAttribute("src", animState === "floor-walking" ? frames.stand : frames.ceilingWalk[0]);
+            imgRef.current?.setAttribute(
+              "src",
+              animState === "floor-walking"
+                ? frames.stand
+                : animState === "wall-climbing"
+                  ? frames.wallClimb[0]
+                  : frames.ceilingWalk[0],
+            );
           } else if (lastAnimState !== animState) {
             frameIdx = 0;
             lastFrameT = time;
@@ -924,6 +934,58 @@ export function SiteMochiMascot() {
     setVoiceStatus(message);
   }
 
+  function clearVoiceAutoSendCountdown() {
+    if (voiceAutoSendTimeoutRef.current !== null) {
+      window.clearTimeout(voiceAutoSendTimeoutRef.current);
+      voiceAutoSendTimeoutRef.current = null;
+    }
+    if (voiceAutoSendIntervalRef.current !== null) {
+      window.clearInterval(voiceAutoSendIntervalRef.current);
+      voiceAutoSendIntervalRef.current = null;
+    }
+    setVoiceAutoSendCountdown(null);
+  }
+
+  function scheduleVoiceAutoSend(transcript: string) {
+    clearVoiceAutoSendCountdown();
+    setVoiceAutoSendCountdown(3);
+    setVoiceInfoStatus(
+      isSpanish
+        ? "Transcripción lista. Enviando en 3 segundos..."
+        : "Transcript ready. Sending in 3 seconds...",
+    );
+
+    let remaining = 3;
+    voiceAutoSendIntervalRef.current = window.setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setVoiceAutoSendCountdown(remaining);
+        setVoiceInfoStatus(
+          isSpanish
+            ? `Transcripción lista. Enviando en ${remaining} segundos...`
+            : `Transcript ready. Sending in ${remaining} seconds...`,
+        );
+      }
+    }, 1000);
+
+    voiceAutoSendTimeoutRef.current = window.setTimeout(() => {
+      clearVoiceAutoSendCountdown();
+      setVoiceInfoStatus(
+        isSpanish ? "Transcripción lista. Enviando..." : "Transcript ready. Sending...",
+      );
+      void send(transcript);
+    }, 3000);
+  }
+
+  function cancelVoiceAutoSend() {
+    clearVoiceAutoSendCountdown();
+    setVoiceInfoStatus(
+      isSpanish
+        ? "Envío automático cancelado. Podés editar o enviar manualmente."
+        : "Auto-send cancelled. You can edit or send manually.",
+    );
+  }
+
   function toggleBubbleFullscreen() {
     if (isBubbleFullscreen) {
       if (bubbleRestoreRectRef.current) {
@@ -948,6 +1010,7 @@ export function SiteMochiMascot() {
   }
 
   function setVoiceErrorStatus(message: string) {
+    clearVoiceAutoSendCountdown();
     setVoiceStatusTone("error");
     setVoiceStatus(message);
   }
@@ -1282,6 +1345,7 @@ export function SiteMochiMascot() {
   }
 
   async function send(inputOverride?: string) {
+    clearVoiceAutoSendCountdown();
     const text = (typeof inputOverride === "string" ? inputOverride : input).trim();
     const providerForRequest = canAutoFallbackToSiteCredits ? ("site" as const) : effectiveProvider;
     if (!text || sending) return;
@@ -1545,6 +1609,7 @@ export function SiteMochiMascot() {
 
   function toggleVoiceListening() {
     if (config.soundInputProvider === "off") return;
+    clearVoiceAutoSendCountdown();
 
     if (isListening) {
       stopVoiceInput();
@@ -1570,7 +1635,6 @@ export function SiteMochiMascot() {
     recognition.maxAlternatives = 1;
 
     let finalTranscript = "";
-    let submitted = false;
 
     recognition.onresult = (event: any) => {
       let interimTranscript = "";
@@ -1596,24 +1660,11 @@ export function SiteMochiMascot() {
       if (!finalTranscript) return;
 
       setInput(finalTranscript);
-      setVoiceInfoStatus(
-        config.soundInputAutoSend
-          ? isSpanish
-            ? "Transcripción lista. Enviando..."
-            : "Transcript ready. Sending..."
-          : isSpanish
-            ? "Transcripción lista."
-            : "Transcript ready.",
-      );
-
-      if (config.soundInputAutoSend && !submitted) {
-        submitted = true;
-        void send(finalTranscript);
-        try {
-          recognition.stop();
-        } catch {
-          // no-op
-        }
+      scheduleVoiceAutoSend(finalTranscript);
+      try {
+        recognition.stop();
+      } catch {
+        // no-op
       }
     };
 
@@ -1719,6 +1770,12 @@ function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
         : "Ask about Mochi...";
   const showMicButton = config.soundInputProvider !== "off";
   const canUseMicButton = !inputLocked && config.soundInputProvider !== "off";
+
+  useEffect(() => {
+    return () => {
+      clearVoiceAutoSendCountdown();
+    };
+  }, []);
 
   if (!config.enabled) {
     return null;
@@ -1900,7 +1957,12 @@ function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
                 ref={inputRef}
                 className={styles.input}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => {
+                  if (voiceAutoSendCountdown !== null) {
+                    cancelVoiceAutoSend();
+                  }
+                  setInput(e.target.value);
+                }}
                 onKeyDown={e => {
                   if (e.key === "Enter") void send();
                 }}
@@ -1964,7 +2026,16 @@ function handleBubblePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
                   voiceStatusTone === "error" ? styles.voiceStatusError : ""
                 }`}
               >
-                {voiceStatus}
+                <span>{voiceStatus}</span>
+                {voiceAutoSendCountdown !== null ? (
+                  <button
+                    type="button"
+                    onClick={cancelVoiceAutoSend}
+                    className={styles.voiceStatusAction}
+                  >
+                    {isSpanish ? "Cancelar" : "Cancel"}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

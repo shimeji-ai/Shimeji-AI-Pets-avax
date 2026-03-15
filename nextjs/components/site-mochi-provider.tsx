@@ -370,6 +370,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
     raw.soundOutputProvider === "off"
       ? raw.soundOutputProvider
       : DEFAULT_CONFIG.soundOutputProvider;
+  const soundOutputAutoSpeak = soundOutputProvider !== "off";
 
   return {
     enabled: true,
@@ -407,10 +408,7 @@ function sanitizeConfig(input: unknown): SiteMochiConfig {
     soundInputProvider,
     soundInputAutoSend: sanitizeBoolean(raw.soundInputAutoSend, DEFAULT_CONFIG.soundInputAutoSend),
     soundOutputProvider,
-    soundOutputAutoSpeak: sanitizeBoolean(
-      raw.soundOutputAutoSpeak,
-      DEFAULT_CONFIG.soundOutputAutoSpeak,
-    ),
+    soundOutputAutoSpeak,
     soundOutputVolumePercent: clampPercent(
       raw.soundOutputVolumePercent,
       DEFAULT_CONFIG.soundOutputVolumePercent,

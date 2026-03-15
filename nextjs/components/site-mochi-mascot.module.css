@@ -251,6 +251,9 @@
   min-height: 68px;
   flex: 1;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   padding-right: 4px;
 }
 
@@ -270,7 +273,8 @@
   word-break: break-word;
   padding: 7px 10px;
   border-radius: 10px;
-  max-width: 88%;
+  width: fit-content;
+  max-width: min(88%, 52ch);
   border: 1px solid transparent;
 }
 
@@ -281,14 +285,14 @@
 .msgUser {
   background: var(--bubble-user-bg);
   border-color: var(--bubble-user-border);
-  margin-left: auto;
+  align-self: flex-end;
   text-align: right;
 }
 
 .msgAssistant {
   background: var(--bubble-assistant-bg);
   border-color: var(--bubble-assistant-border);
-  margin-right: auto;
+  align-self: flex-start;
 }
 
 .msgParagraph {
@@ -434,6 +438,10 @@
 
 .voiceStatus {
   margin-top: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 11px;
   line-height: 1.35;
   color: var(--bubble-muted);
@@ -441,6 +449,22 @@
 
 .voiceStatusError {
   color: #ff7f9c;
+}
+
+.voiceStatusAction {
+  flex-shrink: 0;
+  border: 1px solid var(--bubble-btn-border);
+  background: var(--bubble-btn-bg);
+  color: inherit;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.voiceStatusAction:hover {
+  background: var(--bubble-btn-bg-hover);
 }
 
 .resizeGripLeft,

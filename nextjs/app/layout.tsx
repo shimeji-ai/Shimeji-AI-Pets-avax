@@ -57,6 +57,9 @@ export const metadata: Metadata = {
     ],
     apple: "/logo.png",
   },
+  appleWebApp: {
+    title: "Mochi",
+  },
 };
 
 export const viewport: Viewport = {
