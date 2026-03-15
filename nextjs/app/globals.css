@@ -161,7 +161,7 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
-.brave-api-button {
+.api-key-link-button {
   border-color: color-mix(in srgb, var(--brand-accent) 75%, #ffffff 25%);
   background: linear-gradient(
     135deg,
@@ -175,7 +175,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.brave-api-button:hover {
+.api-key-link-button:hover {
   background: linear-gradient(
     135deg,
     color-mix(in srgb, var(--brand-accent) 92%, #081018 8%),
@@ -187,31 +187,35 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
-.brave-api-button:focus-visible {
+.api-key-link-button:focus-visible {
   border-color: color-mix(in srgb, var(--brand-accent) 82%, #ffffff 18%);
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--brand-accent) 28%, transparent),
     0 14px 30px rgba(0, 0, 0, 0.2);
 }
 
-:root[data-theme="kawaii"] .brave-api-button {
+:root[data-theme="black-pink"] .api-key-link-button {
+  color: #000000 !important;
+}
+
+:root[data-theme="kawaii"] .api-key-link-button {
   border-color: #3c2c67;
   background: linear-gradient(135deg, #3c2c67, #25183f);
   color: #fff7ff !important;
 }
 
-:root[data-theme="kawaii"] .brave-api-button:hover {
+:root[data-theme="kawaii"] .api-key-link-button:hover {
   background: linear-gradient(135deg, #4a367d, #2d1d49);
   color: #fffaff !important;
 }
 
-:root[data-theme="pastel"] .brave-api-button {
+:root[data-theme="pastel"] .api-key-link-button {
   border-color: #7a5aa1;
   background: linear-gradient(135deg, #7a5aa1, #5d437f);
   color: #fffafc !important;
 }
 
-:root[data-theme="pastel"] .brave-api-button:hover {
+:root[data-theme="pastel"] .api-key-link-button:hover {
   background: linear-gradient(135deg, #8764b0, #69498d);
   color: #ffffff !important;
 }

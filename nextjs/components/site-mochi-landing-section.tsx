@@ -17,6 +17,7 @@ import {
   CircleHelp,
   Download,
   Palette,
+  Settings2,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
@@ -36,7 +37,7 @@ type DesktopConfigShortcutProps = {
   customIcon?: LucideIcon;
 };
 
-type DesktopWindowKey = ConfigPanelTab | "memories" | "personalize";
+type DesktopWindowKey = ConfigPanelTab | "memories" | "personalize" | "config";
 
 type StoredChatMessage = {
   role: "user" | "assistant";
@@ -81,9 +82,7 @@ type HeaderIconLinkProps = {
 const DESKTOP_SHORTCUT_KEYS: DesktopWindowKey[] = [
   "personalize",
   "soul",
-  "chat",
-  "tools",
-  "sound",
+  "config",
   "memories",
 ];
 
@@ -97,16 +96,12 @@ const DESKTOP_WINDOW_MARGIN = 16;
 const DESKTOP_WINDOW_TOP_OFFSET = 56;
 const SITE_MOCHI_CHAT_HISTORY_STORAGE_KEY = "site-mochi-chat-history-v1";
 const SITE_MOCHI_CHAT_HISTORY_UPDATED_EVENT = "site-mochi:chat-history-updated";
-const DESKTOP_SHORTCUT_POSITIONS_STORAGE_KEY = "mochi.desktopShortcutPositions.v2";
+const DESKTOP_SHORTCUT_POSITIONS_STORAGE_KEY = "mochi.desktopShortcutPositions.v4";
 const DESKTOP_DEFAULT_SHORTCUT_ROWS: DesktopWindowKey[][] = [
-  ["chat", "soul"],
-  ["tools", "sound"],
-  ["personalize", "memories"],
+  ["soul", "personalize", "config", "memories"],
 ];
 const MOBILE_SHORTCUT_ROWS: DesktopWindowKey[][] = [
-  ["chat", "soul"],
-  ["tools", "sound"],
-  ["personalize", "memories"],
+  ["soul", "personalize", "config", "memories"],
 ];
 
 function clampDesktopWindowPosition(
@@ -201,16 +196,15 @@ function buildDefaultShortcutPositions(
   const rowAnchors = [topRowY, middleRowY, bottomRowY];
 
   DESKTOP_DEFAULT_SHORTCUT_ROWS.forEach((row, rowIndex) => {
+    const rowY =
+      DESKTOP_DEFAULT_SHORTCUT_ROWS.length === 1 ? bottomRowY : rowAnchors[rowIndex] ?? bottomRowY;
+    const rowWidth = row.length * DESKTOP_SHORTCUT_WIDTH + Math.max(0, row.length - 1) * (DESKTOP_SHORTCUT_COLUMN_WIDTH - DESKTOP_SHORTCUT_WIDTH);
+    const startX = Math.round((containerWidth - rowWidth) / 2);
     row.forEach((shortcutKey, index) => {
-      const fromRight = row.length - 1 - index;
       positions[shortcutKey] = snapShortcutPosition(
         {
-          x:
-            containerWidth -
-            DESKTOP_WINDOW_MARGIN -
-            DESKTOP_SHORTCUT_WIDTH -
-            fromRight * DESKTOP_SHORTCUT_COLUMN_WIDTH,
-          y: rowAnchors[rowIndex],
+          x: startX + index * DESKTOP_SHORTCUT_COLUMN_WIDTH,
+          y: rowY,
         },
         containerWidth,
         containerHeight,
@@ -406,6 +400,20 @@ function DesktopMemoriesWindow({
 
   const activeGroup =
     groupedMessages.find((group) => group.dateKey === selectedDateKey) ?? groupedMessages[0] ?? null;
+  const handleClearClick = () => {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(
+        isSpanish
+          ? "¿Seguro que querés borrar todas las memorias guardadas?"
+          : "Are you sure you want to delete all saved memories?",
+      )
+    ) {
+      return;
+    }
+
+    onClear();
+  };
 
   return (
     <section className="flex h-full max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
@@ -413,13 +421,13 @@ function DesktopMemoriesWindow({
         {messages.length ? (
           <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[210px_minmax(0,1fr)]">
             <aside className="mochi-themed-scrollbar min-h-0 overflow-y-auto rounded-[1.75rem] border border-border bg-background/55 p-2">
-              <div className="mb-2 flex items-center justify-between gap-2 px-2 pt-1">
+              <div className="mb-2 flex flex-col items-start gap-2 px-2 pt-1 lg:flex-row lg:items-center lg:justify-between">
                 <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   {isSpanish ? "Dias" : "Days"}
                 </div>
                 <button
                   type="button"
-                  onClick={onClear}
+                  onClick={handleClearClick}
                   className="rounded-none border border-border bg-background/60 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-foreground hover:bg-background/80"
                 >
                   {isSpanish ? "Borrar" : "Clear"}
@@ -540,6 +548,47 @@ function DesktopPersonalizeWindow({
   );
 }
 
+function DesktopConfigWindow({
+  isSpanish,
+}: {
+  isSpanish: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<"chat" | "tools" | "onchain" | "sound">("chat");
+  const tabs: Array<{ key: "chat" | "tools" | "onchain" | "sound"; label: string }> = [
+    { key: "chat", label: isSpanish ? "Proveedor" : "Provider" },
+    { key: "tools", label: isSpanish ? "Internet" : "Internet" },
+    { key: "onchain", label: "Onchain" },
+    { key: "sound", label: isSpanish ? "Sonido" : "Sound" },
+  ];
+
+  return (
+    <section className="flex h-full max-h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-card/72 text-foreground shadow-[0_22px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+      <div className="grid grid-cols-4 border-b border-border">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`min-w-0 border-r border-border px-2 py-3 text-center text-xs font-semibold transition last:border-r-0 ${
+                isActive
+                  ? "bg-[var(--brand-accent)]/15 text-foreground"
+                  : "bg-background/35 text-foreground/80 hover:bg-background/60"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <SiteMochiCompactConfigWindow activeTab={activeTab} fillHeight />
+      </div>
+    </section>
+  );
+}
+
 export function SiteMochiLandingSection() {
   const { isSpanish, language, setLanguage } = useLanguage();
   const { config } = useSiteMochi();
@@ -567,17 +616,13 @@ export function SiteMochiLandingSection() {
   const desktopShortcuts: DesktopConfigShortcutProps[] = [
     { shortcutKey: "personalize", label: t("Customize", "Personalizar"), customIcon: Palette },
     { shortcutKey: "soul", configKey: "soul", label: "Soul" },
-    { shortcutKey: "chat", configKey: "chat", label: t("Provider", "Proveedor") },
-    { shortcutKey: "tools", configKey: "tools", label: t("Tools", "Tools") },
-    { shortcutKey: "sound", configKey: "sound", label: t("Sound", "Sonido") },
+    { shortcutKey: "config", label: t("Config", "Config"), customIcon: Settings2 },
     { shortcutKey: "memories", label: t("Memories", "Memorias"), customIcon: BookText },
   ];
   const mobileShortcuts: DesktopConfigShortcutProps[] = [
-    { shortcutKey: "personalize", label: t("Customize", "Personalizar"), customIcon: Palette },
     { shortcutKey: "soul", configKey: "soul", label: "Soul" },
-    { shortcutKey: "chat", configKey: "chat", label: t("Provider", "Proveedor") },
-    { shortcutKey: "tools", configKey: "tools", label: t("Tools", "Tools") },
-    { shortcutKey: "sound", configKey: "sound", label: t("Sound", "Sonido") },
+    { shortcutKey: "personalize", label: t("Customize", "Personalizar"), customIcon: Palette },
+    { shortcutKey: "config", label: t("Config", "Config"), customIcon: Settings2 },
     { shortcutKey: "memories", label: t("Memories", "Memorias"), customIcon: BookText },
   ];
   const mobileShortcutRows = MOBILE_SHORTCUT_ROWS;
@@ -904,9 +949,9 @@ export function SiteMochiLandingSection() {
           ) : null}
 
           <div ref={desktopRef} className="relative z-10 min-h-0 flex-1 p-5">
-            <div className="grid h-full min-h-0 grid-rows-3 content-stretch py-4 lg:hidden">
+            <div className="flex h-full min-h-0 items-end py-4 lg:hidden">
               {mobileShortcutRows.map((row, rowIndex) => (
-                <div key={`mobile-row-${rowIndex}`} className="grid grid-cols-2 items-center justify-items-center">
+                <div key={`mobile-row-${rowIndex}`} className="grid w-full grid-cols-4 items-end justify-items-center">
                   {row.map((shortcutKey) => {
                     const shortcut = shortcutByKey[shortcutKey];
                     return (
@@ -972,6 +1017,8 @@ export function SiteMochiLandingSection() {
                   <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                     {activeDesktopWindow === "personalize"
                       ? t("Customize", "Personalizar")
+                      : activeDesktopWindow === "config"
+                      ? t("Config", "Config")
                       : activeDesktopWindow === "memories"
                       ? t("Memories", "Memorias")
                       : activeWindowMeta
@@ -1001,6 +1048,8 @@ export function SiteMochiLandingSection() {
                 >
                   {activeDesktopWindow === "personalize" ? (
                     <DesktopPersonalizeWindow isSpanish={isSpanish} />
+                  ) : activeDesktopWindow === "config" ? (
+                    <DesktopConfigWindow isSpanish={isSpanish} />
                   ) : activeDesktopWindow === "memories" ? (
                     <DesktopMemoriesWindow
                       isSpanish={isSpanish}

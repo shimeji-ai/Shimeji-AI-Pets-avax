@@ -105,7 +105,7 @@ export default async function RootLayout({
     })();
   `;
   return (
-    <html lang="en" data-theme={initialTheme}>
+    <html lang="en" data-theme={initialTheme} suppressHydrationWarning>
       <body
         data-theme={initialTheme}
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} ${nunito.variable} ${roboto.variable} font-sans antialiased`}

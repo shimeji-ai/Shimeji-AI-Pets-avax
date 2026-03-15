@@ -27,7 +27,7 @@ import { SmartAccountModal } from "@/components/smart-account-modal";
 import { SMART_ACCOUNT_AVAILABLE } from "@/lib/smart-account";
 import type { SmartAccountHandle } from "@/lib/smart-account";
 
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "demo";
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID?.trim();
 const walletGroups = [
   {
     groupName: "Avalanche",
@@ -188,7 +188,7 @@ export function WalletProviderClient({ children }: { children: React.ReactNode }
   const [wagmiConfig] = useState(() =>
     getDefaultConfig({
       appName: "Mochi",
-      projectId,
+      projectId: projectId ?? "",
       chains: [ACTIVE_CHAIN],
       wallets: walletGroups,
       ssr: false,

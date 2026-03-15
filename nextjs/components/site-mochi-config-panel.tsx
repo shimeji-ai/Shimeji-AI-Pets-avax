@@ -10,7 +10,9 @@ import { IoBuild, IoChatbubbleEllipses, IoColorPalette, IoHardwareChip, IoHeart,
 import { PiBrainFill, PiChatCircleDotsFill, PiHeartFill, PiPaletteFill, PiSpeakerHighFill, PiToolboxFill } from "react-icons/pi";
 import { TbBrain, TbHeartFilled, TbMessageCircleFilled, TbPalette, TbTool, TbVolume } from "react-icons/tb";
 import {
+  Blocks,
   FileCode2,
+  Globe,
   MonitorCog,
   MessageSquare,
   Palette,
@@ -18,13 +20,13 @@ import {
   Settings2,
   Sparkles,
   Volume2,
-  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/components/language-provider";
 import { useSiteMochi, type SiteMochiIconTheme } from "@/components/site-mochi-provider";
 import { useTheme, type Theme } from "@/components/theme-provider";
+import { useWalletSession } from "@/components/wallet-provider";
 import {
   SITE_MOCHI_CHAT_DEFAULT_HEIGHT_PX,
   SITE_MOCHI_CHAT_FONT_SIZE_MAP,
@@ -33,7 +35,7 @@ import {
   pickRandomSiteMochiChatTheme,
 } from "@/lib/site-mochi-chat-ui";
 
-export type ConfigPanelTab = "site" | "soul" | "chat" | "appearance" | "mascot" | "tools" | "sound";
+export type ConfigPanelTab = "site" | "soul" | "chat" | "appearance" | "mascot" | "tools" | "onchain" | "sound";
 
 const SITE_THEME_META: Array<{
   key: Theme;
@@ -71,7 +73,8 @@ export const CONFIG_WINDOW_META: Array<{
   { key: "chat", icon: MessageSquare, labelEn: "Provider", labelEs: "Proveedor" },
   { key: "appearance", icon: Palette, labelEn: "Chat", labelEs: "Chat" },
   { key: "mascot", icon: Sparkles, labelEn: "Mascot", labelEs: "Mascota" },
-  { key: "tools", icon: Wrench, labelEn: "Tools", labelEs: "Tools" },
+  { key: "tools", icon: Globe, labelEn: "Internet", labelEs: "Internet" },
+  { key: "onchain", icon: Blocks, labelEn: "Onchain", labelEs: "Onchain" },
   { key: "sound", icon: Volume2, labelEn: "Sound", labelEs: "Sonido" },
 ];
 
@@ -93,6 +96,11 @@ function getMascotIdleSpriteSrc(characterKey: string) {
   return `/api/site-mochi/sprite/${encodeURIComponent(characterKey)}/stand-neutral.png`;
 }
 
+function walletShort(value: string | null | undefined) {
+  if (!value) return "";
+  return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+}
+
 const ICON_THEME_COMPONENTS: Record<
   SiteMochiIconTheme,
   Record<Exclude<ConfigPanelTab, "mascot">, IconType>
@@ -103,6 +111,7 @@ const ICON_THEME_COMPONENTS: Record<
     chat: FaBrain,
     appearance: FaComments,
     tools: FaToolbox,
+    onchain: FaBrain,
     sound: FaVolumeHigh,
   },
   hi2: {
@@ -111,6 +120,7 @@ const ICON_THEME_COMPONENTS: Record<
     chat: HiCpuChip,
     appearance: HiChatBubbleLeftRight,
     tools: HiWrenchScrewdriver,
+    onchain: HiCpuChip,
     sound: HiSpeakerWave,
   },
   io5: {
@@ -119,6 +129,7 @@ const ICON_THEME_COMPONENTS: Record<
     chat: IoHardwareChip,
     appearance: IoChatbubbleEllipses,
     tools: IoBuild,
+    onchain: IoHardwareChip,
     sound: IoVolumeHigh,
   },
   pi: {
@@ -127,6 +138,7 @@ const ICON_THEME_COMPONENTS: Record<
     chat: PiBrainFill,
     appearance: PiChatCircleDotsFill,
     tools: PiToolboxFill,
+    onchain: PiBrainFill,
     sound: PiSpeakerHighFill,
   },
   tb: {
@@ -135,6 +147,7 @@ const ICON_THEME_COMPONENTS: Record<
     chat: TbBrain,
     appearance: TbMessageCircleFilled,
     tools: TbTool,
+    onchain: TbBrain,
     sound: TbVolume,
   },
 };
@@ -175,12 +188,16 @@ function SoulFields({ compact = false }: { compact?: boolean } = {}) {
   const isDirty = draftSoul !== config.soulMd;
 
   useEffect(() => {
+    setDraftSoul(config.soulMd);
+  }, [config.soulMd]);
+
+  useEffect(() => {
     if (!isDirty) return;
 
     const timer = window.setTimeout(() => {
       updateConfig({ soulMd: draftSoul });
       setLastSavedAt(Date.now());
-    }, 60_000);
+    }, 700);
 
     return () => window.clearTimeout(timer);
   }, [draftSoul, isDirty, updateConfig]);
@@ -221,8 +238,8 @@ function SoulFields({ compact = false }: { compact?: boolean } = {}) {
         <div className="text-[11px] text-muted-foreground">
           {isDirty
             ? isSpanish
-              ? "Cambios sin guardar. Auto-guardado en 1 minuto."
-              : "Unsaved changes. Auto-save in 1 minute."
+              ? "Cambios sin guardar. Auto-guardado en menos de un segundo."
+              : "Unsaved changes. Auto-save in under a second."
             : lastSavedAt
               ? isSpanish
                 ? "Guardado localmente."
@@ -244,7 +261,7 @@ function SoulFields({ compact = false }: { compact?: boolean } = {}) {
   );
 }
 
-function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
+function InternetFields({ compact = false }: { compact?: boolean } = {}) {
   const { isSpanish } = useLanguage();
   const { config, updateConfig } = useSiteMochi();
 
@@ -278,7 +295,7 @@ function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
             href="https://api-dashboard.search.brave.com/app/keys"
             target="_blank"
             rel="noreferrer"
-            className="brave-api-button inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
+            className="api-key-link-button inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -287,43 +304,127 @@ function ToolsFields({ compact = false }: { compact?: boolean } = {}) {
           </a>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-        <div className="mb-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Bitte AI
-          </div>
-        </div>
+function OnchainFields({ compact = false }: { compact?: boolean } = {}) {
+  const { isSpanish } = useLanguage();
+  const { config, updateConfig, freeSiteMessagesRemaining } = useSiteMochi();
+  const { isConnected, isConnecting, publicKey, connect, isAvailable } = useWalletSession();
+  const hasOwnKey = Boolean(config.bitteApiKey.trim() && config.bitteAgentId.trim());
+  const creditsLeft = freeSiteMessagesRemaining ?? 0;
 
-        <div className="grid gap-3">
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Bitte API Key
-            </span>
-            <input
-              type="password"
-              value={config.bitteApiKey}
-              onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
-              placeholder="bitte_..."
-              className="w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-              autoComplete="off"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Bitte Agent ID
-            </span>
-            <input
-              type="text"
-              value={config.bitteAgentId}
-              onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
-              placeholder="agent_..."
-              className="w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-            />
-          </label>
-        </div>
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
+        {hasOwnKey
+          ? isSpanish
+            ? "Bitte: key propia activa."
+            : "Bitte: own key active."
+          : isSpanish
+            ? `Créditos del sitio: ${creditsLeft}.`
+            : `Site credits: ${creditsLeft}.`}
       </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Bitte API Key
+          </span>
+          <input
+            type="password"
+            value={config.bitteApiKey}
+            onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
+            placeholder="bitte-..."
+            className="w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+            autoComplete="off"
+          />
+        </label>
+
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="https://bitte.ai/developers"
+            target="_blank"
+            rel="noreferrer"
+            className="api-key-link-button inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            {isSpanish ? "Conseguir API key" : "Get API key"}
+          </a>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Agent ID
+          </span>
+          <input
+            type="text"
+            value={config.bitteAgentId}
+            onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
+            placeholder={isSpanish ? "tu-agente-id" : "your-agent-id"}
+            className="w-full rounded-xl border border-border bg-input/90 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
+          />
+        </label>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+        <div>
+          <p className="text-xs font-semibold text-foreground">
+            {isSpanish ? "Wallet para acciones onchain" : "Wallet for onchain actions"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isSpanish
+              ? "Bitte AI puede necesitar una wallet conectada para firmar y ejecutar acciones onchain."
+              : "Bitte AI may require a connected wallet to sign and execute onchain actions."}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-foreground/85">
+          {isConnected
+            ? isSpanish
+              ? `Conectada: ${walletShort(publicKey)}`
+              : `Connected: ${walletShort(publicKey)}`
+            : isSpanish
+              ? "No hay wallet conectada."
+              : "No wallet connected."}
+        </div>
+
+        {!isConnected ? (
+          isAvailable ? (
+            <button
+              type="button"
+              onClick={() => void connect()}
+              disabled={isConnecting}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-foreground hover:bg-background/80 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isConnecting
+                ? isSpanish
+                  ? "Conectando..."
+                  : "Connecting..."
+                : isSpanish
+                  ? "Conectar wallet"
+                  : "Connect wallet"}
+            </button>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-muted-foreground">
+              {isSpanish
+                ? "No detectamos una wallet compatible con EVM en este navegador."
+                : "No compatible EVM wallet was detected in this browser."}
+            </div>
+          )
+        ) : null}
+      </div>
+
+      {!compact ? (
+        <p className="text-xs text-muted-foreground">
+          {isSpanish
+            ? "Bitte AI te permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
+            : "Bitte AI lets you interact with NEAR and EVM blockchains through AI agents."}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -648,7 +749,7 @@ function ProviderFields({ compact = false }: { compact?: boolean } = {}) {
           href="https://openrouter.ai/settings/keys"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
+          className="api-key-link-button inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
         >
           {externalIcon}
           {isSpanish ? "Conseguir API key de OpenRouter" : "Get OpenRouter API key"}
@@ -1300,7 +1401,6 @@ Do not print the relay token or gateway token in your final reply. Return only t
               : `Used: ${freeSiteMessagesUsed}. Remaining: ${freeSiteMessagesRemaining ?? 0}.`}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">{providerHelpLinks("openrouter")}</div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             OpenRouter API Key
@@ -1316,6 +1416,7 @@ Do not print the relay token or gateway token in your final reply. Return only t
             autoComplete="off"
           />
         </label>
+        <div className="flex flex-wrap gap-2">{providerHelpLinks("openrouter")}</div>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {isSpanish ? "Modelo" : "Model"}
@@ -1573,77 +1674,19 @@ Do not print the relay token or gateway token in your final reply. Return only t
   );
 
   if (config.provider === "bitte") {
-    const hasOwnKey = Boolean(config.bitteApiKey.trim() && config.bitteAgentId.trim());
-    const creditsLeft = freeSiteMessagesRemaining ?? 0;
     return (
       <div className="space-y-3">
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
-          {hasOwnKey
-            ? isSpanish
-              ? "Bitte: key propia activa."
-              : "Bitte: own key active."
-            : isSpanish
-              ? `Créditos del sitio: ${creditsLeft}.`
-              : `Site credits: ${creditsLeft}.`}
+          {isSpanish
+            ? "Bitte está seleccionado como proveedor. La API key y el Agent ID se configuran en Onchain."
+            : "Bitte is selected as the provider. API key and Agent ID are configured in Onchain."}
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
-          {!compact ? (
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-foreground">
-                  {isSpanish ? "Tu propia API key" : "Your own API key"}
-                </p>
-              </div>
-              <a
-                href="https://bitte.ai/developers"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-400/10 px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:border-cyan-400/40 hover:bg-cyan-400/20"
-              >
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                {isSpanish ? "Conseguir API key" : "Get API key"}
-              </a>
-            </div>
-          ) : null}
-
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Bitte API Key
-            </span>
-            <input
-              type="password"
-              value={config.bitteApiKey}
-              onChange={(event) => updateConfig({ bitteApiKey: event.target.value })}
-              placeholder="bitte-..."
-              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-              autoComplete="off"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Agent ID
-            </span>
-            <input
-              type="text"
-              value={config.bitteAgentId}
-              onChange={(event) => updateConfig({ bitteAgentId: event.target.value })}
-              placeholder={isSpanish ? "tu-agente-id" : "your-agent-id"}
-              className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm text-foreground outline-none focus:border-[var(--brand-accent)]"
-            />
-          </label>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted-foreground">
+          {isSpanish
+            ? `Créditos del sitio: ${freeSiteMessagesRemaining ?? 0}.`
+            : `Site credits: ${freeSiteMessagesRemaining ?? 0}.`}
         </div>
-
-        {!compact ? (
-          <p className="text-xs text-muted-foreground">
-            {isSpanish
-              ? "Bitte AI te permite interactuar con blockchains NEAR y EVM a través de agentes de IA."
-              : "Bitte AI lets you interact with NEAR and EVM blockchains through AI agents."}
-          </p>
-        ) : null}
       </div>
     );
   }
@@ -1793,6 +1836,20 @@ export function SoundFields({ compact = false }: { compact?: boolean } = {}) {
                 autoComplete="off"
               />
             </label>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href="https://elevenlabs.io/app/settings/api-keys"
+                target="_blank"
+                rel="noreferrer"
+                className="api-key-link-button inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2"
+              >
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                {isSpanish ? "Conseguir API key de ElevenLabs" : "Get ElevenLabs API key"}
+              </a>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
@@ -1953,7 +2010,9 @@ export function SiteMochiCompactConfigWindow({
 
         {activeTab === "appearance" ? <ChatAppearanceFields compact /> : null}
 
-        {activeTab === "tools" ? <ToolsFields compact /> : null}
+        {activeTab === "tools" ? <InternetFields compact /> : null}
+
+        {activeTab === "onchain" ? <OnchainFields compact /> : null}
 
         {activeTab === "sound" ? <SoundFields compact /> : null}
 
