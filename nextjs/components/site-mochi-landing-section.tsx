@@ -861,7 +861,7 @@ export function SiteMochiLandingSection() {
   };
 
   return (
-    <section className="relative min-h-screen overflow-hidden pt-10 lg:h-screen lg:min-h-0">
+    <section className="relative h-[100dvh] overflow-hidden pt-10 lg:h-screen lg:min-h-0">
       {!hasBlackPinkBackdrop ? (
         <>
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.3),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(112,164,222,0.22),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]" />
@@ -870,7 +870,7 @@ export function SiteMochiLandingSection() {
         </>
       ) : null}
 
-      <div className="relative flex min-h-screen flex-col lg:h-screen lg:min-h-0">
+      <div className="relative flex h-full min-h-0 flex-col">
         <div className="fixed inset-x-0 top-0 z-30 border-b-2 border-white/25 bg-background/70 px-2 py-1.5 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
@@ -903,8 +903,8 @@ export function SiteMochiLandingSection() {
             </>
           ) : null}
 
-          <div ref={desktopRef} className="relative z-10 flex-1 p-5">
-            <div className="grid min-h-[calc(100dvh-9rem)] grid-rows-3 content-stretch py-4 lg:hidden">
+          <div ref={desktopRef} className="relative z-10 min-h-0 flex-1 p-5">
+            <div className="grid h-full min-h-0 grid-rows-3 content-stretch py-4 lg:hidden">
               {mobileShortcutRows.map((row, rowIndex) => (
                 <div key={`mobile-row-${rowIndex}`} className="grid grid-cols-2 items-center justify-items-center">
                   {row.map((shortcutKey) => {
